@@ -1,0 +1,56 @@
+---
+name: create-pr
+description: PR 생성 전 반드시 확인 - Bot 작성자 및 Co-Author 규칙
+tags: [pr, git, github, workflow, bot]
+---
+
+# PR 생성 규칙
+
+## 핵심 규칙
+
+| 항목 | O | X |
+|------|---|---|
+| PR 작성자 | `github-actions[bot]` | 개인 계정 |
+| Co-Author | `Atlas <atlas@jk.agent>` | `Claude ...` |
+| PR 생성 | `gh workflow run create-pr.yml` | `gh pr create` |
+
+## 명령어
+
+```bash
+# 커밋
+git commit -m "feat: ..." --trailer "Co-Authored-By: Atlas <atlas@jk.agent>"
+git push -u origin <branch>
+
+# PR 생성
+gh workflow run create-pr.yml -f branch="<branch>" -f title="<type>: ..."
+```
+
+## 커밋 수정 후 PR 업데이트
+
+커밋을 amend/추가한 경우:
+
+```bash
+# 1. 푸시
+git push --force-with-lease origin <branch>
+
+# 2. PR 제목/설명 재검토 및 수정
+gh pr edit <pr-number> --title "..." --body "..."
+```
+
+**체크리스트:**
+- [ ] PR 제목이 최종 커밋 내용을 반영하는가?
+- [ ] PR 설명이 모든 변경사항을 포함하는가?
+
+## 실수 방지 Hook 설치
+
+```bash
+cp .github/hooks/commit-msg .git/hooks/ && chmod +x .git/hooks/commit-msg
+```
+
+Hook이 검사하는 항목:
+- `Co-Authored-By: Claude ...` 형식 사용 시 커밋 차단
+
+## 관련 문서
+
+- [branch-workflow](./branch-workflow.md) - 전체 워크플로우
+- [bot-authorship](../../docs/bot-authorship.md) - Bot 작성자 상세
