@@ -1,69 +1,149 @@
 # Self-Hosted Runners 설정 가이드
 
-2개의 PC(사무실, 집)를 GitHub Actions self-hosted runner로 설정하는 방법
+GitHub Actions self-hosted runner 설정 및 관리 방법
 
-## 개요
+## 현재 Runner 구성
+
+### Home PC (MacBook ARM64)
+
+| Runner | 라벨 | 디렉토리 | 상태 |
+|--------|------|----------|------|
+| home-A | `self-hosted`, `macOS`, `ARM64`, `home`, `A` | `~/actions-runner-a` | online |
+| home-B | `self-hosted`, `macOS`, `ARM64`, `home`, `B` | `~/actions-runner-b` | online |
+| home-C | `self-hosted`, `macOS`, `ARM64`, `home`, `C` | `~/actions-runner-c` | online |
+
+### Office PC (예정)
+
+| Runner | 라벨 | 디렉토리 | 상태 |
+|--------|------|----------|------|
+| office-A | `self-hosted`, `office`, `A` | TBD | 미설정 |
+| office-B | `self-hosted`, `office`, `B` | TBD | 미설정 |
+| office-C | `self-hosted`, `office`, `C` | TBD | 미설정 |
+
+## 아키텍처
 
 ```
 GitHub Actions (트리거)
         │
-        ├── office runner (사무실 PC)
+        ├── home runners (집 MacBook)
+        │   ├── home-A
+        │   ├── home-B
+        │   └── home-C
         │
-        └── home runner (집 PC)
+        └── office runners (사무실 PC) - 예정
+            ├── office-A
+            ├── office-B
+            └── office-C
 ```
 
-## Runner 설치
+## Runner 설치 방법
 
-각 PC에서 다음 단계를 수행합니다.
-
-### 1. GitHub에서 Runner 추가
-
-1. Repository → Settings → Actions → Runners
-2. "New self-hosted runner" 클릭
-3. OS 선택 후 안내에 따라 설치
-
-### 2. Runner에 Label 추가
-
-설치 시 또는 설치 후 label을 추가합니다:
+### 1. Runner 디렉토리 생성 및 다운로드
 
 ```bash
-# 사무실 PC
-./config.sh --labels office
+# 디렉토리 생성
+mkdir -p ~/actions-runner-a ~/actions-runner-b ~/actions-runner-c
 
-# 집 PC
-./config.sh --labels home
+# Runner 다운로드 (최신 버전 확인: https://github.com/actions/runner/releases)
+curl -o actions-runner.tar.gz -L https://github.com/actions/runner/releases/download/v2.331.0/actions-runner-osx-arm64-2.331.0.tar.gz
+
+# 각 디렉토리에 압축 해제
+tar xzf actions-runner.tar.gz -C ~/actions-runner-a
+tar xzf actions-runner.tar.gz -C ~/actions-runner-b
+tar xzf actions-runner.tar.gz -C ~/actions-runner-c
 ```
 
-### 3. Runner를 서비스로 등록 (선택)
-
-PC 재시작 시 자동 실행되도록 설정:
+### 2. 등록 토큰 발급
 
 ```bash
-# macOS
+# gh CLI로 토큰 발급
+gh api -X POST repos/jk-kim0/skills-jk/actions/runners/registration-token --jq '.token'
+```
+
+### 3. Runner 설정
+
+```bash
+# Runner A 설정
+cd ~/actions-runner-a
+./config.sh --url https://github.com/jk-kim0/skills-jk \
+  --token <TOKEN> \
+  --labels home,A \
+  --name home-A \
+  --unattended
+
+# Runner B, C도 동일하게 (라벨과 이름만 변경)
+```
+
+### 4. 서비스 등록
+
+```bash
+# 각 runner 디렉토리에서 실행
 ./svc.sh install
 ./svc.sh start
-
-# Linux
-sudo ./svc.sh install
-sudo ./svc.sh start
 ```
 
-## 사용 방법
+## 서비스 관리 명령어
 
-### 특정 Runner에서 실행
+```bash
+# 상태 확인
+./svc.sh status
 
-workflow_dispatch로 수동 실행 시 runner 선택 가능:
-- `any`: 사용 가능한 아무 runner
-- `office`: 사무실 PC에서만 실행
-- `home`: 집 PC에서만 실행
+# 중지
+./svc.sh stop
 
-### 자동 실행
+# 시작
+./svc.sh start
 
-스케줄 트리거 시 사용 가능한 runner에서 실행됩니다.
-두 PC 모두 online이면 먼저 available한 runner가 작업을 가져갑니다.
+# 서비스 제거
+./svc.sh uninstall
+```
+
+## Runner 제거 방법
+
+```bash
+cd ~/actions-runner-a
+
+# 서비스 중지 및 제거
+./svc.sh stop
+./svc.sh uninstall
+
+# GitHub에서 runner 제거
+./config.sh remove --token $(gh api -X POST repos/jk-kim0/skills-jk/actions/runners/registration-token --jq '.token')
+```
+
+## Workflow에서 사용
+
+### 특정 Runner 지정
+
+```yaml
+jobs:
+  build:
+    runs-on: [self-hosted, home, A]  # home-A에서만 실행
+```
+
+### 위치 기반 선택
+
+```yaml
+jobs:
+  build:
+    runs-on: [self-hosted, home]  # home의 아무 runner에서 실행
+```
+
+### 병렬 실행 (3개 작업 동시)
+
+```yaml
+jobs:
+  task-a:
+    runs-on: [self-hosted, home, A]
+  task-b:
+    runs-on: [self-hosted, home, B]
+  task-c:
+    runs-on: [self-hosted, home, C]
+```
 
 ## 주의사항
 
-- 두 PC 모두 offline이면 작업이 대기 상태로 남음
-- 민감한 정보는 GitHub Secrets에 저장
 - Runner가 실행되는 동안 PC가 sleep 모드에 들어가지 않도록 설정
+- 민감한 정보는 GitHub Secrets에 저장
+- 모든 runner가 offline이면 작업이 대기 상태로 남음
+- 로그 위치: `~/Library/Logs/actions.runner.jk-kim0-skills-jk.<runner-name>/`
