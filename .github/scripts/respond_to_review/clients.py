@@ -224,9 +224,37 @@ class ClaudeClientImpl(ClaudeClient):
                 continue
             try:
                 event = json.loads(line)
-                logger.debug(f"Event type: {event.get('type')}")
+                event_type = event.get("type")
+                logger.debug(f"Event type: {event_type}")
+
+                # assistant 이벤트에서 tool_use 확인
+                if event_type == "assistant":
+                    message = event.get("message", {})
+                    content = message.get("content", [])
+                    for item in content:
+                        if isinstance(item, dict):
+                            item_type = item.get("type")
+                            if item_type == "tool_use":
+                                tool_name = item.get("name", "unknown")
+                                tool_input = item.get("input", {})
+                                logger.info(f"TOOL_USE: {tool_name}")
+                                logger.debug(f"TOOL_INPUT: {json.dumps(tool_input, ensure_ascii=False)[:500]}")
+                            elif item_type == "text":
+                                text = item.get("text", "")[:200]
+                                logger.debug(f"TEXT: {text}")
+
+                # user 이벤트에서 tool_result 확인
+                if event_type == "user":
+                    message = event.get("message", {})
+                    content = message.get("content", [])
+                    for item in content:
+                        if isinstance(item, dict) and item.get("type") == "tool_result":
+                            tool_use_id = item.get("tool_use_id", "unknown")
+                            tool_content = str(item.get("content", ""))[:300]
+                            logger.info(f"TOOL_RESULT for {tool_use_id}: {tool_content}")
+
                 # result 이벤트에서 최종 텍스트 추출
-                if event.get("type") == "result":
+                if event_type == "result":
                     final_result = event.get("result", "")
                     logger.debug(f"Found result: {final_result[:100]}...")
             except json.JSONDecodeError:
