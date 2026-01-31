@@ -1,0 +1,82 @@
+name: Verify Runner Setup
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: 'Runner to verify'
+        required: false
+        default: 'any'
+        type: choice
+        options:
+          - any
+          - office
+          - home
+
+jobs:
+  verify:
+    runs-on:
+      - self-hosted
+      - ${{ github.event.inputs.runner == 'any' && 'self-hosted' || github.event.inputs.runner }}
+
+    steps:
+      - name: Show runner info
+        run: |
+          echo "Runner: $RUNNER_NAME"
+          echo "OS: $(uname -a)"
+          echo "User: $(whoami)"
+
+      - name: Check Node.js
+        run: |
+          if command -v node &> /dev/null; then
+            echo "✅ Node.js is installed"
+            node --version
+          else
+            echo "❌ Node.js is NOT installed"
+          fi
+
+      - name: Check npm
+        run: |
+          if command -v npm &> /dev/null; then
+            echo "✅ npm is installed"
+            npm --version
+            echo "Global packages:"
+            npm list -g --depth=0
+          else
+            echo "❌ npm is NOT installed"
+          fi
+
+      - name: Check Claude Code
+        run: |
+          if command -v claude &> /dev/null; then
+            echo "✅ Claude Code is installed"
+            claude --version
+          else
+            echo "❌ Claude Code is NOT installed"
+            echo ""
+            echo "To install:"
+            echo "  npm install -g @anthropic-ai/claude-code"
+          fi
+
+      - name: Check ANTHROPIC_API_KEY
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [[ -n "$ANTHROPIC_API_KEY" ]]; then
+            echo "✅ ANTHROPIC_API_KEY is set (from secrets)"
+          elif [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
+            echo "✅ ANTHROPIC_API_KEY is set (from environment)"
+          else
+            echo "❌ ANTHROPIC_API_KEY is NOT set"
+            echo ""
+            echo "Add ANTHROPIC_API_KEY to repository secrets"
+          fi
+
+      - name: Check gh CLI
+        run: |
+          if command -v gh &> /dev/null; then
+            echo "✅ gh CLI is installed"
+            gh --version
+          else
+            echo "❌ gh CLI is NOT installed"
+          fi
