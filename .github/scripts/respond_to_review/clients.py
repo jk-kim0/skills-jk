@@ -194,9 +194,10 @@ class ClaudeClientImpl(ClaudeClient):
             "-p",
             "--dangerously-skip-permissions",
             "--output-format", "stream-json",
+            "--verbose",
             prompt,
         ]
-        logger.debug("Command: claude -p --dangerously-skip-permissions --output-format stream-json <prompt>")
+        logger.debug("Command: claude -p --dangerously-skip-permissions --output-format stream-json --verbose <prompt>")
 
         result = subprocess.run(
             cmd,
