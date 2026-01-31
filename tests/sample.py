@@ -7,6 +7,11 @@ def calc(x, y):
     return result
 
 
+def subtract(x, y):
+    """Subtract y from x."""
+    return x - y
+
+
 def greet(n):
     """Print greeting."""
     msg = "hello " + n
