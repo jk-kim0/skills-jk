@@ -185,7 +185,7 @@ class ClaudeClientImpl(ClaudeClient):
     def run(self, prompt: str) -> str:
         logger.info("Running Claude Code...")
         result = subprocess.run(
-            ["claude", "--print", prompt],
+            ["claude", "--dangerously-skip-permissions", "--print", prompt],
             capture_output=True,
             text=True,
         )
