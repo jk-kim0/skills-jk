@@ -66,7 +66,6 @@ gh workflow run create-pr.yml \
 | Agent | Co-Author 형식 |
 |-------|----------------|
 | Atlas | `Atlas <atlas@jk.agent>` |
-| Claude | `Claude <claude@jk.agent>` |
 
 ## 방법 비교
 
