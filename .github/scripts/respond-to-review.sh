@@ -18,110 +18,305 @@
 
 set -o errexit -o nounset -o pipefail
 
-# 필수 환경 변수 확인
-: "${GH_TOKEN:?GH_TOKEN is required}"
-: "${PR_NUMBER:?PR_NUMBER is required}"
-: "${COMMENT_ID:?COMMENT_ID is required}"
-: "${COMMENT_BODY:?COMMENT_BODY is required}"
+#######################################
+# 상수 정의
+#######################################
+readonly SCRIPT_NAME="$(basename "$0")"
+readonly LOG_PREFIX="[${SCRIPT_NAME}]"
 
-IS_REVIEW_COMMENT="${IS_REVIEW_COMMENT:-false}"
-COMMENT_PATH="${COMMENT_PATH:-}"
-COMMENT_LINE="${COMMENT_LINE:-}"
+#######################################
+# 로깅 함수
+#######################################
+log_info() {
+  echo "${LOG_PREFIX} [INFO] $*"
+}
 
-# Git 사용자 설정
-git config user.name "github-actions[bot]"
-git config user.email "github-actions[bot]@users.noreply.github.com"
+log_error() {
+  echo "${LOG_PREFIX} [ERROR] $*" >&2
+}
 
-# PR 브랜치 checkout
-echo "Checking out PR #${PR_NUMBER}..."
-gh pr checkout "$PR_NUMBER"
+log_debug() {
+  if [[ "${DEBUG:-false}" == "true" ]]; then
+    echo "${LOG_PREFIX} [DEBUG] $*"
+  fi
+}
 
-# 컨텍스트 구성
-CONTEXT="PR 리뷰 댓글에 대응해주세요.
+#######################################
+# 클린업 함수 (트랩에서 호출)
+#######################################
+cleanup() {
+  local exit_code=$?
+  log_debug "Cleanup called with exit code: $exit_code"
+  # 필요한 정리 작업 수행
+  exit "$exit_code"
+}
 
-## 댓글 내용
-${COMMENT_BODY}
-"
+trap cleanup EXIT
 
-if [[ "$IS_REVIEW_COMMENT" == "true" && -n "$COMMENT_PATH" ]]; then
-  CONTEXT="${CONTEXT}
-## 대상 파일
-파일: ${COMMENT_PATH}
-라인: ${COMMENT_LINE:-전체}
-"
-fi
+#######################################
+# 에러 핸들러
+#######################################
+on_error() {
+  local line_no=$1
+  local error_code=$2
+  log_error "Error on line $line_no (exit code: $error_code)"
+}
 
-CONTEXT="${CONTEXT}
-## 지침
-1. 댓글의 요청사항을 분석하고 코드를 수정하세요.
-2. 수정이 완료되면 커밋하세요. 커밋 메시지에 처리한 내용을 간단히 설명하세요.
-3. 요청이 불명확하면 질문을 출력하세요. (코드 수정 없이)
-4. 자동 처리가 어려우면 그 이유를 출력하세요. (코드 수정 없이)
+trap 'on_error ${LINENO} $?' ERR
 
-출력 형식:
-- 성공 시: [SUCCESS] 수정 내용 설명
-- 질문 시: [QUESTION] 질문 내용
-- 불가 시: [UNABLE] 사유
-"
+#######################################
+# 필수 환경 변수 검증
+#######################################
+validate_env() {
+  local missing_vars=()
 
-# Claude Code 실행
-echo "Running Claude Code..."
-CLAUDE_OUTPUT=$(claude --print "$CONTEXT" 2>&1) || true
+  [[ -z "${GH_TOKEN:-}" ]] && missing_vars+=("GH_TOKEN")
+  [[ -z "${PR_NUMBER:-}" ]] && missing_vars+=("PR_NUMBER")
+  [[ -z "${COMMENT_ID:-}" ]] && missing_vars+=("COMMENT_ID")
+  [[ -z "${COMMENT_BODY:-}" ]] && missing_vars+=("COMMENT_BODY")
 
-# 결과 분석
-if echo "$CLAUDE_OUTPUT" | grep -q "^\[SUCCESS\]"; then
-  # 변경사항 확인 및 푸시
-  if git status --porcelain | grep -q .; then
-    git push origin HEAD
-    COMMIT_SHA=$(git rev-parse --short HEAD)
-
-    REPLY_BODY="✅ 수정 완료
-
-${CLAUDE_OUTPUT#\[SUCCESS\] }
-
-**커밋:** ${COMMIT_SHA}"
-  else
-    REPLY_BODY="✅ 확인 완료
-
-${CLAUDE_OUTPUT#\[SUCCESS\] }
-
-(코드 변경 없음)"
+  if [[ ${#missing_vars[@]} -gt 0 ]]; then
+    log_error "Missing required environment variables: ${missing_vars[*]}"
+    return 1
   fi
 
-elif echo "$CLAUDE_OUTPUT" | grep -q "^\[QUESTION\]"; then
-  REPLY_BODY="❓ 확인이 필요합니다
+  log_info "Environment validation passed"
+  return 0
+}
 
-${CLAUDE_OUTPUT#\[QUESTION\] }
+#######################################
+# 답글 작성 함수
+#######################################
+reply_to_comment() {
+  local body="$1"
+  local is_review="${IS_REVIEW_COMMENT:-false}"
 
-답글로 알려주시면 처리하겠습니다."
+  log_info "Replying to comment (is_review=$is_review)..."
 
-elif echo "$CLAUDE_OUTPUT" | grep -q "^\[UNABLE\]"; then
-  REPLY_BODY="⚠️ 자동 처리 불가
+  if [[ "$is_review" == "true" ]]; then
+    gh api \
+      --method POST \
+      -H "Accept: application/vnd.github+json" \
+      "/repos/{owner}/{repo}/pulls/${PR_NUMBER}/comments/${COMMENT_ID}/replies" \
+      -f body="$body"
+  else
+    gh pr comment "$PR_NUMBER" --body "$body"
+  fi
 
-${CLAUDE_OUTPUT#\[UNABLE\] }
+  log_info "Reply sent successfully"
+}
 
-수동 처리가 필요합니다."
+#######################################
+# 에러 답글 작성 및 종료
+#######################################
+reply_error_and_exit() {
+  local message="$1"
+  local exit_code="${2:-1}"
 
-else
-  # 예상치 못한 출력
-  REPLY_BODY="⚠️ 처리 중 문제 발생
+  log_error "$message"
 
-Claude Code 출력을 분석할 수 없습니다.
+  local reply_body="⚠️ 오류 발생
+
+${message}
+
 Workflow 로그를 확인해주세요."
-fi
 
-# 댓글에 답글 작성
-echo "Replying to comment..."
-if [[ "$IS_REVIEW_COMMENT" == "true" ]]; then
-  # 리뷰 댓글에 답글
-  gh api \
-    --method POST \
-    -H "Accept: application/vnd.github+json" \
-    "/repos/{owner}/{repo}/pulls/${PR_NUMBER}/comments/${COMMENT_ID}/replies" \
-    -f body="$REPLY_BODY"
-else
-  # 일반 댓글에 답글 (issue comment)
-  gh pr comment "$PR_NUMBER" --body "$REPLY_BODY"
-fi
+  # 답글 실패해도 계속 진행
+  reply_to_comment "$reply_body" || log_error "Failed to send error reply"
 
-echo "Done."
+  exit "$exit_code"
+}
+
+#######################################
+# Git 설정
+#######################################
+setup_git() {
+  log_info "Setting up git configuration..."
+  git config user.name "github-actions[bot]"
+  git config user.email "github-actions[bot]@users.noreply.github.com"
+}
+
+#######################################
+# PR 브랜치 체크아웃
+#######################################
+checkout_pr() {
+  local pr_number="$1"
+
+  log_info "Checking out PR #${pr_number}..."
+
+  if ! gh pr checkout "$pr_number"; then
+    reply_error_and_exit "PR #${pr_number} 체크아웃 실패"
+  fi
+
+  log_info "PR checkout successful"
+}
+
+#######################################
+# 프롬프트 컨텍스트 생성
+#######################################
+build_context() {
+  local comment_body="$1"
+  local comment_path="${2:-}"
+  local comment_line="${3:-}"
+  local is_review="${4:-false}"
+
+  local context="PR 리뷰 댓글을 처리해주세요.
+
+## 댓글 내용
+${comment_body}
+"
+
+  if [[ "$is_review" == "true" && -n "$comment_path" ]]; then
+    context+="
+## 대상 파일
+파일: ${comment_path}
+라인: ${comment_line:-전체}
+"
+  fi
+
+  context+="
+## 지침
+1. 댓글의 요청사항을 분석하세요.
+2. 코드 수정이 필요하면 수정하고 커밋하세요.
+3. 요청이 불명확하면 질문하세요.
+4. 처리가 어려우면 이유를 설명하세요.
+
+커밋 메시지 형식: 'fix: <변경 내용 요약>'
+커밋 trailer 추가: 'Co-Authored-By: Atlas <atlas@jk.agent>'
+"
+
+  echo "$context"
+}
+
+#######################################
+# Claude Code 실행
+#######################################
+run_claude() {
+  local context="$1"
+  local output=""
+  local exit_code=0
+
+  log_info "Running Claude Code..."
+
+  # errexit 일시 비활성화하여 exit code 캡처
+  set +e
+  output=$(claude --print "$context" 2>&1)
+  exit_code=$?
+  set -e
+
+  log_info "Claude Code exit code: $exit_code"
+  log_info "Claude Code output length: ${#output}"
+  log_debug "Claude Code output: $output"
+
+  if [[ $exit_code -ne 0 ]]; then
+    reply_error_and_exit "Claude Code 실행 실패 (exit code: $exit_code)" "$exit_code"
+  fi
+
+  echo "$output"
+}
+
+#######################################
+# 변경사항 커밋 및 푸시
+#######################################
+commit_and_push() {
+  local has_staged=false
+  local has_unstaged=false
+
+  # 변경사항 상태 확인
+  if git status --porcelain | grep -q "^[MADRC]"; then
+    has_staged=true
+  fi
+  if git status --porcelain | grep -q "^.[MADRC]"; then
+    has_unstaged=true
+  fi
+
+  log_debug "has_staged=$has_staged, has_unstaged=$has_unstaged"
+
+  # unstaged 변경사항만 있으면 커밋
+  if [[ "$has_staged" == "false" && "$has_unstaged" == "true" ]]; then
+    log_info "Committing unstaged changes..."
+    git add -A
+    git commit -m "fix: PR 리뷰 댓글 대응
+
+Co-Authored-By: Atlas <atlas@jk.agent>"
+  fi
+
+  # 푸시
+  log_info "Pushing changes..."
+  if ! git push origin HEAD; then
+    reply_error_and_exit "Git push 실패. 충돌이 발생했을 수 있습니다."
+  fi
+
+  git rev-parse --short HEAD
+}
+
+#######################################
+# 메인 함수
+#######################################
+main() {
+  log_info "Starting respond-to-review script"
+
+  # 환경 변수 검증
+  validate_env
+
+  # 변수 설정
+  local pr_number="$PR_NUMBER"
+  local comment_id="$COMMENT_ID"
+  local comment_body="$COMMENT_BODY"
+  local comment_path="${COMMENT_PATH:-}"
+  local comment_line="${COMMENT_LINE:-}"
+  local is_review="${IS_REVIEW_COMMENT:-false}"
+
+  # Git 설정
+  setup_git
+
+  # PR 체크아웃
+  checkout_pr "$pr_number"
+
+  # 컨텍스트 생성
+  local context
+  context=$(build_context "$comment_body" "$comment_path" "$comment_line" "$is_review")
+
+  # Claude Code 실행
+  local claude_output
+  claude_output=$(run_claude "$context")
+
+  # 결과 처리
+  local reply_body=""
+
+  if git status --porcelain | grep -q .; then
+    # 변경사항 있음
+    log_info "Changes detected"
+
+    local commit_sha
+    commit_sha=$(commit_and_push)
+
+    reply_body="✅ 수정 완료
+
+${claude_output}
+
+**커밋:** \`${commit_sha}\`"
+  else
+    # 변경사항 없음
+    log_info "No changes detected"
+
+    if [[ -n "$claude_output" ]]; then
+      reply_body="💬 응답
+
+${claude_output}"
+    else
+      reply_body="⚠️ 처리 결과 없음
+
+Claude Code가 응답을 생성하지 않았습니다.
+Workflow 로그를 확인해주세요."
+    fi
+  fi
+
+  # 답글 작성
+  reply_to_comment "$reply_body"
+
+  log_info "Script completed successfully"
+}
+
+# 스크립트 실행
+main "$@"
