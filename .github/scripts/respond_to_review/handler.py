@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from typing import Optional
 import logging
+import os
 
 from .config import Config
 from .clients import GitClient, GitHubClient, ClaudeClient
@@ -126,17 +127,39 @@ Workflow 로그를 확인해주세요."""
         """리뷰 댓글을 처리합니다."""
         logger.info("Starting review handler")
 
+        # 현재 작업 디렉토리 확인
+        cwd = os.getcwd()
+        logger.debug(f"Current working directory: {cwd}")
+        logger.debug(f"Directory contents: {os.listdir(cwd)[:10]}...")
+
         # 1. Git 설정
         self.setup_git()
 
         # 2. PR 체크아웃
         self.checkout_pr()
 
+        # 체크아웃 후 상태 확인
+        logger.debug(f"After checkout - cwd: {os.getcwd()}")
+        git_status_before = self.git.status_porcelain()
+        logger.debug(f"Git status before Claude: '{git_status_before}'")
+
         # 3. 프롬프트 생성
         prompt = self.build_prompt()
+        logger.debug("=== PROMPT START ===")
+        logger.debug(prompt)
+        logger.debug(f"=== PROMPT END (length: {len(prompt)}) ===")
 
         # 4. Claude 실행
         claude_output = self.run_claude(prompt)
+
+        # Claude 출력 확인
+        logger.debug("=== CLAUDE OUTPUT START ===")
+        logger.debug(claude_output)
+        logger.debug(f"=== CLAUDE OUTPUT END (length: {len(claude_output)}) ===")
+
+        # Claude 실행 후 git 상태
+        git_status_after = self.git.status_porcelain()
+        logger.debug(f"Git status after Claude: '{git_status_after}'")
 
         # 5. 결과 처리
         response = ReviewResponse(success=True, message="")
@@ -147,6 +170,8 @@ Workflow 로그를 확인해주세요."""
             response.commit_sha = self.commit_and_push()
         else:
             logger.info("No changes detected")
+            logger.debug(f"has_staged_changes: {self.git.has_staged_changes()}")
+            logger.debug(f"has_unstaged_changes: {self.git.has_unstaged_changes()}")
 
         # 6. 답글 작성
         reply_body = self.format_reply(response, claude_output)

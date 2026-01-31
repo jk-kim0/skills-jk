@@ -183,14 +183,27 @@ class ClaudeClientImpl(ClaudeClient):
     """실제 Claude Code 클라이언트 구현."""
 
     def run(self, prompt: str) -> str:
+        import os
+        cwd = os.getcwd()
+        logger.debug(f"Claude Code working directory: {cwd}")
         logger.info("Running Claude Code...")
+
+        cmd = ["claude", "--dangerously-skip-permissions", "--print", prompt]
+        logger.debug("Command: claude --dangerously-skip-permissions --print <prompt>")
+
         result = subprocess.run(
-            ["claude", "--dangerously-skip-permissions", "--print", prompt],
+            cmd,
             capture_output=True,
             text=True,
         )
         logger.info(f"Claude Code exit code: {result.returncode}")
-        logger.info(f"Claude Code output length: {len(result.stdout)}")
+        logger.debug(f"Claude Code stdout length: {len(result.stdout)}")
+        logger.debug(f"Claude Code stderr length: {len(result.stderr)}")
+
+        if result.stderr:
+            logger.debug("=== STDERR START ===")
+            logger.debug(result.stderr)
+            logger.debug("=== STDERR END ===")
 
         if result.returncode != 0:
             raise RuntimeError(f"Claude Code failed (exit code: {result.returncode}): {result.stderr}")
