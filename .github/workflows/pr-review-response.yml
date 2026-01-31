@@ -1,0 +1,65 @@
+name: PR Review Response
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+jobs:
+  respond-to-review:
+    # 조건: JK가 작성 + PR 대상
+    if: |
+      github.event.comment.user.login == 'jk-kim0' &&
+      (github.event.issue.pull_request != null || github.event.pull_request != null)
+
+    runs-on:
+      - self-hosted
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for user mentions
+        id: check-mentions
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: |
+          # @username 패턴 체크 (이메일 제외)
+          # @로 시작하고 영문자/숫자/하이픈/언더스코어로 구성된 패턴
+          if echo "$COMMENT_BODY" | grep -qE '@[a-zA-Z][a-zA-Z0-9_-]*(\s|$|[^@])'; then
+            echo "has_mention=true" >> "$GITHUB_OUTPUT"
+            echo "User mention detected, skipping..."
+          else
+            echo "has_mention=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Get PR number
+        id: pr-number
+        if: steps.check-mentions.outputs.has_mention == 'false'
+        run: |
+          if [[ "${{ github.event_name }}" == "issue_comment" ]]; then
+            PR_NUMBER="${{ github.event.issue.number }}"
+          else
+            PR_NUMBER="${{ github.event.pull_request.number }}"
+          fi
+          echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+
+      - name: Respond to review comment
+        if: steps.check-mentions.outputs.has_mention == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.pr-number.outputs.number }}
+          COMMENT_ID: ${{ github.event.comment.id }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          COMMENT_PATH: ${{ github.event.comment.path || '' }}
+          COMMENT_LINE: ${{ github.event.comment.line || github.event.comment.original_line || '' }}
+          IS_REVIEW_COMMENT: ${{ github.event_name == 'pull_request_review_comment' }}
+        run: |
+          chmod +x .github/scripts/respond-to-review.sh
+          .github/scripts/respond-to-review.sh
