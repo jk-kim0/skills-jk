@@ -1,0 +1,6 @@
+# CODEOWNERS
+# 이 파일은 PR에서 자동으로 reviewer를 할당합니다.
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# 모든 파일에 대해 JK를 reviewer로 설정
+* @jk-kim0
