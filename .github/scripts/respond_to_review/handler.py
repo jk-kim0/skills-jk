@@ -143,6 +143,10 @@ Workflow 로그를 확인해주세요."""
         git_status_before = self.git.status_porcelain()
         logger.debug(f"Git status before Claude: '{git_status_before}'")
 
+        # Claude 실행 전 HEAD SHA 기록
+        head_before = self.git.rev_parse_short()
+        logger.info(f"HEAD before Claude: {head_before}")
+
         # 3. 프롬프트 생성
         prompt = self.build_prompt()
         logger.debug("=== PROMPT START ===")
@@ -157,6 +161,10 @@ Workflow 로그를 확인해주세요."""
         logger.debug(claude_output)
         logger.debug(f"=== CLAUDE OUTPUT END (length: {len(claude_output)}) ===")
 
+        # Claude 실행 후 HEAD SHA 확인
+        head_after = self.git.rev_parse_short()
+        logger.info(f"HEAD after Claude: {head_after}")
+
         # Claude 실행 후 git 상태
         git_status_after = self.git.status_porcelain()
         logger.debug(f"Git status after Claude: '{git_status_after}'")
@@ -164,8 +172,19 @@ Workflow 로그를 확인해주세요."""
         # 5. 결과 처리
         response = ReviewResponse(success=True, message="")
 
-        if self.git.has_changes():
-            logger.info("Changes detected")
+        # Claude가 새 커밋을 만들었는지 확인
+        new_commit_by_claude = head_before != head_after
+        has_uncommitted_changes = self.git.has_changes()
+
+        if new_commit_by_claude:
+            logger.info(f"New commit detected by Claude: {head_before} -> {head_after}")
+            response.has_changes = True
+            # Claude가 이미 커밋했으므로 push만 수행
+            logger.info("Pushing Claude's commit...")
+            self.git.push()
+            response.commit_sha = head_after
+        elif has_uncommitted_changes:
+            logger.info("Uncommitted changes detected")
             response.has_changes = True
             response.commit_sha = self.commit_and_push()
         else:
