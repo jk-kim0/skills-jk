@@ -11,7 +11,8 @@ from .handler import ReviewHandler
 
 def setup_logging(debug: bool = False) -> None:
     """로깅을 설정합니다."""
-    level = logging.DEBUG if debug else logging.INFO
+    # 디버깅을 위해 임시로 DEBUG 레벨 강제 활성화
+    level = logging.DEBUG
     logging.basicConfig(
         level=level,
         format="[%(name)s] [%(levelname)s] %(message)s",
