@@ -1,0 +1,40 @@
+name: Event Triggered
+
+on:
+  repository_dispatch:
+    types: [task-request]
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      task_id:
+        description: 'Task ID to execute'
+        required: false
+        type: string
+      runner:
+        description: 'Runner to use'
+        required: false
+        default: 'any'
+        type: choice
+        options:
+          - any
+          - office
+          - home
+
+jobs:
+  handle-event:
+    runs-on:
+      - self-hosted
+      - ${{ github.event.inputs.runner == 'any' && 'self-hosted' || github.event.inputs.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Process event
+        run: |
+          echo "Event type: ${{ github.event_name }}"
+          echo "Task ID: ${{ github.event.inputs.task_id }}"
+
+      - name: Run AI Agent
+        run: |
+          # claude "이벤트를 분석하고 적절한 task를 실행해줘"
+          echo "AI Agent execution placeholder"
