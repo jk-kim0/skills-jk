@@ -29,6 +29,49 @@
 | **Self-hosted Runner** | JK만 | JK만 | PC 정보 비공개 |
 | **Repository Settings** | JK만 | JK만 | 관리자 전용 |
 
+## Repository 분리 정책
+
+비공개 정보를 다루는 Task/Project는 별도 Private Repository에서 관리한다.
+
+### Repository 구조
+
+| Repository | 공개 | 용도 |
+|------------|------|------|
+| `skills-jk` | Public | Skills, 문서, 공개 Tasks/Projects |
+| `skills-jk-private` | Private | 비공개 Tasks/Projects |
+
+### 비공개 기준
+
+다음 조건 중 하나라도 해당되면 `skills-jk-private`에서 관리한다.
+
+| 조건 | 설명 |
+|------|------|
+| Slack 메시지 기반 | 출처가 Slack인 조사/분석/계획 작업 |
+| Private repo 작업 | 작업 대상 git repository가 private인 경우 |
+| 고객사 정보 포함 | 고객사 이름이 문서에 명시되는 경우 |
+
+### 판단 절차
+
+1. Task/Project 생성 시 [task-visibility](../skills/ops/task-visibility.md) 체크리스트 확인
+2. 해당 조건이 있으면 `skills-jk-private`에서 작업
+3. Public repo 커밋 시 pre-commit hook이 2차 검증
+
+### 실수 방지
+
+- **Pre-commit hook**: Slack 키워드 및 private repo 참조 탐지
+- **PR 리뷰**: 고객사 이름 등 수동 확인 (JK)
+
+#### Pre-commit Hook 설치
+
+```bash
+cp .github/hooks/pre-commit .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+```
+
+Hook이 검사하는 항목:
+- `tasks/`, `projects/` 폴더의 Slack 관련 키워드
+- 새 파일의 `repo:` 필드가 private repository를 참조하는지 확인
+
 ## 주의사항
 
 현재 Repository가 **PUBLIC**이므로:
@@ -38,9 +81,9 @@
    - 개인정보, 회사 기밀
    - 내부 서버 주소
 
-2. **Tasks/Projects에 민감한 내용 포함 금지**
-   - 외부 Repository URL은 공개해도 무방한 것만
-   - 내부 업무 상세 내용 주의
+2. **비공개 Task/Project는 별도 repo에서 관리**
+   - 위 비공개 기준에 해당하면 `skills-jk-private` 사용
+   - [task-visibility](../skills/ops/task-visibility.md) 스킬 참조
 
 3. **GitHub Secrets 활용**
    - 민감한 값은 반드시 Secrets에 저장
