@@ -7,7 +7,7 @@ def calc(x, y):
     return result
 
 
-def subtract(x, y):
+def subtract(x: float, y: float) -> float:
     """Subtract y from x."""
     return x - y
 
