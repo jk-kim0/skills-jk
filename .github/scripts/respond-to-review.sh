@@ -11,6 +11,5 @@ set -o errexit -o nounset -o pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Python 모듈 실행
-cd "$SCRIPT_DIR"
-python3 -m respond_to_review.main
+# Python 모듈 실행 (리포지토리 루트에서 실행)
+PYTHONPATH="$SCRIPT_DIR" python3 -m respond_to_review.main
