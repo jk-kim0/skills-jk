@@ -73,6 +73,12 @@
 |------|---------|------|
 | default_workflow_permissions | read | ✓ 안전 |
 | can_approve_pull_request_reviews | false | ✓ 안전 |
+| allow_actions_to_create_pull_requests | true | ✓ 필요 (Bot PR 생성용) |
+
+**allow_actions_to_create_pull_requests 설정 (2026-01-31)**
+
+로컬에서 AI Agent가 작업 후 `github-actions[bot]`으로 PR을 생성하려면 이 설정이 필요합니다.
+Settings > Actions > General > Workflow permissions에서 활성화합니다.
 
 ### Fork PR Workflow
 
