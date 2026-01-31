@@ -35,6 +35,24 @@ gh pr create --title "..." --body "..."
 .github/scripts/create-pr.sh <branch_prefix> <pr_title> [pr_body]
 ```
 
+### 로컬에서 PR 생성하기
+
+로컬에서 작업 후 `github-actions[bot]`으로 PR을 생성하려면 workflow를 트리거합니다:
+
+```bash
+# 1. 브랜치 생성 & 커밋 & 푸시
+git checkout -b feat/my-feature
+git add . && git commit -m "feat: ..." --trailer "Co-Authored-By: Atlas <atlas@jk.agent>"
+git push -u origin feat/my-feature
+
+# 2. workflow 트리거로 PR 생성
+gh workflow run create-pr.yml \
+  -f branch="feat/my-feature" \
+  -f title="feat: My feature" \
+  -f body="## Summary
+- 변경 사항"
+```
+
 ### 결과
 
 | 항목 | 표시 이름 |
