@@ -20,8 +20,13 @@ jobs:
     runs-on:
       - self-hosted
       - ${{ github.event.inputs.runner == 'any' && 'self-hosted' || github.event.inputs.runner }}
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Check active tasks
         run: |
@@ -32,3 +37,12 @@ jobs:
         run: |
           # claude "tasks/active 폴더의 due가 임박한 task를 처리해줘"
           echo "AI Agent execution placeholder"
+
+      - name: Create PR if changes exist
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          .github/scripts/create-pr.sh \
+            "task" \
+            "chore: Scheduled task updates" \
+            "Automated updates from scheduled task execution"

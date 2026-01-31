@@ -26,8 +26,13 @@ jobs:
     runs-on:
       - self-hosted
       - ${{ github.event.inputs.runner == 'any' && 'self-hosted' || github.event.inputs.runner }}
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Process event
         run: |
@@ -38,3 +43,12 @@ jobs:
         run: |
           # claude "이벤트를 분석하고 적절한 task를 실행해줘"
           echo "AI Agent execution placeholder"
+
+      - name: Create PR if changes exist
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          .github/scripts/create-pr.sh \
+            "event" \
+            "chore: Event triggered updates" \
+            "Automated updates from event: ${{ github.event_name }}"
