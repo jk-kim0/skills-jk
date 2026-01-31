@@ -2,6 +2,17 @@
 
 장기 목표 또는 작업 그룹을 관리합니다.
 
+## Private Projects
+
+비공개 프로젝트는 **[skills-jk-private](https://github.com/jk-kim0/skills-jk-private)** 저장소에서 관리합니다.
+
+| 저장소 | 용도 |
+|--------|------|
+| `skills-jk` (여기) | 공개 프로젝트 |
+| `skills-jk-private` | 비공개 프로젝트, Task (Slack 기반, Private repo 작업, 고객사 정보 등) |
+
+> 비공개 기준 상세: [docs/repository-visibility.md](../docs/repository-visibility.md)
+
 ## 구조
 
 - `active/` - 진행 중인 프로젝트
