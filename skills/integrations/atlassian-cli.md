@@ -1,158 +1,96 @@
 ---
 name: atlassian-cli
-description: Jira 이슈 조회/생성, Confluence 스페이스/페이지 관리 시 사용
-tags: [jira, confluence, atlassian, cli, acli, integration]
+description: Jira 이슈 조회/검색, Confluence 페이지 조회/검색 시 사용
+tags: [jira, confluence, atlassian, cli, integration]
 ---
 
-# Atlassian CLI (ACLI)
+# Atlassian CLI
 
 ## 개요
 
-Atlassian 공식 CLI 도구로 Jira, Confluence에 접근합니다.
+Atlassian 서비스에 접근하기 위한 CLI 도구입니다.
 
-| 항목 | 값 |
-|------|-----|
-| 명령어 | `acli` |
-| 위치 | `/usr/local/bin/acli` |
-| 버전 | 1.3.13-stable |
+| 서비스 | CLI | 위치 |
+|--------|-----|------|
+| Jira | `jira` | `/usr/local/bin/jira` |
+| Confluence | `confluence` | `/usr/local/bin/confluence` |
 
-## 인증
+## Jira CLI
+
+### 명령어
 
 ```bash
-# 로그인 (OAuth 브라우저 인증)
-acli auth login
-
-# 상태 확인
-acli auth status
-
-# 계정 전환
-acli auth switch
-
-# 로그아웃
-acli auth logout
+jira <command> [args]
 ```
 
-## Jira 명령어
+| 명령어 | 설명 |
+|--------|------|
+| `projects` | 전체 프로젝트 목록 |
+| `search <JQL>` | JQL로 이슈 검색 |
+| `issue <KEY>` | 이슈 상세 조회 |
+| `boards` | 보드 목록 |
+| `sprints <BOARD_ID>` | 스프린트 목록 |
 
-### 프로젝트
+### 사용 예시
 
 ```bash
 # 프로젝트 목록
-acli jira project list
+jira projects
 
-# 프로젝트 상세
-acli jira project view <PROJECT_KEY>
-```
+# 이슈 검색
+jira search "project = QPD AND status = 'In Progress'"
 
-### 이슈 (Work Item)
+# 이슈 상세
+jira issue QPD-4385
 
-```bash
-# 이슈 검색 (JQL)
-acli jira workitem search --jql "project = PROJ AND status = 'In Progress'"
-
-# 이슈 상세 조회
-acli jira workitem view <ISSUE_KEY>
-
-# 이슈 생성
-acli jira workitem create --project PROJ --type Task --summary "제목"
-
-# 이슈 수정
-acli jira workitem edit <ISSUE_KEY> --summary "새 제목"
-
-# 이슈 상태 전환
-acli jira workitem transition <ISSUE_KEY> --status "Done"
-
-# 이슈 담당자 지정
-acli jira workitem assign <ISSUE_KEY> --assignee "user@example.com"
-
-# 이슈 복제
-acli jira workitem clone <ISSUE_KEY>
-
-# 이슈 삭제
-acli jira workitem delete <ISSUE_KEY>
-```
-
-### 댓글
-
-```bash
-# 댓글 목록
-acli jira workitem comment list <ISSUE_KEY>
-
-# 댓글 추가
-acli jira workitem comment add <ISSUE_KEY> --body "댓글 내용"
-```
-
-### 첨부파일
-
-```bash
-# 첨부파일 목록
-acli jira workitem attachment list <ISSUE_KEY>
-
-# 첨부파일 추가
-acli jira workitem attachment add <ISSUE_KEY> --file /path/to/file
-```
-
-### 스프린트
-
-```bash
-# 스프린트 목록
-acli jira sprint list --board <BOARD_ID>
-
-# 스프린트 상세
-acli jira sprint view <SPRINT_ID>
-```
-
-### 보드
-
-```bash
 # 보드 목록
-acli jira board list
+jira boards
 
-# 보드 상세
-acli jira board view <BOARD_ID>
+# 스프린트 목록
+jira sprints 42
 ```
 
-## Confluence 명령어
+## Confluence CLI
 
-### 스페이스
+### 명령어
+
+```bash
+confluence <command> [args]
+```
+
+| 명령어 | 설명 |
+|--------|------|
+| `spaces` | 전체 글로벌 스페이스 목록 |
+| `search <query>` | 페이지 검색 |
+| `page <pageId>` | 페이지 내용 조회 |
+
+### 사용 예시
 
 ```bash
 # 스페이스 목록
-acli confluence space list
+confluence spaces
 
-# 스페이스 상세
-acli confluence space view <SPACE_KEY>
+# 페이지 검색
+confluence search "API 가이드"
+
+# 페이지 조회
+confluence page 12345678
 ```
 
-## 설치 방법
+## 설정
 
-### Homebrew (macOS)
+### 사이트 정보
 
-```bash
-brew tap atlassian/homebrew-acli
-brew install acli
-```
+| 항목 | 값 |
+|------|-----|
+| Site | querypie.atlassian.net |
+| Email | jk@chequer.io |
 
-### 직접 다운로드 (macOS)
+### API 토큰 생성
 
-```bash
-# Apple Silicon
-curl -LO "https://acli.atlassian.com/darwin/latest/acli_darwin_arm64/acli"
-
-# Intel
-curl -LO "https://acli.atlassian.com/darwin/latest/acli_darwin_amd64/acli"
-
-chmod +x ./acli
-sudo mv ./acli /usr/local/bin/acli
-```
-
-## 주의사항
-
-- OAuth 인증 필요 (`acli auth login`)
-- 버전은 릴리스 후 6개월간만 지원됨
-- Atlassian Government Cloud는 미지원
+https://id.atlassian.com/manage-profile/security/api-tokens
 
 ## 참고 링크
 
-- [ACLI 공식 문서](https://developer.atlassian.com/cloud/acli/guides/introduction/)
-- [ACLI 설치 가이드](https://developer.atlassian.com/cloud/acli/guides/install-acli/)
+- [Jira REST API v3](https://developer.atlassian.com/cloud/jira/platform/rest/v3/)
+- [Confluence REST API](https://developer.atlassian.com/cloud/confluence/rest/)
