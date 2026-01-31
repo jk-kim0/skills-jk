@@ -41,7 +41,14 @@ gh pr create --title "..." --body "..."
 |------|----------|
 | 커밋 작성자 | `github-actions[bot]` |
 | PR 작성자 | `github-actions[bot]` |
-| Co-Author | `Atlas <atlas@jk.agent>` |
+| Co-Author | AI Agent 이름 (아래 참조) |
+
+## AI Agent Co-Author 목록
+
+| Agent | Co-Author 형식 |
+|-------|----------------|
+| Atlas | `Atlas <atlas@jk.agent>` |
+| Claude | `Claude <claude@jk.agent>` |
 
 ## 방법 비교
 
