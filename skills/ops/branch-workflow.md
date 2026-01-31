@@ -92,12 +92,14 @@ gh workflow run create-pr.yml \
   -f title="<pr-title>"
 ```
 
-### 3. PR 설명 수정
+### 3. PR 설명 및 Assignee 설정
 
-AI Agent가 `gh pr edit`으로 상세 설명을 작성합니다.
+AI Agent가 `gh pr edit`으로 상세 설명과 담당자를 설정합니다.
 
 ```bash
-gh pr edit <pr-number> --body "## Summary
+gh pr edit <pr-number> \
+  --add-assignee jk-kim0 \
+  --body "## Summary
 - 변경 사항 1
 - 변경 사항 2
 
