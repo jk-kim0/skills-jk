@@ -184,12 +184,19 @@ class ClaudeClientImpl(ClaudeClient):
 
     def run(self, prompt: str) -> str:
         import os
+        import json
         cwd = os.getcwd()
         logger.debug(f"Claude Code working directory: {cwd}")
         logger.info("Running Claude Code...")
 
-        cmd = ["claude", "--dangerously-skip-permissions", "--print", prompt]
-        logger.debug("Command: claude --dangerously-skip-permissions --print <prompt>")
+        cmd = [
+            "claude",
+            "-p",
+            "--dangerously-skip-permissions",
+            "--output-format", "stream-json",
+            prompt,
+        ]
+        logger.debug("Command: claude -p --dangerously-skip-permissions --output-format stream-json <prompt>")
 
         result = subprocess.run(
             cmd,
@@ -208,4 +215,20 @@ class ClaudeClientImpl(ClaudeClient):
         if result.returncode != 0:
             raise RuntimeError(f"Claude Code failed (exit code: {result.returncode}): {result.stderr}")
 
-        return result.stdout
+        # stream-json 출력에서 최종 결과 추출
+        final_result = ""
+        for line in result.stdout.strip().split("\n"):
+            if not line:
+                continue
+            try:
+                event = json.loads(line)
+                logger.debug(f"Event type: {event.get('type')}")
+                # result 이벤트에서 최종 텍스트 추출
+                if event.get("type") == "result":
+                    final_result = event.get("result", "")
+                    logger.debug(f"Found result: {final_result[:100]}...")
+            except json.JSONDecodeError:
+                logger.debug(f"Non-JSON line: {line[:100]}")
+
+        logger.debug(f"Final result length: {len(final_result)}")
+        return final_result
