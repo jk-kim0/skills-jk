@@ -59,36 +59,6 @@ gh pr create --title "..." --body "..."
 
 이 제한이 문제가 된다면 GitHub App 또는 PAT를 사용해야 합니다.
 
-## 향후 확장: GitHub App (선택)
-
-커스텀 Bot 이름(`Atlas[bot]`)을 원한다면 GitHub App을 생성할 수 있습니다.
-
-### 설정 단계
-
-1. **GitHub App 생성**
-   - Settings > Developer settings > GitHub Apps > New GitHub App
-   - App name: `Atlas`
-   - Webhook: Disable
-
-2. **권한 설정**
-   - Contents: Read & write
-   - Pull requests: Read & write
-   - Metadata: Read-only
-
-3. **GitHub Actions에서 사용**
-   ```yaml
-   - uses: actions/create-github-app-token@v1
-     id: app-token
-     with:
-       app-id: ${{ secrets.ATLAS_APP_ID }}
-       private-key: ${{ secrets.ATLAS_PRIVATE_KEY }}
-
-   - name: Create PR as Atlas
-     env:
-       GH_TOKEN: ${{ steps.app-token.outputs.token }}
-     run: gh pr create --title "..." --body "..."
-   ```
-
 ## 참고 자료
 
 - [How to use the github-actions bot](https://github.com/orgs/community/discussions/25863)
