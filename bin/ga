@@ -1,0 +1,321 @@
+#!/usr/bin/env python3
+"""
+Google Analytics Data API 클라이언트 (GA4)
+
+사용법:
+    ga accounts                        # 계정/속성 목록
+    ga report <property_id>            # 트래픽 리포트
+    ga report <property_id> --days 30  # 최근 30일 데이터
+    ga pages <property_id>             # 페이지별 성과
+    ga sources <property_id>           # 트래픽 소스별 성과
+
+property_id 예시: 123456789 (숫자만, 'properties/' 접두사 불필요)
+
+설정:
+    1. Google Cloud Console에서 OAuth 2.0 클라이언트 ID 생성
+    2. 클라이언트 시크릿 JSON 파일 다운로드
+    3. 환경변수 설정: export GOOGLE_CLIENT_SECRET=~/.config/google/client_secret.json
+    4. 첫 실행 시 브라우저에서 OAuth 인증 수행 (토큰 자동 저장)
+"""
+
+import argparse
+import os
+import pickle
+import sys
+from datetime import datetime, timedelta
+from pathlib import Path
+
+try:
+    from google.auth.transport.requests import Request
+    from google.oauth2.credentials import Credentials
+    from google_auth_oauthlib.flow import InstalledAppFlow
+    from google.analytics.data_v1beta import BetaAnalyticsDataClient
+    from google.analytics.data_v1beta.types import (
+        RunReportRequest,
+        DateRange,
+        Dimension,
+        Metric,
+    )
+    from google.analytics.admin_v1beta import AnalyticsAdminServiceClient
+except ImportError:
+    print("필수 패키지가 설치되어 있지 않습니다. 다음 명령어로 설치하세요:")
+    print("  pip install google-auth google-auth-oauthlib google-analytics-data google-analytics-admin")
+    sys.exit(1)
+
+# API 스코프
+SCOPES = [
+    'https://www.googleapis.com/auth/analytics.readonly',
+]
+
+# 인증 파일 경로
+CLIENT_SECRET_FILE = os.environ.get(
+    'GOOGLE_CLIENT_SECRET',
+    os.path.expanduser('~/.config/google/client_secret.json')
+)
+TOKEN_FILE = os.path.expanduser('~/.config/ga/token.pickle')
+
+
+def get_credentials():
+    """OAuth 2.0 인증을 수행하고 credentials를 반환합니다."""
+    creds = None
+    token_path = Path(TOKEN_FILE)
+
+    # 클라이언트 시크릿 파일 확인
+    if not os.path.exists(CLIENT_SECRET_FILE):
+        print(f"오류: 클라이언트 시크릿 파일을 찾을 수 없습니다: {CLIENT_SECRET_FILE}")
+        print()
+        print("설정 방법:")
+        print("  1. Google Cloud Console에서 OAuth 2.0 클라이언트 ID 생성")
+        print("  2. 클라이언트 시크릿 JSON 파일 다운로드")
+        print("  3. 파일을 ~/.config/google/client_secret.json에 저장")
+        print("     또는 GOOGLE_CLIENT_SECRET 환경변수로 경로 지정")
+        sys.exit(1)
+
+    # 저장된 토큰이 있으면 로드
+    if token_path.exists():
+        with open(token_path, 'rb') as token:
+            creds = pickle.load(token)
+
+    # 토큰이 없거나 만료되었으면 새로 인증
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRET_FILE, SCOPES)
+            creds = flow.run_local_server(port=0)
+
+        # 토큰 저장
+        token_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(token_path, 'wb') as token:
+            pickle.dump(creds, token)
+
+    return creds
+
+
+def list_accounts():
+    """GA4 계정 및 속성 목록을 출력합니다."""
+    creds = get_credentials()
+    client = AnalyticsAdminServiceClient(credentials=creds)
+
+    print(f"\n{'=' * 70}")
+    print("  Google Analytics 계정 및 속성 목록")
+    print(f"{'=' * 70}\n")
+
+    try:
+        accounts = client.list_accounts()
+        for account in accounts:
+            print(f"계정: {account.display_name}")
+            print(f"  ID: {account.name}")
+
+            # 해당 계정의 속성 목록
+            from google.analytics.admin_v1beta.types import ListPropertiesRequest
+            properties_request = ListPropertiesRequest(
+                filter=f"parent:{account.name}"
+            )
+            properties = client.list_properties(request=properties_request)
+            for prop in properties:
+                prop_id = prop.name.split('/')[-1]
+                print(f"\n  속성: {prop.display_name}")
+                print(f"    Property ID: {prop_id}")
+                print(f"    Full name: {prop.name}")
+            print()
+
+    except Exception as e:
+        print(f"오류: {e}")
+        print("\nGoogle Analytics Admin API가 활성화되어 있는지 확인하세요:")
+        print("https://console.developers.google.com/apis/api/analyticsadmin.googleapis.com/overview")
+
+
+def run_report(property_id: str, days: int = 7):
+    """기본 트래픽 리포트를 실행합니다."""
+    creds = get_credentials()
+    client = BetaAnalyticsDataClient(credentials=creds)
+
+    end_date = datetime.now() - timedelta(days=1)
+    start_date = end_date - timedelta(days=days)
+
+    request = RunReportRequest(
+        property=f"properties/{property_id}",
+        date_ranges=[DateRange(
+            start_date=start_date.strftime('%Y-%m-%d'),
+            end_date=end_date.strftime('%Y-%m-%d'),
+        )],
+        dimensions=[Dimension(name="date")],
+        metrics=[
+            Metric(name="sessions"),
+            Metric(name="activeUsers"),
+            Metric(name="screenPageViews"),
+            Metric(name="bounceRate"),
+            Metric(name="averageSessionDuration"),
+        ],
+    )
+
+    try:
+        response = client.run_report(request)
+
+        print(f"\n{'=' * 80}")
+        print(f"  트래픽 리포트: Property {property_id}")
+        print(f"  기간: {start_date.strftime('%Y-%m-%d')} ~ {end_date.strftime('%Y-%m-%d')}")
+        print(f"{'=' * 80}\n")
+
+        print(f"{'날짜':<12} {'세션':>10} {'사용자':>10} {'페이지뷰':>10} {'이탈률':>10} {'평균시간':>10}")
+        print("-" * 80)
+
+        for row in response.rows:
+            date = row.dimension_values[0].value
+            sessions = row.metric_values[0].value
+            users = row.metric_values[1].value
+            pageviews = row.metric_values[2].value
+            bounce_rate = float(row.metric_values[3].value) * 100
+            avg_duration = float(row.metric_values[4].value)
+
+            print(f"{date:<12} {sessions:>10} {users:>10} {pageviews:>10} {bounce_rate:>9.1f}% {avg_duration:>9.1f}s")
+
+        # 합계
+        if response.totals:
+            print("-" * 80)
+            totals = response.totals[0]
+            print(f"{'합계':<12} {totals.metric_values[0].value:>10} {totals.metric_values[1].value:>10} {totals.metric_values[2].value:>10}")
+
+    except Exception as e:
+        print(f"오류: {e}")
+        print("\nGoogle Analytics Data API가 활성화되어 있는지 확인하세요:")
+        print("https://console.developers.google.com/apis/api/analyticsdata.googleapis.com/overview")
+
+
+def run_pages_report(property_id: str, days: int = 7):
+    """페이지별 성과 리포트를 실행합니다."""
+    creds = get_credentials()
+    client = BetaAnalyticsDataClient(credentials=creds)
+
+    end_date = datetime.now() - timedelta(days=1)
+    start_date = end_date - timedelta(days=days)
+
+    request = RunReportRequest(
+        property=f"properties/{property_id}",
+        date_ranges=[DateRange(
+            start_date=start_date.strftime('%Y-%m-%d'),
+            end_date=end_date.strftime('%Y-%m-%d'),
+        )],
+        dimensions=[Dimension(name="pagePath")],
+        metrics=[
+            Metric(name="screenPageViews"),
+            Metric(name="activeUsers"),
+            Metric(name="averageSessionDuration"),
+        ],
+        limit=50,
+    )
+
+    try:
+        response = client.run_report(request)
+
+        print(f"\n{'=' * 90}")
+        print(f"  페이지별 성과: Property {property_id}")
+        print(f"  기간: {start_date.strftime('%Y-%m-%d')} ~ {end_date.strftime('%Y-%m-%d')}")
+        print(f"{'=' * 90}\n")
+
+        print(f"{'페이지뷰':>10} {'사용자':>10} {'평균시간':>10}  페이지 경로")
+        print("-" * 90)
+
+        for row in response.rows:
+            page_path = row.dimension_values[0].value
+            pageviews = row.metric_values[0].value
+            users = row.metric_values[1].value
+            avg_duration = float(row.metric_values[2].value)
+
+            print(f"{pageviews:>10} {users:>10} {avg_duration:>9.1f}s  {page_path[:60]}")
+
+        print(f"\n총 {len(response.rows)}개 페이지")
+
+    except Exception as e:
+        print(f"오류: {e}")
+
+
+def run_sources_report(property_id: str, days: int = 7):
+    """트래픽 소스별 성과 리포트를 실행합니다."""
+    creds = get_credentials()
+    client = BetaAnalyticsDataClient(credentials=creds)
+
+    end_date = datetime.now() - timedelta(days=1)
+    start_date = end_date - timedelta(days=days)
+
+    request = RunReportRequest(
+        property=f"properties/{property_id}",
+        date_ranges=[DateRange(
+            start_date=start_date.strftime('%Y-%m-%d'),
+            end_date=end_date.strftime('%Y-%m-%d'),
+        )],
+        dimensions=[
+            Dimension(name="sessionSource"),
+            Dimension(name="sessionMedium"),
+        ],
+        metrics=[
+            Metric(name="sessions"),
+            Metric(name="activeUsers"),
+            Metric(name="screenPageViews"),
+        ],
+        limit=30,
+    )
+
+    try:
+        response = client.run_report(request)
+
+        print(f"\n{'=' * 80}")
+        print(f"  트래픽 소스별 성과: Property {property_id}")
+        print(f"  기간: {start_date.strftime('%Y-%m-%d')} ~ {end_date.strftime('%Y-%m-%d')}")
+        print(f"{'=' * 80}\n")
+
+        print(f"{'세션':>10} {'사용자':>10} {'페이지뷰':>10}  소스 / 매체")
+        print("-" * 80)
+
+        for row in response.rows:
+            source = row.dimension_values[0].value
+            medium = row.dimension_values[1].value
+            sessions = row.metric_values[0].value
+            users = row.metric_values[1].value
+            pageviews = row.metric_values[2].value
+
+            print(f"{sessions:>10} {users:>10} {pageviews:>10}  {source} / {medium}")
+
+    except Exception as e:
+        print(f"오류: {e}")
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Google Analytics Data API CLI (GA4)')
+    subparsers = parser.add_subparsers(dest='command', help='명령어')
+
+    # accounts 명령어
+    subparsers.add_parser('accounts', help='계정 및 속성 목록')
+
+    # report 명령어
+    report_parser = subparsers.add_parser('report', help='트래픽 리포트')
+    report_parser.add_argument('property_id', help='GA4 Property ID (숫자만)')
+    report_parser.add_argument('--days', type=int, default=7, help='조회 기간 (일)')
+
+    # pages 명령어
+    pages_parser = subparsers.add_parser('pages', help='페이지별 성과')
+    pages_parser.add_argument('property_id', help='GA4 Property ID (숫자만)')
+    pages_parser.add_argument('--days', type=int, default=7, help='조회 기간 (일)')
+
+    # sources 명령어
+    sources_parser = subparsers.add_parser('sources', help='트래픽 소스별 성과')
+    sources_parser.add_argument('property_id', help='GA4 Property ID (숫자만)')
+    sources_parser.add_argument('--days', type=int, default=7, help='조회 기간 (일)')
+
+    args = parser.parse_args()
+
+    if args.command == 'accounts':
+        list_accounts()
+    elif args.command == 'report':
+        run_report(args.property_id, args.days)
+    elif args.command == 'pages':
+        run_pages_report(args.property_id, args.days)
+    elif args.command == 'sources':
+        run_sources_report(args.property_id, args.days)
+    else:
+        parser.print_help()
+
+
+if __name__ == '__main__':
+    main()
