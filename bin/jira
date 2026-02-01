@@ -1,0 +1,142 @@
+#!/bin/bash
+set -o errexit -o nounset -o pipefail
+
+# Credentials: set JIRA_CREDS environment variable or use config file
+# Format: email:api_token
+if [[ -z "${JIRA_CREDS:-}" ]]; then
+  CONFIG_FILE="${HOME}/.config/atlassian/jira.conf"
+  if [[ -f "$CONFIG_FILE" ]]; then
+    CREDS=$(cat "$CONFIG_FILE")
+  else
+    echo "Error: JIRA_CREDS not set and config file not found"
+    echo "Set JIRA_CREDS=email:api_token or create $CONFIG_FILE"
+    exit 1
+  fi
+else
+  CREDS="$JIRA_CREDS"
+fi
+
+BASE_URL="${JIRA_BASE_URL:-https://querypie.atlassian.net}"
+
+api_call() {
+  curl -s --user "$CREDS" -H "Content-Type: application/json" "${BASE_URL}$1"
+}
+
+cmd="${1:-help}"
+
+if [[ "$cmd" == "projects" ]]; then
+  api_call "/rest/api/3/project" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+fmt = '{:<12} {:<40} {:<15}'
+print(fmt.format('Key', 'Name', 'Type'))
+print('-' * 70)
+for p in data:
+    print(fmt.format(p['key'], p['name'][:38], p.get('projectTypeKey', '')))
+"
+
+elif [[ "$cmd" == "search" ]]; then
+  jql="${2:-}"
+  if [[ -z "$jql" ]]; then
+    echo "Usage: jira search <JQL>"
+    echo "Example: jira search 'project = QP AND status = Open'"
+    exit 1
+  fi
+  encoded=$(python3 -c "import urllib.parse; print(urllib.parse.quote('''$jql'''))")
+  api_call "/rest/api/3/search?jql=${encoded}&maxResults=20" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+fmt = '{:<15} {:<50} {:<12}'
+print(fmt.format('Key', 'Summary', 'Status'))
+print('-' * 80)
+for issue in data.get('issues', []):
+    key = issue['key']
+    summary = issue['fields']['summary'][:48]
+    status = issue['fields']['status']['name']
+    print(fmt.format(key, summary, status))
+print(f\"\\nTotal: {data.get('total', 0)} issues\")
+"
+
+elif [[ "$cmd" == "issue" ]]; then
+  issue_key="${2:-}"
+  if [[ -z "$issue_key" ]]; then
+    echo "Usage: jira issue <ISSUE_KEY>"
+    exit 1
+  fi
+  api_call "/rest/api/3/issue/${issue_key}" | python3 -c "
+import sys, json, re, html
+data = json.load(sys.stdin)
+fields = data.get('fields', {})
+
+print('Key:', data.get('key', 'Unknown'))
+print('Summary:', fields.get('summary', 'Unknown'))
+print('Status:', fields.get('status', {}).get('name', 'Unknown'))
+print('Type:', fields.get('issuetype', {}).get('name', 'Unknown'))
+print('Priority:', fields.get('priority', {}).get('name', 'None'))
+print('Assignee:', (fields.get('assignee') or {}).get('displayName', 'Unassigned'))
+print('Reporter:', (fields.get('reporter') or {}).get('displayName', 'Unknown'))
+print('Created:', fields.get('created', '')[:10])
+print('Updated:', fields.get('updated', '')[:10])
+print()
+
+desc = fields.get('description')
+if desc:
+    def extract_text(node):
+        if isinstance(node, dict):
+            if node.get('type') == 'text':
+                return node.get('text', '')
+            content = node.get('content', [])
+            return ' '.join(extract_text(c) for c in content)
+        elif isinstance(node, list):
+            return ' '.join(extract_text(c) for c in node)
+        return ''
+
+    text = extract_text(desc)
+    text = re.sub(r'\s+', ' ', text).strip()
+    print('Description:')
+    print('-' * 60)
+    print(text[:2000])
+    if len(text) > 2000:
+        print('...(truncated)')
+"
+
+elif [[ "$cmd" == "boards" ]]; then
+  api_call "/rest/agile/1.0/board" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+fmt = '{:<8} {:<40} {:<15}'
+print(fmt.format('ID', 'Name', 'Type'))
+print('-' * 65)
+for b in data.get('values', []):
+    print(fmt.format(str(b['id']), b['name'][:38], b.get('type', '')))
+"
+
+elif [[ "$cmd" == "sprints" ]]; then
+  board_id="${2:-}"
+  if [[ -z "$board_id" ]]; then
+    echo "Usage: jira sprints <BOARD_ID>"
+    exit 1
+  fi
+  api_call "/rest/agile/1.0/board/${board_id}/sprint?state=active,future" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+fmt = '{:<8} {:<40} {:<12}'
+print(fmt.format('ID', 'Name', 'State'))
+print('-' * 65)
+for s in data.get('values', []):
+    print(fmt.format(str(s['id']), s['name'][:38], s.get('state', '')))
+"
+
+else
+  echo "Usage: jira <command> [args]"
+  echo ""
+  echo "Commands:"
+  echo "  projects              List all projects"
+  echo "  search <JQL>          Search issues with JQL"
+  echo "  issue <KEY>           View issue details"
+  echo "  boards                List all boards"
+  echo "  sprints <BOARD_ID>    List sprints for a board"
+  echo ""
+  echo "Configuration:"
+  echo "  Set JIRA_CREDS=email:api_token or create ~/.config/atlassian/jira.conf"
+fi
