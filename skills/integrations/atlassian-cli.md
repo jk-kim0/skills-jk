@@ -109,18 +109,26 @@ confluence update 12345678 ./updated-report.md
 2. 설정 파일 생성:
 ```bash
 mkdir -p ~/.config/atlassian
+
+# Jira
+echo 'email@example.com:YOUR_API_TOKEN' > ~/.config/atlassian/jira.conf
+chmod 600 ~/.config/atlassian/jira.conf
+
+# Confluence
 echo 'email@example.com:YOUR_API_TOKEN' > ~/.config/atlassian/confluence.conf
 chmod 600 ~/.config/atlassian/confluence.conf
 ```
 
 또는 환경변수 사용:
 ```bash
+export JIRA_CREDS='email@example.com:YOUR_API_TOKEN'
 export CONFLUENCE_CREDS='email@example.com:YOUR_API_TOKEN'
 ```
 
 ### 커스텀 사이트 설정 (선택)
 
 ```bash
+export JIRA_BASE_URL='https://your-site.atlassian.net'
 export CONFLUENCE_BASE_URL='https://your-site.atlassian.net/wiki'
 ```
 
