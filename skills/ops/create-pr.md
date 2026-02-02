@@ -1,6 +1,6 @@
 ---
 name: create-pr
-description: PR 생성 전 반드시 확인 - Bot 작성자 및 Co-Author 규칙
+description: PR 생성 전 반드시 확인 - Bot 작성자 및 Co-Author 규칙, PR 승인/병합 금지
 tags: [pr, git, github, workflow, bot]
 ---
 
@@ -13,6 +13,18 @@ tags: [pr, git, github, workflow, bot]
 | PR 작성자 | `github-actions[bot]` | 개인 계정 |
 | Co-Author | `Atlas <atlas@jk.agent>` | `Claude ...` |
 | PR 생성 | `gh workflow run create-pr.yml` | `gh pr create` |
+
+## ⛔ 절대 금지 사항
+
+> **모든 PR은 사람이 리뷰하고 병합해야 합니다. Claude가 절대로 수행해서는 안 됩니다.**
+
+| 금지 행위 | 명령어 예시 | 이유 |
+|-----------|-------------|------|
+| PR 승인 | `gh pr review --approve` | 코드 리뷰는 사람이 수행 |
+| PR 병합 | `gh pr merge` | 병합 결정은 사람이 수행 |
+| 리뷰 코멘트로 승인 | `gh pr review --comment "LGTM"` | 승인 의도의 코멘트 금지 |
+
+**적용 범위**: querypie-mono를 포함한 **모든 저장소**의 PR
 
 ## 명령어
 
