@@ -358,6 +358,74 @@ app.querypie.com (인덱싱 실패)
 
 ---
 
+## 5.6 전체 액션 우선순위 매트릭스 (Round 7 종합)
+
+Round 2-6 분석에서 도출된 모든 액션을 통합 정리:
+
+### 🔴 긴급 (즉시 실행)
+
+| # | 도메인 | 액션 | 예상 효과 | 담당 | 상태 |
+|---|--------|------|-----------|------|------|
+| 1 | **app.querypie.com** | HTTP HEAD 405 에러 수정 | 인덱싱 시작 | Backend | 🔴 대기 |
+| 2 | **app.querypie.com** | GSC 수동 인덱싱 요청 | 크롤링 재시작 | Marketing | 🔴 대기 |
+| 3 | **www.querypie.com** | /chat/publication noindex 처리 | 브랜드 희석 방지 | DevOps | 🔴 대기 |
+
+### 🟡 높음 (1주 이내)
+
+| # | 도메인 | 액션 | 예상 효과 | 담당 |
+|---|--------|------|-----------|------|
+| 4 | www.querypie.com | "database access control" 랜딩 페이지 생성 | 신규 트래픽 50+/월 | Content |
+| 5 | docs.querypie.com | "ldap integration" 영어 문서 최적화 | 영어 트래픽 3배 | Content |
+| 6 | aip-docs | "what is an mcp server" 개념 문서 생성 | 신규 트래픽 100+/월 | Content |
+| 7 | www.querypie.com | sitemap.xml 오류 1개 수정 | 크롤링 정상화 | DevOps |
+| 8 | www.querypie.com | 미국 타겟 영어 메타 설명 최적화 | CTR 0.1%→1%+ | Marketing |
+
+### 🟢 중요 (2-4주 이내)
+
+| # | 도메인 | 액션 | 예상 효과 | 담당 |
+|---|--------|------|-----------|------|
+| 9 | aip-docs | MCP 통합 허브 페이지 생성 | MCP 키워드 선점 | Product |
+| 10 | docs.querypie.com | "active directory integration" 영어 문서 최적화 | 신규 트래픽 | Content |
+| 11 | www.querypie.com | "ai agent security" 블로그 작성 | 신규 시장 진입 | Content |
+| 12 | www.querypie.com | Substack 기술 블로그 개설 | DR 93 백링크 확보 | Marketing |
+| 13 | 전체 | www → aip-docs 내부 링크 강화 | 권위 전달 | DevOps |
+
+### 🔵 개선 (1-3개월)
+
+| # | 도메인 | 액션 | 예상 효과 | 담당 |
+|---|--------|------|-----------|------|
+| 14 | www.querypie.com | Docker Hub 프로젝트 등록 | DR 92 백링크 | DevOps |
+| 15 | docs.querypie.com | FAQ 구조화 데이터 추가 | 리치 스니펫 | DevOps |
+| 16 | aip-docs | "mcp security" 보안 문서 강화 | AIP USP 강화 | Content |
+| 17 | www.querypie.com | MCP 시장 콘텐츠 확대 | 장기 트래픽 | Content |
+| 18 | docs.querypie.com | 일본어 페이지 크롤링 갱신 요청 | JP 트래픽 확대 | DevOps |
+
+### 효과-노력 매트릭스
+
+```
+높은 효과 │
+          │  [1] HTTP HEAD 수정     [4] database access control
+          │  [3] noindex 처리       [6] MCP 개념 문서
+          │  [5] ldap 최적화        [11] ai agent security
+          │                         [12] Substack 개설
+          │─────────────────────────────────────────────────────
+          │  [7] sitemap 수정       [14] Docker Hub
+          │  [8] 메타 설명          [15] FAQ 구조화
+낮은 효과 │
+          └──────────────────────────────────────────────────────
+                 낮은 노력                  높은 노력
+```
+
+**Quick Wins (즉시 높은 효과)**:
+- #1, #3: 기술 수정만으로 즉시 효과
+- #5, #7, #8: 콘텐츠 수정만으로 효과
+
+**Strategic Investments (노력 대비 높은 효과)**:
+- #4, #6, #11: 신규 콘텐츠 생성 필요하지만 효과 높음
+- #12: 외부 플랫폼 활용으로 백링크 확보
+
+---
+
 ## 6. 모니터링 계획
 
 ```bash
@@ -434,6 +502,7 @@ gsc sitemaps "https://aip-docs.app.querypie.com/"
 | 2026-02-02 01:00 KST | 초기 도메인 현황 분석 |
 | 2026-02-03 16:30 KST | 제품-도메인 매핑 섹션 추가 (ACP/AIP 구분) |
 | 2026-02-03 02:45 KST | Round 5: 도메인 간 시너지 전략, 초저경쟁 키워드 통합 현황, 통합 백링크 전략 추가 |
+| 2026-02-03 02:55 KST | Round 7: 전체 액션 우선순위 매트릭스, 효과-노력 분석 추가 |
 
 ---
 
