@@ -1,12 +1,19 @@
 # Baseline SQL UUID 분석 보고서
 
+## 프로젝트 정보
+
+- **관련 프로젝트**: Flyway Squashed DDL (QPD-4430)
+- **대상 레포지토리**: [chequer-io/querypie-mono](https://github.com/chequer-io/querypie-mono)
+- **관련 PR**: [#14909 - feat(apps/api): baseline DDL/DML 추출 및 스키마 검증 모듈 구현](https://github.com/chequer-io/querypie-mono/pull/14909)
+- **작업 브랜치**: `feature/baseline-module-refactoring`
+
 ## 개요
 
 이 보고서는 `V102.15__baseline_11.5.0.sql` 파일의 INSERT 구문에서 UUID 값이 하드코딩된 부분을 원본 Migration SQL과 비교 분석한 결과입니다.
 
 - **분석 일시**: 2026-02-02
-- **Baseline 파일**: `apps/api/app/src/main/resources/db/app/baseline/V102.15__baseline_11.5.0.sql`
-- **원본 Migration 경로**: `apps/tools/src/main/resources/db/migration/querypie/*.sql`
+- **Baseline 파일**: `querypie-mono/apps/api/app/src/main/resources/db/app/baseline/V102.15__baseline_11.5.0.sql`
+- **원본 Migration 경로**: `querypie-mono/apps/tools/src/main/resources/db/migration/querypie/*.sql`
 
 ---
 
@@ -250,7 +257,7 @@ value (UUID(), 'asdfqwerzxcvghjkvbnmtyuighjkdfghwertsdfgpoui', NOW());
 
 ### 후처리 스크립트 수정 필요
 
-`script/baseline/baseline/postprocess.py`에 다음 테이블의 UUID 변환 로직 추가:
+`querypie-mono/apps/api/app/script/baseline/postprocess.py`에 다음 테이블의 UUID 변환 로직 추가:
 
 1. **k_proxy_setting**
    - `uuid` 컬럼 → `UUID()` 함수로 변환
