@@ -1996,9 +1996,10 @@ www.querypie.com/
 | R65 | SSO/MFA & Passwordless Authentication JP (23,750/월) | +1,280-3,210/월 |
 | R66 | Security Compliance & Vendor Risk (22,950/월) | +780-1,930/월 |
 | R67 | Security Awareness & Data Privacy (6,900/월) | +465-1,150/월 |
-| **총계** | - | **+8,805-22,885/월** |
+| R68 | Threat Intelligence & Penetration Testing (15,050/월) | +1,000-2,460/월 |
+| **총계** | - | **+9,805-25,345/월** |
 
-**🎯 최종 예상: 현재 955/월 → 9,760-23,840/월 (920-2,400% 성장 잠재력)**
+**🎯 최종 예상: 현재 955/월 → 10,760-26,300/월 (1,025-2,655% 성장 잠재력)**
 
 ---
 
@@ -2683,6 +2684,107 @@ www.querypie.com/
 | **총계** | - | **+8,805-22,885/월** |
 
 **🎯 최종 예상: 현재 955/월 → 9,760-23,840/월 (920-2,400% 성장 잠재력)**
+
+---
+
+## 10.29 Round 68: Threat Intelligence & Penetration Testing (2026-02-03 04:18 KST)
+
+### 🕵️ Threat Intelligence & Cyber Insurance
+
+| 키워드 | 검색량/월 | 난이도 | 트래픽 잠재력 | 우선순위 |
+|--------|----------|--------|--------------|---------|
+| **cyber insurance news** | **3,600** | **3** | 500 | 🥇 **최우선** |
+| **threat intelligence analyst** | **1,300** | **1** | 300 | 🥇 **최우선** |
+| threat intelligence tools | 1,100 | 6 | 1,500 | 🥈 높음 |
+| **cyber threat intelligence jobs** | 450 | **0** | 300 | 🥇 **최우선** |
+| **cyber threat intelligence analyst** | 450 | **1** | 350 | 🥇 **최우선** |
+| **coalition cyber insurance** | 450 | **4** | 9,600 | 🥇 **최우선** |
+| **cyber attack insurance companies** | 450 | **4** | 50 | 🥇 **최우선** |
+| **network security automation** | 350 | **5** | 150 | 🥇 **최우선** |
+| **cloud security automation** | 350 | **2** | 200 | 🥇 **최우선** |
+| **digital threat intelligence** | 350 | **2** | 100 | 🥇 **최우선** |
+| **🕵️ Threat Intel 총계** | **8,850+** | **평균 3** | **13,050** | **위협 인텔리전스** |
+
+### 🔓 Penetration Testing & Red Team
+
+| 키워드 | 검색량/월 | 난이도 | 트래픽 잠재력 | 우선순위 |
+|--------|----------|--------|--------------|---------|
+| **external penetration testing** | **900** | **0** | 800 | 🥇 **최우선** |
+| vulnerability assessment and penetration testing | 900 | 8 | 450 | 🥈 높음 |
+| **internal penetration testing** | 600 | **0** | 600 | 🥇 **최우선** |
+| **penetration testing vs vulnerability scanning** | 600 | **5** | 1,100 | 🥇 **최우선** |
+| **black box penetration testing** | 600 | **2** | 500 | 🥇 **최우선** |
+| **penetration testing jobs** | 500 | **0** | 1,000 | 🥇 **최우선** |
+| **red team services** | 500 | **5** | 250 | 🥇 **최우선** |
+| **physical penetration testing** | 500 | **1** | 400 | 🥇 **최우선** |
+| cloud penetration testing | 500 | 7 | 600 | 🥈 높음 |
+| penetration testing cost | 600 | 7 | 1,000 | 🥈 높음 |
+| **🔓 Pen Testing 총계** | **6,200+** | **평균 4** | **6,700** | **보안 테스팅** |
+
+### 💡 Round 68 핵심 인사이트
+
+1. **Pentest 블루오션**: external/internal penetration testing (합계 1,500/월, 난이도 0!)
+2. **Career 콘텐츠**: threat intelligence analyst/jobs (1,750/월, 난이도 0-1)
+3. **Cyber Insurance**: cyber insurance news (3,600/월, 난이도 3)
+4. **Red Team**: red team services (500/월, 난이도 5)
+
+### 🎯 콘텐츠 전략
+
+```
+www.querypie.com/
+├── /threat-intelligence/                        → Threat Intel 허브
+│   ├── /analyst/                               → threat intelligence analyst (1,300/월, 난이도 1)
+│   ├── /jobs/                                  → cyber threat intelligence jobs (450/월, 난이도 0)
+│   └── /digital/                               → digital threat intelligence (350/월, 난이도 2)
+├── /cyber-insurance/
+│   └── /news/                                  → cyber insurance news (3,600/월, 난이도 3)
+├── /penetration-testing/
+│   ├── /external/                              → external penetration testing (900/월, 난이도 0)
+│   ├── /internal/                              → internal penetration testing (600/월, 난이도 0)
+│   ├── /vs-vulnerability-scanning/             → pentest vs vuln scan (600/월, 난이도 5)
+│   ├── /black-box/                             → black box penetration testing (600/월, 난이도 2)
+│   └── /physical/                              → physical penetration testing (500/월, 난이도 1)
+└── /red-team/
+    └── /services/                              → red team services (500/월, 난이도 5)
+```
+
+### 🚀 예상 효과 추가
+
+| 콘텐츠 | 예상 순위 | 예상 트래픽 |
+|--------|----------|------------|
+| external penetration testing | Top 5 | +150-360/월 |
+| internal penetration testing | Top 5 | +100-240/월 |
+| threat intelligence analyst | Top 5 | +210-520/월 |
+| cyber threat intelligence jobs | Top 5 | +70-180/월 |
+| cyber insurance news | Top 10 | +290-720/월 |
+| black box penetration testing | Top 10 | +50-120/월 |
+| physical penetration testing | Top 10 | +80-200/월 |
+| penetration testing vs vulnerability scanning | Top 10 | +50-120/월 |
+| **Round 68 총계** | - | **+1,000-2,460/월** |
+
+---
+
+### 📊 총 예상 트래픽 요약 (Round 44-68 최종)
+
+| Round | 주요 발견 | 추가 트래픽 |
+|-------|----------|------------|
+| R44 | 일본 ゼロトラスト (27,850/월) | +500-1,450/월 |
+| R45-R50 | Database Security, Access Governance, JIT | +640-1,730/월 |
+| R52-R55 | Credential, Audit Trail, SSH Key, Certification | +395-1,105/월 |
+| R56-R58 | Identity Management, Data Masking, Policy | +685-1,880/월 |
+| R59 | DevSecOps (11,490/월) | +430-1,200/월 |
+| R60 | Endpoint Security & SOAR (9,250/월) | +160-410/월 |
+| R61 | API Security, CSPM & Cloud Security JP (16,450/월) | +620-1,610/월 |
+| R62 | Container/K8s Security & SIEM (21,700/월) | +620-1,570/월 |
+| R63 | Vulnerability Management & Security Testing (18,600/월) | +720-1,880/월 |
+| R64 | GRC & Security Operations (26,600/월) | +1,510-3,760/월 |
+| R65 | SSO/MFA & Passwordless Authentication JP (23,750/월) | +1,280-3,210/월 |
+| R66 | Security Compliance & Vendor Risk (22,950/월) | +780-1,930/월 |
+| R67 | Security Awareness & Data Privacy (6,900/월) | +465-1,150/월 |
+| R68 | Threat Intelligence & Penetration Testing (15,050/월) | +1,000-2,460/월 |
+| **총계** | - | **+9,805-25,345/월** |
+
+**🎯 최종 예상: 현재 955/월 → 10,760-26,300/월 (1,025-2,655% 성장 잠재력)**
 
 ---
 
