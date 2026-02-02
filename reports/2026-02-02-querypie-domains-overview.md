@@ -1704,33 +1704,57 @@ gsc sitemaps "https://aip-docs.app.querypie.com/"
 - セッション管理: 250/월, 난이도 1
 - 전략: /ja/ 일본어 랜딩 페이지 확대
 
-### 📊 4개 도메인 예상 트래픽 종합 (Round 51 최종)
+### 📊 4개 도메인 예상 트래픽 종합 (Round 70 최종 업데이트)
 
-| 도메인 | 현재 트래픽 | Round 51 예상 | 성장률 |
+| 도메인 | 현재 트래픽 | Round 70 예상 | 성장률 |
 |--------|------------|---------------|--------|
-| www.querypie.com | 955/월 | 1,985-3,845/월 | 100-300% |
+| www.querypie.com | 955/월 | **11,872-29,120/월** | **1,145-2,950%** |
 | docs.querypie.com | 20/월 | 1,250-2,920/월 | 60-145배 |
 | aip-docs.app.querypie.com | 0/월 | 3,700-10,300/월 | ∞ |
 | app.querypie.com | 0/월 | 400-900/월 | ∞ (인덱싱 후) |
-| **총계** | **~975/월** | **7,335-17,965/월** | **7.5-18배** |
+| **총계** | **~975/월** | **17,222-43,240/월** | **17-44배** |
 
-### 🎯 최종 권장 조치 (Round 51 업데이트)
+### 🏆 Round 60-70 핵심 발견 요약
+
+www.querypie.com에서 추가 발굴된 블루오션 키워드:
+
+| 분야 | 대표 키워드 | 검색량/월 | 난이도 |
+|------|------------|----------|--------|
+| **GRC** | grc analyst | 2,900 | 1 |
+| **GRC** | grc tools | 5,200 | 5 |
+| **일본 SSO** | シングルサインオンとは | 3,600 | 1 |
+| **일본 MFA** | 多要素認証とは | 2,800 | 4 |
+| **Risk Assessment** | risk assessment software | 2,000 | 3 |
+| **Risk Assessment** | network security assessment | 1,200 | 1 |
+| **Penetration Testing** | external penetration testing | 900 | 0 |
+| **Penetration Testing** | internal penetration testing | 600 | 0 |
+| **Threat Intel** | threat intelligence analyst | 1,300 | 1 |
+| **Certificate** | ssl certificate management | 500 | 1 |
+
+### 🎯 최종 권장 조치 (Round 70 업데이트)
 
 **Phase 1 (긴급 - 1-2주)**
 1. app.querypie.com 인덱싱 수정 (HTTP HEAD 405)
-2. "What is" 허브 콘텐츠 10개 생성 시작
-3. access governance 페이지 생성
+2. **GRC 콘텐츠 생성**: grc analyst (난이도 1), grc tools (난이도 5)
+3. **경쟁사 비교 페이지**: iam vs pam, cyberark vs X (모두 난이도 0)
 
 **Phase 2 (단기 - 1개월)**
-1. Glossary 허브 구축
-2. 일본어 랜딩 페이지 (ゼロトラスト, 最小権限)
-3. JIT Access 클라우드 가이드
+1. **일본어 콘텐츠**: シングルサインオンとは, 多要素認証とは
+2. **Penetration Testing 허브**: external/internal penetration testing
+3. Risk Assessment 콘텐츠 시리즈
 
 **Phase 3 (중기 - 3개월)**
-1. Database Security 허브
-2. Free Tool 개발 검토
-3. RBAC vs ABAC vs PBAC 콘텐츠
+1. Threat Intelligence 허브
+2. Security Frameworks 콘텐츠 (NIST, CIS)
+3. Certificate Management 가이드
+
+**Phase 4 (장기 - 6개월)**
+1. 전체 Security 허브 구축
+2. 일본 시장 전용 서브도메인 검토
+3. Free Tool 개발 (Security Assessment Tool 등)
 
 ---
+
+*Updated: 2026-02-03 04:20 KST - Round 70 분석 완료*
 
 *Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>*
