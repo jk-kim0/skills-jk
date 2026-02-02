@@ -292,6 +292,72 @@ QueryPie는 두 가지 주요 제품 라인을 운영합니다:
 
 ---
 
+## 5.5 도메인 간 시너지 전략 (2026-02-03 Round 5 추가)
+
+### 내부 링크 시너지 맵
+
+```
+www.querypie.com (DR 55)
+├── → docs.querypie.com (문서 링크)
+├── → aip-docs.app.querypie.com (AIP 문서 링크) ⚠️ 강화 필요
+└── → app.querypie.com (AIP 서비스 링크) ⚠️ 강화 필요
+
+docs.querypie.com (DR 55 상속)
+├── → www.querypie.com (홈페이지 링크)
+└── ← www.querypie.com (인바운드 내부 링크) ✅ 양호
+
+aip-docs.app.querypie.com (백링크 1개, 권위 부족)
+├── ← www.querypie.com (인바운드 필요) 🔴 긴급
+└── ← app.querypie.com (인바운드 필요) 🔴 긴급
+
+app.querypie.com (인덱싱 실패)
+├── ← www.querypie.com (인바운드 필요) 🔴 긴급
+└── → aip-docs (문서 링크) 인덱싱 해결 후 자동 적용
+```
+
+### 초저경쟁 키워드 전체 현황 (Round 2-4 발굴)
+
+| 키워드 | 검색량 | 난이도 | 타겟 도메인 | 조치 상태 |
+|--------|--------|--------|-------------|-----------|
+| **data access governance** | 450 | **1** | www.querypie.com | 🔴 콘텐츠 생성 필요 |
+| **ldap integration** | 200 | **0** | docs.querypie.com | 🔴 영어 문서 최적화 |
+| **database access control** | 90 | **2** | www.querypie.com | 🔴 랜딩 페이지 생성 |
+| **active directory integration** | 400 | **2** | docs.querypie.com | 🔴 영어 문서 최적화 |
+| **context model** | 90 | **4** | aip-docs | 🔴 MCP 문서 최적화 |
+| **ai agent security** | 700 | **8** | www.querypie.com | 🔴 블로그 작성 |
+| **okta integration** | 80 | **13** | docs.querypie.com | 🟡 기존 문서 개선 |
+| **mcp benefits** | 50 | **15** | aip-docs | 🔴 신규 페이지 생성 |
+| **ldap authentication** | 1,000 | **17** | docs.querypie.com | 🟡 기존 문서 개선 |
+| **what is an mcp server** | 3,700 | **29** | aip-docs | 🔴 개념 문서 생성 |
+
+### 통합 백링크 전략
+
+**1단계: 내부 링크 강화 (즉시 실행)**
+```
+[수정 필요 페이지: www.querypie.com]
+- 홈페이지 푸터/네비게이션에 aip-docs, docs 링크 추가
+- /solutions/aip 페이지에서 aip-docs 문서 링크
+- /products 페이지에서 docs.querypie.com 링크
+```
+
+**2단계: 외부 백링크 확보 (1개월 내)**
+| 타겟 | 소스 | 액션 |
+|------|------|------|
+| aip-docs | GitHub MCP 프로젝트 | README에 문서 링크 추가 |
+| docs.querypie.com | Medium | 기술 블로그에 문서 인용 |
+| www.querypie.com | G2, Capterra | 리뷰 페이지 업데이트 |
+
+### 도메인별 Round 5 액션 요약
+
+| 도메인 | 최우선 액션 | 담당 | 예상 효과 |
+|--------|------------|------|-----------|
+| **www.querypie.com** | "database access control" 랜딩 페이지 생성 | Content | 신규 트래픽 50+/월 |
+| **docs.querypie.com** | "ldap integration" 영어 문서 title/meta 최적화 | Content | 영어 트래픽 3배 |
+| **aip-docs** | "what is an mcp server" 개념 문서 생성 | Content | 신규 트래픽 100+/월 |
+| **app.querypie.com** | HTTP HEAD 405 수정 | Backend | 인덱싱 시작 |
+
+---
+
 ## 6. 모니터링 계획
 
 ```bash
@@ -358,3 +424,17 @@ gsc sitemaps "https://querypie.ai/"
 gsc sitemaps "https://trust.querypie.com/"
 gsc sitemaps "https://aip-docs.app.querypie.com/"
 ```
+
+---
+
+## 분석 이력
+
+| 일시 | 내용 |
+|------|------|
+| 2026-02-02 01:00 KST | 초기 도메인 현황 분석 |
+| 2026-02-03 16:30 KST | 제품-도메인 매핑 섹션 추가 (ACP/AIP 구분) |
+| 2026-02-03 02:45 KST | Round 5: 도메인 간 시너지 전략, 초저경쟁 키워드 통합 현황, 통합 백링크 전략 추가 |
+
+---
+
+*Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>*
