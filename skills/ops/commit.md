@@ -8,6 +8,24 @@ tags: [git, commit, pr, workflow]
 
 ## 핵심 규칙
 
+### 0. main 브랜치에 직접 push 금지 (절대 규칙)
+
+**어떤 경우에도 main 브랜치에 직접 push하지 않습니다.**
+
+- 모든 변경사항은 반드시 별도 브랜치에서 작업 후 PR을 통해 병합
+- 직접 push가 필요해 보이는 상황에서도 예외 없음
+- 실수로 main에 커밋한 경우: 즉시 `git reset`으로 되돌리고 새 브랜치 생성
+
+```bash
+# 실수로 main에 커밋한 경우 복구
+git checkout main
+git reset --soft HEAD~1  # 마지막 커밋 취소 (변경사항 유지)
+git checkout -b <new-branch-name>
+git commit -m "..."
+git push -u origin <new-branch-name>
+# 그 후 PR 생성
+```
+
 ### 1. 커밋 전 PR 병합 여부 확인 (필수)
 
 기존 브랜치에 커밋할 때, 반드시 해당 브랜치의 PR이 이미 병합되었는지 확인합니다.
@@ -70,6 +88,7 @@ EOF
 
 ## 체크리스트
 
+- [ ] **main 브랜치가 아닌지 확인했는가?** (절대 규칙)
 - [ ] PR 병합 여부 확인했는가?
 - [ ] Co-Authored-By 트레일러가 올바른가? (`Atlas <atlas@jk.agent>`)
 - [ ] 커밋 메시지가 변경 내용을 명확히 설명하는가?

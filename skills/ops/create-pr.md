@@ -22,7 +22,14 @@ tags: [pr, git, github, workflow, bot]
 |-----------|-------------|------|
 | PR 승인 | `gh pr review --approve` | 코드 리뷰는 사람이 수행 |
 | PR 병합 | `gh pr merge` | 병합 결정은 사람이 수행 |
+| PR 닫기 | `gh pr close` | 명시적 지시 없이 닫기 금지 |
 | 리뷰 코멘트로 승인 | `gh pr review --comment "LGTM"` | 승인 의도의 코멘트 금지 |
+
+### PR 닫기 규칙
+
+- **명시적으로 Close를 지시하기 전에는 PR을 닫지 않습니다**
+- PR에 문제가 있는 경우: 닫지 말고 수정 (rebase, force push 등)
+- PR 재활용 우선: 새 PR 생성보다 기존 PR 수정 선호
 
 **적용 범위**: querypie-mono를 포함한 **모든 저장소**의 PR
 
