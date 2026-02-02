@@ -329,6 +329,13 @@ app.querypie.com (인덱싱 실패)
 | **database audit** | US | 150 | **1** | www.querypie.com | 🔴 콘텐츠 생성 필요 |
 | **ai 에이전트** | KR | 3,600 | **1** | app.querypie.com | 🔴 인덱싱 후 |
 | **ai 플랫폼** | KR | 1,100 | **1** | app.querypie.com | 🔴 인덱싱 후 |
+| **제로트러스트** | KR | 1,100 | **1** | www.querypie.com | 🔴 핫 키워드! |
+| **iam** | KR | 1,300 | **2** | www.querypie.com | 🔴 고볼륨 |
+| **내부통제** | KR | 350 | **0** | www.querypie.com | 🔴 컴플라이언스 |
+| **mfa 인증** | KR | 350 | **0** | docs.querypie.com | 🔴 인증 가이드 |
+| **데이터 암호화** | KR | 150 | **0** | docs.querypie.com | 🔴 ACP 기능 |
+| **보안감사** | KR | 100 | **0** | www.querypie.com | 🔴 ACP 기능 |
+| **감사로그** | KR | 70 | **0** | docs.querypie.com | 🔴 ACP 기능 |
 | **database access control** | US | 90 | **2** | www.querypie.com | 🔴 랜딩 페이지 생성 |
 | **active directory integration** | US | 400 | **2** | docs.querypie.com | 🔴 영어 문서 최적화 |
 | **context model** | US | 90 | **4** | aip-docs | 🔴 MCP 문서 최적화 |
