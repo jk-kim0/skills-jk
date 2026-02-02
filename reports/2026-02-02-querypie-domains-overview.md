@@ -324,6 +324,13 @@ app.querypie.com (인덱싱 실패)
 | **database access management** | US | 150 | **0** | www.querypie.com | 🔴 콘텐츠 생성 필요 |
 | **ldap integration** | US | 200 | **0** | docs.querypie.com | 🔴 영어 문서 최적화 |
 | **データマスキング** | JP | 200 | **0** | www.querypie.com | 🔴 일본어 콘텐츠 |
+| **内部統制** | JP | **6,800** | **0** | www.querypie.com | 🔥🔥🔥 대박 기회! |
+| **アクセス制御** | JP | 500 | **0** | www.querypie.com | 🔴 ACP 핵심 |
+| **権限管理** | JP | 200 | **0** | www.querypie.com | 🔴 ACP 기능 |
+| **特権アクセス管理** | JP | 100 | **0** | www.querypie.com | 🔴 PAM 일본어 |
+| **監査ログ** | JP | 450 | **1** | docs.querypie.com | 🔴 문서 최적화 |
+| **sso** | JP | 9,300 | **3** | docs.querypie.com | 🔴 고볼륨 저경쟁 |
+| **mfa** | JP | 13,000 | **5** | docs.querypie.com | 🔴 초고볼륨 |
 | **데이터 마스킹** | KR | 80 | **0** | www.querypie.com | 🔴 한국어 콘텐츠 |
 | **data access governance** | US | 450 | **1** | www.querypie.com | 🔴 콘텐츠 생성 필요 |
 | **database audit** | US | 150 | **1** | www.querypie.com | 🔴 콘텐츠 생성 필요 |
