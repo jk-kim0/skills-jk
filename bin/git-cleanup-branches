@@ -212,7 +212,7 @@ def main() -> int:
         print(f"[{idx}/{total_repos}] {repo_name} (base: {base_branch})")
 
         # Fetch
-        print("    fetching...", end=" ", flush=True)
+        print("  - fetching...", end=" ", flush=True)
         if fetch_repo(repo_path):
             print("done")
         else:
@@ -221,91 +221,80 @@ def main() -> int:
 
         branches = get_local_branches(repo_path)
         if not branches:
-            print("    (no local branches)")
+            print("  - no local branches to check")
             print()
             continue
 
-        has_output = False
+        print(f"  - checking {len(branches)} branch(es)...")
+
         for branch in branches:
+            # Print branch being checked
+            print(f"    > {branch}: ", end="", flush=True)
+
             # Check last commit date
             last_commit = get_last_commit_date(repo_path, branch)
             if last_commit is None:
+                print("skip (no commit info)")
                 continue
 
             commit_date_str = last_commit.strftime("%Y-%m-%d")
 
             if last_commit < cutoff_date:
-                # Skip old branches silently
+                print(f"skip (old: {commit_date_str})")
                 continue
 
             # Check PR status
+            print("checking PR...", end=" ", flush=True)
             pr_status = get_pr_status(repo_path, branch)
             remote_exists = has_remote_branch(repo_path, branch)
-            remote_str = "remote:exists" if remote_exists else "remote:deleted"
 
-            # Determine status
+            # Build status parts
+            pr_str = pr_status if pr_status else "none"
+            remote_str = "remote" if remote_exists else "no-remote"
+
+            # Determine and print result
             if pr_status in ("MERGED", "CLOSED"):
-                status = "STALE"
                 all_stale.append((repo_path, branch))
+                print(f"STALE [PR:{pr_str}, {commit_date_str}, {remote_str}]")
             elif pr_status == "OPEN":
-                status = "keep (PR open)"
-            elif pr_status is None:
-                status = "keep (no PR)"
+                print(f"keep [PR:OPEN, {commit_date_str}, {remote_str}]")
             else:
-                status = "keep"
-
-            # Build info string
-            pr_str = f"PR:{pr_status}" if pr_status else "PR:none"
-            info = f"{pr_str} | {commit_date_str} | {remote_str}"
-
-            # Print result
-            if status == "STALE":
-                print(f"    {branch}")
-                print(f"      {info} → STALE")
-                has_output = True
-            else:
-                print(f"    {branch}")
-                print(f"      {info} → {status}")
-                has_output = True
-
-        if not has_output:
-            print("    (no recent branches)")
+                print(f"keep [no PR, {commit_date_str}, {remote_str}]")
 
         print()
 
     # Summary
-    print("=" * 50)
+    print("---")
     if not all_stale:
-        print("No stale branches found.")
+        print("Result: No stale branches found.")
         return 0
 
     repo_count = len(set(r for r, _ in all_stale))
-    print(f"Found {len(all_stale)} stale branches in {repo_count} repositories")
+    print(f"Result: {len(all_stale)} stale branch(es) in {repo_count} repo(s)")
     print()
 
     if not args.delete:
         print("Stale branches:")
         for repo_path, branch in all_stale:
-            print(f"  {repo_path.name}: {branch}")
+            print(f"  - {repo_path.name}/{branch}")
         print()
         print("Run with --delete to remove these branches.")
         return 0
 
     # Delete branches
     print("Deleting stale branches...")
-    print()
 
     deleted = 0
     for repo_path, branch in all_stale:
-        print(f"  {repo_path.name}: {branch}", end=" ", flush=True)
+        print(f"  - {repo_path.name}/{branch}: ", end="", flush=True)
         if delete_branch(repo_path, branch):
-            print("✓")
+            print("deleted")
             deleted += 1
         else:
-            print("✗")
+            print("failed")
 
     print()
-    print(f"Deleted {deleted}/{len(all_stale)} branches.")
+    print(f"Done: {deleted}/{len(all_stale)} deleted.")
 
     return 0
 
