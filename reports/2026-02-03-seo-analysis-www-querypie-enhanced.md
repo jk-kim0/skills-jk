@@ -1994,9 +1994,10 @@ www.querypie.com/
 | R63 | Vulnerability Management & Security Testing (18,600/월) | +720-1,880/월 |
 | R64 | GRC & Security Operations (26,600/월) | +1,510-3,760/월 |
 | R65 | SSO/MFA & Passwordless Authentication JP (23,750/월) | +1,280-3,210/월 |
-| **총계** | - | **+7,560-19,805/월** |
+| R66 | Security Compliance & Vendor Risk (22,950/월) | +780-1,930/월 |
+| **총계** | - | **+8,340-21,735/월** |
 
-**🎯 최종 예상: 현재 955/월 → 8,515-20,760/월 (790-2,075% 성장 잠재력)**
+**🎯 최종 예상: 현재 955/월 → 9,295-22,690/월 (875-2,275% 성장 잠재력)**
 
 ---
 
@@ -2507,6 +2508,89 @@ www.querypie.com/
 
 ### 📊 총 예상 트래픽 요약 (Round 44-65 최종)
 
+## 10.27 Round 66: Security Compliance & Vendor Risk (2026-02-03 04:12 KST)
+
+### 📜 Security Compliance - 규정 준수 시장
+
+| 키워드 | 검색량/월 | 난이도 | 트래픽 잠재력 | 우선순위 |
+|--------|----------|--------|--------------|---------|
+| soc 1 vs soc 2 | 3,400 | 9 | 3,600 | 🥈 높음 |
+| gdpr compliance software | 2,200 | 7 | 2,100 | 🥈 높음 |
+| **gdpr compliance services** | 1,100 | **5** | 400 | 🥇 **최우선** |
+| **iso 27001 certification cost** | 1,000 | **4** | 700 | 🥇 **최우선** |
+| **soc 2 compliance software** | 700 | **5** | 700 | 🥇 **최우선** |
+| **pci dss compliance software** | 700 | **3** | 1,600 | 🥇 **최우선** |
+| **iso 27001 consultant** | 700 | **0** | 600 | 🥇 **최우선** |
+| **gdpr compliance strategies** | 700 | **5** | 80 | 🥇 **최우선** |
+| **iso 27001 controls** | 700 | **5** | 450 | 🥇 **최우선** |
+| **iso 27001 audit** | 700 | **2** | 500 | 🥇 **최우선** |
+| **hipaa compliance consulting** | 600 | **3** | 1,200 | 🥇 **최우선** |
+| **iso 27001 certification process** | 600 | **2** | 350 | 🥇 **최우선** |
+| **hipaa compliance consultant** | 600 | **2** | 1,200 | 🥇 **최우선** |
+| **📜 Compliance 총계** | **13,700+** | **평균 4** | **13,480** | **규정 준수** |
+
+### 🔗 Vendor & Third-Party Risk Management
+
+| 키워드 | 검색량/월 | 난이도 | 트래픽 잠재력 | 우선순위 |
+|--------|----------|--------|--------------|---------|
+| **software supply chain security news** | **3,600** | **4** | 2,400 | 🥇 **최우선** |
+| vendor risk management | 1,400 | 12 | 1,400 | 🥈 높음 |
+| supply chain security | 1,400 | 8 | 300 | 🥈 높음 |
+| **vendor risk assessment** | 1,300 | **5** | 500 | 🥇 **최우선** |
+| **third party risk management jobs** | 500 | **0** | 300 | 🥇 **최우선** |
+| **third party vendor risk assessment** | 350 | **2** | 1,000 | 🥇 **최우선** |
+| **third party risk management jobs remote** | 350 | **0** | 250 | 🥇 **최우선** |
+| vendor risk management program | 350 | 7 | 1,400 | 🥈 높음 |
+| **🔗 Vendor Risk 총계** | **9,250+** | **평균 5** | **7,550** | **서드파티 리스크** |
+
+### 💡 Round 66 핵심 인사이트
+
+1. **ISO 27001 블루오션**: iso 27001 consultant (700/월, 난이도 0!), iso 27001 audit (난이도 2)
+2. **HIPAA 컨설팅**: hipaa compliance consulting/consultant (각 600/월, 난이도 2-3)
+3. **PCI DSS**: pci dss compliance software (700/월, 난이도 3)
+4. **Vendor Risk 일자리**: third party risk management jobs (500/월, 난이도 0)
+
+### 🎯 콘텐츠 전략
+
+```
+www.querypie.com/
+├── /compliance/                                 → Compliance 허브
+│   ├── /iso-27001/
+│   │   ├── /consultant/                        → iso 27001 consultant (700/월, 난이도 0)
+│   │   ├── /audit/                             → iso 27001 audit (700/월, 난이도 2)
+│   │   ├── /certification-cost/                → iso 27001 certification cost (1,000/월)
+│   │   └── /controls/                          → iso 27001 controls (700/월)
+│   ├── /soc-2/
+│   │   └── /software/                          → soc 2 compliance software (700/월)
+│   ├── /hipaa/
+│   │   └── /consulting/                        → hipaa compliance consulting (1,200/월, 난이도 2-3)
+│   ├── /pci-dss/
+│   │   └── /software/                          → pci dss compliance software (700/월, 난이도 3)
+│   └── /gdpr/
+│       └── /services/                          → gdpr compliance services (1,100/월)
+└── /vendor-risk/
+    ├── /assessment/                            → vendor risk assessment (1,300/월)
+    └── /third-party/                           → third party vendor risk assessment (350/월, 난이도 2)
+```
+
+### 🚀 예상 효과 추가
+
+| 콘텐츠 | 예상 순위 | 예상 트래픽 |
+|--------|----------|------------|
+| iso 27001 consultant | Top 5 | +110-280/월 |
+| iso 27001 audit | Top 10 | +60-140/월 |
+| iso 27001 certification cost | Top 10 | +80-200/월 |
+| hipaa compliance consulting | Top 10 | +50-120/월 |
+| pci dss compliance software | Top 10 | +60-140/월 |
+| vendor risk assessment | Top 10 | +100-260/월 |
+| third party vendor risk assessment | Top 10 | +30-70/월 |
+| software supply chain security news | Top 10 | +290-720/월 |
+| **Round 66 총계** | - | **+780-1,930/월** |
+
+---
+
+### 📊 총 예상 트래픽 요약 (Round 44-66 최종)
+
 | Round | 주요 발견 | 추가 트래픽 |
 |-------|----------|------------|
 | R44 | 일본 ゼロトラスト (27,850/월) | +500-1,450/월 |
@@ -2520,9 +2604,10 @@ www.querypie.com/
 | R63 | Vulnerability Management & Security Testing (18,600/월) | +720-1,880/월 |
 | R64 | GRC & Security Operations (26,600/월) | +1,510-3,760/월 |
 | R65 | SSO/MFA & Passwordless Authentication JP (23,750/월) | +1,280-3,210/월 |
-| **총계** | - | **+7,560-19,805/월** |
+| R66 | Security Compliance & Vendor Risk (22,950/월) | +780-1,930/월 |
+| **총계** | - | **+8,340-21,735/월** |
 
-**🎯 최종 예상: 현재 955/월 → 8,515-20,760/월 (790-2,075% 성장 잠재력)**
+**🎯 최종 예상: 현재 955/월 → 9,295-22,690/월 (875-2,275% 성장 잠재력)**
 
 ---
 
