@@ -541,11 +541,78 @@ HiWARE                     ░ 0/월
 2. **PISO가 유일한 로컬 SEO 경쟁자**
    - 트래픽 1,456으로 1위
    - 하지만 DR 50으로 QueryPie보다 낮음
-   - 백링크 전략 분석 필요
+   - 93%가 브랜드 키워드 트래픽 (파이오링크)
 
 3. **많은 경쟁사가 SEO 미비**
    - DbSafer, HiWARE: 검색 트래픽 제로
    - 한국어 SEO 콘텐츠로 시장 선점 가능
+
+### 경쟁사 제품 시장 인식 (Round 17 웹서치)
+
+**DAC (Database Access Control) 시장:**
+
+| 제품명 | 개발사 | 시장 포지션 | 핵심 인증 |
+|--------|--------|------------|-----------|
+| **DBSAFER** | 피앤피시큐어 | 🥇 국내 시장 점유율 1위 | CC인증, 금융권 6,000+ 고객 |
+| **ChakraMax** | 웨어밸리 | 🥈 아시아 최대 점유율 | CC인증 EAL4, GS인증, Gartner 인정 |
+| **PETRA** | 신시웨이 | 코스닥 상장사 | CC인증 EAL3, 1,200+ 고객 |
+| DB-i | - | - | - |
+| SSDB | - | - | - |
+
+**SAC (Server Access Control) 시장:**
+
+| 제품명 | 개발사 | 시장 포지션 | 핵심 인증 |
+|--------|--------|------------|-----------|
+| **HiWARE TAM** | 넷앤드 | 🥇 국내 시장 점유율 1위, 조달 1위 | CC인증, GS인증, Gartner PAM 주목 기업 |
+| **CyberArk PAM** | CyberArk | 글로벌 PAM 리더 | Gartner Magic Quadrant 리더 |
+| **Teleport** | Gravitational | 제로트러스트, K8s 특화 | 오픈소스 기반 |
+| Password Manager Pro | ManageEngine | 글로벌 | - |
+| IDoperation | - | - | - |
+| ESS AdminOne | - | - | - |
+| SecureCube Access Check | - | - | - |
+
+**KAC (Kubernetes Access Control) 시장:**
+
+| 제품명 | 개발사 | 시장 포지션 | 핵심 특징 |
+|--------|--------|------------|-----------|
+| **Teleport** | Gravitational | K8s 접근제어 선도 | Zero Trust, 세션 녹화, RBAC/ABAC |
+
+**WAC (Web Application Control) 시장:**
+
+| 제품명 | 개발사 | 시장 포지션 |
+|--------|--------|------------|
+| **CyberArk WAC** | CyberArk | 글로벌 |
+
+### 경쟁사 키워드 전략 분석
+
+**PISO (piolink.com) 상위 키워드:**
+| 키워드 | 순위 | 볼륨 | 트래픽 |
+|--------|------|------|--------|
+| 파이오링크 (브랜드) | 1 | 1,600 | **1,358** |
+| 보안 컨설팅 | 1 | 200 | 7 |
+| 클라우드 네이티브 | 1 | 800 | 5 |
+| 취약점 진단 | 7 | 80 | 5 |
+
+**ChakraMax (sinsiway.com) 상위 키워드:**
+| 키워드 | 순위 | 볼륨 | 트래픽 |
+|--------|------|------|--------|
+| 신시웨이 (브랜드) | 1 | 250 | **210** |
+| 딥페이크 긍정적 활용 | 2 | 500 | 176 |
+| petra | 1 | 600 | 29 |
+| db 암호화 솔루션 | 4 | 30 | 4 |
+
+### 💡 QueryPie SEO 기회
+
+1. **제품 키워드 공략**: 경쟁사들은 대부분 브랜드 키워드에 의존 → QueryPie가 "DB 접근제어", "서버 접근제어" 등 제품 키워드 선점 가능
+2. **블로그 콘텐츠 전략**: ChakraMax처럼 트렌드 키워드 (딥페이크 등) 활용하면서 브랜드 노출
+3. **기술 문서 SEO**: PISO의 "보안 컨설팅", "취약점 진단" 같은 기술 키워드 타겟팅
+
+Sources:
+- [DBSAFER - 피앤피시큐어](https://pnpsecure.com/02_1_dbsafer-db/)
+- [ChakraMax - 웨어밸리](https://www.dsdata.co.kr/chakramax)
+- [PETRA - 신시웨이](https://www.sinsiway.com/kr/solution/solution_petra)
+- [HiWARE TAM - 넷앤드](https://www.netand.co.kr/home/HIWARE.php)
+- [Teleport - Gravitational](https://goteleport.com/platform/protected-identities/kubernetes/)
 
 ---
 
