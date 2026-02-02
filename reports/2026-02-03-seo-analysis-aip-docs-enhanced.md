@@ -42,6 +42,19 @@
 4. **백링크 심각 부족**: 참조 도메인 1개뿐
 5. **잘못된 키워드 경쟁**: "airtable docs" 등 경쟁 불가 키워드에 노출
 
+### 🚀 Round 2-3 심층 분석 핵심 발견 (2026-02-03 업데이트)
+
+| Round | 핵심 발견 | 비즈니스 임팩트 |
+|-------|----------|----------------|
+| **R2** | 홈페이지 CTR 40.5%로 상승 (이전 19.5%) | 브랜드 인지도 향상 |
+| **R3** | MCP 키워드 전략: "what is an mcp server" (난이도 29), "mcp security" (난이도 35) | **AIP 핵심 USP와 일치** |
+| **R3** | "context model" (난이도 4) | **초저경쟁 즉시 공략 가능** |
+
+**💡 AIP 문서 핵심 기회**:
+1. **MCP 개념 문서**: "what is an mcp server" 타겟팅 → 신규 트래픽 100+/월
+2. **MCP 보안 문서**: "mcp security" → AIP의 차별화 포인트
+3. **내부 링크**: www.querypie.com에서 백링크 확보 시급
+
 ---
 
 ## 1.5 Google Analytics 종합 분석 (90일)
@@ -470,6 +483,7 @@ ga pages 491852908 --days 90
 | 2026-02-03 15:00 KST | GA 상세 분석, AI 플랫폼 트래픽 발견 |
 | 2026-02-03 02:15 KST | Round 2: GSC 최신 데이터 반영, 상위 페이지 CTR 개선 확인 |
 | 2026-02-03 02:30 KST | Round 3: MCP 키워드 심층 분석, 타겟 키워드 전략 수립 (mcp security, what is an mcp server) |
+| 2026-02-03 03:20 KST | Round 10: Executive Summary에 핵심 발견 통합 |
 
 ---
 
