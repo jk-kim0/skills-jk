@@ -1997,9 +1997,10 @@ www.querypie.com/
 | R66 | Security Compliance & Vendor Risk (22,950/월) | +780-1,930/월 |
 | R67 | Security Awareness & Data Privacy (6,900/월) | +465-1,150/월 |
 | R68 | Threat Intelligence & Penetration Testing (15,050/월) | +1,000-2,460/월 |
-| **총계** | - | **+9,805-25,345/월** |
+| R69 | IAM/PAM 비교 & Risk Assessment (16,250/월) | +880-2,220/월 |
+| **총계** | - | **+10,685-27,565/월** |
 
-**🎯 최종 예상: 현재 955/월 → 10,760-26,300/월 (1,025-2,655% 성장 잠재력)**
+**🎯 최종 예상: 현재 955/월 → 11,640-28,520/월 (1,120-2,890% 성장 잠재력)**
 
 ---
 
@@ -2785,6 +2786,108 @@ www.querypie.com/
 | **총계** | - | **+9,805-25,345/월** |
 
 **🎯 최종 예상: 현재 955/월 → 10,760-26,300/월 (1,025-2,655% 성장 잠재력)**
+
+---
+
+## 10.30 Round 69: IAM/PAM 비교 & Risk Assessment (2026-02-03 04:20 KST)
+
+### 🔄 IAM vs PAM 비교 키워드
+
+| 키워드 | 검색량/월 | 난이도 | 트래픽 잠재력 | 우선순위 |
+|--------|----------|--------|--------------|---------|
+| **iam vs pam** | 250 | **1** | 350 | 🥇 **최우선** |
+| **pim vs pam** | 250 | **2** | 450 | 🥇 **최우선** |
+| **pam vs iam** | 150 | **1** | 300 | 🥇 **최우선** |
+| **pam vs pim** | 150 | **1** | 400 | 🥇 **최우선** |
+| **identity access management vs privileged access management** | 150 | **1** | 200 | 🥇 **최우선** |
+| **privileged identity management vs privileged access management** | 100 | **0** | 350 | 🥇 **최우선** |
+| **cyberark vs beyondtrust** | 100 | **0** | 70 | 🥇 **최우선** |
+| **sailpoint vs cyberark** | 100 | **0** | 60 | 🥇 **최우선** |
+| **cyberark vs okta** | 100 | **0** | 60 | 🥇 **최우선** |
+| **🔄 IAM/PAM 비교 총계** | **1,350+** | **평균 0.7** | **2,240** | **비교 콘텐츠** |
+
+### 📊 Risk Assessment & Business Continuity
+
+| 키워드 | 검색량/월 | 난이도 | 트래픽 잠재력 | 우선순위 |
+|--------|----------|--------|--------------|---------|
+| **business continuity strategies** | **2,400** | **3** | 1,100 | 🥇 **최우선** |
+| **risk assessment tools** | **2,100** | **4** | 500 | 🥇 **최우선** |
+| **risk assessment software** | **2,000** | **3** | 1,400 | 🥇 **최우선** |
+| security assessment | 1,900 | 6 | 700 | 🥈 높음 |
+| **network security assessment** | **1,200** | **1** | 700 | 🥇 **최우선** |
+| business continuity services | 1,100 | 4 | 400 | 🥇 **최우선** |
+| **cloud security assessment** | **1,000** | **3** | 600 | 🥇 **최우선** |
+| **compliance risk assessment** | 900 | **2** | 800 | 🥇 **최우선** |
+| **cybersecurity risk assessment services** | 800 | **4** | 1,500 | 🥇 **최우선** |
+| **supplier risk assessment** | 800 | **3** | 600 | 🥇 **최우선** |
+| **business continuity consulting** | 700 | **3** | 450 | 🥇 **최우선** |
+| **📊 Risk Assessment 총계** | **14,900+** | **평균 3** | **8,750** | **리스크 시장** |
+
+### 💡 Round 69 핵심 인사이트
+
+1. **IAM/PAM 비교 블루오션**: 모든 비교 키워드가 난이도 0-2! (iam vs pam, pim vs pam, 경쟁사 비교)
+2. **Risk Assessment**: risk assessment software (2,000/월, 난이도 3), network security assessment (1,200/월, 난이도 1)
+3. **Business Continuity**: business continuity strategies (2,400/월, 난이도 3)
+4. **경쟁사 비교**: cyberark vs beyondtrust/sailpoint/okta (각 100/월, 난이도 0)
+
+### 🎯 콘텐츠 전략
+
+```
+www.querypie.com/
+├── /comparison/                                 → 비교 허브
+│   ├── /iam-vs-pam/                            → iam vs pam (400/월, 난이도 1)
+│   ├── /pim-vs-pam/                            → pim vs pam (400/월, 난이도 1-2)
+│   ├── /cyberark-vs-beyondtrust/               → cyberark vs beyondtrust (200/월, 난이도 0)
+│   └── /cyberark-vs-sailpoint/                 → cyberark vs sailpoint (200/월, 난이도 0)
+├── /risk-assessment/
+│   ├── /tools/                                 → risk assessment tools (2,100/월, 난이도 4)
+│   ├── /software/                              → risk assessment software (2,000/월, 난이도 3)
+│   ├── /network/                               → network security assessment (1,200/월, 난이도 1)
+│   ├── /cloud/                                 → cloud security assessment (1,000/월, 난이도 3)
+│   └── /compliance/                            → compliance risk assessment (900/월, 난이도 2)
+└── /business-continuity/
+    ├── /strategies/                            → business continuity strategies (2,400/월, 난이도 3)
+    └── /consulting/                            → business continuity consulting (700/월, 난이도 3)
+```
+
+### 🚀 예상 효과 추가
+
+| 콘텐츠 | 예상 순위 | 예상 트래픽 |
+|--------|----------|------------|
+| iam vs pam / pam vs iam | Top 5 | +60-160/월 |
+| pim vs pam / pam vs pim | Top 5 | +60-160/월 |
+| cyberark vs competitors (4개) | Top 5 | +60-160/월 |
+| risk assessment software | Top 10 | +160-400/월 |
+| network security assessment | Top 5 | +200-480/월 |
+| cloud security assessment | Top 10 | +80-200/월 |
+| compliance risk assessment | Top 10 | +70-180/월 |
+| business continuity strategies | Top 10 | +190-480/월 |
+| **Round 69 총계** | - | **+880-2,220/월** |
+
+---
+
+### 📊 총 예상 트래픽 요약 (Round 44-69 최종)
+
+| Round | 주요 발견 | 추가 트래픽 |
+|-------|----------|------------|
+| R44 | 일본 ゼロトラスト (27,850/월) | +500-1,450/월 |
+| R45-R50 | Database Security, Access Governance, JIT | +640-1,730/월 |
+| R52-R55 | Credential, Audit Trail, SSH Key, Certification | +395-1,105/월 |
+| R56-R58 | Identity Management, Data Masking, Policy | +685-1,880/월 |
+| R59 | DevSecOps (11,490/월) | +430-1,200/월 |
+| R60 | Endpoint Security & SOAR (9,250/월) | +160-410/월 |
+| R61 | API Security, CSPM & Cloud Security JP (16,450/월) | +620-1,610/월 |
+| R62 | Container/K8s Security & SIEM (21,700/월) | +620-1,570/월 |
+| R63 | Vulnerability Management & Security Testing (18,600/월) | +720-1,880/월 |
+| R64 | GRC & Security Operations (26,600/월) | +1,510-3,760/월 |
+| R65 | SSO/MFA & Passwordless Authentication JP (23,750/월) | +1,280-3,210/월 |
+| R66 | Security Compliance & Vendor Risk (22,950/월) | +780-1,930/월 |
+| R67 | Security Awareness & Data Privacy (6,900/월) | +465-1,150/월 |
+| R68 | Threat Intelligence & Penetration Testing (15,050/월) | +1,000-2,460/월 |
+| R69 | IAM/PAM 비교 & Risk Assessment (16,250/월) | +880-2,220/월 |
+| **총계** | - | **+10,685-27,565/월** |
+
+**🎯 최종 예상: 현재 955/월 → 11,640-28,520/월 (1,120-2,890% 성장 잠재력)**
 
 ---
 
