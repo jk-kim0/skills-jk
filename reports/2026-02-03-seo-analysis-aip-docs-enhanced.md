@@ -216,17 +216,40 @@ GSC 데이터에서 클릭이 발생한 검색어가 거의 없음 (대부분 �
 
 **문제점**: 순위가 높은 키워드 없음. 대부분 60위 이하로 트래픽 발생 불가.
 
-### 4.2 권장 타겟 키워드
+### 4.2 권장 타겟 키워드 (Round 3 MCP 키워드 심층 분석)
 
-**MCP 차별화 키워드** (포기해야 할 일반 API 문서 대신):
+**🚀 즉시 타겟 가능한 MCP 키워드** (Ahrefs 실측 데이터):
 
-| 키워드 제안 | 예상 검색량 | 난이도 | 이유 |
-|-------------|-------------|--------|------|
-| airtable mcp | 낮음 | 낮음 | MCP 통합 차별화 |
-| dify mcp integration | 낮음 | 낮음 | Dify + MCP 조합 |
-| mcp server setup guide | 중간 | 중간 | MCP 문서 수요 |
-| secure mcp | 낮음 | 낮음 | 보안 MCP 차별화 |
-| querypie aip docs | 낮음 | 없음 | 브랜드 키워드 |
+| 키워드 | 검색량/월 | 난이도 | 트래픽 잠재력 | 우선순위 |
+|--------|----------|--------|---------------|----------|
+| **what is an mcp server** | 3,700 | **29** | 중간 | 🟢 **최우선** |
+| **mcp security** | 800 | **35** | 높음 | 🟢 **최우선** (AIP 핵심) |
+| **mcp benefits** | 50 | **15** | 낮음 | 🟢 높음 |
+| **context model** | 90 | **4** | 낮음 | 🟢 **초저경쟁** |
+| mcp github | 1,900 | - | 높음 | 🟡 중간 |
+| mcp slack | 150 | - | 낮음 | 🟡 중간 |
+| mcp postgres | 100 | - | 낮음 | 🟡 중간 |
+
+**⚠️ 어려운 키워드 (장기 목표)**:
+
+| 키워드 | 검색량/월 | 난이도 | 비고 |
+|--------|----------|--------|------|
+| model context protocol | 24,000 | 79 | 대형 볼륨, 높은 경쟁 |
+| claude mcp | 4,600 | 66 | Anthropic 공식 문서와 경쟁 |
+| mcp integration | 300 | 70 | 중간 볼륨, 높은 경쟁 |
+
+**🎯 Round 3 핵심 전략**:
+1. "what is an mcp server" (난이도 29) - MCP 개념 설명 문서로 타겟팅
+2. "mcp security" (난이도 35) - **QueryPie AIP의 핵심 USP**. 보안 MCP 문서 강화
+3. "context model" (난이도 4) - **초저경쟁 키워드** 즉시 공략 가능
+
+**구체적인 콘텐츠 제안**:
+
+| 키워드 | 제안 페이지 타이틀 | URL 제안 |
+|--------|-------------------|----------|
+| what is an mcp server | What is MCP Server? Complete Guide | /en/user-guide/what-is-mcp |
+| mcp security | MCP Security Best Practices | /en/user-guide/mcp-security |
+| mcp benefits | 5 Benefits of Using MCP Servers | /en/user-guide/mcp-benefits |
 
 ---
 
@@ -446,6 +469,7 @@ ga pages 491852908 --days 90
 | 2026-02-03 01:30 KST | Ahrefs 연동, 키워드 분석 |
 | 2026-02-03 15:00 KST | GA 상세 분석, AI 플랫폼 트래픽 발견 |
 | 2026-02-03 02:15 KST | Round 2: GSC 최신 데이터 반영, 상위 페이지 CTR 개선 확인 |
+| 2026-02-03 02:30 KST | Round 3: MCP 키워드 심층 분석, 타겟 키워드 전략 수립 (mcp security, what is an mcp server) |
 
 ---
 

@@ -293,15 +293,24 @@
 
 ## 5. 키워드 기회 분석
 
-### 5.1 타겟 키워드 현황 (Ahrefs)
+### 5.1 타겟 키워드 현황 (Ahrefs - Round 3 업데이트)
 
-| 키워드 | 검색량/월 | 난이도 | CPC | 현재 순위 | 트래픽 잠재력 |
-|--------|----------|--------|-----|-----------|---------------|
-| privileged access management | 3,500 | 46 | $0.45 | 미순위 | 8,700 |
-| mcp server | 46,000 | 81 | $0.80 | 미순위 | 66,000 |
-| ai agent security | 700 | 8 | - | 미순위 | - |
-| database access control | 90 | 2 | $6.00 | 미순위 | 70 |
-| data governance | 17,000 | 56 | $3.00 | 미순위 | 5,600 |
+#### US 시장 핵심 키워드
+
+| 키워드 | 검색량/월 | 난이도 | CPC | 트래픽 잠재력 | 권장 우선순위 |
+|--------|----------|--------|-----|---------------|---------------|
+| **data access governance** | 450 | **1** | $8.00 | 150 | 🟢 **최고** |
+| **database access control** | 90 | **2** | $6.00 | 70 | 🟢 **최고** |
+| **ai agent security** | 700 | **8** | - | - | 🟢 **높음** |
+| pam solutions | 900 | 26 | $0.45 | 4,500 | 🟡 중간 |
+| database security | 1,300 | 27 | $0.50 | 1,700 | 🟡 중간 |
+| mcp server security | 200 | 33 | - | - | 🟡 중간 |
+| privileged access management | 3,500 | 46 | $0.45 | 8,700 | 🟡 중간 |
+| least privilege access | 1,400 | 50 | $5.00 | 2,700 | ⚠️ 어려움 |
+| zero trust access | 800 | 73 | $12.00 | 13,000 | ⚠️ 어려움 |
+| mcp server | 46,000 | 81 | $0.80 | 66,000 | ⚠️ 장기 |
+
+⚠️ **Round 3 핵심 발견**: "data access governance" (난이도 1)와 "database access control" (난이도 2)은 **즉시 타겟팅 가능한 초저경쟁 키워드**
 
 ### 5.2 현재 순위 키워드 (Ahrefs)
 
@@ -344,7 +353,22 @@
 
 **QueryPie 진입 전략**: DR 55로 현재 상위 10위 진입 어려움. 롱테일 키워드 ("pam for kubernetes", "database privileged access") 먼저 타겟팅 권장.
 
-### 6.2 "mcp server" SERP (US)
+### 6.2 "database access control" SERP (US) - Round 3 신규 분석
+
+| 순위 | 도메인 | DR | 트래픽 | 백링크 | QueryPie 경쟁 가능성 |
+|------|--------|-----|--------|--------|---------------------|
+| 2 | satoricyber.com | **64** | 77 | 8 | 🟢 경쟁 가능 |
+| 3 | datasunrise.com | **52** | 27 | 7 | 🟢 **QueryPie DR 55 > 52** |
+| 4 | oracle.com | 93 | 28 | 4 | ⚠️ 대기업 |
+| 5 | identityfusion.com | **31** | 16 | 2 | 🟢 **QueryPie DR 55 >> 31** |
+| 6 | geeksforgeeks.org | 89 | 55 | 8 | ⚠️ 대형 미디어 |
+| 8 | cyberark.com | 81 | 10 | 1 | ⚠️ PAM 경쟁사 |
+| 10 | strongdm.com | 77 | 26 | 1 | 🟡 경쟁사 |
+| 11 | entitle.io | **50** | 60 | 3 | 🟢 **QueryPie DR 55 > 50** |
+
+**🟢 핵심 인사이트**: "database access control" 키워드에서 상위 순위 도메인의 평균 DR이 낮음 (52-64 범위). **QueryPie(DR 55)가 3-5위 진입 현실적**. 이 키워드는 ACP 제품의 핵심 기능과 완벽히 일치하므로 **최우선 타겟팅 권장**.
+
+### 6.3 "mcp server" SERP (US)
 
 | 순위 | 도메인 | 트래픽 | 백링크 |
 |------|--------|--------|--------|
@@ -543,6 +567,7 @@ ga pages 451239708 --days 90
 | 2026-02-03 01:16 KST | Ahrefs 연동, 경쟁사 분석 추가 |
 | 2026-02-03 14:30 KST | GA 상세 분석, 디바이스/트래픽 소스 추가 |
 | 2026-02-03 02:10 KST | Round 2: 경쟁사 데이터 검증, SERP 분석 보완 |
+| 2026-02-03 02:20 KST | Round 3: 키워드 기회 심층 분석, 초저경쟁 키워드 발굴 (data access governance, database access control) |
 
 ---
 
