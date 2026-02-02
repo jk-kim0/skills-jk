@@ -7,7 +7,7 @@
 | 분석 대상 | https://app.querypie.com/ |
 | 분석 기간 | 2025-11-01 ~ 2026-02-03 |
 | 분석 일자 | 2026-02-03 (심층 분석 업데이트) |
-| 분석 도구 | Ahrefs MCP, Google Search Console CLI, Google Analytics GA4 |
+| 분석 도구 | Ahrefs MCP, Google Search Console CLI |
 | 제품 | QueryPie AIP (AI Platform) |
 | 이전 분석 | 2026-02-02 |
 
@@ -72,7 +72,7 @@ app.querypie.com은 **QueryPie AIP (AI Platform)** 제품의 서비스 도메인
 
 ## 3. 도메인 권위 분석 (Ahrefs)
 
-### 3.1 백링크 프로필
+### 3.1 백링크 프로필 (2026-02-03 업데이트)
 
 | 지표 | 값 | 평가 |
 |------|-----|------|
@@ -80,6 +80,20 @@ app.querypie.com은 **QueryPie AIP (AI Platform)** 제품의 서비스 도메인
 | 총 백링크 (All-time) | 230 | - |
 | 참조 도메인 (Live) | 7 | ⚠️ 부족 |
 | 참조 도메인 (All-time) | 7 | - |
+
+### 3.1.1 참조 도메인 상세 (Round 2 업데이트)
+
+| 도메인 | DR | 링크 수 | 첫 발견 | 비고 |
+|--------|-----|---------|---------|------|
+| atlassian.net | **92** | 4 | 2025-10 | 🟢 고품질 |
+| zenn.dev | **83** | 1 | 2025-07 | 🟢 고품질 (일본 기술 블로그) |
+| pulsemcp.com | **61** | 2 | 2025-09 | MCP 생태계 |
+| demoday.co.kr | 20 | 4 | 2025-07 | 한국 스타트업 |
+| devsnote.com | 17 | 1 | 2025-10 | - |
+| querypie.ai | 1.6 | 215 | 2025-11 | 내부 링크 |
+| subdomainfinder.io | 0.8 | 3 | 2025-10 | 낮은 가치 |
+
+**긍정적 요소**: Atlassian (DR 92), zenn.dev (DR 83) 등 고품질 도메인에서 백링크 확보. **인덱싱 문제만 해결되면 SEO 잠재력 높음**.
 
 ### 3.1.1 Ahrefs Organic Traffic 주간 추이
 
@@ -424,6 +438,7 @@ curl -sI "https://app.querypie.com/" | head -1
 | 2026-02-02 01:00 KST | 초기 GSC 분석, 인덱싱 실패 확인 |
 | 2026-02-03 02:00 KST | HTTP HEAD 405 에러 분석 |
 | 2026-02-03 16:30 KST | GA 데이터 오류 수정 (ACP Application ≠ app.querypie.com) |
+| 2026-02-03 02:25 KST | Round 2: 참조 도메인 상세 분석, 고품질 백링크 확인 (Atlassian DR 92, zenn.dev DR 83) |
 
 ---
 
