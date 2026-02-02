@@ -913,6 +913,7 @@ ga pages 451239708 --days 90
 | 2026-02-03 04:30 KST | Round 42: 미국/일본 추가 키워드 - data governance tools (2,900/월, 난이도 7), 特権id管理 (900/월, 난이도 0), アクセス制御 (500/월, 난이도 0) |
 | 2026-02-03 04:40 KST | Round 43: CyberArk 경쟁사 콘텐츠 갭 분석 - "What is" 허브 전략 발견, PAM/Least Privilege/Access Management 콘텐츠 갭 확인 |
 | 2026-02-03 04:50 KST | Round 44: BeyondTrust 분석 및 일본 제로트러스트 키워드 - Glossary 전략, ゼロトラスト 18,000/월, ゼロトラストネットワーク 800/월 (난이도 0) |
+| 2026-02-03 03:37 KST | Round 45: Delinea 분석 (Password Generator 45,808/월 트래픽!) 및 Database Security 기회 - cloud database security (500/월, 난이도 5), DR 4 사이트 Top 20 진입 확인 |
 
 ---
 
@@ -1144,6 +1145,86 @@ www.querypie.com/ja/
 | ゼロトラストアーキテクチャ | Top 5 | +50-150/월 |
 | Glossary 허브 (US) | - | +100-300/월 |
 | **Round 44 총계** | - | **+500-1,450/월** |
+
+---
+
+## 10.10 Round 45: Delinea 분석 및 Database Security 기회 (2026-02-03 03:37 KST)
+
+### 🏆 Delinea Top 페이지 분석 (또 다른 PAM 경쟁사)
+
+| 순위 | URL 패턴 | 트래픽/월 | Top 키워드 | 전략 |
+|------|----------|----------|------------|------|
+| 1 | /resources/password-generator-it-tool | **45,808** | password generator 12 characters (68K/월) | 🔥 **Free Tool** |
+| 2 | 홈페이지 | 11,923 | delinea | 브랜드 |
+| 3 | /resources/password-strength-checker | **4,510** | password strength checker (5,700/월) | Free Tool |
+| 4 | /products/secret-server | 2,085 | secret server | 제품 |
+| 5 | /what-is/active-directory | 1,572 | what is active directory (3,800/월) | What is 허브 |
+| 6 | /what-is/rdp-remote-desktop-protocol | 1,076 | rdp full form (12K/월) | What is 허브 |
+| 7 | /what-is/privileged-access-management-pam | 743 | privileged access management (3,600/월) | What is 허브 |
+| 8 | /blog/what-is-identity-management-idm | 713 | idm meaning (13K/월) | 블로그 |
+
+**Delinea 전략 인사이트:**
+- **🔥 Free Tool 전략**: Password Generator로 45,808/월 트래픽 확보!
+- **/what-is/** 패턴으로 CyberArk와 동일한 정의형 콘텐츠 허브 운영
+- 기술 블로그로 롱테일 키워드 (linux/windows privilege escalation) 공략
+
+### 🗄️ Database Security 키워드 기회 (QueryPie DAC 시장)
+
+| 키워드 | 검색량/월 | 난이도 | 트래픽 잠재력 | 시장 | 우선순위 |
+|--------|----------|--------|--------------|------|---------|
+| **database security** | 1,300 | 27 | 1,700 | US | 🥈 높음 |
+| **cloud database security** | 500 | **5** | 200 | US | 🥇 **최우선** |
+| **database security best practices** | 500 | 14 | 1,700 | US | 🥈 높음 |
+| **what is database security** | 450 | 7 | 1,800 | US | 🥇 최우선 |
+| **database security software** | 400 | 11 | 450 | US | 🥈 높음 |
+| **database security tools** | 250 | **4** | 200 | US | 🥇 **최우선** |
+| **database security services** | 250 | 10 | 200 | US | 🥈 높음 |
+| **🇺🇸 US Database Security 총계** | **3,650+** | **평균 11** | **6,250** | - | **고가치** |
+
+### 🔍 Cloud Database Security SERP 분석 (블루오션 확인)
+
+| Position | 도메인 | DR | 백링크 | 트래픽 | 분석 |
+|----------|--------|-----|--------|--------|------|
+| 2 | satoricyber.com | **64** | 0 | 204 | 중형 경쟁사 |
+| 3 | esecurityplanet.com | 76 | 11 | 101 | 미디어 |
+| 16 | velotix.ai | **48** | 0 | 7 | 🟢 진입 가능 |
+| 17 | pivotpointsecurity.com | **50** | 0 | 3 | 🟢 진입 가능 |
+| **20** | adaptivesystemsinc.com | **4** | 0 | 2 | 🔥 **DR 4로 랭킹!** |
+| 23 | datasunrise.com | **52** | 1,095 | 187 | 직접 경쟁사 |
+
+**핵심 발견: DR 4 사이트가 "cloud database security"에서 Top 20 진입!**
+- QueryPie DR 55로 충분히 상위 랭킹 가능
+- datasunrise.com (DR 52)이 직접 Database Security 경쟁사
+
+### 💡 Round 45 핵심 인사이트
+
+1. **Free Tool 전략**: Delinea의 Password Generator가 45,808/월 트래픽 - QueryPie도 무료 도구 개발 고려
+2. **Database Security 블루오션**: 난이도 4-14, DR 4 사이트도 Top 20 진입
+3. **세 경쟁사 공통 전략**: CyberArk, BeyondTrust, Delinea 모두 "What is" / Glossary 허브 운영
+4. **datasunrise.com 경쟁사**: DR 52로 Database Security 시장에서 직접 경쟁
+
+### 🎯 Database Security 콘텐츠 로드맵 (QueryPie DAC)
+
+```
+www.querypie.com/
+├── /database-security/                     → database security (1,300/월)
+├── /database-security/cloud/               → cloud database security (500/월, 난이도 5)
+├── /database-security/best-practices/      → database security best practices (500/월)
+├── /database-security/what-is/             → what is database security (450/월)
+├── /database-security/tools/               → database security tools (250/월, 난이도 4)
+├── /resources/glossary/                    → BeyondTrust 스타일 Glossary 허브
+└── /tools/                                 → 무료 도구 (Delinea 스타일)
+```
+
+### 🚀 예상 효과 추가
+
+| 콘텐츠 | 예상 순위 | 예상 트래픽 |
+|--------|----------|------------|
+| cloud database security | Top 15 | +50-150/월 |
+| database security tools | Top 10 | +30-80/월 |
+| what is database security | Top 10 | +40-100/월 |
+| database security best practices | Top 15 | +50-120/월 |
+| **Round 45 총계** | - | **+170-450/월** |
 
 ---
 
