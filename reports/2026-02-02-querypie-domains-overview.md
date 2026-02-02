@@ -335,14 +335,28 @@ app.querypie.com (인덱싱 실패)
 | **ai access control** | US | 250 | **5** | aip-docs | 🔴 AIP 핵심 키워드 |
 | **data governance platform** | US | 800 | **6** | www.querypie.com | 🔴 콘텐츠 생성 필요 |
 
+**🔥 Round 16: 추가 발굴 키워드 (난이도 1-6)**
+
+| 키워드 | 시장 | 검색량 | 난이도 | 타겟 도메인 | 제품 매칭 |
+|--------|------|--------|--------|-------------|-----------|
+| **kubernetes secrets management** | US | 150 | **1** | docs.querypie.com | ACP 기능 |
+| **sql server security** | US | 150 | **3** | docs.querypie.com | ACP 기능 |
+| **ssh key management** | US | 200 | **3** | docs.querypie.com | ACP 기능 |
+| **database activity monitoring** | US | 450 | **3** | www.querypie.com | ACP 핵심 |
+| **database firewall** | US | 100 | **4** | www.querypie.com | ACP 기능 |
+| **database compliance** | US | 150 | **6** | www.querypie.com | ACP 기능 |
+
 **🟡 난이도 6-20 키워드 (중요)**
 
 | 키워드 | 시장 | 검색량 | 난이도 | 타겟 도메인 | 조치 상태 |
 |--------|------|--------|--------|-------------|-----------|
 | **ai agent security** | US | 700 | **8** | www.querypie.com | 🔴 블로그 작성 |
+| **postgresql security** | US | 150 | **9** | docs.querypie.com | 🔴 문서 추가 |
 | **session recording** | US | 250 | **10** | www.querypie.com | 🔴 기능 페이지 |
+| **privileged identity management** | US | 1,300 | **12** | www.querypie.com | 🔴 PAM 콘텐츠 |
 | **just in time access** | US | 700 | **12** | www.querypie.com | 🔴 PAM 콘텐츠 |
 | **mcp authentication** | US | 300 | **18** | aip-docs | 🔴 기술 문서 |
+| **pam tools** | US | 500 | **19** | www.querypie.com | 🔴 비교 페이지 |
 | **dynamic data masking** | US | 250 | **20** | docs.querypie.com | 🟡 기존 문서 개선 |
 
 ### 통합 백링크 전략
