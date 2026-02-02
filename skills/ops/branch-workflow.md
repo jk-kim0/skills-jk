@@ -40,6 +40,20 @@ git pull origin main
 
 ### 2. 로컬 브랜치 정리
 
+**자동화 스크립트 사용 (권장):**
+
+```bash
+# stale 브랜치 확인 (dry-run)
+git-cleanup-branches
+
+# stale 브랜치 삭제 실행
+git-cleanup-branches --delete
+```
+
+> `git-cleanup-branches`는 `bin/git-cleanup-branches`에 위치. 최근 14일 이내 커밋이 있고 PR이 MERGED/CLOSED된 브랜치를 자동 감지합니다.
+
+**수동 정리:**
+
 ```bash
 # 모든 브랜치와 PR 상태 확인
 git branch -a
@@ -72,6 +86,8 @@ git checkout -b <prefix>/<descriptive-name>
 | 단계 | 명령어 |
 |------|--------|
 | main 이동 및 업데이트 | `git checkout main && git pull origin main` |
+| stale 브랜치 확인 | `git-cleanup-branches` |
+| stale 브랜치 삭제 | `git-cleanup-branches --delete` |
 | 브랜치 목록 확인 | `git branch -a` |
 | PR 상태 확인 | `gh pr list --state all --json headRefName,state` |
 | 로컬 브랜치 삭제 | `git branch -d <branch-name>` |

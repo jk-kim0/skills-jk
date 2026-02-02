@@ -1,0 +1,357 @@
+#!/usr/bin/env python3.12
+"""
+Git Cleanup Branches
+
+Scans git repositories under a workspace directory and identifies stale branches
+that have been merged or closed via PR.
+"""
+
+from __future__ import annotations
+
+import argparse
+import subprocess
+import sys
+from datetime import datetime, timedelta
+from pathlib import Path
+
+
+def run_command(cmd: list[str], cwd: str | None = None) -> tuple[int, str, str]:
+    """Run a command and return (returncode, stdout, stderr)."""
+    try:
+        result = subprocess.run(
+            cmd,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        return result.returncode, result.stdout.strip(), result.stderr.strip()
+    except subprocess.TimeoutExpired:
+        return 1, "", "Command timed out"
+    except Exception as e:
+        return 1, "", str(e)
+
+
+def check_prerequisites() -> bool:
+    """Check if required tools are installed."""
+    # Check gh CLI
+    code, _, _ = run_command(["gh", "--version"])
+    if code != 0:
+        print("Error: gh CLI is not installed.")
+        print("Install it from: https://cli.github.com/")
+        return False
+
+    # Check gh auth
+    code, _, _ = run_command(["gh", "auth", "status"])
+    if code != 0:
+        print("Error: gh CLI is not authenticated.")
+        print("Run: gh auth login")
+        return False
+
+    return True
+
+
+def find_git_repos(workspace: Path) -> list[Path]:
+    """Find all git repositories under the workspace directory."""
+    repos = []
+
+    if not workspace.exists():
+        print(f"Error: Workspace directory does not exist: {workspace}")
+        return repos
+
+    for item in workspace.iterdir():
+        if item.is_dir() and (item / ".git").exists():
+            repos.append(item)
+
+    return sorted(repos)
+
+
+def get_base_branch(repo_path: Path) -> str:
+    """Determine the base branch for a repository."""
+    repo_name = repo_path.name
+    if repo_name == "querypie-mono":
+        return "develop"
+    return "main"
+
+
+def get_local_branches(repo_path: Path) -> list[str]:
+    """Get list of local branches excluding base branches."""
+    code, stdout, _ = run_command(
+        ["git", "branch", "--format=%(refname:short)"],
+        cwd=str(repo_path),
+    )
+    if code != 0 or not stdout:
+        return []
+
+    base_branch = get_base_branch(repo_path)
+    exclude = {"main", "master", "develop", base_branch}
+
+    branches = []
+    for line in stdout.split("\n"):
+        branch = line.strip()
+        if branch and branch not in exclude:
+            branches.append(branch)
+
+    return branches
+
+
+def get_last_commit_date(repo_path: Path, branch: str) -> datetime | None:
+    """Get the date of the last commit on a branch."""
+    code, stdout, _ = run_command(
+        ["git", "log", "-1", "--format=%ct", branch],
+        cwd=str(repo_path),
+    )
+    if code != 0 or not stdout:
+        return None
+
+    try:
+        timestamp = int(stdout.strip())
+        return datetime.fromtimestamp(timestamp)
+    except (ValueError, OSError):
+        return None
+
+
+def get_pr_status(repo_path: Path, branch: str) -> str | None:
+    """Get PR status for a branch using gh CLI.
+
+    Returns: 'MERGED', 'CLOSED', 'OPEN', or None if no PR exists.
+    """
+    code, stdout, _ = run_command(
+        [
+            "gh", "pr", "list",
+            "--head", branch,
+            "--state", "all",
+            "--json", "state",
+            "--jq", ".[0].state",
+        ],
+        cwd=str(repo_path),
+    )
+    if code != 0 or not stdout:
+        return None
+
+    state = stdout.strip().upper()
+    if state in ("MERGED", "CLOSED", "OPEN"):
+        return state
+    return None
+
+
+def has_remote_branch(repo_path: Path, branch: str) -> bool:
+    """Check if a remote tracking branch exists."""
+    code, _, _ = run_command(
+        ["git", "rev-parse", "--verify", f"origin/{branch}"],
+        cwd=str(repo_path),
+    )
+    return code == 0
+
+
+def is_branch_merged(repo_path: Path, branch: str, base: str) -> bool:
+    """Check if all commits in branch are already in base using git cherry.
+
+    Returns True if all commits show '-' (already applied upstream).
+    """
+    code, stdout, _ = run_command(
+        ["git", "cherry", "-v", base, branch],
+        cwd=str(repo_path),
+    )
+    if code != 0:
+        return False
+
+    if not stdout.strip():
+        # No commits to compare, consider it merged
+        return True
+
+    # Check if all lines start with '-' (already applied)
+    for line in stdout.strip().split("\n"):
+        if line.startswith("+"):
+            return False
+
+    return True
+
+
+def fetch_repo(repo_path: Path) -> bool:
+    """Fetch and prune remote tracking branches."""
+    code, _, stderr = run_command(
+        ["git", "fetch", "--prune"],
+        cwd=str(repo_path),
+    )
+    if code != 0:
+        print(f"  Warning: Failed to fetch {repo_path.name}: {stderr}")
+        return False
+    return True
+
+
+def delete_branch(repo_path: Path, branch: str) -> bool:
+    """Delete a local branch."""
+    code, _, stderr = run_command(
+        ["git", "branch", "-D", branch],
+        cwd=str(repo_path),
+    )
+    if code != 0:
+        print(f"  Error: Failed to delete {branch}: {stderr}")
+        return False
+    return True
+
+
+def print_table(headers: list[str], rows: list[list[str]]) -> None:
+    """Print a simple table with borders."""
+    if not rows:
+        return
+
+    # Calculate column widths
+    widths = [len(h) for h in headers]
+    for row in rows:
+        for i, cell in enumerate(row):
+            widths[i] = max(widths[i], len(cell))
+
+    # Build format string
+    def make_row(cells: list[str], left: str, mid: str, right: str) -> str:
+        parts = []
+        for i, cell in enumerate(cells):
+            parts.append(f" {cell.ljust(widths[i])} ")
+        return left + mid.join(parts) + right
+
+    def make_separator(left: str, mid: str, right: str, fill: str) -> str:
+        parts = [fill * (w + 2) for w in widths]
+        return left + mid.join(parts) + right
+
+    # Print table
+    print(make_separator("┌", "┬", "┐", "─"))
+    print(make_row(headers, "│", "│", "│"))
+    print(make_separator("├", "┼", "┤", "─"))
+    for row in rows:
+        print(make_row(row, "│", "│", "│"))
+    print(make_separator("└", "┴", "┘", "─"))
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Scan workspace and cleanup stale branches in git repositories",
+    )
+    parser.add_argument(
+        "--workspace",
+        type=Path,
+        default=Path.home() / "workspace",
+        help="Workspace directory to scan (default: ~/workspace)",
+    )
+    parser.add_argument(
+        "--days",
+        type=int,
+        default=14,
+        help="Only check branches with commits within this many days (default: 14)",
+    )
+    parser.add_argument(
+        "--delete",
+        action="store_true",
+        help="Actually delete stale branches (default: dry-run)",
+    )
+    args = parser.parse_args()
+
+    # Check prerequisites
+    if not check_prerequisites():
+        return 1
+
+    workspace = args.workspace.expanduser().resolve()
+    cutoff_date = datetime.now() - timedelta(days=args.days)
+
+    print(f"Scanning workspace: {workspace}")
+    print(f"Checking branches with commits in the last {args.days} days")
+    print()
+
+    repos = find_git_repos(workspace)
+    if not repos:
+        print("No git repositories found.")
+        return 0
+
+    print(f"Found {len(repos)} git repositories")
+    print()
+
+    all_stale: list[tuple[Path, str, str, str, str]] = []
+
+    for repo_path in repos:
+        repo_name = repo_path.name
+        base_branch = get_base_branch(repo_path)
+
+        # Fetch latest remote state
+        fetch_repo(repo_path)
+
+        branches = get_local_branches(repo_path)
+        if not branches:
+            continue
+
+        stale_in_repo: list[list[str]] = []
+
+        for branch in branches:
+            # Check last commit date
+            last_commit = get_last_commit_date(repo_path, branch)
+            if last_commit is None:
+                continue
+
+            if last_commit < cutoff_date:
+                # Skip branches older than cutoff
+                continue
+
+            # Check PR status
+            pr_status = get_pr_status(repo_path, branch)
+
+            # Determine if stale
+            is_stale = False
+            if pr_status in ("MERGED", "CLOSED"):
+                is_stale = True
+            elif pr_status is None:
+                # No PR - check if merged via git cherry
+                if is_branch_merged(repo_path, branch, base_branch):
+                    # Commits are merged but no PR found - might be stale
+                    # But we keep it since there's no PR record
+                    pass
+
+            if not is_stale:
+                continue
+
+            # Check remote status
+            remote_status = "exists" if has_remote_branch(repo_path, branch) else "deleted"
+            commit_date_str = last_commit.strftime("%Y-%m-%d")
+
+            stale_in_repo.append([branch, pr_status or "N/A", commit_date_str, remote_status])
+            all_stale.append((repo_path, branch, pr_status or "N/A", commit_date_str, remote_status))
+
+        if stale_in_repo:
+            print(f"📁 {repo_name} (base: {base_branch})")
+            print_table(
+                ["Branch", "PR Status", "Last Commit", "Remote"],
+                stale_in_repo,
+            )
+            print()
+
+    # Summary
+    if not all_stale:
+        print("No stale branches found.")
+        return 0
+
+    repo_count = len(set(s[0] for s in all_stale))
+    print(f"Summary: {len(all_stale)} stale branches found in {repo_count} repositories")
+    print()
+
+    if not args.delete:
+        print("Run with --delete to remove these branches.")
+        return 0
+
+    # Delete branches
+    print("Deleting stale branches...")
+    print()
+
+    deleted = 0
+    for repo_path, branch, _, _, _ in all_stale:
+        if delete_branch(repo_path, branch):
+            print(f"✓ {repo_path.name}: {branch}")
+            deleted += 1
+        else:
+            print(f"✗ {repo_path.name}: {branch}")
+
+    print()
+    print(f"Deleted {deleted} branches.")
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
