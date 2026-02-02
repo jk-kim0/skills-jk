@@ -1990,9 +1990,10 @@ www.querypie.com/
 | R59 | DevSecOps US/JP (11,490/월) | +430-1,200/월 |
 | R60 | Endpoint Security & SOAR (9,250/월) | +160-410/월 |
 | R61 | API Security, CSPM & Cloud Security JP (16,450/월) | +620-1,610/월 |
-| **총계** | - | **+3,430-9,385/월** |
+| R62 | Container/K8s Security & SIEM (21,700/월) | +620-1,570/월 |
+| **총계** | - | **+4,050-10,955/월** |
 
-**🎯 최종 예상: 현재 955/월 → 4,385-10,340/월 (360-985% 성장 잠재력)**
+**🎯 최종 예상: 현재 955/월 → 5,005-11,910/월 (425-1,150% 성장 잠재력)**
 
 ---
 
@@ -2189,7 +2190,82 @@ www.querypie.com/
 
 ---
 
-### 📊 총 예상 트래픽 요약 (Round 44-61 최종)
+## 10.23 Round 62: Container/K8s Security & SIEM (2026-02-03 04:02 KST)
+
+### 🐳 Container & Kubernetes Security
+
+| 키워드 | 검색량/월 | 난이도 | 트래픽 잠재력 | 우선순위 |
+|--------|----------|--------|--------------|---------|
+| kubernetes security news | 6,300 | 9 | 8,700 | 🥈 높음 |
+| container security solutions | 600 | 4 | 450 | 🥇 **최우선** |
+| **kubernetes security tools** | 500 | **2** | 500 | 🥇 **최우선** |
+| **container runtime security** | 500 | **0** | 300 | 🥇 **최우선** |
+| **best container security tools** | 450 | **1** | 1,700 | 🥇 **최우선** |
+| **container image security** | 400 | **2** | - | 🥇 **최우선** |
+| **container security testing** | 400 | **3** | 200 | 🥇 **최우선** |
+| **kubernetes security posture management** | 350 | **2** | 90 | 🥇 **최우선** |
+| **aws container security** | 300 | **0** | 150 | 🥇 **최우선** |
+| **kubernetes runtime security** | 300 | **2** | 200 | 🥇 **최우선** |
+| **🐳 Container/K8s Security 총계** | **10,100+** | **평균 2.5** | **12,290** | **핵심 시장** |
+
+### 📊 SIEM & Information Security
+
+| 키워드 | 검색량/월 | 난이도 | 트래픽 잠재력 | 우선순위 |
+|--------|----------|--------|--------------|---------|
+| **information security risk management** | **2,300** | **5** | 1,200 | 🥇 **최우선** |
+| information security management | 2,000 | 7 | 1,000 | 🥈 높음 |
+| threat detection and response | 1,900 | 9 | 2,200 | 🥈 높음 |
+| splunk siem | 1,700 | 4 | 5,900 | 🥇 **최우선** |
+| **siem integration** | **1,100** | **1** | 600 | 🥇 **최우선** |
+| **managed siem** | **1,100** | **0** | 700 | 🥇 **최우선** |
+| **open source siem** | 800 | **2** | 8,400 | 🥇 **최우선** |
+| **siem vs soar** | 700 | **3** | 900 | 🥇 **최우선** |
+| **📊 SIEM 총계** | **11,600+** | **평균 4** | **20,900** | **대형 시장** |
+
+### 💡 Round 62 핵심 인사이트
+
+1. **Container Security 블루오션**: container runtime security (난이도 0), aws container security (난이도 0)
+2. **Kubernetes 툴**: kubernetes security tools (난이도 2), kubernetes security posture management (난이도 2)
+3. **SIEM 비교 콘텐츠**: managed siem (난이도 0, 1,100/월!), siem integration (난이도 1)
+4. **Open Source 기회**: open source siem (난이도 2, 트래픽 잠재력 8,400!)
+
+### 🎯 콘텐츠 전략
+
+```
+www.querypie.com/
+├── /container-security/                        → Container Security 허브
+│   ├── /runtime/                              → container runtime security (500/월, 난이도 0)
+│   ├── /best-tools/                           → best container security tools (450/월, 난이도 1)
+│   ├── /image-security/                       → container image security (400/월, 난이도 2)
+│   └── /aws/                                  → aws container security (300/월, 난이도 0)
+├── /kubernetes-security/
+│   ├── /tools/                                → kubernetes security tools (500/월, 난이도 2)
+│   ├── /posture-management/                   → kubernetes security posture management (350/월)
+│   └── /runtime/                              → kubernetes runtime security (300/월, 난이도 2)
+└── /siem/
+    ├── /integration/                          → siem integration (1,100/월, 난이도 1)
+    ├── /managed/                              → managed siem (1,100/월, 난이도 0)
+    ├── /open-source/                          → open source siem (800/월, 난이도 2)
+    └── /siem-vs-soar/                         → siem vs soar (700/월, 난이도 3)
+```
+
+### 🚀 예상 효과 추가
+
+| 콘텐츠 | 예상 순위 | 예상 트래픽 |
+|--------|----------|------------|
+| container runtime security | Top 5 | +80-200/월 |
+| aws container security | Top 5 | +50-120/월 |
+| best container security tools | Top 5 | +70-180/월 |
+| kubernetes security tools | Top 10 | +40-100/월 |
+| managed siem | Top 5 | +180-450/월 |
+| siem integration | Top 10 | +90-220/월 |
+| open source siem | Top 10 | +60-160/월 |
+| siem vs soar | Top 10 | +50-140/월 |
+| **Round 62 총계** | - | **+620-1,570/월** |
+
+---
+
+### 📊 총 예상 트래픽 요약 (Round 44-62 최종)
 
 | Round | 주요 발견 | 추가 트래픽 |
 |-------|----------|------------|
@@ -2200,9 +2276,10 @@ www.querypie.com/
 | R59 | DevSecOps (11,490/월) | +430-1,200/월 |
 | R60 | Endpoint Security & SOAR (9,250/월) | +160-410/월 |
 | R61 | API Security, CSPM & Cloud Security JP (16,450/월) | +620-1,610/월 |
-| **총계** | - | **+3,430-9,385/월** |
+| R62 | Container/K8s Security & SIEM (21,700/월) | +620-1,570/월 |
+| **총계** | - | **+4,050-10,955/월** |
 
-**🎯 최종 예상: 현재 955/월 → 4,385-10,340/월 (360-985% 성장 잠재력)**
+**🎯 최종 예상: 현재 955/월 → 5,005-11,910/월 (425-1,150% 성장 잠재력)**
 
 ---
 
