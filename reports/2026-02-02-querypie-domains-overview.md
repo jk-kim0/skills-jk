@@ -315,20 +315,35 @@ app.querypie.com (인덱싱 실패)
 └── → aip-docs (문서 링크) 인덱싱 해결 후 자동 적용
 ```
 
-### 초저경쟁 키워드 전체 현황 (Round 2-4 발굴)
+### 초저경쟁 키워드 전체 현황 (Round 2-15 발굴)
 
-| 키워드 | 검색량 | 난이도 | 타겟 도메인 | 조치 상태 |
-|--------|--------|--------|-------------|-----------|
-| **data access governance** | 450 | **1** | www.querypie.com | 🔴 콘텐츠 생성 필요 |
-| **ldap integration** | 200 | **0** | docs.querypie.com | 🔴 영어 문서 최적화 |
-| **database access control** | 90 | **2** | www.querypie.com | 🔴 랜딩 페이지 생성 |
-| **active directory integration** | 400 | **2** | docs.querypie.com | 🔴 영어 문서 최적화 |
-| **context model** | 90 | **4** | aip-docs | 🔴 MCP 문서 최적화 |
-| **ai agent security** | 700 | **8** | www.querypie.com | 🔴 블로그 작성 |
-| **okta integration** | 80 | **13** | docs.querypie.com | 🟡 기존 문서 개선 |
-| **mcp benefits** | 50 | **15** | aip-docs | 🔴 신규 페이지 생성 |
-| **ldap authentication** | 1,000 | **17** | docs.querypie.com | 🟡 기존 문서 개선 |
-| **what is an mcp server** | 3,700 | **29** | aip-docs | 🔴 개념 문서 생성 |
+**🔥 난이도 0-5 키워드 (최우선)**
+
+| 키워드 | 시장 | 검색량 | 난이도 | 타겟 도메인 | 조치 상태 |
+|--------|------|--------|--------|-------------|-----------|
+| **database access management** | US | 150 | **0** | www.querypie.com | 🔴 콘텐츠 생성 필요 |
+| **ldap integration** | US | 200 | **0** | docs.querypie.com | 🔴 영어 문서 최적화 |
+| **データマスキング** | JP | 200 | **0** | www.querypie.com | 🔴 일본어 콘텐츠 |
+| **데이터 마스킹** | KR | 80 | **0** | www.querypie.com | 🔴 한국어 콘텐츠 |
+| **data access governance** | US | 450 | **1** | www.querypie.com | 🔴 콘텐츠 생성 필요 |
+| **database audit** | US | 150 | **1** | www.querypie.com | 🔴 콘텐츠 생성 필요 |
+| **ai 에이전트** | KR | 3,600 | **1** | app.querypie.com | 🔴 인덱싱 후 |
+| **ai 플랫폼** | KR | 1,100 | **1** | app.querypie.com | 🔴 인덱싱 후 |
+| **database access control** | US | 90 | **2** | www.querypie.com | 🔴 랜딩 페이지 생성 |
+| **active directory integration** | US | 400 | **2** | docs.querypie.com | 🔴 영어 문서 최적화 |
+| **context model** | US | 90 | **4** | aip-docs | 🔴 MCP 문서 최적화 |
+| **ai access control** | US | 250 | **5** | aip-docs | 🔴 AIP 핵심 키워드 |
+| **data governance platform** | US | 800 | **6** | www.querypie.com | 🔴 콘텐츠 생성 필요 |
+
+**🟡 난이도 6-20 키워드 (중요)**
+
+| 키워드 | 시장 | 검색량 | 난이도 | 타겟 도메인 | 조치 상태 |
+|--------|------|--------|--------|-------------|-----------|
+| **ai agent security** | US | 700 | **8** | www.querypie.com | 🔴 블로그 작성 |
+| **session recording** | US | 250 | **10** | www.querypie.com | 🔴 기능 페이지 |
+| **just in time access** | US | 700 | **12** | www.querypie.com | 🔴 PAM 콘텐츠 |
+| **mcp authentication** | US | 300 | **18** | aip-docs | 🔴 기술 문서 |
+| **dynamic data masking** | US | 250 | **20** | docs.querypie.com | 🟡 기존 문서 개선 |
 
 ### 통합 백링크 전략
 
