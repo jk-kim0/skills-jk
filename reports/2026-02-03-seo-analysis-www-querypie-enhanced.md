@@ -1988,9 +1988,112 @@ www.querypie.com/
 | R57 | Data Masking & Role Management (4,750/월) | +115-290/월 |
 | R58 | Policy Management & Security Automation (8,700/월) | +270-730/월 |
 | R59 | DevSecOps US/JP (11,490/월) | +430-1,200/월 |
-| **총계** | - | **+2,615-7,235/월** |
+| R60 | Endpoint Security & SOAR (9,250/월) | +160-410/월 |
+| **총계** | - | **+2,810-7,775/월** |
 
-**🎯 최종 예상: 현재 955/월 → 3,570-8,190/월 (275-760% 성장 잠재력)**
+**🎯 최종 예상: 현재 955/월 → 3,765-8,730/월 (295-815% 성장 잠재력)**
+
+---
+
+## 10.21 Round 60: Endpoint Security & SOAR (2026-02-03 04:08 KST)
+
+### 🖥️ Endpoint Security - 저난이도 대형 시장
+
+| 키워드 | 검색량/월 | 난이도 | 트래픽 잠재력 | 우선순위 |
+|--------|----------|--------|--------------|---------|
+| **endpoint security management** | **1,000** | **3** | 400 | 🥇 **최우선** |
+| endpoint security tools | 700 | 15 | 350 | 🥈 높음 |
+| **trellix endpoint security** | 500 | **3** | 450 | 🥇 **최우선** |
+| endpoint security solutions | 3,900 | 33 | 12,000 | 🟡 장기 |
+| **🖥️ Endpoint Security 총계** | **6,100+** | **평균 14** | **13,200** | **성장 시장** |
+
+### 🔄 SOAR Security - 보안 자동화 시장
+
+| 키워드 | 검색량/월 | 난이도 | 트래픽 잠재력 | 우선순위 |
+|--------|----------|--------|--------------|---------|
+| soar security | 1,400 | 24 | 3,600 | 🥈 높음 |
+| soar cyber security | 1,100 | 15 | 3,500 | 🥈 높음 |
+| **top soar solutions** | 250 | **0** | - | 🥇 **최우선** |
+| **recommended soar tools** | 200 | **0** | - | 🥇 **최우선** |
+| soar security tools | 200 | 12 | 1,900 | 🥈 높음 |
+| **🔄 SOAR 총계** | **3,150+** | **평균 10** | **9,000** | **보안 자동화** |
+
+### 💡 Round 60 핵심 인사이트
+
+1. **endpoint security management (난이도 3, 1,000/월)**: 엔드포인트 보안 관리 블루오션!
+2. **trellix endpoint security (난이도 3)**: 경쟁사 키워드 기회
+3. **top soar solutions/recommended soar tools (난이도 0)**: SOAR 추천 콘텐츠
+
+### 🎯 콘텐츠 전략
+
+```
+www.querypie.com/
+├── /endpoint-security/                      → endpoint security 허브
+├── /endpoint-security/management/           → endpoint security management (1,000/월, 난이도 3)
+├── /endpoint-security/tools/                → endpoint security tools (700/월)
+├── /soar/                                   → SOAR 허브
+├── /soar/top-solutions/                     → top soar solutions (250/월, 난이도 0)
+└── /soar/tools/                             → soar security tools (200/월)
+```
+
+### 🚀 예상 효과 추가
+
+| 콘텐츠 | 예상 순위 | 예상 트래픽 |
+|--------|----------|------------|
+| endpoint security management | Top 10 | +80-200/월 |
+| trellix endpoint security | Top 15 | +30-80/월 |
+| top soar solutions | Top 5 | +30-80/월 |
+| recommended soar tools | Top 5 | +20-50/월 |
+| **Round 60 총계** | - | **+160-410/월** |
+
+---
+
+### 📊 총 예상 트래픽 요약 (Round 44-60 최종)
+
+| Round | 주요 발견 | 추가 트래픽 |
+|-------|----------|------------|
+| R44 | 일본 ゼロトラスト (27,850/월) | +500-1,450/월 |
+| R45-R50 | Database Security, Access Governance, JIT | +640-1,730/월 |
+| R52-R55 | Credential, Audit Trail, SSH Key, Certification | +395-1,105/월 |
+| R56-R58 | Identity Management, Data Masking, Policy | +685-1,880/월 |
+| R59 | DevSecOps (11,490/월) | +430-1,200/월 |
+| R60 | Endpoint Security & SOAR (9,250/월) | +160-410/월 |
+| **총계** | - | **+2,810-7,775/월** |
+
+**🎯 최종 예상: 현재 955/월 → 3,765-8,730/월 (295-815% 성장 잠재력)**
+
+---
+
+## 📋 Round 44-60 발굴 키워드 핵심 요약
+
+### 🥇 최우선 실행 키워드 (난이도 0-5)
+
+| 키워드 | 검색량/월 | 난이도 | 시장 |
+|--------|----------|--------|------|
+| access governance | 900 | 0 | US |
+| enterprise identity management | 1,300 | 0 | US |
+| access certification | 400 | 1 | US |
+| access request | 350 | 0 | US |
+| patch management policy | 450 | 0 | US |
+| credential management system | 150 | 0 | US |
+| privileged session recording | 150 | 0 | US |
+| devsecops vs devops | 700 | 1 | US |
+| endpoint security management | 1,000 | 3 | US |
+| ゼロトラストネットワーク | 800 | 0 | JP |
+| devsecops (JP) | 2,300 | 3 | JP |
+| アイデンティティ管理 | 200 | 0 | JP |
+
+### 🥈 높은 가치 키워드 (난이도 6-15)
+
+| 키워드 | 검색량/월 | 난이도 | 시장 |
+|--------|----------|--------|------|
+| audit trail | 2,100 | 7 | US |
+| devsecops tools | 3,700 | 8 | US |
+| policy management software | 2,800 | 8 | US |
+| identity lifecycle management | 1,200 | 4 | US |
+| cloud identity management | 700 | 3 | US |
+| data masking software | 450 | 5 | US |
+| ゼロトラスト | 18,000 | 9 | JP |
 
 ---
 
