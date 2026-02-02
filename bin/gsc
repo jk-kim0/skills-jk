@@ -1,12 +1,16 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.12
 """
 Google Search Console API 클라이언트
 
 사용법:
-    gsc sites                           # 등록된 사이트 목록
-    gsc query <site_url>                # 검색 성능 데이터 조회
-    gsc query <site_url> --days 30      # 최근 30일 데이터
-    gsc query <site_url> --by-date      # 날짜별 조회
+    gsc sites                              # 등록된 사이트 목록
+    gsc query <site_url>                   # 검색 성능 데이터 조회
+    gsc query <site_url> --days 30         # 최근 30일 데이터
+    gsc query <site_url> --by-date         # 날짜별 조회
+    gsc query <site_url> --by-country      # 국가별 조회
+    gsc query <site_url> --by-device       # 디바이스별 조회
+    gsc sitemaps <site_url>                # 사이트맵 목록
+    gsc inspect <site_url> <page_url>      # URL 인덱싱 상태 검사
 
 설정:
     1. Google Cloud Console에서 OAuth 2.0 클라이언트 ID 생성
@@ -16,6 +20,7 @@ Google Search Console API 클라이언트
 """
 
 import argparse
+import json
 import os
 import pickle
 import sys
@@ -27,13 +32,17 @@ try:
     from google.oauth2.credentials import Credentials
     from google_auth_oauthlib.flow import InstalledAppFlow
     from googleapiclient.discovery import build
+    import requests
 except ImportError:
     print("필수 패키지가 설치되어 있지 않습니다. 다음 명령어로 설치하세요:")
-    print("  pip install google-auth google-auth-oauthlib google-api-python-client")
+    print("  pip install google-auth google-auth-oauthlib google-api-python-client requests")
     sys.exit(1)
 
-# API 스코프
-SCOPES = ['https://www.googleapis.com/auth/webmasters.readonly']
+# API 스코프 (URL Inspection API 포함)
+SCOPES = [
+    'https://www.googleapis.com/auth/webmasters.readonly',
+    'https://www.googleapis.com/auth/webmasters',
+]
 
 # 인증 파일 경로
 CLIENT_SECRET_FILE = os.environ.get(
@@ -48,7 +57,26 @@ def get_credentials():
     creds = None
     token_path = Path(TOKEN_FILE)
 
-    # 클라이언트 시크릿 파일 확인
+    # 저장된 토큰이 있으면 먼저 로드 시도
+    if token_path.exists():
+        with open(token_path, 'rb') as token:
+            creds = pickle.load(token)
+
+    # 토큰이 유효하면 바로 반환
+    if creds and creds.valid:
+        return creds
+
+    # 토큰이 만료되었지만 refresh 가능하면 갱신
+    if creds and creds.expired and creds.refresh_token:
+        try:
+            creds.refresh(Request())
+            with open(token_path, 'wb') as token:
+                pickle.dump(creds, token)
+            return creds
+        except Exception as e:
+            print(f"토큰 갱신 실패: {e}")
+
+    # 새로 인증이 필요한 경우 - client_secret 필요
     if not os.path.exists(CLIENT_SECRET_FILE):
         print(f"오류: 클라이언트 시크릿 파일을 찾을 수 없습니다: {CLIENT_SECRET_FILE}")
         print()
@@ -59,23 +87,13 @@ def get_credentials():
         print("     또는 GOOGLE_CLIENT_SECRET 환경변수로 경로 지정")
         sys.exit(1)
 
-    # 저장된 토큰이 있으면 로드
-    if token_path.exists():
-        with open(token_path, 'rb') as token:
-            creds = pickle.load(token)
+    flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRET_FILE, SCOPES)
+    creds = flow.run_local_server(port=0)
 
-    # 토큰이 없거나 만료되었으면 새로 인증
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRET_FILE, SCOPES)
-            creds = flow.run_local_server(port=0)
-
-        # 토큰 저장
-        token_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(token_path, 'wb') as token:
-            pickle.dump(creds, token)
+    # 토큰 저장
+    token_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(token_path, 'wb') as token:
+        pickle.dump(creds, token)
 
     return creds
 
@@ -107,7 +125,197 @@ def list_sites():
         print(f"    권한: {permission}\n")
 
 
-def query_search_analytics(site_url: str, days: int = 7, dimensions: list = None):
+def list_sitemaps(site_url: str):
+    """사이트맵 목록을 조회합니다."""
+    service = get_service()
+
+    try:
+        response = service.sitemaps().list(siteUrl=site_url).execute()
+    except Exception as e:
+        print(f"오류: {e}")
+        return
+
+    sitemaps = response.get('sitemap', [])
+
+    print(f"\n{'=' * 80}")
+    print(f"  사이트맵 목록: {site_url}")
+    print(f"{'=' * 80}\n")
+
+    if not sitemaps:
+        print("  등록된 사이트맵이 없습니다.")
+        return
+
+    print(f"{'상태':<12} {'유형':<12} {'제출일':<12} {'URL 수':>10}  경로")
+    print("-" * 80)
+
+    for sitemap in sitemaps:
+        path = sitemap.get('path', '')
+        sitemap_type = sitemap.get('type', 'N/A')
+        last_submitted = sitemap.get('lastSubmitted', '')[:10] if sitemap.get('lastSubmitted') else 'N/A'
+
+        # 콘텐츠 정보
+        contents = sitemap.get('contents', [])
+        total_urls = sum(int(c.get('submitted', 0) or 0) for c in contents)
+        indexed_urls = sum(int(c.get('indexed', 0) or 0) for c in contents)
+
+        # 오류/경고 상태
+        errors = int(sitemap.get('errors', 0) or 0)
+        warnings_count = int(sitemap.get('warnings', 0) or 0)
+
+        if errors > 0:
+            status = f"오류 {errors}"
+        elif warnings_count > 0:
+            status = f"경고 {warnings_count}"
+        else:
+            status = "정상"
+
+        print(f"{status:<12} {sitemap_type:<12} {last_submitted:<12} {total_urls:>10}  {path}")
+
+        # 상세 콘텐츠 정보
+        for content in contents:
+            content_type = content.get('type', '')
+            submitted = int(content.get('submitted', 0) or 0)
+            indexed = int(content.get('indexed', 0) or 0)
+            if submitted > 0:
+                print(f"{'':>12} └─ {content_type}: 제출 {submitted}, 인덱싱 {indexed}")
+
+    print(f"\n총 {len(sitemaps)}개 사이트맵")
+
+
+def inspect_url(site_url: str, page_url: str):
+    """URL 인덱싱 상태를 검사합니다."""
+    creds = get_credentials()
+
+    # URL Inspection API는 별도 엔드포인트 사용
+    endpoint = 'https://searchconsole.googleapis.com/v1/urlInspection/index:inspect'
+
+    headers = {
+        'Authorization': f'Bearer {creds.token}',
+        'Content-Type': 'application/json',
+    }
+
+    body = {
+        'inspectionUrl': page_url,
+        'siteUrl': site_url,
+    }
+
+    try:
+        response = requests.post(endpoint, headers=headers, json=body)
+        response.raise_for_status()
+        result = response.json()
+    except requests.exceptions.HTTPError as e:
+        if response.status_code == 403:
+            print("오류: URL Inspection API 접근 권한이 없습니다.")
+            print("토큰을 삭제하고 재인증하세요: rm ~/.config/gsc/token.pickle")
+        else:
+            print(f"API 오류: {e}")
+            print(f"응답: {response.text}")
+        return
+    except Exception as e:
+        print(f"오류: {e}")
+        return
+
+    inspection = result.get('inspectionResult', {})
+    index_status = inspection.get('indexStatusResult', {})
+    crawl_status = inspection.get('crawlStatusResult', {}) if 'crawlStatusResult' in inspection else {}
+    mobile_status = inspection.get('mobileUsabilityResult', {})
+    rich_results = inspection.get('richResultsResult', {})
+
+    print(f"\n{'=' * 70}")
+    print(f"  URL 검사 결과")
+    print(f"{'=' * 70}")
+    print(f"  검사 URL: {page_url}")
+    print(f"  사이트: {site_url}")
+    print(f"{'=' * 70}\n")
+
+    # 인덱싱 상태
+    print("[ 인덱싱 상태 ]")
+    verdict = index_status.get('verdict', 'N/A')
+    verdict_display = {
+        'PASS': '✅ 인덱싱됨',
+        'PARTIAL': '⚠️ 부분 인덱싱',
+        'FAIL': '❌ 인덱싱 안됨',
+        'NEUTRAL': '➖ 중립',
+    }.get(verdict, verdict)
+    print(f"  상태: {verdict_display}")
+
+    coverage_state = index_status.get('coverageState', '')
+    if coverage_state:
+        print(f"  커버리지: {coverage_state}")
+
+    robotstxt_state = index_status.get('robotsTxtState', '')
+    if robotstxt_state:
+        print(f"  robots.txt: {robotstxt_state}")
+
+    indexing_state = index_status.get('indexingState', '')
+    if indexing_state:
+        print(f"  인덱싱 허용: {indexing_state}")
+
+    last_crawl = index_status.get('lastCrawlTime', '')
+    if last_crawl:
+        print(f"  마지막 크롤링: {last_crawl[:19].replace('T', ' ')}")
+
+    page_fetch_state = index_status.get('pageFetchState', '')
+    if page_fetch_state:
+        print(f"  페이지 가져오기: {page_fetch_state}")
+
+    google_canonical = index_status.get('googleCanonical', '')
+    if google_canonical:
+        print(f"  Google 선택 Canonical: {google_canonical}")
+
+    user_canonical = index_status.get('userCanonical', '')
+    if user_canonical:
+        print(f"  사용자 지정 Canonical: {user_canonical}")
+
+    crawled_as = index_status.get('crawledAs', '')
+    if crawled_as:
+        print(f"  크롤링 에이전트: {crawled_as}")
+
+    # 참조 URL
+    referring_urls = index_status.get('referringUrls', [])
+    if referring_urls:
+        print(f"\n  참조 URL:")
+        for url in referring_urls[:5]:
+            print(f"    - {url}")
+
+    # 사이트맵 정보
+    sitemap_info = index_status.get('sitemap', [])
+    if sitemap_info:
+        print(f"\n  사이트맵에서 발견:")
+        for sm in sitemap_info[:3]:
+            print(f"    - {sm}")
+
+    # 모바일 사용성
+    if mobile_status:
+        print(f"\n[ 모바일 사용성 ]")
+        mobile_verdict = mobile_status.get('verdict', 'N/A')
+        mobile_display = {
+            'PASS': '✅ 모바일 친화적',
+            'FAIL': '❌ 모바일 문제 있음',
+            'NEUTRAL': '➖ 확인 불가',
+        }.get(mobile_verdict, mobile_verdict)
+        print(f"  상태: {mobile_display}")
+
+        issues = mobile_status.get('issues', [])
+        if issues:
+            print(f"  문제점:")
+            for issue in issues:
+                print(f"    - {issue.get('issueType', '')} ({issue.get('severity', '')})")
+
+    # 리치 결과
+    if rich_results and rich_results.get('detectedItems'):
+        print(f"\n[ 리치 결과 ]")
+        detected = rich_results.get('detectedItems', [])
+        for item in detected:
+            rich_type = item.get('richResultType', '')
+            print(f"  - {rich_type}")
+            for issue in item.get('items', []):
+                for i in issue.get('issues', []):
+                    print(f"    └─ {i.get('issueMessage', '')} ({i.get('severity', '')})")
+
+
+def query_search_analytics(site_url: str, days: int = 7, dimensions: list = None,
+                           row_limit: int = 100, start_row: int = 0):
     """검색 성능 데이터를 조회합니다."""
     service = get_service()
 
@@ -121,7 +329,8 @@ def query_search_analytics(site_url: str, days: int = 7, dimensions: list = None
         'startDate': start_date.strftime('%Y-%m-%d'),
         'endDate': end_date.strftime('%Y-%m-%d'),
         'dimensions': dimensions,
-        'rowLimit': 100,
+        'rowLimit': row_limit,
+        'startRow': start_row,
     }
 
     response = service.searchanalytics().query(
@@ -134,35 +343,91 @@ def query_search_analytics(site_url: str, days: int = 7, dimensions: list = None
     print(f"\n{'=' * 80}")
     print(f"  검색 성능 데이터: {site_url}")
     print(f"  기간: {start_date.strftime('%Y-%m-%d')} ~ {end_date.strftime('%Y-%m-%d')}")
+    print(f"  차원: {', '.join(dimensions)}")
     print(f"{'=' * 80}\n")
 
     if not rows:
         print("  데이터가 없습니다.")
         return
 
-    # 헤더
-    print(f"{'클릭':>8} {'노출':>10} {'CTR':>8} {'순위':>8}  검색어 / 페이지")
-    print("-" * 80)
+    # 차원에 따른 출력 형식
+    if dimensions == ['query', 'page']:
+        print(f"{'클릭':>8} {'노출':>10} {'CTR':>8} {'순위':>8}  검색어 / 페이지")
+        print("-" * 80)
+        for row in rows[:50]:
+            keys = row.get('keys', [])
+            clicks = row.get('clicks', 0)
+            impressions = row.get('impressions', 0)
+            ctr = row.get('ctr', 0) * 100
+            position = row.get('position', 0)
+            query = keys[0] if len(keys) > 0 else ''
+            page = keys[1] if len(keys) > 1 else ''
+            print(f"{clicks:>8} {impressions:>10} {ctr:>7.1f}% {position:>8.1f}  {query[:30]}")
+            if page:
+                print(f"{' ' * 40}  {page[:60]}")
 
-    for row in rows[:50]:  # 상위 50개만 출력
-        keys = row.get('keys', [])
-        clicks = row.get('clicks', 0)
-        impressions = row.get('impressions', 0)
-        ctr = row.get('ctr', 0) * 100
-        position = row.get('position', 0)
+    elif dimensions == ['date']:
+        print(f"{'날짜':<12} {'클릭':>8} {'노출':>10} {'CTR':>8} {'평균순위':>8}")
+        print("-" * 60)
+        for row in rows:
+            date = row.get('keys', [''])[0]
+            clicks = row.get('clicks', 0)
+            impressions = row.get('impressions', 0)
+            ctr = row.get('ctr', 0) * 100
+            position = row.get('position', 0)
+            print(f"{date:<12} {clicks:>8} {impressions:>10} {ctr:>7.1f}% {position:>8.1f}")
 
-        query = keys[0] if len(keys) > 0 else ''
-        page = keys[1] if len(keys) > 1 else ''
+    elif dimensions == ['country']:
+        print(f"{'국가':<8} {'클릭':>10} {'노출':>12} {'CTR':>8} {'평균순위':>8}")
+        print("-" * 60)
+        for row in rows:
+            country = row.get('keys', [''])[0]
+            clicks = row.get('clicks', 0)
+            impressions = row.get('impressions', 0)
+            ctr = row.get('ctr', 0) * 100
+            position = row.get('position', 0)
+            print(f"{country:<8} {clicks:>10} {impressions:>12} {ctr:>7.1f}% {position:>8.1f}")
 
-        print(f"{clicks:>8} {impressions:>10} {ctr:>7.1f}% {position:>8.1f}  {query[:30]}")
-        if page:
-            print(f"{' ' * 40}  {page[:60]}")
+    elif dimensions == ['device']:
+        print(f"{'디바이스':<12} {'클릭':>10} {'노출':>12} {'CTR':>8} {'평균순위':>8}")
+        print("-" * 60)
+        device_names = {'DESKTOP': '데스크톱', 'MOBILE': '모바일', 'TABLET': '태블릿'}
+        for row in rows:
+            device = row.get('keys', [''])[0]
+            device_display = device_names.get(device, device)
+            clicks = row.get('clicks', 0)
+            impressions = row.get('impressions', 0)
+            ctr = row.get('ctr', 0) * 100
+            position = row.get('position', 0)
+            print(f"{device_display:<12} {clicks:>10} {impressions:>12} {ctr:>7.1f}% {position:>8.1f}")
 
-    print(f"\n총 {len(rows)}개 행")
+    elif dimensions == ['searchAppearance']:
+        print(f"{'검색 형태':<30} {'클릭':>10} {'노출':>12} {'CTR':>8}")
+        print("-" * 70)
+        for row in rows:
+            appearance = row.get('keys', [''])[0]
+            clicks = row.get('clicks', 0)
+            impressions = row.get('impressions', 0)
+            ctr = row.get('ctr', 0) * 100
+            print(f"{appearance:<30} {clicks:>10} {impressions:>12} {ctr:>7.1f}%")
+
+    else:
+        # 기타 차원 조합
+        print(f"{'키':>40} {'클릭':>8} {'노출':>10} {'CTR':>8} {'순위':>8}")
+        print("-" * 80)
+        for row in rows[:50]:
+            keys = ' | '.join(row.get('keys', []))
+            clicks = row.get('clicks', 0)
+            impressions = row.get('impressions', 0)
+            ctr = row.get('ctr', 0) * 100
+            position = row.get('position', 0)
+            print(f"{keys[:40]:>40} {clicks:>8} {impressions:>10} {ctr:>7.1f}% {position:>8.1f}")
+
+    print(f"\n총 {len(rows)}개 행 (조회 범위: {start_row+1}~{start_row+row_limit})")
 
 
-def query_by_date(site_url: str, days: int = 30):
-    """날짜별 검색 성능 데이터를 조회합니다."""
+def query_pages(site_url: str, days: int = 7, row_limit: int = 50):
+    """페이지별 검색 성능을 조회합니다."""
     service = get_service()
 
     end_date = datetime.now() - timedelta(days=3)
@@ -171,8 +436,8 @@ def query_by_date(site_url: str, days: int = 30):
     request_body = {
         'startDate': start_date.strftime('%Y-%m-%d'),
         'endDate': end_date.strftime('%Y-%m-%d'),
-        'dimensions': ['date'],
-        'rowLimit': 1000,
+        'dimensions': ['page'],
+        'rowLimit': row_limit,
     }
 
     response = service.searchanalytics().query(
@@ -182,45 +447,95 @@ def query_by_date(site_url: str, days: int = 30):
 
     rows = response.get('rows', [])
 
-    print(f"\n{'=' * 60}")
-    print(f"  날짜별 검색 성능: {site_url}")
-    print(f"{'=' * 60}\n")
+    print(f"\n{'=' * 90}")
+    print(f"  페이지별 검색 성능: {site_url}")
+    print(f"  기간: {start_date.strftime('%Y-%m-%d')} ~ {end_date.strftime('%Y-%m-%d')}")
+    print(f"{'=' * 90}\n")
 
-    print(f"{'날짜':<12} {'클릭':>8} {'노출':>10} {'CTR':>8} {'평균순위':>8}")
-    print("-" * 60)
+    if not rows:
+        print("  데이터가 없습니다.")
+        return
+
+    print(f"{'클릭':>8} {'노출':>10} {'CTR':>8} {'순위':>8}  페이지 URL")
+    print("-" * 90)
 
     for row in rows:
-        date = row.get('keys', [''])[0]
+        page = row.get('keys', [''])[0]
         clicks = row.get('clicks', 0)
         impressions = row.get('impressions', 0)
         ctr = row.get('ctr', 0) * 100
         position = row.get('position', 0)
+        print(f"{clicks:>8} {impressions:>10} {ctr:>7.1f}% {position:>8.1f}  {page[:70]}")
 
-        print(f"{date:<12} {clicks:>8} {impressions:>10} {ctr:>7.1f}% {position:>8.1f}")
+    print(f"\n총 {len(rows)}개 페이지")
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Google Search Console CLI')
+    parser = argparse.ArgumentParser(
+        description='Google Search Console CLI',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+예시:
+  gsc sites                                    # 사이트 목록
+  gsc query https://example.com/ --days 30    # 검색 성능 (30일)
+  gsc query https://example.com/ --by-country # 국가별 분석
+  gsc sitemaps https://example.com/           # 사이트맵 목록
+  gsc inspect https://example.com/ /page      # URL 인덱싱 검사
+  gsc pages https://example.com/              # 페이지별 성능
+"""
+    )
     subparsers = parser.add_subparsers(dest='command', help='명령어')
 
     # sites 명령어
     subparsers.add_parser('sites', help='등록된 사이트 목록')
 
+    # sitemaps 명령어
+    sitemaps_parser = subparsers.add_parser('sitemaps', help='사이트맵 목록 조회')
+    sitemaps_parser.add_argument('site_url', help='사이트 URL')
+
+    # inspect 명령어
+    inspect_parser = subparsers.add_parser('inspect', help='URL 인덱싱 상태 검사')
+    inspect_parser.add_argument('site_url', help='사이트 URL (예: https://example.com/)')
+    inspect_parser.add_argument('page_url', help='검사할 페이지 URL')
+
     # query 명령어
     query_parser = subparsers.add_parser('query', help='검색 성능 데이터 조회')
     query_parser.add_argument('site_url', help='사이트 URL (예: https://example.com/)')
-    query_parser.add_argument('--days', type=int, default=7, help='조회 기간 (일)')
+    query_parser.add_argument('--days', type=int, default=7, help='조회 기간 (일, 기본: 7)')
+    query_parser.add_argument('--limit', type=int, default=100, help='최대 행 수 (기본: 100)')
     query_parser.add_argument('--by-date', action='store_true', help='날짜별 조회')
+    query_parser.add_argument('--by-country', action='store_true', help='국가별 조회')
+    query_parser.add_argument('--by-device', action='store_true', help='디바이스별 조회')
+    query_parser.add_argument('--by-appearance', action='store_true', help='검색 형태별 조회')
+
+    # pages 명령어
+    pages_parser = subparsers.add_parser('pages', help='페이지별 검색 성능')
+    pages_parser.add_argument('site_url', help='사이트 URL')
+    pages_parser.add_argument('--days', type=int, default=7, help='조회 기간 (일)')
+    pages_parser.add_argument('--limit', type=int, default=50, help='최대 행 수')
 
     args = parser.parse_args()
 
     if args.command == 'sites':
         list_sites()
+    elif args.command == 'sitemaps':
+        list_sitemaps(args.site_url)
+    elif args.command == 'inspect':
+        inspect_url(args.site_url, args.page_url)
+    elif args.command == 'pages':
+        query_pages(args.site_url, args.days, args.limit)
     elif args.command == 'query':
         if args.by_date:
-            query_by_date(args.site_url, args.days)
+            dimensions = ['date']
+        elif args.by_country:
+            dimensions = ['country']
+        elif args.by_device:
+            dimensions = ['device']
+        elif args.by_appearance:
+            dimensions = ['searchAppearance']
         else:
-            query_search_analytics(args.site_url, args.days)
+            dimensions = ['query', 'page']
+        query_search_analytics(args.site_url, args.days, dimensions, args.limit)
     else:
         parser.print_help()
 

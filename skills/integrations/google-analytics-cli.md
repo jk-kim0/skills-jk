@@ -126,14 +126,26 @@ gsc <command> [args]
 | 명령어 | 설명 |
 |--------|------|
 | `sites` | 등록된 사이트 목록 |
+| `sitemaps <site_url>` | 사이트맵 목록 및 인덱싱 상태 |
+| `inspect <site_url> <page_url>` | URL 인덱싱 상태 검사 |
 | `query <site_url>` | 검색 성능 데이터 (검색어, 페이지별) |
 | `query <site_url> --by-date` | 날짜별 검색 성능 |
+| `query <site_url> --by-country` | 국가별 검색 성능 |
+| `query <site_url> --by-device` | 디바이스별 검색 성능 |
+| `query <site_url> --by-appearance` | 검색 형태별 검색 성능 |
+| `pages <site_url>` | 페이지별 검색 성능 |
 
 ### 사용 예시
 
 ```bash
 # 등록된 사이트 목록
 gsc sites
+
+# 사이트맵 목록 및 인덱싱 현황
+gsc sitemaps "https://www.querypie.com/"
+
+# URL 인덱싱 상태 검사 (SEO 진단용)
+gsc inspect "https://www.querypie.com/" "https://www.querypie.com/pricing"
 
 # 최근 7일 검색 성능 (검색어/페이지별)
 gsc query "https://www.querypie.com/"
@@ -143,10 +155,20 @@ gsc query "https://www.querypie.com/" --days 30
 
 # 날짜별 검색 성능
 gsc query "https://www.querypie.com/" --by-date --days 30
+
+# 국가별 검색 성능
+gsc query "https://www.querypie.com/" --by-country --days 30
+
+# 디바이스별 검색 성능
+gsc query "https://www.querypie.com/" --by-device
+
+# 페이지별 검색 성능 (상위 50개)
+gsc pages "https://www.querypie.com/" --days 30 --limit 50
 ```
 
 ### 출력 예시
 
+**검색 성능 (query)**
 ```
 ================================================================================
   검색 성능 데이터: https://www.querypie.com/
@@ -157,6 +179,39 @@ gsc query "https://www.querypie.com/" --by-date --days 30
 --------------------------------------------------------------------------------
       15        1234     1.2%       8.5  querypie
                                          https://www.querypie.com/
+```
+
+**사이트맵 (sitemaps)**
+```
+================================================================================
+  사이트맵 목록: https://app.querypie.com/
+================================================================================
+
+상태           유형           제출일               URL 수  경로
+--------------------------------------------------------------------------------
+정상           sitemap      2026-01-14          156  https://app.querypie.com/sitemap/publication-1.xml
+             └─ web: 제출 156, 인덱싱 0
+```
+
+**URL 검사 (inspect)**
+```
+======================================================================
+  URL 검사 결과
+======================================================================
+  검사 URL: https://www.querypie.com/pricing
+  사이트: https://www.querypie.com/
+======================================================================
+
+[ 인덱싱 상태 ]
+  상태: ✅ 인덱싱됨
+  커버리지: Submitted and indexed
+  robots.txt: ALLOWED
+  인덱싱 허용: INDEXING_ALLOWED
+  마지막 크롤링: 2026-01-28 09:15:32
+  Google 선택 Canonical: https://www.querypie.com/pricing
+
+[ 모바일 사용성 ]
+  상태: ✅ 모바일 친화적
 ```
 
 ## 주요 지표 정의
@@ -180,6 +235,23 @@ gsc query "https://www.querypie.com/" --by-date --days 30
 | CTR | Click-Through Rate = 클릭 / 노출 |
 | Position (순위) | 검색 결과 평균 게재 순위 |
 
+### URL Inspection 상태값
+
+| 상태 | 의미 |
+|------|------|
+| `PASS` | 인덱싱됨, 문제 없음 |
+| `PARTIAL` | 부분적으로 인덱싱됨 |
+| `FAIL` | 인덱싱 실패 |
+| `NEUTRAL` | 인덱싱 상태 확인 불가 (URL이 Google에 알려지지 않음) |
+
+| 커버리지 상태 | 의미 |
+|---------------|------|
+| `Submitted and indexed` | 제출되어 인덱싱됨 |
+| `Crawled - currently not indexed` | 크롤링됐지만 인덱싱되지 않음 |
+| `Discovered - currently not indexed` | 발견됐지만 크롤링/인덱싱 안됨 |
+| `URL is unknown to Google` | Google에 알려지지 않은 URL |
+| `Blocked by robots.txt` | robots.txt에 의해 차단됨 |
+
 ## 토큰 관리
 
 인증 토큰은 다음 위치에 저장됩니다:
@@ -194,7 +266,12 @@ gsc query "https://www.querypie.com/" --by-date --days 30
 ```bash
 rm ~/.config/ga/token.pickle
 ga accounts  # 브라우저에서 재인증
+
+rm ~/.config/gsc/token.pickle
+gsc sites    # 브라우저에서 재인증
 ```
+
+**참고**: URL Inspection API를 처음 사용하는 경우, 추가 권한이 필요하여 토큰 재인증이 필요할 수 있습니다.
 
 ## 참고 링크
 
