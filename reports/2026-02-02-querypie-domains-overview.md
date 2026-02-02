@@ -484,7 +484,68 @@ QueryPie      ██████████████████████
 |------|-----------|-----------|
 | **US** | PAM 대기업 대비 DR/트래픽 격차 큼 | 초저경쟁 키워드 집중 (difficulty 0-5) |
 | **JP** | Qiita/zenn.dev 기술 커뮤니티가 경쟁사 | 일본어 기술 블로그 연재로 노출 확보 |
-| **KR** | getastra.com과 5.2% 키워드 공유 | 브랜드 키워드 강화, 로컬 SEO |
+| **KR** | 로컬 경쟁사 대비 우위 (트래픽 881) | 브랜드 키워드 강화, 로컬 SEO |
+
+---
+
+## 5.8 한국 시장 경쟁사 상세 분석 (Round 17 추가)
+
+### 제품 영역별 경쟁사 매핑
+
+| 영역 | QueryPie 제품 | 경쟁사 |
+|------|--------------|--------|
+| **DAC** (Database Access Control) | ACP | DbSafer, ChakraMax, DB-i, PETRA, PISO, SSDB |
+| **SAC** (Server Access Control) | ACP | CyberArk PAM, HiWARE TAM, Password Manager Pro, IDoperation, ESS AdminOne, SecureCube Access Check |
+| **KAC** (Kubernetes Access Control) | ACP | Teleport |
+| **WAC** (Web Application Control) | ACP | CyberArk WAC |
+
+### SEO 경쟁력 비교 (한국 시장)
+
+```
+한국 시장 Organic Traffic 순위:
+
+PISO (piolink.com)         ████████████████████████████████████ 1,456/월
+────────────────────────────────────────────────────────────────────────
+QueryPie                   ██████████████████████████████ 881/월 ← 2위!
+────────────────────────────────────────────────────────────────────────
+ManageEngine               ████████████████████████ 684/월
+ChakraMax (sinsiway)       █████████████████ 477/월
+CyberArk                   █████████████████ 472/월
+Teleport                   █████████████ 362/월
+SecureOne                  ████████ 251/월
+DbSafer                    ░ 0/월
+HiWARE                     ░ 0/월
+```
+
+### DR 비교 (전체)
+
+| 경쟁사 | DR | 백링크 | 참조도메인 | KR 키워드 | KR 트래픽 |
+|--------|-----|--------|-----------|-----------|----------|
+| **CyberArk** | 81 | 1.4M | 13,909 | 248 | 472 |
+| **ManageEngine** | 81 | 4.1M | 13,862 | 521 | 684 |
+| **Teleport** | 73 | 112K | 4,424 | 87 | 362 |
+| **QueryPie** | **55** | 3,419 | 569 | 28 | **881** |
+| PISO | 50 | 8,472 | 334 | 66 | 1,456 |
+| ChakraMax | 28 | 803 | 173 | 69 | 477 |
+| DbSafer | 15 | 317 | 65 | 0 | 0 |
+| SecureOne | 9 | 495 | 66 | 11 | 251 |
+| HiWARE | 0 | 0 | 0 | 0 | 0 |
+
+### 💡 경쟁 분석 인사이트
+
+1. **QueryPie는 한국 로컬 경쟁사 대비 SEO 우위**
+   - DR 55로 로컬 경쟁사 중 최고
+   - 트래픽 881로 PISO 다음 2위
+   - 글로벌 경쟁사(CyberArk, ManageEngine)보다 한국 트래픽 높음
+
+2. **PISO가 유일한 로컬 SEO 경쟁자**
+   - 트래픽 1,456으로 1위
+   - 하지만 DR 50으로 QueryPie보다 낮음
+   - 백링크 전략 분석 필요
+
+3. **많은 경쟁사가 SEO 미비**
+   - DbSafer, HiWARE: 검색 트래픽 제로
+   - 한국어 SEO 콘텐츠로 시장 선점 가능
 
 ---
 
