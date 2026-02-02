@@ -910,6 +910,8 @@ ga pages 451239708 --days 90
 | 2026-02-03 03:30 KST | Round 38: DR 성장 추이 (41→55, +34%), 참조도메인 성장 (366→578, +58%), 시장별 경쟁사 분석 업데이트, trust.querypie.com 컴플라이언스 글로벌 키워드 분석 (KR 4,500+/월, JP 16,900+/월, US 54,000+/월) |
 | 2026-02-03 04:00 KST | Round 39: SERP 경쟁 분석 - "ai agent security" DR 56 사이트 3위 (경쟁 가능), "ai access control" DR 33/16 사이트 상위권 (블루오션 확인) |
 | 2026-02-03 04:15 KST | Round 40: 미국 저난이도 키워드 추가 발굴 - data access governance (450/월, 난이도 1), PAM best practices (300/월, 난이도 1), cloud database security (500/월, 난이도 5) |
+| 2026-02-03 04:30 KST | Round 42: 미국/일본 추가 키워드 - data governance tools (2,900/월, 난이도 7), 特権id管理 (900/월, 난이도 0), アクセス制御 (500/월, 난이도 0) |
+| 2026-02-03 04:40 KST | Round 43: CyberArk 경쟁사 콘텐츠 갭 분석 - "What is" 허브 전략 발견, PAM/Least Privilege/Access Management 콘텐츠 갭 확인 |
 
 ---
 
@@ -1012,6 +1014,73 @@ www.querypie.com/
 | 🇯🇵 | 特権id管理 계열 | Top 5 | +150-400/월 |
 | 🇯🇵 | アクセス制御 계열 | Top 5 | +80-200/월 |
 | **Round 42 총계** | - | - | **+360-1,000/월** |
+
+---
+
+## 10.8 Round 43: CyberArk 경쟁사 콘텐츠 갭 분석 (2026-02-03 04:40 KST)
+
+### 🏆 CyberArk Top 페이지 분석 (트래픽 기준)
+
+| 순위 | URL 패턴 | 트래픽/월 | Top 키워드 | 검색량 |
+|------|----------|----------|------------|--------|
+| 1 | /what-is/passwordless-authentication/ | **19,512** | passwordless login | 119,000 |
+| 2 | /what-is/certificate-chain-of-trust/ | **6,900** | ssl certificate chain | 114,000 |
+| 3 | /what-is/privileged-access-management/ | **3,561** | PAM | 3,600 |
+| 4 | /what-is/malware/ | 3,138 | malware attack | 3,900 |
+| 5 | /what-is/ot-cybersecurity/ | 2,682 | ot cyber security | 1,300 |
+| 6 | /what-is/iso/ | 1,887 | what does iso mean | 15,000 |
+| 7 | /what-is/least-privilege/ | 1,673 | least privilege | 350 |
+| 8 | /what-is/security-operations/ | 1,313 | security operations | 1,300 |
+| 9 | /what-is/access-management/ | 997 | access management | 1,000 |
+
+### 💡 CyberArk 콘텐츠 전략 인사이트
+
+1. **"What is" 허브 전략**: 교육적 콘텐츠로 대형 트래픽 확보
+2. **높은 검색량 키워드 타겟**: passwordless, SSL 등 대형 키워드
+3. **PAM 핵심 페이지**: privileged access management로 3,561/월 확보
+
+### 🎯 QueryPie "What is" 콘텐츠 갭
+
+**CyberArk 보유, QueryPie 미보유 콘텐츠:**
+
+| 토픽 | CyberArk 트래픽 | QueryPie 기회 | 우선순위 |
+|------|----------------|---------------|---------|
+| **Privileged Access Management** | 3,561/월 | 즉시 생성 필요 | 🥇 최우선 |
+| **Least Privilege** | 1,673/월 | 즉시 생성 필요 | 🥇 최우선 |
+| **Access Management** | 997/월 | 즉시 생성 필요 | 🥈 높음 |
+| **Security Operations** | 1,313/월 | 생성 검토 | 🥈 높음 |
+| OT Cybersecurity | 2,682/월 | 관련성 낮음 | 🟡 선택 |
+
+### 🔥 QueryPie "What is" 허브 제안
+
+```
+www.querypie.com/what-is/
+├── privileged-access-management/   → PAM 종합 가이드
+├── least-privilege/                → 최소 권한 원칙
+├── access-management/              → 접근 관리 기초
+├── database-access-control/        → DB 접근제어 (차별화)
+├── ai-agent-security/              → AI 에이전트 보안 (차별화)
+├── data-governance/                → 데이터 거버넌스
+├── zero-trust/                     → 제로 트러스트
+└── mcp-security/                   → MCP 보안 (차별화)
+```
+
+### 🚀 예상 효과 (What is 허브)
+
+| 콘텐츠 | 예상 순위 | 예상 트래픽 |
+|--------|----------|------------|
+| PAM 가이드 | 15-25위 | +100-300/월 |
+| Least Privilege | 10-20위 | +50-150/월 |
+| Database Access Control | Top 10 | +100-200/월 |
+| AI Agent Security | Top 10 | +50-150/월 |
+| **Round 43 총계** | - | **+300-800/월** |
+
+### 💡 핵심 전략
+
+**CyberArk 대비 QueryPie 차별화:**
+1. **Database Access Control**: CyberArk 미보유, QueryPie 핵심 기능
+2. **AI Agent Security**: 신규 시장, 경쟁 없음
+3. **MCP Security**: AIP 차별화 포인트
 
 ---
 
