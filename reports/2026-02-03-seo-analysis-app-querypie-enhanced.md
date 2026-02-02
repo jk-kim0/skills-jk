@@ -5,9 +5,10 @@
 | 항목 | 내용 |
 |------|------|
 | 분석 대상 | https://app.querypie.com/ |
-| 분석 기간 | 2025-11-01 ~ 2026-02-02 |
-| 분석 일자 | 2026-02-03 |
+| 분석 기간 | 2025-11-01 ~ 2026-02-03 |
+| 분석 일자 | 2026-02-03 (심층 분석 업데이트) |
 | 분석 도구 | Ahrefs MCP, Google Search Console CLI |
+| 제품 | QueryPie AIP (AI Platform) |
 | 이전 분석 | 2026-02-02 |
 
 ---
@@ -37,6 +38,14 @@
 
 ---
 
+## 1.5 Google Analytics 분석
+
+⚠️ **참고**: app.querypie.com에 대한 별도의 GA Property가 설정되어 있지 않습니다.
+
+app.querypie.com은 **QueryPie AIP (AI Platform)** 제품의 서비스 도메인으로, 사용자 트래픽 분석을 위해서는 별도의 GA 설정이 필요합니다.
+
+---
+
 ## 2. 현재 상태: 검색 트래픽 제로
 
 ### 2.1 GSC 데이터 (최근 30일)
@@ -63,7 +72,7 @@
 
 ## 3. 도메인 권위 분석 (Ahrefs)
 
-### 3.1 백링크 프로필
+### 3.1 백링크 프로필 (최신)
 
 | 지표 | 값 | 평가 |
 |------|-----|------|
@@ -71,6 +80,17 @@
 | 총 백링크 (All-time) | 230 | - |
 | 참조 도메인 (Live) | 7 | ⚠️ 부족 |
 | 참조 도메인 (All-time) | 7 | - |
+
+### 3.1.1 Ahrefs Organic Traffic 주간 추이
+
+| 주차 | 트래픽 | 트래픽 가치 | 변화 |
+|------|--------|-------------|------|
+| 2025-11-03 | 2 | $0 | 기준 |
+| 2025-11-10 | 2 | $0 | → |
+| 2025-11-17 | **0** | $0 | 🔴 인덱싱 문제 시작 |
+| 2025-12-01 ~ 2026-01-26 | 0 | $0 | 🔴 지속 |
+
+⚠️ **인사이트**: 2025년 11월 중순부터 Ahrefs에서도 organic 트래픽이 0으로 감지됨. 인덱싱 문제가 이 시점에 발생한 것으로 추정.
 
 ### 3.2 Ahrefs 키워드 데이터
 
@@ -379,10 +399,31 @@ curl -sI "https://app.querypie.com/" | head -1
 
 ## 부록: 데이터 소스
 
-- **Ahrefs MCP**: Domain Rating, Backlinks, Referring Domains, Organic Keywords
-- **Google Search Console CLI**: Search Performance (데이터 없음), URL Inspection
-- **분석 기간**: 2025-11-01 ~ 2026-02-02
-- **분석 일시**: 2026-02-03 02:00 KST
+### 사용된 데이터 소스
+
+| 소스 | 데이터 유형 | 분석 기간 | 비고 |
+|------|-------------|-----------|------|
+| **Ahrefs MCP** | Domain Rating, Backlinks, Referring Domains, Organic Keywords, Metrics History | 90일 | - |
+| **Google Search Console CLI** | Search Performance, URL Inspection | 90일 | ⚠️ 데이터 없음 (인덱싱 실패) |
+
+### 분석 CLI 명령어
+
+```bash
+# GSC 분석
+gsc query "https://app.querypie.com/" --days 30  # 데이터 없음
+gsc inspect "https://app.querypie.com/" "https://app.querypie.com/"
+
+# HTTP HEAD 응답 확인
+curl -sI "https://app.querypie.com/" | head -1
+```
+
+### 분석 이력
+
+| 일시 | 내용 |
+|------|------|
+| 2026-02-02 01:00 KST | 초기 GSC 분석, 인덱싱 실패 확인 |
+| 2026-02-03 02:00 KST | HTTP HEAD 405 에러 분석 |
+| 2026-02-03 16:30 KST | GA 데이터 오류 수정 (ACP Application ≠ app.querypie.com) |
 
 ---
 

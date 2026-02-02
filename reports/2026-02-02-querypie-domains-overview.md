@@ -11,6 +11,40 @@
 
 ---
 
+## 0. QueryPie 제품 및 도메인 매핑
+
+### 제품 개요
+
+QueryPie는 두 가지 주요 제품 라인을 운영합니다:
+
+| 제품 | 전체 명칭 | 배포 방식 | 설명 |
+|------|-----------|-----------|------|
+| **ACP** | Access Control Platform | 온프레미스 | 데이터베이스/서버 접근 제어 솔루션 |
+| **AIP** | AI Platform | SaaS | AI 에이전트 보안 및 MCP 관리 플랫폼 |
+
+### 제품-도메인 매핑
+
+| 제품 | 도메인 | 용도 | GA Property |
+|------|--------|------|-------------|
+| **공통** | www.querypie.com | 마케팅 사이트 | 451239708 (QueryPie Homepage) |
+| **ACP** | docs.querypie.com | ACP 제품 문서 | 522469891 (ACP Docs) |
+| **ACP** | (온프레미스 설치) | ACP 애플리케이션 | 451236681 (ACP Application) |
+| **AIP** | app.querypie.com | AIP 애플리케이션 (SaaS) | ⚠️ **미설정** |
+| **AIP** | aip-docs.app.querypie.com | AIP 제품 문서 | 491852908 (AIP Docs) |
+
+### ⚠️ 주의사항
+
+**GA Property "ACP Application" (451236681)**:
+- 이 Property는 **온프레미스로 설치된 ACP 제품**의 사용 데이터를 수집
+- **app.querypie.com (AIP SaaS)과 무관**
+- ACP Application의 트래픽 소스는 주로 기업 SSO (Okta 등)를 통한 접근
+
+**app.querypie.com GA 설정 필요**:
+- 현재 app.querypie.com에 대한 별도 GA Property가 없음
+- AIP 서비스 사용자 분석을 위해 GA 설정 권장
+
+---
+
 ## 1. 도메인 전체 현황
 
 ### 1.1 도메인 속성 (Domain Property) 총계
@@ -80,16 +114,20 @@
 
 | 항목 | 내용 |
 |------|------|
-| 역할 | QueryPie AIP 애플리케이션 |
+| 역할 | **QueryPie AIP (AI Platform)** SaaS 서비스 |
+| 제품 | AIP - AI 에이전트 보안 및 MCP 관리 플랫폼 |
 | 클릭 | 0 |
 | 노출 | 0 |
 | 사이트맵 | 2개, 158 URL |
+| GA Property | ⚠️ **미설정** (별도 설정 필요) |
 | 분석 상태 | ✅ 완료 ([리포트](./2026-02-02-seo-analysis-app-querypie.md)) |
 
 **주요 발견:**
 - 인덱싱 실패 (Redirect Error)
 - HTTP HEAD 요청 405 에러
 - 긴급 조치 필요
+
+**⚠️ 참고**: GA Property 451236681 (ACP Application)은 온프레미스 ACP 제품용이며, app.querypie.com (AIP SaaS)과 무관
 
 ---
 
