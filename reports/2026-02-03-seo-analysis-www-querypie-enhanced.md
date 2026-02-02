@@ -1995,9 +1995,10 @@ www.querypie.com/
 | R64 | GRC & Security Operations (26,600/월) | +1,510-3,760/월 |
 | R65 | SSO/MFA & Passwordless Authentication JP (23,750/월) | +1,280-3,210/월 |
 | R66 | Security Compliance & Vendor Risk (22,950/월) | +780-1,930/월 |
-| **총계** | - | **+8,340-21,735/월** |
+| R67 | Security Awareness & Data Privacy (6,900/월) | +465-1,150/월 |
+| **총계** | - | **+8,805-22,885/월** |
 
-**🎯 최종 예상: 현재 955/월 → 9,295-22,690/월 (875-2,275% 성장 잠재력)**
+**🎯 최종 예상: 현재 955/월 → 9,760-23,840/월 (920-2,400% 성장 잠재력)**
 
 ---
 
@@ -2589,7 +2590,80 @@ www.querypie.com/
 
 ---
 
-### 📊 총 예상 트래픽 요약 (Round 44-66 최종)
+## 10.28 Round 67: Security Awareness & Data Privacy (2026-02-03 04:15 KST)
+
+### 🎓 Security Awareness Training
+
+| 키워드 | 검색량/월 | 난이도 | 트래픽 잠재력 | 우선순위 |
+|--------|----------|--------|--------------|---------|
+| **social media security awareness** | 200 | **0** | 10 | 🥇 **최우선** |
+| **credential phishing prevention** | 200 | **1** | 200 | 🥇 **최우선** |
+| **security awareness training topics** | 200 | **1** | 90 | 🥇 **최우선** |
+| **cyber security awareness training cost** | 200 | **4** | 250 | 🥇 **최우선** |
+| spear phishing prevention | 200 | 4 | 1,100 | 🥇 **최우선** |
+| **end user security awareness** | 150 | **1** | 450 | 🥇 **최우선** |
+| **phishing prevention software** | 150 | **3** | 800 | 🥇 **최우선** |
+| **average cost of security awareness training** | 150 | **2** | 250 | 🥇 **최우선** |
+| **workplace security awareness** | 100 | **2** | 100 | 🥇 **최우선** |
+| **🎓 Security Awareness 총계** | **1,550+** | **평균 2** | **3,250** | **교육 시장** |
+
+### 🔐 Data Privacy & Protection
+
+| 키워드 | 검색량/월 | 난이도 | 트래픽 잠재력 | 우선순위 |
+|--------|----------|--------|--------------|---------|
+| **data privacy consulting** | **1,100** | **2** | 1,600 | 🥇 **최우선** |
+| **data protection consulting** | 800 | **1** | 1,600 | 🥇 **최우선** |
+| **data protection policy** | 700 | **5** | 450 | 🥇 **최우선** |
+| **enterprise data encryption** | 700 | **4** | 300 | 🥇 **최우선** |
+| **data protection as a service** | 600 | **2** | 300 | 🥇 **최우선** |
+| **data privacy attorney** | 500 | **0** | 1,300 | 🥇 **최우선** |
+| **enterprise data protection** | 450 | **3** | 800 | 🥇 **최우선** |
+| data protection solicitors | 500 | 4 | 70 | 🥇 **최우선** |
+| **🔐 Data Privacy 총계** | **5,350+** | **평균 3** | **6,420** | **프라이버시 시장** |
+
+### 💡 Round 67 핵심 인사이트
+
+1. **보안 인식 블루오션**: social media security awareness (난이도 0), credential phishing prevention (난이도 1)
+2. **데이터 컨설팅**: data privacy/protection consulting (합계 1,900/월, 난이도 1-2)
+3. **데이터 보호 서비스**: data protection as a service (600/월, 난이도 2)
+4. **법률 콘텐츠**: data privacy attorney (500/월, 난이도 0!)
+
+### 🎯 콘텐츠 전략
+
+```
+www.querypie.com/
+├── /security-awareness/                         → Security Awareness 허브
+│   ├── /training-topics/                       → security awareness training topics (200/월, 난이도 1)
+│   ├── /phishing-prevention/                   → credential phishing prevention (200/월, 난이도 1)
+│   ├── /social-media/                          → social media security awareness (200/월, 난이도 0)
+│   └── /cost/                                  → security awareness training cost (350/월, 난이도 2-4)
+├── /data-privacy/
+│   ├── /consulting/                            → data privacy consulting (1,100/월, 난이도 2)
+│   └── /attorney/                              → data privacy attorney (500/월, 난이도 0)
+└── /data-protection/
+    ├── /consulting/                            → data protection consulting (800/월, 난이도 1)
+    ├── /policy/                                → data protection policy (700/월, 난이도 5)
+    ├── /as-a-service/                          → data protection as a service (600/월, 난이도 2)
+    └── /enterprise/                            → enterprise data protection (450/월, 난이도 3)
+```
+
+### 🚀 예상 효과 추가
+
+| 콘텐츠 | 예상 순위 | 예상 트래픽 |
+|--------|----------|------------|
+| social media security awareness | Top 5 | +30-80/월 |
+| credential phishing prevention | Top 5 | +30-80/월 |
+| security awareness training topics | Top 10 | +15-40/월 |
+| data privacy consulting | Top 10 | +90-220/월 |
+| data protection consulting | Top 5 | +130-320/월 |
+| data protection as a service | Top 10 | +50-120/월 |
+| data privacy attorney | Top 5 | +80-200/월 |
+| enterprise data protection | Top 10 | +40-90/월 |
+| **Round 67 총계** | - | **+465-1,150/월** |
+
+---
+
+### 📊 총 예상 트래픽 요약 (Round 44-67 최종)
 
 | Round | 주요 발견 | 추가 트래픽 |
 |-------|----------|------------|
@@ -2605,9 +2679,10 @@ www.querypie.com/
 | R64 | GRC & Security Operations (26,600/월) | +1,510-3,760/월 |
 | R65 | SSO/MFA & Passwordless Authentication JP (23,750/월) | +1,280-3,210/월 |
 | R66 | Security Compliance & Vendor Risk (22,950/월) | +780-1,930/월 |
-| **총계** | - | **+8,340-21,735/월** |
+| R67 | Security Awareness & Data Privacy (6,900/월) | +465-1,150/월 |
+| **총계** | - | **+8,805-22,885/월** |
 
-**🎯 최종 예상: 현재 955/월 → 9,295-22,690/월 (875-2,275% 성장 잠재력)**
+**🎯 최종 예상: 현재 955/월 → 9,760-23,840/월 (920-2,400% 성장 잠재력)**
 
 ---
 
