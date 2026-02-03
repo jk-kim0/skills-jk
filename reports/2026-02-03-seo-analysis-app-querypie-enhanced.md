@@ -7,6 +7,7 @@
 | 분석 대상 | https://app.querypie.com/ |
 | 분석 기간 | 2025-11-01 ~ 2026-02-03 |
 | 분석 일자 | 2026-02-03 |
+| **최종 업데이트** | **2026-02-03 20:20 KST (배포 후 검증)** |
 | 분석 도구 | Ahrefs MCP, Google Search Console CLI |
 | 제품 | QueryPie AIP (AI Platform) |
 | 이전 분석 | 2026-02-02 |
@@ -14,6 +15,15 @@
 ---
 
 ## 2. Executive Summary
+
+### 🎉 인덱싱 문제 해결 완료 (2026-02-03 배포)
+
+| 항목 | 이전 상태 | 현재 상태 | 결과 |
+|------|----------|----------|------|
+| **HTTP HEAD 응답** | 405 Method Not Allowed | **200 OK** | ✅ **해결** |
+| **og:url (Publication)** | 고정값 | **동적 URL** | ✅ **해결** |
+| **canonical 링크** | 없음 | **페이지별 설정** | ✅ **해결** |
+| **robots.txt** | 미확인 | Allow/Disallow 설정 | ✅ 양호 |
 
 ### 핵심 지표 현황
 
@@ -26,15 +36,15 @@
 | **Organic Traffic** | 0/월 (Ahrefs 추정) | 심각 |
 | **GSC 검색 클릭** | 0회 | 심각 |
 | **GSC 검색 노출** | 0회 | 심각 |
-| **인덱싱 상태** | Redirect Error | 심각 |
+| **인덱싱 상태** | ~~Redirect Error~~ | **대기 중 (재크롤링 필요)** |
 
-### 핵심 문제: 인덱싱 완전 실패
+### ~~핵심 문제: 인덱싱 완전 실패~~ → 해결됨
 
-**app.querypie.com은 Google에서 전혀 인덱싱되지 않고 있습니다.**
+~~**app.querypie.com은 Google에서 전혀 인덱싱되지 않고 있습니다.**~~
 
-- **원인**: HTTP HEAD 요청 시 405 에러 반환
-- **영향**: 90일간 검색 노출/클릭 모두 0회
-- **시급성**: 최우선 해결 필요 (개발 1-2시간으로 해결 가능)
+- ~~**원인**: HTTP HEAD 요청 시 405 에러 반환~~ → **200 OK로 수정됨**
+- **영향**: 90일간 검색 노출/클릭 모두 0회 (인덱싱 복구 후 개선 예상)
+- **다음 단계**: GSC 수동 인덱싱 요청 → Google 재크롤링 대기 (1-7일)
 
 ### 키워드 기회 요약
 
@@ -219,41 +229,39 @@ app.querypie.com       [                    ] 인덱싱 0%
 
 ## 7. 인덱싱 문제 분석
 
-### 7.1 문제 현황
+### 7.1 문제 현황 → ✅ 해결됨 (2026-02-03)
 
-Google Search Console URL 검사 결과:
+~~Google Search Console URL 검사 결과:~~
 
 ```
 메인 페이지 (https://app.querypie.com/)
 ----------------------------------------
-상태: 중립
-커버리지: Redirect error
-페이지 가져오기: REDIRECT_ERROR
+이전 상태: Redirect error
+현재 상태: 재크롤링 대기 중
 마지막 크롤링: 2026-01-25 13:17:05
-크롤링 에이전트: MOBILE
 ```
 
-### 7.2 원인 분석: HTTP HEAD 요청 미지원
+### 7.2 ~~원인 분석: HTTP HEAD 요청 미지원~~ → 해결됨
 
+**이전 (문제):**
 ```bash
-# 일반 브라우저 User-Agent
 $ curl -sI "https://app.querypie.com/"
 HTTP 405 Method Not Allowed
-
-# Googlebot User-Agent
-$ curl -sI -A "Googlebot" "https://app.querypie.com/"
-HTTP 405 Method Not Allowed
-
-# GET 요청 (정상)
-$ curl -s "https://app.querypie.com/" | head -1
-HTTP 200 OK
 ```
 
-| 가능성 | 설명 | 확률 |
-|--------|------|------|
-| **HTTP HEAD 405** | 서버가 HEAD 요청 미지원 | 높음 |
-| JavaScript 리다이렉트 | 클라이언트 측 리다이렉트 | 낮음 |
-| 간헐적 서버 리다이렉트 | 특정 조건에서 리다이렉트 | 낮음 |
+**현재 (해결됨, 2026-02-03 20:20 KST 검증):**
+```bash
+$ curl -sI "https://app.querypie.com/"
+HTTP/2 200
+
+$ curl -sI -A "Googlebot" "https://app.querypie.com/"
+HTTP/2 200
+```
+
+| 항목 | 이전 | 현재 | 상태 |
+|------|------|------|------|
+| HTTP HEAD 응답 | 405 | **200** | ✅ 해결 |
+| Googlebot HEAD | 405 | **200** | ✅ 해결 |
 
 ### 7.3 SSR 렌더링 확인 (정상)
 
@@ -351,79 +359,92 @@ https://app.querypie.com/chat/publication/{uuid}/{slug}
 - 짧은 개인 대화 (500자 미만)
 - 반복적인 QA (동일 질문 다른 사용자)
 
-### 8.5 og:url 이슈
+### 8.5 ~~og:url 이슈~~ → ✅ 해결됨 (2026-02-03)
 
-**현재 상태 (문제)**:
+**이전 (문제)**:
 ```html
 <!-- 모든 페이지에서 동일한 og:url -->
 <meta property="og:url" content="https://app.querypie.com"/>
 ```
 
-**올바른 설정**:
+**현재 (해결됨, 2026-02-03 20:20 KST 검증)**:
 ```html
 <!-- 각 페이지별 고유 og:url -->
 <meta property="og:url" content="https://app.querypie.com/chat/publication/{uuid}/{slug}"/>
+
+<!-- canonical 링크도 추가됨 -->
+<link rel="canonical" href="https://app.querypie.com/chat/publication/{uuid}/{slug}"/>
 ```
+
+| 항목 | 이전 | 현재 | 상태 |
+|------|------|------|------|
+| og:url | 고정값 | 동적 URL | ✅ 해결 |
+| canonical | 없음 | 페이지별 설정 | ✅ 해결 |
 
 ---
 
 ## 9. 종합 평가
 
-### 9.1 SWOT 분석
+### 9.1 SWOT 분석 (2026-02-03 업데이트)
 
 | 강점 (Strengths) | 약점 (Weaknesses) |
 |------------------|-------------------|
-| SSR 정상 구현 | 인덱싱 완전 실패 |
-| 메타 태그 완비 | HTTP HEAD 405 에러 |
+| SSR 정상 구현 | ~~인덱싱 완전 실패~~ → 재크롤링 대기 |
+| 메타 태그 완비 | ~~HTTP HEAD 405 에러~~ → ✅ 해결 |
 | 228개 백링크 확보 | Thin content 포함 |
-| Schema.org 마크업 | og:url 고정값 문제 |
+| Schema.org 마크업 | ~~og:url 고정값 문제~~ → ✅ 해결 |
 | DR 55 보유 | 참조 도메인 부족 (7개) |
+| **HTTP HEAD 200 응답** | - |
+| **동적 og:url + canonical** | - |
 
 | 기회 (Opportunities) | 위협 (Threats) |
 |---------------------|----------------|
-| 기술 문제 해결 시 즉시 인덱싱 가능 | 인덱싱 지연으로 경쟁사 선점 |
+| ~~기술 문제 해결 시~~ **인덱싱 임박** | ~~인덱싱 지연으로 경쟁사 선점~~ |
 | 한국 AI 키워드 블루오션 (난이도 0-1) | Thin content 패널티 가능성 |
 | MCP 시장 폭발 (+3,186%) | MCP 키워드 난이도 급상승 중 |
-| 고품질 백링크 보유 (Atlassian DR 92) | 기술 문제 장기화 시 크롤링 예산 낭비 |
+| 고품질 백링크 보유 (Atlassian DR 92) | ~~기술 문제 장기화~~ → ✅ 해결 |
 
-### 9.2 현재 상태 평가
+### 9.2 현재 상태 평가 (2026-02-03 업데이트)
 
-| 영역 | 상태 | 평가 |
-|------|------|------|
-| 인덱싱 | Redirect Error | 심각 |
-| 검색 트래픽 | 90일간 0회 | 심각 |
-| 기술적 SEO | HEAD 405 에러 | 심각 |
-| SSR 렌더링 | 콘텐츠 정상 | 양호 |
-| 메타 태그 | title, description 포함 | 양호 |
-| 백링크 | 228개 확보 | 양호 |
+| 영역 | 이전 상태 | 현재 상태 | 평가 |
+|------|----------|----------|------|
+| 인덱싱 | Redirect Error | **재크롤링 대기** | 🔄 진행 중 |
+| 검색 트래픽 | 90일간 0회 | 재크롤링 후 개선 예상 | 🔄 대기 |
+| 기술적 SEO | HEAD 405 에러 | **HEAD 200 OK** | ✅ 해결 |
+| og:url | 고정값 | **동적 URL** | ✅ 해결 |
+| canonical | 없음 | **페이지별 설정** | ✅ 해결 |
+| SSR 렌더링 | 콘텐츠 정상 | 콘텐츠 정상 | ✅ 양호 |
+| 메타 태그 | title, description 포함 | title, description 포함 | ✅ 양호 |
+| 백링크 | 228개 확보 | 228개 확보 | ✅ 양호 |
 
 ---
 
 ## 10. 권장 조치사항
 
-### 10.1 긴급 (즉시 시행) - ROI 극대화
+### 10.1 긴급 (즉시 시행) - ✅ 완료 (2026-02-03)
 
-| 우선순위 | 조치사항 | 담당 | 예상 시간 | 상세 |
-|----------|----------|------|----------|------|
-| **1** | **HTTP HEAD 요청 지원 추가** | Backend | 1-2시간 | 405 -> 200 응답으로 변경 |
-| **2** | **GSC에서 수동 인덱싱 요청** | Marketing | 30분 | URL 검사 -> "인덱싱 요청" 클릭 |
-| **3** | **robots.txt에 `Allow: /` 추가** | DevOps | 15분 | 메인 페이지 명시적 허용 |
-| **4** | **사이트맵 재제출** | DevOps | 15분 | GSC에서 재제출 |
+| 우선순위 | 조치사항 | 담당 | 상태 | 비고 |
+|----------|----------|------|------|------|
+| **1** | **HTTP HEAD 요청 지원 추가** | Backend | ✅ **완료** | 200 응답 확인 |
+| **2** | **GSC에서 수동 인덱싱 요청** | Marketing | 🔄 **진행 필요** | URL 검사 → "인덱싱 요청" |
+| **3** | **robots.txt 설정** | DevOps | ✅ **완료** | Allow/Disallow 규칙 설정됨 |
+| **4** | **사이트맵 재제출** | DevOps | 🔄 **진행 필요** | GSC에서 재제출 |
 
-**ROI 분석**:
-- 예상 연간 트래픽 가치: $4,200-11,400
-- 필요한 투자: 개발자 1-2시간
-- ROI: 극도로 높음
+**다음 단계**:
+1. GSC에서 `https://app.querypie.com/` 수동 인덱싱 요청
+2. 사이트맵 재제출
+3. 1-7일 후 Google 재크롤링 확인
 
-### 10.2 중요 (1-2주 이내)
+### 10.2 중요 (1-2주 이내) - 일부 완료
 
-| 우선순위 | 조치사항 | 담당 | 상세 |
-|----------|----------|------|------|
-| 5 | og:url 동적으로 변경 | Frontend | 각 페이지별 고유 URL |
-| 6 | Thin content 사이트맵에서 제외 | Product | 날씨/일정 등 필터링 |
-| 7 | www.querypie.com에서 백링크 추가 | Marketing | 홈페이지에서 app 링크 |
-| 8 | pulsemcp.com 파트너십/추가 백링크 논의 | Marketing | MCP 생태계 협력 |
-| 9 | 홈페이지 "ai 플랫폼" 키워드 최적화 | Content | 인덱싱 후 즉시 적용 |
+| 우선순위 | 조치사항 | 담당 | 상태 | 상세 |
+|----------|----------|------|------|------|
+| 5 | og:url 동적으로 변경 | Frontend | ✅ **완료** | 각 페이지별 고유 URL |
+| 5-1 | canonical 링크 추가 | Frontend | ✅ **완료** | 페이지별 설정 |
+| 6 | Thin content 사이트맵에서 제외 | Product | 🔄 대기 | 날씨/일정 등 필터링 |
+| 7 | www.querypie.com에서 백링크 추가 | Marketing | 🔄 대기 | 홈페이지에서 app 링크 |
+| 8 | pulsemcp.com 파트너십/추가 백링크 논의 | Marketing | 🔄 대기 | MCP 생태계 협력 |
+| 9 | 홈페이지 "ai 플랫폼" 키워드 최적화 | Content | 🔄 대기 | 인덱싱 후 즉시 적용 |
 
 ### 10.3 개선 (2-4주 이내)
 
@@ -560,6 +581,7 @@ curl -sI "https://app.querypie.com/" | head -1
 | 2026-02-03 05:05 KST | Round 28 | 인덱싱 해결 시 예상 ROI 분석, 긴급도 재평가 |
 | 2026-02-03 06:35 KST | Round 29 | MCP 시장 폭발 (+3,186%), 기회 비용 상향 ($4,200-11,400/년) |
 | 2026-02-03 16:30 KST | - | GA 데이터 오류 수정 (ACP Application ≠ app.querypie.com) |
+| **2026-02-03 20:20 KST** | - | **🎉 배포 후 검증 완료: HTTP HEAD 200, og:url 동적, canonical 추가 확인** |
 
 ### 13.4 키워드 통합 목록 (Round 28-49)
 
