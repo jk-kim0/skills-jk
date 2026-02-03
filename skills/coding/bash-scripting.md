@@ -450,6 +450,57 @@ local name=${parts[-2]}     # app
 )
 ```
 
+## 파일명 안전 변환
+
+```bash
+# 이미지 이름을 파일명으로 변환 (특수문자 치환)
+local image="docker.io/querypie/app:v1.2.3"
+local tarball=$(echo "$image" | tr '/:' '__')
+# 결과: docker.io__querypie__app__v1.2.3
+```
+
+## Python venv 활성화
+
+```bash
+# venv가 있으면 활성화
+venv_path="$SCRIPT_DIR/venv"
+if [[ -d "$venv_path" && -f "$venv_path/bin/activate" ]]; then
+  source "$venv_path/bin/activate"
+  echo >&2 "# Virtual environment activated"
+fi
+```
+
+## 파이프 실행 시 사용자 입력
+
+```bash
+# 스크립트가 파이프로 실행될 때도 터미널에서 입력 받기
+read -p "Continue? (y/n): " answer </dev/tty
+```
+
+## 마지막 줄 newline 없어도 처리
+
+```bash
+# 파일 마지막 줄에 newline이 없어도 처리
+while IFS= read -r line || [[ -n "$line" ]]; do
+  process "$line"
+done <"$input_file"
+```
+
+## 필수 도구 검증 함수
+
+```bash
+function validate_environment() {
+  local -a required_commands=(packer aws docker)
+
+  for cmd in "${required_commands[@]}"; do
+    if ! command -v "$cmd" &>/dev/null; then
+      log::error "$cmd is not installed. Please install it to continue."
+      exit 1
+    fi
+  done
+}
+```
+
 ## 자주 하는 실수
 
 | 실수 | 해결 |
@@ -460,6 +511,7 @@ local name=${parts[-2]}     # app
 | `[ ]` 문자열 비교 | `[[ ]]` 사용 |
 | 하드코딩 경로 | 변수와 parameter expansion 사용 |
 | 에러 무시 안 함 | cleanup에서 `\|\| true` 사용 |
+| 마지막 줄 누락 | `read -r \|\| [[ -n "$line" ]]` 사용 |
 
 ## TODO/NOTE 주석 패턴
 
