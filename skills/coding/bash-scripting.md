@@ -113,6 +113,11 @@ function log::sudo() {
   printf "%b+ sudo %s%b\n" "$BOLD_CYAN" "$*" "$RESET" 1>&2
   sudo "$@"
 }
+
+# 로깅만 (실행 없이) - export 같은 내장 명령에 유용
+function log::trace() {
+  printf "%b+ %s%b\n" "$BOLD_CYAN" "$*" "$RESET" 1>&2
+}
 ```
 
 ### 명령 존재 확인
@@ -133,6 +138,33 @@ function example() {
   var3="${3:-default}"
 
   # Function body
+}
+```
+
+## 환경 변수 기본값 패턴
+
+```bash
+# 환경 변수 기본값 설정 (라이브러리 스크립트)
+DB_HOST=${DB_HOST:-localhost}
+DB_PORT=${DB_PORT:-3306}
+DB_USERNAME=${DB_USERNAME:-querypie}
+DB_PASSWORD=${DB_PASSWORD:-querypie}
+
+# 여러 변수 한번에 export
+export DB_HOST DB_PORT DB_USERNAME DB_PASSWORD
+```
+
+## 배열 인자 처리
+
+```bash
+function process_files() {
+  local -a files=("$@")  # 배열로 인자 받기
+
+  echo >&2 "# Processing ${#files[@]} files"  # 배열 크기
+
+  for file in "${files[@]}"; do
+    log::do process "$file"
+  done
 }
 ```
 
