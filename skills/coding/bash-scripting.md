@@ -513,6 +513,74 @@ function validate_environment() {
 | 에러 무시 안 함 | cleanup에서 `\|\| true` 사용 |
 | 마지막 줄 누락 | `read -r \|\| [[ -n "$line" ]]` 사용 |
 
+## 전역 배열로 패키지 목록
+
+```bash
+# 주석 포함 가능한 배열 정의
+packages=(
+  package1
+  package2
+  # 주석: 이 패키지는 의도적으로 제외
+  package3
+)
+
+# 배열 전체를 인자로 전달
+sudo dnf install -y "${packages[@]}"
+```
+
+## Parameter Expansion 문자열 파싱
+
+```bash
+# 에러 메시지에서 파일 경로 추출
+local line='Error occurred prerendering page "/ko/docs/intro". Read more:'
+file_path=${line#*Error occurred prerendering page \"}  # 앞 제거
+file_path=${file_path%%\". Read more:*}                 # 뒤 제거
+# 결과: /ko/docs/intro
+```
+
+## Retry 루프 패턴
+
+```bash
+local max_attempts=10 attempt=1
+
+while [[ $attempt -le $max_attempts ]]; do
+  echo "Attempt $attempt of $max_attempts..."
+
+  if do_something; then
+    echo "Success!"
+    exit 0
+  fi
+
+  ((attempt++))
+done
+
+echo "Max attempts reached"
+exit 1
+```
+
+## Here-string으로 변수 순회
+
+```bash
+# 변수 내용을 줄 단위로 처리
+local file_list="file1.txt
+file2.txt
+file3.txt"
+
+while IFS= read -r file; do
+  rm -f "$file"
+done <<<"$file_list"
+```
+
+## 바이너리 파일 검증
+
+```bash
+# 다운로드한 바이너리가 실행 가능한지 확인
+curl -SL "$url" -o /tmp/binary
+if file /tmp/binary | grep -q "ELF 64-bit LSB executable"; then
+  install -m 755 /tmp/binary /usr/local/bin/
+fi
+```
+
 ## TODO/NOTE 주석 패턴
 
 ```bash
