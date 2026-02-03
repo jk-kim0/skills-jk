@@ -370,6 +370,36 @@ esac
 | 하드코딩 경로 | 변수와 parameter expansion 사용 |
 | 에러 무시 안 함 | cleanup에서 `\|\| true` 사용 |
 
+## TODO/NOTE 주석 패턴
+
+```bash
+# TODO(JK): 나중에 개선할 사항
+# NOTE(JK): 주의할 점이나 설명
+# FIXME: 수정이 필요한 부분
+```
+
+## Git CI 스크립트 패턴
+
+```bash
+# GitHub Actions에서 유용한 패턴
+EVENT_NAME="${1:-workflow_dispatch}"
+ACTOR="${2:-github-actions[bot]}"
+
+# Git 사용자 설정
+git config user.name "$ACTOR"
+git config user.email "$ACTOR@users.noreply.github.com"
+
+# 변경사항 확인
+if ! git status --porcelain src/content/ | grep -q .; then
+  echo "No changes detected"
+  exit 0
+fi
+
+# 타임스탬프 기반 브랜치 생성
+BRANCH_NAME="feature/update-$(date +%Y%m%d-%H%M%S)"
+git checkout -b "$BRANCH_NAME"
+```
+
 ## ShellCheck 통합
 
 ```bash
@@ -383,42 +413,96 @@ source ./config.env
 
 ## 템플릿
 
+### 기본 템플릿 (복잡한 스크립트용)
+
 ```bash
 #!/usr/bin/env bash
-# Description: Brief description
-# Usage: script.sh [options] <args>
+#
+# script-name.sh
+#
+# Description: Brief description of what this script does
+#
+# Usage:
+#   ./script-name.sh [options] <args>
+#
+# Environment Variables:
+#   VAR_NAME: Description of the variable
 
-SCRIPT_VERSION="25.01.1"
+SCRIPT_VERSION="26.01.1"  # YY.MM.PATCH
 
 [[ -n "${ZSH_VERSION:-}" ]] && emulate bash
-set -o nounset -o errexit -o pipefail
+set -o nounset -o errexit -o errtrace -o pipefail
 
-BOLD_CYAN="\e[1;36m"
-BOLD_RED="\e[1;91m"
-RESET="\e[0m"
+SCRIPT_DIR=$(dirname "$(realpath "${BASH_SOURCE[0]}")")
+
+readonly BOLD_CYAN="\e[1;36m"
+readonly BOLD_YELLOW="\e[1;33m"
+readonly BOLD_RED="\e[1;91m"
+readonly RESET="\e[0m"
 
 function log::error() {
   printf "%bERROR: %s%b\n" "$BOLD_RED" "$*" "$RESET" 1>&2
 }
 
+function log::warning() {
+  printf "%bWARNING: %s%b\n" "$BOLD_YELLOW" "$*" "$RESET" 1>&2
+}
+
 function log::do() {
+  local line_no
+  line_no=$(caller | awk '{print $1}')
+  # shellcheck disable=SC2064
+  trap "log::error 'Failed to run at line $line_no: $*'" ERR
   printf "%b+ %s%b\n" "$BOLD_CYAN" "$*" "$RESET" 1>&2
   "$@"
 }
 
+function print_usage_and_exit() {
+  local code=${1:-0} out=2
+  [[ code -eq 0 ]] && out=1
+  cat >&"${out}" <<END_OF_USAGE
+Usage: $0 [options] <required_arg>
+
+OPTIONS:
+  -h, --help      Show this help message
+  -x, --xtrace    Enable debug mode
+  -V, --version   Show version
+
+END_OF_USAGE
+  exit "$code"
+}
+
 function main() {
-  # Parse arguments
+  local -a arguments=()
+
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --help|-h) echo "Usage: $0 [options]"; exit 0 ;;
-      --verbose|-v) set -o xtrace; shift ;;
-      *) break ;;
+      -h|--help) print_usage_and_exit 0 ;;
+      -V|--version) echo "$SCRIPT_VERSION"; exit 0 ;;
+      -x|--xtrace) set -o xtrace; shift ;;
+      --) shift; break ;;
+      -*) log::error "Unexpected option: $1"; print_usage_and_exit 1 ;;
+      *) arguments+=("$1"); shift ;;
     esac
   done
 
-  # Main logic with observable commands
+  [[ ${#arguments[@]} -gt 0 ]] && set -- "${arguments[@]}"
+
+  echo >&2 "### Script Name ###"
   log::do echo "Starting..."
 }
 
 main "$@"
+```
+
+### 간단한 템플릿 (짧은 스크립트용)
+
+```bash
+#!/usr/bin/env bash
+set -o nounset -o errexit -o errtrace -o pipefail
+set -o xtrace
+
+# 간단한 스크립트는 xtrace로 가시성 확보
+command1 arg1
+command2 arg2
 ```
