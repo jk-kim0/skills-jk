@@ -589,6 +589,56 @@ fi
 # FIXME: 수정이 필요한 부분
 ```
 
+## Glob 패턴 for 루프
+
+```bash
+# 여러 glob 패턴으로 순회
+for testcase in testcases/[0-9]* testcases/lists testcases/panels; do
+  pushd "$testcase"
+  (set -x; cp output.mdx expected.mdx)  # 서브쉘에서 한 줄 xtrace
+  popd
+done
+```
+
+## 옵션 수집 배열
+
+```bash
+# 옵션을 배열에 누적하여 명령에 전달
+PACKER_OPTIONS=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -on-error=*)
+      PACKER_OPTIONS+=("$1")
+      shift
+      ;;
+    --abort)
+      PACKER_OPTIONS+=("-on-error=abort")
+      shift
+      ;;
+    *) shift ;;
+  esac
+done
+
+# 배열을 명령 인자로 전달
+packer build "${PACKER_OPTIONS[@]}" template.pkr.hcl
+```
+
+## tee로 로그 파일 생성
+
+```bash
+# stdout 출력하면서 파일로도 저장
+log::do packer build template.pkr.hcl |
+  tee log/packer-"${version}"-"${distro}".log
+```
+
+## 여러 필수 인자 검증
+
+```bash
+local var1=${1:-} var2=${2:-}
+[[ -n "$var1" && -n "$var2" ]] || print_usage_and_exit 1
+```
+
 ## Git CI 스크립트 패턴
 
 ```bash
