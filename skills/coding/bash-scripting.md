@@ -11,6 +11,16 @@ tags: [coding, bash, shell, automation]
 자동화 스크립트 작성 시 외부 명령 실행을 사용자가 관찰할 수 있도록 하는 것이 핵심.
 `set -o xtrace` 또는 구조화된 로깅을 통해 실행 중인 명령을 실시간으로 보여준다.
 
+## Google Style Guide와 차이점
+
+| 항목 | Google Style | JK Style |
+|------|--------------|----------|
+| 함수 이름 | `lowercase_with_underscores` | `namespace::function_name` |
+| Shell options | `set -o errexit -o nounset -o pipefail` | + `-o errtrace` 추가 |
+| 들여쓰기 | 2 spaces | 2 spaces (동일) |
+| 함수 키워드 | `function` 없이 `name() {}` | `function name() {}` 명시 |
+| 명령 실행 | 직접 실행 | `log::do` 래퍼로 가시성 확보 |
+
 ## 적용 시점
 
 - 외부 명령을 호출하는 자동화 스크립트
@@ -28,15 +38,14 @@ tags: [coding, bash, shell, automation]
 # Option A: Global xtrace (간단한 스크립트)
 set -o xtrace
 
-# Option B: 구조화된 로깅 (복잡한 스크립트)
+# Option B: 구조화된 로깅 (복잡한 스크립트) - ERR trap으로 실패 위치 추적
 function log::do() {
+  local line_no
+  line_no=$(caller | awk '{print $1}')
+  # shellcheck disable=SC2064
+  trap "log::error 'Failed to run at line $line_no: $*'" ERR
   printf "%b+ %s%b\n" "$BOLD_CYAN" "$*" "$RESET" 1>&2
-  if "$@"; then
-    return 0
-  else
-    log::error "Failed to run: $*"
-    return 1
-  fi
+  "$@"
 }
 ```
 
@@ -49,9 +58,9 @@ function log::do() {
 
 SCRIPT_VERSION="25.01.1"  # YY.MM.PATCH
 
-# Shell options - 항상 포함
+# Shell options - 항상 포함 (errtrace로 ERR trap이 함수 내에서도 동작)
 [[ -n "${ZSH_VERSION:-}" ]] && emulate bash
-set -o nounset -o errexit -o pipefail
+set -o nounset -o errexit -o errtrace -o pipefail
 ```
 
 ### 3. Color Definitions
