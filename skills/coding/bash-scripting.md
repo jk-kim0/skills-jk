@@ -359,6 +359,148 @@ EOF
 esac
 ```
 
+## Docker Entrypoint 고급 패턴
+
+```bash
+#!/bin/bash
+
+# 초기화 스크립트 실행 (실패해도 계속)
+source /usr/local/bin/set-env-variables.sh || true
+/usr/local/bin/init-script || true
+
+# 인자가 없으면 기본 명령 실행
+if [[ "$#" -eq 0 ]]; then
+  init-log-dirs || true
+  exec supervisor
+# 첫 번째 인자가 유효한 명령이면 그대로 실행
+elif command -v "$1" &>/dev/null; then
+  exec "$@"
+# 그렇지 않으면 기본 명령의 인자로 처리
+else
+  set -- supervisor "$@"  # 인자 앞에 추가
+  exec "$@"
+fi
+```
+
+## Markdown 테이블 출력 (CI용)
+
+```bash
+# GitHub Actions Summary 등에 유용
+cat <<EOF
+|KEY|VALUE|
+|------|---|
+|VERSION|$VERSION|
+|IMAGE|$IMAGE:$TAG|
+EOF
+```
+
+## 포맷된 숫자 시퀀스
+
+```bash
+# 0001, 0002, ... 형태로 순회
+for i in $(seq -f "%04g" 1 10); do
+  echo "Processing item $i"
+done
+```
+
+## JSON 배열 동적 생성 (CI용)
+
+```bash
+# GitHub Actions matrix 등에서 유용
+json="["
+
+if ! check_exists "item1"; then
+  json+="\"item1\","
+fi
+
+if ! check_exists "item2"; then
+  json+="\"item2\","
+fi
+
+# 빈 배열 방지
+if [ "$json" = "[" ]; then
+  json+="\"nothing\","
+fi
+
+# trailing comma 제거 후 닫기
+json="${json%,}]"
+echo "$json"
+```
+
+## IFS로 문자열 분리
+
+```bash
+# 구분자로 문자열 분할
+local image="docker.io/querypie/app:v1.2.3"
+IFS=':/' read -ra parts <<< "$image"
+
+# 배열의 마지막 요소 (bash 4.3+)
+local tag=${parts[-1]}      # v1.2.3
+local name=${parts[-2]}     # app
+```
+
+## 서브쉘에서 xtrace 사용
+
+```bash
+# 특정 영역만 xtrace 적용 (메인 스크립트에 영향 없음)
+(
+  set -o xtrace
+  VERSION="$version" setup.sh --install
+  docker compose config
+)
+```
+
+## 파일명 안전 변환
+
+```bash
+# 이미지 이름을 파일명으로 변환 (특수문자 치환)
+local image="docker.io/querypie/app:v1.2.3"
+local tarball=$(echo "$image" | tr '/:' '__')
+# 결과: docker.io__querypie__app__v1.2.3
+```
+
+## Python venv 활성화
+
+```bash
+# venv가 있으면 활성화
+venv_path="$SCRIPT_DIR/venv"
+if [[ -d "$venv_path" && -f "$venv_path/bin/activate" ]]; then
+  source "$venv_path/bin/activate"
+  echo >&2 "# Virtual environment activated"
+fi
+```
+
+## 파이프 실행 시 사용자 입력
+
+```bash
+# 스크립트가 파이프로 실행될 때도 터미널에서 입력 받기
+read -p "Continue? (y/n): " answer </dev/tty
+```
+
+## 마지막 줄 newline 없어도 처리
+
+```bash
+# 파일 마지막 줄에 newline이 없어도 처리
+while IFS= read -r line || [[ -n "$line" ]]; do
+  process "$line"
+done <"$input_file"
+```
+
+## 필수 도구 검증 함수
+
+```bash
+function validate_environment() {
+  local -a required_commands=(packer aws docker)
+
+  for cmd in "${required_commands[@]}"; do
+    if ! command -v "$cmd" &>/dev/null; then
+      log::error "$cmd is not installed. Please install it to continue."
+      exit 1
+    fi
+  done
+}
+```
+
 ## 자주 하는 실수
 
 | 실수 | 해결 |
@@ -369,6 +511,75 @@ esac
 | `[ ]` 문자열 비교 | `[[ ]]` 사용 |
 | 하드코딩 경로 | 변수와 parameter expansion 사용 |
 | 에러 무시 안 함 | cleanup에서 `\|\| true` 사용 |
+| 마지막 줄 누락 | `read -r \|\| [[ -n "$line" ]]` 사용 |
+
+## 전역 배열로 패키지 목록
+
+```bash
+# 주석 포함 가능한 배열 정의
+packages=(
+  package1
+  package2
+  # 주석: 이 패키지는 의도적으로 제외
+  package3
+)
+
+# 배열 전체를 인자로 전달
+sudo dnf install -y "${packages[@]}"
+```
+
+## Parameter Expansion 문자열 파싱
+
+```bash
+# 에러 메시지에서 파일 경로 추출
+local line='Error occurred prerendering page "/ko/docs/intro". Read more:'
+file_path=${line#*Error occurred prerendering page \"}  # 앞 제거
+file_path=${file_path%%\". Read more:*}                 # 뒤 제거
+# 결과: /ko/docs/intro
+```
+
+## Retry 루프 패턴
+
+```bash
+local max_attempts=10 attempt=1
+
+while [[ $attempt -le $max_attempts ]]; do
+  echo "Attempt $attempt of $max_attempts..."
+
+  if do_something; then
+    echo "Success!"
+    exit 0
+  fi
+
+  ((attempt++))
+done
+
+echo "Max attempts reached"
+exit 1
+```
+
+## Here-string으로 변수 순회
+
+```bash
+# 변수 내용을 줄 단위로 처리
+local file_list="file1.txt
+file2.txt
+file3.txt"
+
+while IFS= read -r file; do
+  rm -f "$file"
+done <<<"$file_list"
+```
+
+## 바이너리 파일 검증
+
+```bash
+# 다운로드한 바이너리가 실행 가능한지 확인
+curl -SL "$url" -o /tmp/binary
+if file /tmp/binary | grep -q "ELF 64-bit LSB executable"; then
+  install -m 755 /tmp/binary /usr/local/bin/
+fi
+```
 
 ## TODO/NOTE 주석 패턴
 
@@ -376,6 +587,56 @@ esac
 # TODO(JK): 나중에 개선할 사항
 # NOTE(JK): 주의할 점이나 설명
 # FIXME: 수정이 필요한 부분
+```
+
+## Glob 패턴 for 루프
+
+```bash
+# 여러 glob 패턴으로 순회
+for testcase in testcases/[0-9]* testcases/lists testcases/panels; do
+  pushd "$testcase"
+  (set -x; cp output.mdx expected.mdx)  # 서브쉘에서 한 줄 xtrace
+  popd
+done
+```
+
+## 옵션 수집 배열
+
+```bash
+# 옵션을 배열에 누적하여 명령에 전달
+PACKER_OPTIONS=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -on-error=*)
+      PACKER_OPTIONS+=("$1")
+      shift
+      ;;
+    --abort)
+      PACKER_OPTIONS+=("-on-error=abort")
+      shift
+      ;;
+    *) shift ;;
+  esac
+done
+
+# 배열을 명령 인자로 전달
+packer build "${PACKER_OPTIONS[@]}" template.pkr.hcl
+```
+
+## tee로 로그 파일 생성
+
+```bash
+# stdout 출력하면서 파일로도 저장
+log::do packer build template.pkr.hcl |
+  tee log/packer-"${version}"-"${distro}".log
+```
+
+## 여러 필수 인자 검증
+
+```bash
+local var1=${1:-} var2=${2:-}
+[[ -n "$var1" && -n "$var2" ]] || print_usage_and_exit 1
 ```
 
 ## Git CI 스크립트 패턴
