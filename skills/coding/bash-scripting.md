@@ -306,6 +306,59 @@ done 9<"${input_file}"
 umask 0022  # 644 files, 755 directories
 ```
 
+## 컨테이너 엔진 자동 감지
+
+```bash
+# Docker 또는 Podman 자동 감지
+if docker --version 2>/dev/null | grep -q "^Docker version"; then
+  DOCKER=docker
+elif podman --version 2>/dev/null | grep -q "^podman version"; then
+  DOCKER=podman
+else
+  echo >&2 "# Unknown container engine"
+  exit 1
+fi
+```
+
+## 에러 무시 패턴
+
+```bash
+# 실패해도 계속 진행 (cleanup 등)
+$DOCKER stop $container || true
+$DOCKER rm $container || true
+
+# 여러 명령 순차 실행 (실패 무시)
+for container in app tools mysql redis; do
+  $DOCKER stop "$container" || true
+done
+```
+
+## Case 문 패턴 (Entrypoint)
+
+```bash
+# Docker entrypoint 스크립트에서 유용
+case "${1:-help}" in
+  start)
+    shift
+    exec start_server "$@"
+    ;;
+  migrate)
+    exec run_migrations
+    ;;
+  bash|sh)
+    exec "$@"
+    ;;
+  help|--help|-h)
+    cat <<EOF
+Usage: docker run <image> <command>
+EOF
+    ;;
+  *)
+    exec "$@"
+    ;;
+esac
+```
+
 ## 자주 하는 실수
 
 | 실수 | 해결 |
@@ -315,6 +368,7 @@ umask 0022  # 644 files, 755 directories
 | 따옴표 없는 변수 | 항상 `"${var}"` 형태로 |
 | `[ ]` 문자열 비교 | `[[ ]]` 사용 |
 | 하드코딩 경로 | 변수와 parameter expansion 사용 |
+| 에러 무시 안 함 | cleanup에서 `\|\| true` 사용 |
 
 ## ShellCheck 통합
 
