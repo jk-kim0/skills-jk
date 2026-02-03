@@ -403,6 +403,53 @@ for i in $(seq -f "%04g" 1 10); do
 done
 ```
 
+## JSON 배열 동적 생성 (CI용)
+
+```bash
+# GitHub Actions matrix 등에서 유용
+json="["
+
+if ! check_exists "item1"; then
+  json+="\"item1\","
+fi
+
+if ! check_exists "item2"; then
+  json+="\"item2\","
+fi
+
+# 빈 배열 방지
+if [ "$json" = "[" ]; then
+  json+="\"nothing\","
+fi
+
+# trailing comma 제거 후 닫기
+json="${json%,}]"
+echo "$json"
+```
+
+## IFS로 문자열 분리
+
+```bash
+# 구분자로 문자열 분할
+local image="docker.io/querypie/app:v1.2.3"
+IFS=':/' read -ra parts <<< "$image"
+
+# 배열의 마지막 요소 (bash 4.3+)
+local tag=${parts[-1]}      # v1.2.3
+local name=${parts[-2]}     # app
+```
+
+## 서브쉘에서 xtrace 사용
+
+```bash
+# 특정 영역만 xtrace 적용 (메인 스크립트에 영향 없음)
+(
+  set -o xtrace
+  VERSION="$version" setup.sh --install
+  docker compose config
+)
+```
+
 ## 자주 하는 실수
 
 | 실수 | 해결 |
