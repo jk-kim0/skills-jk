@@ -359,6 +359,50 @@ EOF
 esac
 ```
 
+## Docker Entrypoint 고급 패턴
+
+```bash
+#!/bin/bash
+
+# 초기화 스크립트 실행 (실패해도 계속)
+source /usr/local/bin/set-env-variables.sh || true
+/usr/local/bin/init-script || true
+
+# 인자가 없으면 기본 명령 실행
+if [[ "$#" -eq 0 ]]; then
+  init-log-dirs || true
+  exec supervisor
+# 첫 번째 인자가 유효한 명령이면 그대로 실행
+elif command -v "$1" &>/dev/null; then
+  exec "$@"
+# 그렇지 않으면 기본 명령의 인자로 처리
+else
+  set -- supervisor "$@"  # 인자 앞에 추가
+  exec "$@"
+fi
+```
+
+## Markdown 테이블 출력 (CI용)
+
+```bash
+# GitHub Actions Summary 등에 유용
+cat <<EOF
+|KEY|VALUE|
+|------|---|
+|VERSION|$VERSION|
+|IMAGE|$IMAGE:$TAG|
+EOF
+```
+
+## 포맷된 숫자 시퀀스
+
+```bash
+# 0001, 0002, ... 형태로 순회
+for i in $(seq -f "%04g" 1 10); do
+  echo "Processing item $i"
+done
+```
+
 ## 자주 하는 실수
 
 | 실수 | 해결 |
