@@ -139,6 +139,17 @@ def has_remote_branch(repo_path: Path, branch: str) -> bool:
     return code == 0
 
 
+def get_current_branch(repo_path: Path) -> str | None:
+    """Get the currently checked out branch."""
+    code, stdout, _ = run_command(
+        ["git", "branch", "--show-current"],
+        cwd=str(repo_path),
+    )
+    if code != 0 or not stdout:
+        return None
+    return stdout.strip()
+
+
 def fetch_repo(repo_path: Path) -> bool:
     """Fetch and prune remote tracking branches."""
     code, _, stderr = run_command(
@@ -152,7 +163,18 @@ def fetch_repo(repo_path: Path) -> bool:
 
 
 def delete_branch(repo_path: Path, branch: str) -> bool:
-    """Delete a local branch."""
+    """Delete a local branch, switching to base branch first if necessary."""
+    current = get_current_branch(repo_path)
+    if current == branch:
+        base_branch = get_base_branch(repo_path)
+        code, _, stderr = run_command(
+            ["git", "checkout", base_branch],
+            cwd=str(repo_path),
+        )
+        if code != 0:
+            print(f"    ! checkout {base_branch} failed: {stderr}")
+            return False
+
     code, _, stderr = run_command(
         ["git", "branch", "-D", branch],
         cwd=str(repo_path),
