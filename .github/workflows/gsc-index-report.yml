@@ -1,0 +1,59 @@
+name: GSC Index Report (Weekly)
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'   # 매주 월요일 09:00 KST (UTC 0:00)
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: 'Runner to use'
+        required: false
+        default: 'any'
+        type: choice
+        options:
+          - any
+          - office
+          - home
+      site:
+        description: 'Specific site label (blank = all)'
+        required: false
+        type: string
+
+jobs:
+  report:
+    runs-on:
+      - self-hosted
+      - ${{ github.event.inputs.runner == 'any' && 'self-hosted' || github.event.inputs.runner }}
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: pip install playwright && playwright install chromium
+
+      - name: Run report
+        run: |
+          ARGS="--headless"
+          if [ -n "${{ github.event.inputs.site }}" ]; then
+            ARGS="$ARGS --site ${{ github.event.inputs.site }}"
+          fi
+          bin/gsc-index-report $ARGS
+        env:
+          GSC_COOKIE_PATH: ${{ secrets.GSC_COOKIE_PATH }}
+
+      - name: Create PR with report
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          BRANCH="reports/gsc-index-$(date +%Y-%m-%d)"
+          git checkout -b "$BRANCH"
+          git add reports/
+          git commit -m "docs(report): GSC 인덱싱 주간 리포트 $(date +%Y-%m-%d)"
+          git push origin "$BRANCH"
+          gh pr create \
+            --title "GSC 인덱싱 주간 리포트 $(date +%Y-%m-%d)" \
+            --body "자동 생성된 주간 인덱싱 상태 리포트입니다."
