@@ -1,0 +1,159 @@
+#!/usr/bin/env python3.12
+"""
+GSC 인덱싱 상태 주간 리포트 생성기
+
+GSC "Why pages aren't indexed" 데이터를 Playwright로 스크래핑하여
+주간 변화 추적 리포트를 자동 생성합니다.
+
+사용법:
+    gsc-index-report --login              # 최초 쿠키 설정 (브라우저 열림)
+    gsc-index-report --headless           # headless 모드 실행
+    gsc-index-report --site querypie.com  # 특정 사이트만 실행
+    gsc-index-report --no-compare         # 비교 없이 현재 스냅샷만
+"""
+
+import argparse
+import asyncio
+import json
+import os
+import sys
+import urllib.parse
+from datetime import datetime
+from pathlib import Path
+
+try:
+    from playwright.async_api import async_playwright
+except ImportError:
+    print("Playwright가 설치되어 있지 않습니다:")
+    print("  pip install playwright && playwright install chromium")
+    sys.exit(1)
+
+
+# --- 설정 ---
+
+COOKIE_PATH = Path(os.environ.get(
+    'GSC_COOKIE_PATH',
+    os.path.expanduser('~/.config/gsc/browser-cookies.json')
+))
+
+
+# --- 함수 ---
+
+def load_config(config_path: str) -> dict:
+    """설정 파일을 로드합니다."""
+    path = Path(config_path)
+    if not path.exists():
+        print(f"오류: 설정 파일을 찾을 수 없습니다: {config_path}")
+        sys.exit(1)
+    with open(path, encoding='utf-8') as f:
+        return json.load(f)
+
+
+async def login_and_save_cookies():
+    """브라우저를 열어 GSC 로그인 후 쿠키를 저장합니다."""
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=False)
+        context = await browser.new_context()
+        page = await context.new_page()
+        await page.goto('https://search.google.com/search-console')
+        print("브라우저에서 Google 계정으로 로그인하세요.")
+        input("로그인 후 Enter를 눌러주세요...")
+        cookies = await context.cookies()
+        COOKIE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(COOKIE_PATH, 'w', encoding='utf-8') as f:
+            json.dump(cookies, f, ensure_ascii=False, indent=2)
+        print(f"쿠키 저장 완료: {COOKIE_PATH}")
+        await browser.close()
+
+
+async def load_cookies(context):
+    """저장된 쿠키를 브라우저 컨텍스트에 로드합니다."""
+    if not COOKIE_PATH.exists():
+        print(f"오류: 쿠키 파일이 없습니다: {COOKIE_PATH}")
+        print("먼저 --login으로 로그인하세요.")
+        sys.exit(1)
+    with open(COOKIE_PATH, encoding='utf-8') as f:
+        cookies = json.load(f)
+    await context.add_cookies(cookies)
+
+
+def build_gsc_page_indexing_url(site_url: str) -> str:
+    """GSC Page Indexing 리포트 URL 생성."""
+    encoded = urllib.parse.quote(site_url, safe='')
+    return f"https://search.google.com/search-console/page-indexing?resource_id={encoded}"
+
+
+async def scrape_site(page, site_url: str, site_label: str) -> dict:
+    """GSC에서 사이트의 인덱싱 상태를 스크래핑합니다."""
+    return {}
+
+
+async def scrape_site_with_retry(page, site_url: str, site_label: str, max_retries: int = 2) -> dict:
+    """재시도 로직이 포함된 스크래핑."""
+    return await scrape_site(page, site_url, site_label)
+
+
+def save_data(data: dict, output_dir: str) -> Path:
+    """스크래핑 데이터를 JSON으로 저장합니다."""
+    return Path(output_dir) / 'data' / 'placeholder.json'
+
+
+def find_previous_data(output_dir: str) -> dict | None:
+    """이전 주 데이터를 로드합니다."""
+    return None
+
+
+def compare_with_previous(current_data: dict, previous_data: dict | None) -> dict:
+    """현재 데이터와 이전 데이터를 비교합니다."""
+    return {'has_previous': False}
+
+
+def generate_report(current_data: dict, comparison: dict, output_dir: str) -> Path:
+    """Markdown 리포트를 생성합니다."""
+    return Path(output_dir) / 'placeholder.md'
+
+
+async def run(args):
+    """메인 실행 흐름."""
+    if args.login:
+        await login_and_save_cookies()
+        return
+
+    print("스크래핑 기능은 아직 구현되지 않았습니다.")
+
+
+def main():
+    script_dir = Path(__file__).resolve().parent.parent
+    default_config = str(script_dir / 'config' / 'gsc-sites.json')
+    default_output = str(script_dir / 'reports')
+
+    parser = argparse.ArgumentParser(
+        description='GSC 인덱싱 상태 주간 리포트 생성기',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+예시:
+  gsc-index-report --login              # 최초 쿠키 설정
+  gsc-index-report --headless           # headless 모드 실행
+  gsc-index-report --site querypie.com  # 특정 사이트만
+  gsc-index-report --no-compare         # 비교 없이 스냅샷만
+"""
+    )
+    parser.add_argument('--login', action='store_true',
+                        help='브라우저를 열어 GSC 로그인 후 쿠키 저장')
+    parser.add_argument('--headless', action='store_true', default=True,
+                        help='headless 모드로 실행 (기본값)')
+    parser.add_argument('--site', type=str,
+                        help='특정 사이트만 실행 (label 지정)')
+    parser.add_argument('--no-compare', action='store_true',
+                        help='전주 비교 없이 현재 스냅샷만')
+    parser.add_argument('--config', type=str, default=default_config,
+                        help=f'설정 파일 경로 (기본: {default_config})')
+    parser.add_argument('--output-dir', type=str, default=default_output,
+                        help=f'출력 디렉토리 (기본: {default_output})')
+
+    args = parser.parse_args()
+    asyncio.run(run(args))
+
+
+if __name__ == '__main__':
+    main()
