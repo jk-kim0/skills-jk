@@ -110,28 +110,35 @@ async def load_cookies(context):
 def build_gsc_page_indexing_url(site_url: str) -> str:
     """GSC Page Indexing 리포트 URL 생성."""
     encoded = urllib.parse.quote(site_url, safe='')
-    return f"https://search.google.com/search-console/page-indexing?resource_id={encoded}"
+    return f"https://search.google.com/search-console/index?resource_id={encoded}"
 
 
 async def scrape_site(page, site_url: str, site_label: str) -> dict:
     """GSC에서 사이트의 인덱싱 상태를 스크래핑합니다."""
     url = build_gsc_page_indexing_url(site_url)
     await page.goto(url, wait_until='networkidle')
-
-    # "Why pages aren't indexed" 테이블 로드 대기
-    # GSC는 Angular 기반 SPA — 테이블이 동적으로 렌더링됨
     await page.wait_for_selector('table', timeout=30000)
+    await page.wait_for_timeout(3000)
 
-    # 테이블 행 파싱
-    rows = await page.query_selector_all('table tbody tr')
+    # 첫 번째 테이블 = "Why pages aren't indexed"
+    tables = await page.query_selector_all('table')
+    if not tables:
+        raise RuntimeError(f'{site_label}: 테이블을 찾을 수 없습니다')
+    table = tables[0]
+
+    # 헤더 행 제외, 데이터 행만 파싱
+    # 컬럼: Reason(0), Source(1), Validation(2), Trend(3), Pages(4)
+    rows = await table.query_selector_all('tr')
     reasons = []
-    for row in rows:
+    for row in rows[1:]:  # 헤더 행 건너뛰기
         cells = await row.query_selector_all('td')
-        if len(cells) >= 2:
+        if len(cells) >= 5:
             reason = (await cells[0].inner_text()).strip()
-            pages_text = (await cells[-1].inner_text()).strip()
-            source = (await cells[1].inner_text()).strip() if len(cells) >= 3 else ''
-            validation = (await cells[2].inner_text()).strip() if len(cells) >= 4 else ''
+            source = (await cells[1].inner_text()).strip()
+            validation_raw = (await cells[2].inner_text()).strip()
+            # validation 컬럼에 아이콘 문자가 섞여 있으므로 정리
+            validation = validation_raw.split('\n')[-1].strip() if '\n' in validation_raw else validation_raw
+            pages_text = (await cells[4].inner_text()).strip()
             pages_count = int(pages_text.replace(',', '')) if pages_text.replace(',', '').isdigit() else 0
             reasons.append({
                 'reason': reason,
