@@ -1,7 +1,6 @@
 {
   "sites": [
     {"url": "sc-domain:querypie.com", "label": "querypie.com"},
-    {"url": "https://docs.querypie.com/", "label": "docs.querypie.com"},
-    {"url": "https://blog.querypie.com/", "label": "blog.querypie.com"}
+    {"url": "https://docs.querypie.com/", "label": "docs.querypie.com"}
   ]
 }
