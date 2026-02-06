@@ -376,7 +376,42 @@ async def run(args):
         await login_and_save_cookies()
         return
 
-    print("스크래핑 기능은 아직 구현되지 않았습니다.")
+    config = load_config(args.config)
+    sites = config['sites']
+    if args.site:
+        sites = [s for s in sites if s['label'] == args.site]
+        if not sites:
+            print(f"오류: '{args.site}' 사이트를 찾을 수 없습니다.")
+            sys.exit(1)
+
+    print(f"대상 사이트: {', '.join(s['label'] for s in sites)}")
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=args.headless)
+        context = await browser.new_context()
+        await load_cookies(context)
+        page = await context.new_page()
+
+        results = {'sites': [], 'generated_at': datetime.now().isoformat()}
+        for site in sites:
+            print(f"스크래핑 중: {site['label']}...")
+            data = await scrape_site_with_retry(page, site['url'], site['label'])
+            results['sites'].append(data)
+            if 'error' in data:
+                print(f"  오류: {data['error']}")
+            else:
+                count = len(data.get('reasons', []))
+                print(f"  완료: {count}개 사유 수집")
+
+        await browser.close()
+
+    data_path = save_data(results, args.output_dir)
+    print(f"데이터 저장: {data_path}")
+
+    previous = None if args.no_compare else find_previous_data(args.output_dir)
+    comparison = compare_with_previous(results, previous)
+    report_path = generate_report(results, comparison, args.output_dir)
+    print(f"리포트 생성: {report_path}")
 
 
 def main():
