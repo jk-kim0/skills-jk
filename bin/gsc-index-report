@@ -21,6 +21,13 @@ import urllib.parse
 from datetime import datetime
 from pathlib import Path
 
+try:
+    from playwright.async_api import async_playwright
+except ImportError:
+    print("Playwright가 설치되어 있지 않습니다:")
+    print("  pip install playwright && playwright install chromium")
+    sys.exit(1)
+
 
 # --- 설정 ---
 
@@ -44,12 +51,30 @@ def load_config(config_path: str) -> dict:
 
 async def login_and_save_cookies():
     """브라우저를 열어 GSC 로그인 후 쿠키를 저장합니다."""
-    pass
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=False)
+        context = await browser.new_context()
+        page = await context.new_page()
+        await page.goto('https://search.google.com/search-console')
+        print("브라우저에서 Google 계정으로 로그인하세요.")
+        input("로그인 후 Enter를 눌러주세요...")
+        cookies = await context.cookies()
+        COOKIE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(COOKIE_PATH, 'w', encoding='utf-8') as f:
+            json.dump(cookies, f, ensure_ascii=False, indent=2)
+        print(f"쿠키 저장 완료: {COOKIE_PATH}")
+        await browser.close()
 
 
 async def load_cookies(context):
     """저장된 쿠키를 브라우저 컨텍스트에 로드합니다."""
-    pass
+    if not COOKIE_PATH.exists():
+        print(f"오류: 쿠키 파일이 없습니다: {COOKIE_PATH}")
+        print("먼저 --login으로 로그인하세요.")
+        sys.exit(1)
+    with open(COOKIE_PATH, encoding='utf-8') as f:
+        cookies = json.load(f)
+    await context.add_cookies(cookies)
 
 
 def build_gsc_page_indexing_url(site_url: str) -> str:
