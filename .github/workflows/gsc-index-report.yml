@@ -37,7 +37,7 @@ jobs:
 
       - name: Run report
         run: |
-          ARGS="--headless"
+          ARGS="--headless --sitemaps"
           if [ -n "${{ github.event.inputs.site }}" ]; then
             ARGS="$ARGS --site ${{ github.event.inputs.site }}"
           fi
