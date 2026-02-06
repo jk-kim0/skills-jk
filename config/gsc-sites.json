@@ -1,7 +1,8 @@
 {
   "sites": [
-    {"url": "sc-domain:querypie.com", "label": "querypie.com"},
+    {"url": "https://www.querypie.com/", "label": "www.querypie.com"},
     {"url": "https://docs.querypie.com/", "label": "docs.querypie.com"},
-    {"url": "https://blog.querypie.com/", "label": "blog.querypie.com"}
+    {"url": "https://aip-docs.app.querypie.com/", "label": "aip-docs.app.querypie.com"},
+    {"url": "https://app.querypie.com/", "label": "app.querypie.com"}
   ]
 }
