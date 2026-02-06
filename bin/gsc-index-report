@@ -10,6 +10,8 @@ GSC "Why pages aren't indexed" 데이터를 Playwright로 스크래핑하여
     gsc-index-report --headless           # headless 모드 실행
     gsc-index-report --site querypie.com  # 특정 사이트만 실행
     gsc-index-report --no-compare         # 비교 없이 현재 스냅샷만
+    gsc-index-report --detail             # 각 reason별 상세 URL 목록 수집
+    gsc-index-report --detail --detail-reasons "Not found (404)" "Page with redirect"
 """
 
 import argparse
@@ -172,6 +174,86 @@ async def scrape_site_with_retry(page, site_url: str, site_label: str, max_retri
             await page.wait_for_timeout(3000)
 
 
+async def scrape_detail_urls(page, site_url: str, site_label: str,
+                            reasons_filter: list[str] | None = None) -> dict:
+    """각 reason별 상세 URL 목록을 스크래핑합니다."""
+    # 먼저 index 페이지에서 각 reason의 item_key를 추출
+    url = build_gsc_url(site_url, 'index')
+    await page.goto(url, wait_until='networkidle')
+    await page.wait_for_selector('table', timeout=30000)
+    await page.wait_for_timeout(3000)
+
+    tables = await page.query_selector_all('table')
+    if not tables:
+        return {'label': site_label, 'reasons': {}}
+    table = tables[0]
+    rows = await table.query_selector_all('tr')
+
+    reason_keys = {}
+    for row in rows[1:]:
+        cells = await row.query_selector_all('td')
+        if len(cells) >= 5:
+            reason = (await cells[0].inner_text()).strip()
+            pages_text = (await cells[4].inner_text()).strip()
+            pages_count = int(pages_text.replace(',', '')) if pages_text.replace(',', '').isdigit() else 0
+            if pages_count == 0:
+                continue
+            if reasons_filter and reason not in reasons_filter:
+                continue
+            # 행을 클릭해서 drilldown URL의 item_key 추출
+            try:
+                await row.click()
+                await page.wait_for_timeout(2000)
+                drilldown_url = page.url
+                if 'item_key=' in drilldown_url:
+                    item_key = drilldown_url.split('item_key=')[1].split('&')[0]
+                    reason_keys[reason] = {
+                        'item_key': item_key,
+                        'pages': pages_count,
+                    }
+                await page.go_back()
+                await page.wait_for_timeout(2000)
+            except Exception:
+                # visibility 문제 등으로 클릭 실패 시 스킵
+                continue
+
+    # 각 reason의 drilldown 페이지에서 URL 목록 추출
+    encoded = urllib.parse.quote(site_url, safe='')
+    detail = {'label': site_label, 'reasons': {}}
+
+    for reason, info in reason_keys.items():
+        drilldown = (
+            f"https://search.google.com/search-console/index/drilldown"
+            f"?resource_id={encoded}&item_key={info['item_key']}"
+        )
+        print(f"    {reason} ({info['pages']}건) URL 수집 중...")
+        await page.goto(drilldown, wait_until='networkidle')
+        await page.wait_for_timeout(5000)
+
+        tables = await page.query_selector_all('table')
+        urls = []
+        if tables:
+            tbl_rows = await tables[0].query_selector_all('tr')
+            for tbl_row in tbl_rows[1:]:  # 헤더 건너뛰기
+                cells = await tbl_row.query_selector_all('td')
+                if cells:
+                    page_url = (await cells[0].inner_text()).strip()
+                    last_crawled = (await cells[1].inner_text()).strip() if len(cells) >= 2 else ''
+                    urls.append({
+                        'url': page_url,
+                        'last_crawled': last_crawled,
+                    })
+
+        detail['reasons'][reason] = {
+            'total': info['pages'],
+            'collected': len(urls),
+            'urls': urls,
+        }
+        print(f"    → {len(urls)}개 수집 완료")
+
+    return detail
+
+
 async def scrape_sitemaps(page, site_url: str, site_label: str) -> dict:
     """GSC에서 사이트의 sitemap 등록 상태를 스크래핑합니다."""
     url = build_gsc_url(site_url, 'sitemaps')
@@ -217,6 +299,20 @@ def save_data(data: dict, output_dir: str) -> Path:
     path = data_dir / f'gsc-index-{date_str}.json'
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+    return path
+
+
+def save_detail_data(detail_data: list, output_dir: str) -> Path:
+    """상세 URL 데이터를 JSON으로 저장합니다."""
+    data_dir = Path(output_dir) / 'data'
+    data_dir.mkdir(parents=True, exist_ok=True)
+    date_str = datetime.now().strftime('%Y-%m-%d')
+    path = data_dir / f'gsc-detail-{date_str}.json'
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump({
+            'generated_at': datetime.now().isoformat(),
+            'sites': detail_data,
+        }, f, ensure_ascii=False, indent=2)
     return path
 
 
@@ -271,7 +367,8 @@ def compare_with_previous(current_data: dict, previous_data: dict | None) -> dic
 
 
 def generate_report(current_data: dict, comparison: dict, output_dir: str,
-                    sitemaps_data: list | None = None) -> Path:
+                    sitemaps_data: list | None = None,
+                    detail_data: list | None = None) -> Path:
     """Markdown 리포트를 생성합니다."""
     today = datetime.now().strftime('%Y-%m-%d')
     now = datetime.now().strftime('%Y-%m-%d %H:%M')
@@ -433,6 +530,29 @@ def generate_report(current_data: dict, comparison: dict, output_dir: str,
                 lines.append('**주의:** 오류가 있는 sitemap이 있습니다. GSC에서 상세 내용을 확인하세요.')
             lines.append('')
 
+    # 상세 URL 목록
+    if detail_data:
+        lines.append('## 상세 URL 목록\n')
+        for site_detail in detail_data:
+            label = site_detail['label']
+            reasons = site_detail.get('reasons', {})
+            if not reasons:
+                continue
+            lines.append(f'### {label}\n')
+            for reason, info in reasons.items():
+                total = info.get('total', 0)
+                collected = info.get('collected', 0)
+                urls = info.get('urls', [])
+                lines.append(f'#### {reason} ({collected}/{total}건)\n')
+                if not urls:
+                    lines.append('수집된 URL이 없습니다.\n')
+                    continue
+                lines.append('| URL | Last Crawled |')
+                lines.append('|-----|-------------|')
+                for u in urls:
+                    lines.append(f'| {u["url"]} | {u["last_crawled"]} |')
+                lines.append('')
+
     # 파일 저장
     report_path = Path(output_dir) / f'gsc-index-report-{today}.md'
     with open(report_path, 'w', encoding='utf-8') as f:
@@ -490,14 +610,38 @@ async def run(args):
                         'sitemaps': [],
                     })
 
+        detail_data = None
+        if args.detail:
+            detail_data = []
+            reasons_filter = args.detail_reasons if args.detail_reasons else None
+            for site in sites:
+                print(f"상세 URL 수집 중: {site['label']}...")
+                try:
+                    detail = await scrape_detail_urls(
+                        page, site['url'], site['label'], reasons_filter)
+                    detail_data.append(detail)
+                    count = sum(len(r['urls']) for r in detail['reasons'].values())
+                    print(f"  완료: {len(detail['reasons'])}개 사유, {count}개 URL")
+                except Exception as e:
+                    print(f"  오류: {e}")
+                    detail_data.append({
+                        'label': site['label'],
+                        'reasons': {},
+                    })
+
         await browser.close()
 
     data_path = save_data(results, args.output_dir)
     print(f"데이터 저장: {data_path}")
 
+    if detail_data:
+        detail_path = save_detail_data(detail_data, args.output_dir)
+        print(f"상세 데이터 저장: {detail_path}")
+
     previous = None if args.no_compare else find_previous_data(args.output_dir)
     comparison = compare_with_previous(results, previous)
-    report_path = generate_report(results, comparison, args.output_dir, sitemaps_data)
+    report_path = generate_report(results, comparison, args.output_dir,
+                                  sitemaps_data, detail_data)
     print(f"리포트 생성: {report_path}")
 
 
@@ -515,6 +659,8 @@ def main():
   gsc-index-report --headless           # headless 모드 실행
   gsc-index-report --site querypie.com  # 특정 사이트만
   gsc-index-report --no-compare         # 비교 없이 스냅샷만
+  gsc-index-report --detail             # 상세 URL 목록 포함
+  gsc-index-report --detail --detail-reasons "Not found (404)"  # 특정 reason만
 """
     )
     parser.add_argument('--login', action='store_true',
@@ -527,6 +673,10 @@ def main():
                         help='전주 비교 없이 현재 스냅샷만')
     parser.add_argument('--sitemaps', action='store_true',
                         help='Sitemap 등록 상태도 함께 수집')
+    parser.add_argument('--detail', action='store_true',
+                        help='각 reason별 상세 URL 목록 수집')
+    parser.add_argument('--detail-reasons', type=str, nargs='*',
+                        help='상세 URL을 수집할 reason 필터 (미지정 시 전체)')
     parser.add_argument('--config', type=str, default=default_config,
                         help=f'설정 파일 경로 (기본: {default_config})')
     parser.add_argument('--output-dir', type=str, default=default_output,
