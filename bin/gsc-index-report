@@ -107,15 +107,15 @@ async def load_cookies(context):
     await context.add_cookies(cookies)
 
 
-def build_gsc_page_indexing_url(site_url: str) -> str:
-    """GSC Page Indexing 리포트 URL 생성."""
+def build_gsc_url(site_url: str, section: str = 'index') -> str:
+    """GSC URL 생성. section: index, sitemaps 등."""
     encoded = urllib.parse.quote(site_url, safe='')
-    return f"https://search.google.com/search-console/index?resource_id={encoded}"
+    return f"https://search.google.com/search-console/{section}?resource_id={encoded}"
 
 
 async def scrape_site(page, site_url: str, site_label: str) -> dict:
     """GSC에서 사이트의 인덱싱 상태를 스크래핑합니다."""
-    url = build_gsc_page_indexing_url(site_url)
+    url = build_gsc_url(site_url, 'index')
     await page.goto(url, wait_until='networkidle')
     await page.wait_for_selector('table', timeout=30000)
     await page.wait_for_timeout(3000)
@@ -170,6 +170,43 @@ async def scrape_site_with_retry(page, site_url: str, site_label: str, max_retri
                 }
             print(f"  재시도 {attempt + 1}/{max_retries}: {e}")
             await page.wait_for_timeout(3000)
+
+
+async def scrape_sitemaps(page, site_url: str, site_label: str) -> dict:
+    """GSC에서 사이트의 sitemap 등록 상태를 스크래핑합니다."""
+    url = build_gsc_url(site_url, 'sitemaps')
+    await page.goto(url, wait_until='networkidle')
+    await page.wait_for_timeout(5000)
+
+    tables = await page.query_selector_all('table')
+    sitemaps = []
+    if tables:
+        rows = await tables[0].query_selector_all('tr')
+        for row in rows[1:]:
+            cells = await row.query_selector_all('td')
+            if len(cells) >= 6:
+                sitemap_path = (await cells[0].inner_text()).strip()
+                sitemap_type = (await cells[1].inner_text()).strip()
+                submitted = (await cells[2].inner_text()).strip()
+                last_read = (await cells[3].inner_text()).strip()
+                status = (await cells[4].inner_text()).strip()
+                pages_text = (await cells[5].inner_text()).strip()
+                pages_count = int(pages_text.replace(',', '')) if pages_text.replace(',', '').isdigit() else 0
+                sitemaps.append({
+                    'sitemap': sitemap_path,
+                    'type': sitemap_type,
+                    'submitted': submitted,
+                    'last_read': last_read,
+                    'status': status,
+                    'discovered_pages': pages_count,
+                })
+
+    return {
+        'site_url': site_url,
+        'label': site_label,
+        'sitemaps': sitemaps,
+        'scraped_at': datetime.now().isoformat(),
+    }
 
 
 def save_data(data: dict, output_dir: str) -> Path:
@@ -233,7 +270,8 @@ def compare_with_previous(current_data: dict, previous_data: dict | None) -> dic
     return comparison
 
 
-def generate_report(current_data: dict, comparison: dict, output_dir: str) -> Path:
+def generate_report(current_data: dict, comparison: dict, output_dir: str,
+                    sitemaps_data: list | None = None) -> Path:
     """Markdown 리포트를 생성합니다."""
     today = datetime.now().strftime('%Y-%m-%d')
     now = datetime.now().strftime('%Y-%m-%d %H:%M')
@@ -370,6 +408,31 @@ def generate_report(current_data: dict, comparison: dict, output_dir: str) -> Pa
             lines.extend(action_items)
         lines.append('')
 
+    # Sitemap 상태
+    if sitemaps_data:
+        lines.append('## Sitemap 등록 현황\n')
+        for sm_site in sitemaps_data:
+            label = sm_site['label']
+            sitemaps = sm_site.get('sitemaps', [])
+            lines.append(f'### {label}\n')
+            if not sitemaps:
+                lines.append('등록된 sitemap이 없습니다.\n')
+                continue
+            lines.append('| Sitemap | Type | Submitted | Last read | Status | Pages |')
+            lines.append('|---------|------|-----------|-----------|--------|------:|')
+            has_error = False
+            for sm in sitemaps:
+                status = sm['status']
+                if 'error' in status.lower() or 'fail' in status.lower():
+                    has_error = True
+                lines.append(
+                    f'| {sm["sitemap"]} | {sm["type"]} | {sm["submitted"]} '
+                    f'| {sm["last_read"]} | {status} | {sm["discovered_pages"]} |')
+            if has_error:
+                lines.append('')
+                lines.append('**주의:** 오류가 있는 sitemap이 있습니다. GSC에서 상세 내용을 확인하세요.')
+            lines.append('')
+
     # 파일 저장
     report_path = Path(output_dir) / f'gsc-index-report-{today}.md'
     with open(report_path, 'w', encoding='utf-8') as f:
@@ -410,6 +473,23 @@ async def run(args):
                 count = len(data.get('reasons', []))
                 print(f"  완료: {count}개 사유 수집")
 
+        sitemaps_data = None
+        if args.sitemaps:
+            sitemaps_data = []
+            for site in sites:
+                print(f"Sitemap 확인 중: {site['label']}...")
+                try:
+                    sm = await scrape_sitemaps(page, site['url'], site['label'])
+                    sitemaps_data.append(sm)
+                    count = len(sm.get('sitemaps', []))
+                    print(f"  완료: {count}개 sitemap")
+                except Exception as e:
+                    print(f"  오류: {e}")
+                    sitemaps_data.append({
+                        'label': site['label'],
+                        'sitemaps': [],
+                    })
+
         await browser.close()
 
     data_path = save_data(results, args.output_dir)
@@ -417,7 +497,7 @@ async def run(args):
 
     previous = None if args.no_compare else find_previous_data(args.output_dir)
     comparison = compare_with_previous(results, previous)
-    report_path = generate_report(results, comparison, args.output_dir)
+    report_path = generate_report(results, comparison, args.output_dir, sitemaps_data)
     print(f"리포트 생성: {report_path}")
 
 
@@ -445,6 +525,8 @@ def main():
                         help='특정 사이트만 실행 (label 지정)')
     parser.add_argument('--no-compare', action='store_true',
                         help='전주 비교 없이 현재 스냅샷만')
+    parser.add_argument('--sitemaps', action='store_true',
+                        help='Sitemap 등록 상태도 함께 수집')
     parser.add_argument('--config', type=str, default=default_config,
                         help=f'설정 파일 경로 (기본: {default_config})')
     parser.add_argument('--output-dir', type=str, default=default_output,
