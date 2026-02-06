@@ -148,12 +148,52 @@ def save_data(data: dict, output_dir: str) -> Path:
 
 def find_previous_data(output_dir: str) -> dict | None:
     """이전 주 데이터를 로드합니다."""
+    data_dir = Path(output_dir) / 'data'
+    files = sorted(data_dir.glob('gsc-index-*.json'), reverse=True)
+    today = datetime.now().strftime('%Y-%m-%d')
+    for f in files:
+        if today not in f.name:
+            with open(f, encoding='utf-8') as fh:
+                return json.load(fh)
     return None
 
 
 def compare_with_previous(current_data: dict, previous_data: dict | None) -> dict:
     """현재 데이터와 이전 데이터를 비교합니다."""
-    return {'has_previous': False}
+    if previous_data is None:
+        return {'has_previous': False}
+
+    comparison = {'has_previous': True, 'sites': {}}
+    prev_by_label = {s['label']: s for s in previous_data.get('sites', [])}
+
+    for site in current_data.get('sites', []):
+        label = site['label']
+        prev_site = prev_by_label.get(label)
+        if not prev_site or 'error' in site:
+            comparison['sites'][label] = {'new_site': True}
+            continue
+
+        prev_reasons = {r['reason']: r['pages'] for r in prev_site.get('reasons', [])}
+        curr_reasons = {r['reason']: r['pages'] for r in site.get('reasons', [])}
+
+        changes = {}
+        all_reasons = set(prev_reasons) | set(curr_reasons)
+        for reason in all_reasons:
+            prev_count = prev_reasons.get(reason, 0)
+            curr_count = curr_reasons.get(reason, 0)
+            diff = curr_count - prev_count
+            is_new = reason not in prev_reasons
+            is_resolved = reason not in curr_reasons
+            changes[reason] = {
+                'previous': prev_count,
+                'current': curr_count,
+                'diff': diff,
+                'is_new': is_new,
+                'is_resolved': is_resolved,
+            }
+        comparison['sites'][label] = changes
+
+    return comparison
 
 
 def generate_report(current_data: dict, comparison: dict, output_dir: str) -> Path:
