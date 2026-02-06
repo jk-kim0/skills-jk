@@ -85,17 +85,65 @@ def build_gsc_page_indexing_url(site_url: str) -> str:
 
 async def scrape_site(page, site_url: str, site_label: str) -> dict:
     """GSC에서 사이트의 인덱싱 상태를 스크래핑합니다."""
-    return {}
+    url = build_gsc_page_indexing_url(site_url)
+    await page.goto(url, wait_until='networkidle')
+
+    # "Why pages aren't indexed" 테이블 로드 대기
+    # GSC는 Angular 기반 SPA — 테이블이 동적으로 렌더링됨
+    await page.wait_for_selector('table', timeout=30000)
+
+    # 테이블 행 파싱
+    rows = await page.query_selector_all('table tbody tr')
+    reasons = []
+    for row in rows:
+        cells = await row.query_selector_all('td')
+        if len(cells) >= 2:
+            reason = (await cells[0].inner_text()).strip()
+            pages_text = (await cells[-1].inner_text()).strip()
+            source = (await cells[1].inner_text()).strip() if len(cells) >= 3 else ''
+            validation = (await cells[2].inner_text()).strip() if len(cells) >= 4 else ''
+            pages_count = int(pages_text.replace(',', '')) if pages_text.replace(',', '').isdigit() else 0
+            reasons.append({
+                'reason': reason,
+                'source': source,
+                'validation': validation,
+                'pages': pages_count,
+            })
+
+    return {
+        'site_url': site_url,
+        'label': site_label,
+        'reasons': reasons,
+        'scraped_at': datetime.now().isoformat(),
+    }
 
 
 async def scrape_site_with_retry(page, site_url: str, site_label: str, max_retries: int = 2) -> dict:
     """재시도 로직이 포함된 스크래핑."""
-    return await scrape_site(page, site_url, site_label)
+    for attempt in range(max_retries + 1):
+        try:
+            return await scrape_site(page, site_url, site_label)
+        except Exception as e:
+            if attempt == max_retries:
+                return {
+                    'site_url': site_url,
+                    'label': site_label,
+                    'error': str(e),
+                    'scraped_at': datetime.now().isoformat(),
+                }
+            print(f"  재시도 {attempt + 1}/{max_retries}: {e}")
+            await page.wait_for_timeout(3000)
 
 
 def save_data(data: dict, output_dir: str) -> Path:
     """스크래핑 데이터를 JSON으로 저장합니다."""
-    return Path(output_dir) / 'data' / 'placeholder.json'
+    data_dir = Path(output_dir) / 'data'
+    data_dir.mkdir(parents=True, exist_ok=True)
+    date_str = datetime.now().strftime('%Y-%m-%d')
+    path = data_dir / f'gsc-index-{date_str}.json'
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    return path
 
 
 def find_previous_data(output_dir: str) -> dict | None:
