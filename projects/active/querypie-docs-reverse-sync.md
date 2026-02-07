@@ -256,13 +256,15 @@ querypie-docs/
 
 ### Phase 1 - 텍스트 수준 역반영
 
-- [ ] mapping_recorder.py 구현
-- [ ] mdx_block_parser.py 구현
-- [ ] block_diff.py 구현
-- [ ] xhtml_patcher.py 구현
-- [ ] roundtrip_verifier.py 구현
-- [ ] reverse_sync.py 오케스트레이터 구현
-- [ ] 실제 문서로 검증
+- [x] mapping_recorder.py 구현
+- [x] mdx_block_parser.py 구현
+- [x] block_diff.py 구현
+- [x] xhtml_patcher.py 구현
+- [x] roundtrip_verifier.py 구현
+- [x] reverse_sync.py 오케스트레이터 구현
+- [x] 실제 문서로 검증
+- [ ] forward converter 연동 (round-trip 검증의 forward 변환 단계)
+- [ ] push 커맨드 Confluence API 연동
 
 ### Phase 2 - 구조적 변경 역반영
 
