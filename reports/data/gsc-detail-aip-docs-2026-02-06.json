@@ -1,0 +1,256 @@
+{
+  "generated_at": "2026-02-06T18:04:49.328263",
+  "sites": [
+    {
+      "label": "aip-docs.app.querypie.com",
+      "reasons": {
+        "Page with redirect": {
+          "total": 1,
+          "collected": 1,
+          "urls": [
+            {
+              "url": "https://aip-docs.app.querypie.com/user-guide",
+              "last_crawled": "Feb 2, 2026"
+            }
+          ]
+        },
+        "Crawled - currently not indexed": {
+          "total": 25,
+          "collected": 25,
+          "urls": [
+            {
+              "url": "https://aip-docs.app.querypie.com/user-guide/chat",
+              "last_crawled": "Feb 3, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/mcps/daum-search",
+              "last_crawled": "Feb 3, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/mcps/code-executor",
+              "last_crawled": "Jan 30, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/mcps/datadog",
+              "last_crawled": "Jan 17, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/mcps/github",
+              "last_crawled": "Jan 16, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/mcps/redis",
+              "last_crawled": "Jan 16, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/mcps/discord",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/mcps/google-sheets",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/mcps/jdbc-oracle",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/mcps/kubernetes",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/mcps/querypie-client",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/mcps/jdbc-mssql",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/mcps/salesforce",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/mcps/naver-search",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/mcps/jdbc-mariadb",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/mcps/n8n-chat-trigger-node",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/mcps/supabase",
+              "last_crawled": "Jan 14, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/mcps/jdbc-clickhouse",
+              "last_crawled": "Jan 14, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/mcps/querypie-sac",
+              "last_crawled": "Jan 14, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/mcps/querypie-dac",
+              "last_crawled": "Jan 14, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/mcps/atlassian-jira",
+              "last_crawled": "Jan 14, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/_next/static/css/e32f16046da0f225.css?dpl=dpl_6Q6wepHswSidF6jQLeaM2ZpSGc96",
+              "last_crawled": "Oct 26, 2025"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/_next/static/css/59ed3440722801e9.css?dpl=dpl_922e7dxHKBMJ2W2jGrkae5jCTbJk",
+              "last_crawled": "Oct 16, 2025"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/favicon.ico",
+              "last_crawled": "Sep 17, 2025"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/_next/static/css/59ed3440722801e9.css?dpl=dpl_WvF7jvGHgDAJxS4nfUgZArSYRU6H",
+              "last_crawled": "Sep 14, 2025"
+            }
+          ]
+        },
+        "Duplicate without user-selected canonical": {
+          "total": 22,
+          "collected": 22,
+          "urls": [
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/chat",
+              "last_crawled": "Feb 3, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide",
+              "last_crawled": "Feb 2, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/mcps/terminal-sandbox",
+              "last_crawled": "Feb 1, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/mcps/sequentialthinking",
+              "last_crawled": "Jan 31, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/mcps/google-drive",
+              "last_crawled": "Jan 31, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/mcps/jdbc-snowflake",
+              "last_crawled": "Jan 24, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/release-notes",
+              "last_crawled": "Jan 23, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/mcps/airtable",
+              "last_crawled": "Jan 20, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/mcps/hubspot",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/mcps/google-gmail",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/mcps/querypie-dac-admin",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/admin-guide/billing",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/quickstart",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/special-features/edge-tunnel",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/mcps/jdbc-postgresql",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/special-features/remote-preset-mcp",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/automation",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/admin-guide/mcp-management",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/mcps/dify-api-access",
+              "last_crawled": "Jan 14, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/faq",
+              "last_crawled": "Jan 14, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/user-guide/mcps/ssh",
+              "last_crawled": "Jan 14, 2026"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/en/admin-guide/knowledge-management",
+              "last_crawled": "Jan 14, 2026"
+            }
+          ]
+        },
+        "Not found (404)": {
+          "total": 1,
+          "collected": 1,
+          "urls": [
+            {
+              "url": "https://aip-docs.app.querypie.com/user-guide/special-features",
+              "last_crawled": "Nov 3, 2025"
+            }
+          ]
+        },
+        "Discovered - currently not indexed": {
+          "total": 5,
+          "collected": 5,
+          "urls": [
+            {
+              "url": "https://aip-docs.app.querypie.com/en",
+              "last_crawled": "N/A"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/ja",
+              "last_crawled": "N/A"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/ja/user-guide/special-features/custom-mcp",
+              "last_crawled": "N/A"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/ja/user-guide/special-features/smart-tool-discovery",
+              "last_crawled": "N/A"
+            },
+            {
+              "url": "https://aip-docs.app.querypie.com/ko",
+              "last_crawled": "N/A"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

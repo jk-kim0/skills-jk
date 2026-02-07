@@ -1,0 +1,225 @@
+{
+  "sites": [
+    {
+      "site_url": "https://www.querypie.com/",
+      "label": "www.querypie.com",
+      "reasons": [
+        {
+          "reason": "Page with redirect",
+          "source": "Website",
+          "validation": "Failed",
+          "pages": 1227
+        },
+        {
+          "reason": "Not found (404)",
+          "source": "Website",
+          "validation": "Failed",
+          "pages": 822
+        },
+        {
+          "reason": "Alternate page with proper canonical tag",
+          "source": "Website",
+          "validation": "Failed",
+          "pages": 197
+        },
+        {
+          "reason": "Crawled - currently not indexed",
+          "source": "Google systems",
+          "validation": "Failed",
+          "pages": 96
+        },
+        {
+          "reason": "Redirect error",
+          "source": "Website",
+          "validation": "Started",
+          "pages": 18
+        },
+        {
+          "reason": "Blocked by robots.txt",
+          "source": "Website",
+          "validation": "Started",
+          "pages": 18
+        },
+        {
+          "reason": "Soft 404",
+          "source": "Website",
+          "validation": "Started",
+          "pages": 1
+        },
+        {
+          "reason": "Duplicate, Google chose different canonical than user",
+          "source": "Google systems",
+          "validation": "Started",
+          "pages": 25
+        },
+        {
+          "reason": "Duplicate without user-selected canonical",
+          "source": "Website",
+          "validation": "Passed",
+          "pages": 18
+        },
+        {
+          "reason": "Server error (5xx)",
+          "source": "Website",
+          "validation": "N/A",
+          "pages": 0
+        },
+        {
+          "reason": "Discovered - currently not indexed",
+          "source": "Google systems",
+          "validation": "Passed",
+          "pages": 144
+        }
+      ],
+      "scraped_at": "2026-02-06T23:04:19.036267"
+    },
+    {
+      "site_url": "https://docs.querypie.com/",
+      "label": "docs.querypie.com",
+      "reasons": [
+        {
+          "reason": "Not found (404)",
+          "source": "Website",
+          "validation": "Failed",
+          "pages": 215
+        },
+        {
+          "reason": "Blocked by robots.txt",
+          "source": "Website",
+          "validation": "Failed",
+          "pages": 24
+        },
+        {
+          "reason": "Page with redirect",
+          "source": "Website",
+          "validation": "Started",
+          "pages": 219
+        },
+        {
+          "reason": "Duplicate without user-selected canonical",
+          "source": "Website",
+          "validation": "Started",
+          "pages": 19
+        },
+        {
+          "reason": "Alternate page with proper canonical tag",
+          "source": "Website",
+          "validation": "Started",
+          "pages": 1
+        },
+        {
+          "reason": "Crawled - currently not indexed",
+          "source": "Google systems",
+          "validation": "Started",
+          "pages": 159
+        },
+        {
+          "reason": "Duplicate, Google chose different canonical than user",
+          "source": "Google systems",
+          "validation": "Started",
+          "pages": 23
+        },
+        {
+          "reason": "Redirect error",
+          "source": "Website",
+          "validation": "Passed",
+          "pages": 0
+        },
+        {
+          "reason": "Discovered - currently not indexed",
+          "source": "Google systems",
+          "validation": "Passed",
+          "pages": 2
+        }
+      ],
+      "scraped_at": "2026-02-06T23:04:25.541722"
+    },
+    {
+      "site_url": "https://aip-docs.app.querypie.com/",
+      "label": "aip-docs.app.querypie.com",
+      "reasons": [
+        {
+          "reason": "Page with redirect",
+          "source": "Website",
+          "validation": "Failed",
+          "pages": 1
+        },
+        {
+          "reason": "Crawled - currently not indexed",
+          "source": "Google systems",
+          "validation": "Failed",
+          "pages": 25
+        },
+        {
+          "reason": "Duplicate without user-selected canonical",
+          "source": "Website",
+          "validation": "Started",
+          "pages": 22
+        },
+        {
+          "reason": "Not found (404)",
+          "source": "Website",
+          "validation": "Started",
+          "pages": 1
+        },
+        {
+          "reason": "Discovered - currently not indexed",
+          "source": "Google systems",
+          "validation": "Started",
+          "pages": 5
+        }
+      ],
+      "scraped_at": "2026-02-06T23:04:31.352849"
+    },
+    {
+      "site_url": "https://app.querypie.com/",
+      "label": "app.querypie.com",
+      "reasons": [
+        {
+          "reason": "Duplicate without user-selected canonical",
+          "source": "Website",
+          "validation": "Started",
+          "pages": 145
+        },
+        {
+          "reason": "Blocked by robots.txt",
+          "source": "Website",
+          "validation": "Started",
+          "pages": 9
+        },
+        {
+          "reason": "Crawled - currently not indexed",
+          "source": "Google systems",
+          "validation": "Started",
+          "pages": 13
+        },
+        {
+          "reason": "Duplicate, Google chose different canonical than user",
+          "source": "Google systems",
+          "validation": "Started",
+          "pages": 1
+        },
+        {
+          "reason": "Discovered - currently not indexed",
+          "source": "Google systems",
+          "validation": "Started",
+          "pages": 1
+        },
+        {
+          "reason": "Redirect error",
+          "source": "Website",
+          "validation": "Passed",
+          "pages": 0
+        },
+        {
+          "reason": "Soft 404",
+          "source": "Website",
+          "validation": "Passed",
+          "pages": 0
+        }
+      ],
+      "scraped_at": "2026-02-06T23:04:37.307821"
+    }
+  ],
+  "generated_at": "2026-02-06T23:04:11.414393"
+}

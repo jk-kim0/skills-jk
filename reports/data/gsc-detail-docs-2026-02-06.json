@@ -1,0 +1,2706 @@
+{
+  "generated_at": "2026-02-06T18:03:26.673091",
+  "sites": [
+    {
+      "label": "docs.querypie.com",
+      "reasons": {
+        "Not found (404)": {
+          "total": 215,
+          "collected": 215,
+          "urls": [
+            {
+              "url": "https://docs.querypie.com/ko/installation-and-customer-support/license-installation",
+              "last_crawled": "Feb 3, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/installation-and-customer-support/prerequisites/linux-distribution-and-docker-podman-support-status",
+              "last_crawled": "Feb 3, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/administrator-manual/audit/kubernetes-logs/api-reference/11.4.1/v2",
+              "last_crawled": "Feb 2, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/administrator-manual/audit/kubernetes-logs/api-reference/11.4.1/v0.9",
+              "last_crawled": "Feb 2, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/en/administrator-manual/general/system/integrations/identity-providers/aws-sso-saml-20",
+              "last_crawled": "Feb 1, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/en/administrator-manual/kubernetes/api-reference/11.4.1/v0.9",
+              "last_crawled": "Feb 1, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/en/administrator-manual/kubernetes/api-reference/11.4.1/v2",
+              "last_crawled": "Feb 1, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/installation-and-customer-support/installation",
+              "last_crawled": "Feb 1, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/installation-and-customer-support/prerequisites/configuring-rootless-mode-with-podman",
+              "last_crawled": "Jan 31, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/en/installation/installation/querypie/mysql/",
+              "last_crawled": "Jan 31, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/administrator-manual/databases/connection-management/cloud-providers/api-reference/11.4.1/v0.9",
+              "last_crawled": "Jan 31, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/en/release-notes/990-998/api-reference/11.4.1/v2",
+              "last_crawled": "Jan 31, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/en/release-notes/990-998/api-reference/11.4.1/v0.9",
+              "last_crawled": "Jan 31, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/en/release-notes/990-998/995_external.json",
+              "last_crawled": "Jan 31, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/installation-and-customer-support/server-configuration-requirements",
+              "last_crawled": "Jan 30, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/installation/querypie-acp-community-edition/api-reference/11.4.1/v0.9",
+              "last_crawled": "Jan 29, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/en/user-manual/api-reference/11.4.1/v0.9",
+              "last_crawled": "Jan 29, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/administrator-manual/general/user-management/api-reference/11.4.1/v0.9",
+              "last_crawled": "Jan 29, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/administrator-manual/general/user-management/api-reference/11.4.1/v2",
+              "last_crawled": "Jan 28, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/en/overview/api-reference/11.4.1/v2",
+              "last_crawled": "Jan 28, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/en/overview/api-reference/11.4.1/v0.9",
+              "last_crawled": "Jan 28, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/installation-and-customer-support/querypie-acp-community-edition",
+              "last_crawled": "Jan 28, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/administrator-manual/general/user-management/provisioning/api-reference/11.4.1/v0.9",
+              "last_crawled": "Jan 27, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/app/script/migrate.sh",
+              "last_crawled": "Jan 27, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/installation-and-customer-support/container-environment-variables/optimizing-dbmaxconnectionsize",
+              "last_crawled": "Jan 27, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/user-manual/multi-agent/api-reference/11.4.1/v0.9",
+              "last_crawled": "Jan 27, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/administrator-manual/api-reference/11.4.1/v2",
+              "last_crawled": "Jan 27, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/general/system/api-reference/11.4.1/v0.9",
+              "last_crawled": "Jan 26, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/en/administrator-manual/databases/monitoring/api-reference/11.4.1/v0.9",
+              "last_crawled": "Jan 26, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/en/administrator-manual/web-apps/wac-quickstart/api-reference/11.4.1/v0.9",
+              "last_crawled": "Jan 26, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/en/administrator-manual/web-apps/wac-quickstart/api-reference/11.4.1/v2",
+              "last_crawled": "Jan 26, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/en/administrator-manual/audit/server-logs/session-monitoring",
+              "last_crawled": "Jan 25, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/home/ec2-user/querypie/11.1.1/systemd/podman-querypie-database.service",
+              "last_crawled": "Jan 24, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/home/ec2-user/querypie/current/systemd/podman-querypie-database.service",
+              "last_crawled": "Jan 23, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/en/installation/prerequisites/api-reference/11.4.1/v0.9",
+              "last_crawled": "Jan 23, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/en/installation/prerequisites/api-reference/11.4.1/v2",
+              "last_crawled": "Jan 23, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/user-manual/database-access-control/api-reference/11.4.1/v2",
+              "last_crawled": "Jan 23, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/user-manual/database-access-control/api-reference/11.4.1/v0.9",
+              "last_crawled": "Jan 22, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/installation/installation/api-reference/11.4.1/v2",
+              "last_crawled": "Jan 22, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/user-manual/workflow/api-reference/11.4.1/v2",
+              "last_crawled": "Jan 22, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/user-manual/workflow/api-reference/11.4.1/v0.9",
+              "last_crawled": "Jan 20, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/administrator-manual/databases/ledger-management/api-reference/11.4.1/v2",
+              "last_crawled": "Jan 19, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/en/administrator-manual/audit/server-logs/api-reference/11.4.1/v0.9",
+              "last_crawled": "Jan 18, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/en/administrator-manual/audit/server-logs/api-reference/11.4.1/v2",
+              "last_crawled": "Jan 18, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/en/user-manual/database-access-control/api-reference/11.4.1/v2",
+              "last_crawled": "Jan 17, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/en/user-manual/database-access-control/api-reference/11.4.1/v0.9",
+              "last_crawled": "Jan 17, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/release-notes/api-reference/11.4.1/v2",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/administrator-manual/databases/monitoring/api-reference/11.4.1/v2",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/administrator-manual/audit/server-logs/session-monitoring",
+              "last_crawled": "Jan 14, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/administrator-manual/databases/ledger-management/api-reference/11.4.1/v0.9",
+              "last_crawled": "Jan 13, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/user-manual/server-access-control/api-reference/11.4.1/v0.9",
+              "last_crawled": "Jan 13, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/064e7bae1d4bb9b0.css?dpl=dpl_5kSwYFmrwjEkNCgTu1rZc2KPJvrT",
+              "last_crawled": "Jan 12, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/en/user-manual/api-reference/11.4.1/v2",
+              "last_crawled": "Jan 12, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/administrator-manual/servers/api-reference/11.4.1/v0.9",
+              "last_crawled": "Jan 10, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie-overview/installation-and-customer-support",
+              "last_crawled": "Jan 10, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/administrator-manual/audit/server-logs/api-reference/11.4.1/v0.9",
+              "last_crawled": "Jan 10, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/user-manual/server-access-control/api-reference/11.4.1/v2",
+              "last_crawled": "Jan 10, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/administrator-manual/audit/server-logs/api-reference/11.4.1/v2",
+              "last_crawled": "Jan 10, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/administrator-manual/kubernetes/k8s-access-control/access-control/api-reference/11.4.1/v0.9",
+              "last_crawled": "Jan 9, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/user-manual/api-reference/11.4.1/v0.9",
+              "last_crawled": "Jan 9, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/audit/server-logs/session-monitoring",
+              "last_crawled": "Jan 7, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/administrator-manual/kubernetes/k8s-access-control/policies/api-reference/11.4.1/v0.9",
+              "last_crawled": "Jan 6, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/querypie-overview/installation-and-customer-support",
+              "last_crawled": "Jan 5, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/administrator-manual/audit/web-app-logs/api-reference/11.4.1/v0.9",
+              "last_crawled": "Jan 5, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/administrator-manual/audit/web-app-logs/api-reference/11.4.1/v2",
+              "last_crawled": "Jan 4, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/installation-and-customer-support/prerequisites/linux-distribution-and-docker-podman-support-status",
+              "last_crawled": "Jan 4, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie-overview/installation-and-customer-support",
+              "last_crawled": "Jan 4, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/querypie-overview/installation-and-customer-support",
+              "last_crawled": "Dec 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/installation-and-customer-support/server-configuration-requirements/server-configuration-requirements-summary",
+              "last_crawled": "Dec 21, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/installation-and-customer-support",
+              "last_crawled": "Dec 21, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/064e7bae1d4bb9b0.css?dpl=dpl_5U7heFdVmwhe5RQXaATvjVSHxJNS",
+              "last_crawled": "Dec 19, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/api/external/v2/dac/connections/{dbConnectionUuid}",
+              "last_crawled": "Dec 18, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/installation-and-customer-support/container-environment-variables/querypieweburl",
+              "last_crawled": "Dec 18, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/mcp",
+              "last_crawled": "Dec 17, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/064e7bae1d4bb9b0.css?dpl=dpl_3GDvAtXpni2t22pF1W4DXNuijTui",
+              "last_crawled": "Dec 17, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/installation-and-customer-support/server-configuration-requirements/public-cloud-production-server-requirements",
+              "last_crawled": "Dec 15, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/api/external/v2/users",
+              "last_crawled": "Dec 14, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/installation-and-customer-support/installation/installing-on-aws-eks",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/installation-and-customer-support/server-configuration-requirements",
+              "last_crawled": "Dec 11, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/installation-and-customer-support/system-architecture-and-network-access-control",
+              "last_crawled": "Dec 11, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/installation-and-customer-support/installation/comparison-of-setupsh-and-setupv2sh",
+              "last_crawled": "Dec 10, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/installation-and-customer-support/license-installation",
+              "last_crawled": "Dec 10, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/installation-and-customer-support/container-environment-variables",
+              "last_crawled": "Dec 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/installation-and-customer-support/installation",
+              "last_crawled": "Dec 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/installation-and-customer-support/installation/installation-guide-simple-configuration",
+              "last_crawled": "Dec 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/installation-and-customer-support/prerequisites/configuring-rootless-mode-with-podman",
+              "last_crawled": "Dec 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/installation-and-customer-support/server-configuration-requirements/on-premise-vm-requirements",
+              "last_crawled": "Dec 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/installation-and-customer-support/prerequisites",
+              "last_crawled": "Dec 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/saml/login",
+              "last_crawled": "Dec 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/saml/sp/metadata",
+              "last_crawled": "Dec 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/installation-and-customer-support/installation/installation-guide-setupv2sh",
+              "last_crawled": "Dec 7, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/installation-and-customer-support/querypie-acp-community-edition",
+              "last_crawled": "Dec 6, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/VERYSILENT",
+              "last_crawled": "Nov 28, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/Url=",
+              "last_crawled": "Nov 27, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/Port=",
+              "last_crawled": "Nov 23, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.17.0/secret-store",
+              "last_crawled": "Nov 15, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/resources/learn/tutorials/*",
+              "last_crawled": "Nov 15, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.14.0/sql",
+              "last_crawled": "Nov 14, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-33",
+              "last_crawled": "Nov 14, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.14.0/dm",
+              "last_crawled": "Nov 14, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/9-14-0-9-14-2",
+              "last_crawled": "Nov 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/db",
+              "last_crawled": "Nov 12, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-18",
+              "last_crawled": "Nov 12, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-7",
+              "last_crawled": "Nov 12, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-17",
+              "last_crawled": "Nov 12, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-8",
+              "last_crawled": "Nov 12, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/server-access-request",
+              "last_crawled": "Nov 12, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-38",
+              "last_crawled": "Nov 12, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/9-12-0-9-12-13",
+              "last_crawled": "Nov 12, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-41",
+              "last_crawled": "Nov 10, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-26",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-34",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-4",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-29",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-23",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/db-4",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/api/external/system-auth-logs",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/9-15-0-9-15-2",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/db-2",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-2",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/db-5",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/aws",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/okta",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/sql",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/external-api-9-9-4-9-9-5",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-6",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-1",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/db-3",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/aws-db",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/ip",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/db-access-request",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-37",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-20",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-21",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-15",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/for-agent/server-agent/download",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/ldap",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-5",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/release-notes",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-35",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-13",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-30",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/export-request",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-31",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/database-proxy",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-39",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/9-9-0-9-9-8",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/slack-dm",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-32",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-14",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-19",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/9-16-0",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/workflow",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/customer-portal",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/api/external/alerts/workflow-new-request",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/resources/discover/blog",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/gcp",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/querypie-overview",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-3",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-24",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-36",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-25",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-12",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/azure",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/slack-dm-workflow",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-22",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/9-11-0-9-11-5",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/external-api-9-8-10-9-9-4",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/resources/discover/webinars",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/resources/learn/tutorials",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/database-settings/policies/sensitive-data",
+              "last_crawled": "Nov 7, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/module/orders/*",
+              "last_crawled": "Nov 7, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/database-settings/policies/data-access",
+              "last_crawled": "Nov 7, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/database-settings/policies/data-masking",
+              "last_crawled": "Nov 7, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/&",
+              "last_crawled": "Nov 6, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/$",
+              "last_crawled": "Nov 6, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/9-8-0-9-8-10",
+              "last_crawled": "Nov 6, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/mongodb",
+              "last_crawled": "Nov 6, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-11",
+              "last_crawled": "Nov 6, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-9",
+              "last_crawled": "Nov 6, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/9-12-0",
+              "last_crawled": "Nov 6, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/",
+              "last_crawled": "Nov 6, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-16",
+              "last_crawled": "Nov 6, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/sql-sql-request",
+              "last_crawled": "Nov 6, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/db-1",
+              "last_crawled": "Nov 6, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/sso",
+              "last_crawled": "Nov 6, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/admin/*",
+              "last_crawled": "Nov 6, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/general-settings/*",
+              "last_crawled": "Nov 6, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/data",
+              "last_crawled": "Nov 5, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/api/external/alerts/unusual-login-attempt",
+              "last_crawled": "Nov 5, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/api/external/alerts/sql-execution",
+              "last_crawled": "Nov 5, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/api/external/cloud-providers/{cloudProviderUuid}",
+              "last_crawled": "Nov 5, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/release-notes/990-998/New",
+              "last_crawled": "Nov 5, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/release-notes/990-998/994_external.json",
+              "last_crawled": "Nov 5, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/api/external/alerts/prevented-sql-execution",
+              "last_crawled": "Nov 5, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/api/external/audit-logs/{uuid}",
+              "last_crawled": "Nov 5, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/api/external/audit-logs/{id}",
+              "last_crawled": "Nov 5, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/api/external/roles/{roleUuid}",
+              "last_crawled": "Nov 5, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/api/external/notifications",
+              "last_crawled": "Nov 5, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/api/external/connection-auth-logs",
+              "last_crawled": "Nov 5, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/api/external/audit-logs",
+              "last_crawled": "Nov 5, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/general-settings/user-management/*",
+              "last_crawled": "Nov 5, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/saml/sp/acs",
+              "last_crawled": "Nov 4, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/api/external/roles",
+              "last_crawled": "Nov 4, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/api/external/connections",
+              "last_crawled": "Nov 4, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/kubernetes-settings/*",
+              "last_crawled": "Nov 4, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/api/external/approval-rules",
+              "last_crawled": "Nov 4, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/api/external/cloud-providers",
+              "last_crawled": "Nov 4, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/general-settings/user-management",
+              "last_crawled": "Nov 4, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/release-notes/990-998/9810_external.json",
+              "last_crawled": "Nov 3, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/api/external/connections/{uuid}",
+              "last_crawled": "Nov 3, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/general-settings",
+              "last_crawled": "Nov 3, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/kubernetes-settings",
+              "last_crawled": "Nov 3, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/api/external/alerts/db-connection-attempt",
+              "last_crawled": "Nov 3, 2025"
+            }
+          ]
+        },
+        "Blocked by robots.txt": {
+          "total": 24,
+          "collected": 24,
+          "urls": [
+            {
+              "url": "https://docs.querypie.com/_next/static/chunks/de05190b6eab4be0.js?dpl=dpl_GDMKGCfjLLkeViQnLhSsJVVZXwGs",
+              "last_crawled": "Feb 1, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/chunks/a66e3feff4794f99.js?dpl=dpl_5ySK7pxQeivsFtihGP3R9QECzLdw",
+              "last_crawled": "Jan 31, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/api/og/ko/installation/querypie-acp-community-edition/mcp-configuration-guide",
+              "last_crawled": "Jan 30, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/chunks/0358bc85a0d0d081.js?dpl=dpl_8cg3qs47MqSvY1b1uzGA9ciJok5J",
+              "last_crawled": "Jan 30, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/chunks/ad0c35c0a364a359.js?dpl=dpl_GDMKGCfjLLkeViQnLhSsJVVZXwGs",
+              "last_crawled": "Jan 29, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/chunks/ad0c35c0a364a359.js?dpl=dpl_8cg3qs47MqSvY1b1uzGA9ciJok5J",
+              "last_crawled": "Jan 29, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/chunks/73e3194f06db260e.js?dpl=dpl_8cg3qs47MqSvY1b1uzGA9ciJok5J",
+              "last_crawled": "Jan 28, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/372f8dcde2d2dafb.css?dpl=dpl_B4V1sbwqkMrTEmuf6fDsc2mfcesF",
+              "last_crawled": "Jan 27, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/372f8dcde2d2dafb.css?dpl=dpl_5kSwYFmrwjEkNCgTu1rZc2KPJvrT",
+              "last_crawled": "Jan 27, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/chunks/d96012bcfc98706a.js?dpl=dpl_GDMKGCfjLLkeViQnLhSsJVVZXwGs",
+              "last_crawled": "Jan 25, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/chunks/9d8f07c5d155fb66.js?dpl=dpl_5Jn9w1NUr35JLPgTV9HBYzx4v18b",
+              "last_crawled": "Jan 25, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/chunks/95087ad89f6582e3.css?dpl=dpl_5Jn9w1NUr35JLPgTV9HBYzx4v18b",
+              "last_crawled": "Jan 24, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/chunks/0496c9fd17b4b6c1.js?dpl=dpl_5Jn9w1NUr35JLPgTV9HBYzx4v18b",
+              "last_crawled": "Jan 24, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/chunks/a28c02955ef6c0fc.js?dpl=dpl_5Jn9w1NUr35JLPgTV9HBYzx4v18b",
+              "last_crawled": "Jan 24, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/chunks/915ca11d2136d143.js?dpl=dpl_5Jn9w1NUr35JLPgTV9HBYzx4v18b",
+              "last_crawled": "Jan 24, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/11c59cc40cabfed8.css?dpl=dpl_2KJHGWn6A5g9SRsePWyhSmXqv7sV",
+              "last_crawled": "Jan 24, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/chunks/31a4f8c49cfd872a.js?dpl=dpl_5Jn9w1NUr35JLPgTV9HBYzx4v18b",
+              "last_crawled": "Jan 24, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/chunks/d2be314c3ece3fbe.js?dpl=dpl_5Jn9w1NUr35JLPgTV9HBYzx4v18b",
+              "last_crawled": "Jan 24, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/chunks/ff1a16fafef87110.js?dpl=dpl_5Jn9w1NUr35JLPgTV9HBYzx4v18b",
+              "last_crawled": "Jan 24, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/chunks/0358bc85a0d0d081.js?dpl=dpl_GDMKGCfjLLkeViQnLhSsJVVZXwGs",
+              "last_crawled": "Jan 24, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/372f8dcde2d2dafb.css?dpl=dpl_2KJHGWn6A5g9SRsePWyhSmXqv7sV",
+              "last_crawled": "Jan 21, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/372f8dcde2d2dafb.css?dpl=dpl_9MobEzCGFhXa4eepcQWdhUhCDNZx",
+              "last_crawled": "Jan 16, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/11c59cc40cabfed8.css?dpl=dpl_JEGAcdCTC8ETPq9FCmiGbB49YkdG",
+              "last_crawled": "Jan 13, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/372f8dcde2d2dafb.css?dpl=dpl_JEGAcdCTC8ETPq9FCmiGbB49YkdG",
+              "last_crawled": "Jan 13, 2026"
+            }
+          ]
+        },
+        "Page with redirect": {
+          "total": 219,
+          "collected": 219,
+          "urls": [
+            {
+              "url": "https://docs.querypie.com/release-notes",
+              "last_crawled": "Jan 29, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/release-notes/9180-9183",
+              "last_crawled": "Jan 29, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/release-notes/990-998/external-api-changes-994-version-995-version",
+              "last_crawled": "Jan 29, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/release-notes/9120-91214/menu-improvement-guide-9120",
+              "last_crawled": "Jan 29, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/user-manual/workflow/requesting-sql/",
+              "last_crawled": "Jan 27, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/user-manual/user-agent",
+              "last_crawled": "Jan 26, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/installation/server-configuration-requirements/server-configuration-requirements-summary",
+              "last_crawled": "Jan 26, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/overview",
+              "last_crawled": "Jan 26, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/overview/",
+              "last_crawled": "Jan 26, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/querypie-overview",
+              "last_crawled": "Jan 26, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie-overview/proxy-management",
+              "last_crawled": "Jan 26, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/overview/proxy-management",
+              "last_crawled": "Jan 26, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/en/overview/",
+              "last_crawled": "Jan 25, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/web-apps/wac-quickstart/root-ca-certificate-installation-guide",
+              "last_crawled": "Jan 24, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie-manual/10.0.0/-1",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/user-manual/workflow",
+              "last_crawled": "Jan 9, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/user-manual/server-access-control/using-web-terminal",
+              "last_crawled": "Jan 5, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/user-management/users",
+              "last_crawled": "Jan 5, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/",
+              "last_crawled": "Jan 5, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/servers/server-access-control/access-control",
+              "last_crawled": "Jan 4, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/user-management/users/password-change-enforcement-and-account-deletion-feature-for-qp-admin-default-account",
+              "last_crawled": "Jan 4, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/user-manual/multi-agent/multi-agent-3rd-party-tool-support-list-by-os",
+              "last_crawled": "Jan 4, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/company-management/security",
+              "last_crawled": "Jan 4, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/user-manual/multi-agent/multi-agent-seamless-ssh-usage-guide",
+              "last_crawled": "Jan 4, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/user-manual",
+              "last_crawled": "Dec 27, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/querypie-overview/system-architecture-overview",
+              "last_crawled": "Dec 27, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/user-manual/workflow/requesting-restricted-data-access",
+              "last_crawled": "Dec 27, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/audit/database-logs/access-control-logs",
+              "last_crawled": "Dec 27, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/servers/connection-management",
+              "last_crawled": "Dec 27, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/release-notes/1150",
+              "last_crawled": "Dec 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/audit/kubernetes-logs/pod-session-recordings",
+              "last_crawled": "Dec 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/installation/querypie-acp-community-edition/mcp-configuration-guide",
+              "last_crawled": "Dec 25, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/servers/server-access-control/roles",
+              "last_crawled": "Dec 24, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/system/maintenance",
+              "last_crawled": "Dec 23, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/audit/reports/reports",
+              "last_crawled": "Dec 22, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/installation/installation/installation-guide-setupv2sh",
+              "last_crawled": "Dec 21, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/user-manual/workflow/requesting-sql-export",
+              "last_crawled": "Dec 20, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/servers/server-account-management/password-provisioning/creating-password-change-job",
+              "last_crawled": "Dec 19, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/release-notes/9120-91214",
+              "last_crawled": "Dec 19, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/kubernetes/connection-management/clusters/manually-registering-kubernetes-clusters",
+              "last_crawled": "Dec 19, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/system/integrations/integrating-google-cloud-api-for-oauth-20",
+              "last_crawled": "Dec 19, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/user-management/profile-editor/custom-attribute",
+              "last_crawled": "Dec 19, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/release-notes/1110-1112",
+              "last_crawled": "Dec 19, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/audit/web-app-logs/web-event-audit",
+              "last_crawled": "Dec 18, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/system/integrations/integrating-with-email",
+              "last_crawled": "Dec 18, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/databases/connection-management/db-connections/google-bigquery-oauth-authentication-configuration",
+              "last_crawled": "Dec 18, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/databases/connection-management/cloud-providers/verifying-cloud-synchronization-settings-with-dry-run-feature",
+              "last_crawled": "Dec 18, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/databases/dac-general-configurations/unmasking-zones",
+              "last_crawled": "Dec 18, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/audit/reports/audit-log-export",
+              "last_crawled": "Dec 17, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/audit/general-logs/reverse-tunnels/communicating-with-clusters-through-reverse-tunnel",
+              "last_crawled": "Dec 17, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/company-management",
+              "last_crawled": "Dec 17, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/user-management/authentication/setting-up-multi-factor-authentication",
+              "last_crawled": "Dec 17, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/company-management/allowed-zones",
+              "last_crawled": "Dec 17, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/company-management/alerts",
+              "last_crawled": "Dec 16, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/web-apps/wac-quickstart/1030-wac-jit-permission-acquisition-guide",
+              "last_crawled": "Dec 16, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/user-manual/workflow/requesting-server-access",
+              "last_crawled": "Dec 16, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/user-management/profile-editor",
+              "last_crawled": "Dec 16, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/system/integrations/integrating-with-slack-dm/slack-dm-workflow-notification-types",
+              "last_crawled": "Dec 16, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/system/integrations/identity-providers/integrating-with-aws-sso-saml-20",
+              "last_crawled": "Dec 16, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/user-manual/kubernetes-access-control",
+              "last_crawled": "Dec 16, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/databases/connection-management/db-connections/aws-athena-specific-guide",
+              "last_crawled": "Dec 15, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/databases/connection-management/db-connections",
+              "last_crawled": "Dec 15, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/company-management/general",
+              "last_crawled": "Dec 15, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/user-manual/web-access-control",
+              "last_crawled": "Dec 15, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/release-notes/980-9812",
+              "last_crawled": "Dec 15, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/user-manual/my-dashboard/user-password-reset-via-email",
+              "last_crawled": "Dec 15, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/databases/policies/policy-exception",
+              "last_crawled": "Dec 15, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/servers/sac-general-configurations",
+              "last_crawled": "Dec 15, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/company-management/alerts/new-request-template-variables-by-request-type",
+              "last_crawled": "Dec 15, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/kubernetes/k8s-access-control/policies/kubernetes-policy-ui-code-helper-guide",
+              "last_crawled": "Dec 15, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/kubernetes/connection-management",
+              "last_crawled": "Dec 14, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/user-management/users/user-profile",
+              "last_crawled": "Dec 14, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/kubernetes/k8s-access-control/roles/setting-kubernetes-roles",
+              "last_crawled": "Dec 14, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/databases/new-policy-management",
+              "last_crawled": "Dec 14, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/databases/connection-management/ssh-configurations",
+              "last_crawled": "Dec 14, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/databases/new-policy-management/exception-management",
+              "last_crawled": "Dec 14, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/release-notes/9110-9115",
+              "last_crawled": "Dec 14, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/release-notes/1100",
+              "last_crawled": "Dec 14, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/servers/connection-management/cloud-providers",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/audit/database-logs",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/databases/connection-management/cloud-providers/synchronizing-db-resources-from-google-cloud",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/user-management/authentication/integrating-with-google-saml",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/audit/kubernetes-logs",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/databases/connection-management/db-connections/documentdb-specific-guide",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/user-management/authentication/integrating-with-ldap",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/user-management/authentication/integrating-with-okta",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/servers/server-access-control/access-control/granting-and-revoking-permissions",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/databases/ledger-management/ledger-table-policy",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/user-manual/workflow/requesting-unmasking-mask-removal-request",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/user-manual/multi-agent/multi-agent-linux-installation-and-usage-guide",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/databases",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/user-management/provisioning/activating-provisioning",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/user-manual/workflow/requesting-server-privilege",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/user-manual/server-access-control",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/system/integrations/integrating-with-slack-dm",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/web-apps/web-app-access-control/policies",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/servers/server-access-control/policies",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/user-manual/web-access-control/accessing-web-applications-websites",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/release-notes/1130",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/web-apps/connection-management/web-apps",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/servers/server-account-management/password-provisioning",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/web-apps/wac-quickstart/initial-wac-setup-in-web-app-configurations",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/servers/server-account-management/server-account-templates",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/user-manual/workflow/requesting-db-policy-exception",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/servers/server-access-control/command-templates",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/audit/database-logs/policy-exception-logs",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/databases/new-policy-management/data-paths",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/databases/connection-management/kerberos-configurations",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/audit/database-logs/dml-snapshots",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/kubernetes/k8s-access-control/access-control",
+              "last_crawled": "Dec 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/kubernetes/connection-management/clusters",
+              "last_crawled": "Dec 12, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/audit/server-logs/account-lock-history",
+              "last_crawled": "Dec 12, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/web-apps/web-app-access-control/access-control",
+              "last_crawled": "Dec 12, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/audit/kubernetes-logs/request-audit",
+              "last_crawled": "Dec 12, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/databases/monitoring/proxy-management",
+              "last_crawled": "Dec 12, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/web-apps/wac-quickstart/1027-wac-role-policy-guide",
+              "last_crawled": "Dec 12, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/",
+              "last_crawled": "Dec 12, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/servers/connection-management/cloud-providers/synchronizing-server-resources-from-azure",
+              "last_crawled": "Dec 12, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/system",
+              "last_crawled": "Dec 12, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/audit/web-app-logs/web-access-history",
+              "last_crawled": "Dec 12, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/databases/policies",
+              "last_crawled": "Dec 11, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/user-management/groups",
+              "last_crawled": "Dec 11, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/servers/connection-management/servers/manually-registering-individual-servers",
+              "last_crawled": "Dec 11, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/web-apps/wac-quickstart/wac-troubleshooting-guide",
+              "last_crawled": "Dec 10, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/servers/server-access-control/policies/enabling-server-proxy",
+              "last_crawled": "Dec 10, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/kubernetes/k8s-access-control/access-control/granting-and-revoking-kubernetes-roles",
+              "last_crawled": "Dec 10, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/kubernetes",
+              "last_crawled": "Dec 10, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/audit/server-logs/server-role-history",
+              "last_crawled": "Dec 10, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/company-management/channels",
+              "last_crawled": "Dec 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/web-apps/connection-management",
+              "last_crawled": "Dec 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/audit/database-logs/db-access-history",
+              "last_crawled": "Dec 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/audit/web-app-logs/jit-access-control-logs",
+              "last_crawled": "Dec 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/audit/general-logs/reverse-tunnels/communicating-with-servers-through-reverse-tunnel",
+              "last_crawled": "Dec 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/audit/server-logs/session-logs",
+              "last_crawled": "Dec 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/workflow-management/all-requests",
+              "last_crawled": "Dec 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/servers/server-access-control/access-control/granting-and-revoking-roles",
+              "last_crawled": "Dec 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/databases/connection-management/cloud-providers/synchronizing-db-resources-from-aws",
+              "last_crawled": "Dec 7, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/audit/general-logs",
+              "last_crawled": "Dec 7, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/kubernetes/connection-management/cloud-providers/synchronizing-kubernetes-resources-from-aws",
+              "last_crawled": "Dec 7, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/user-management/provisioning/okta-provisioning-integration-guide",
+              "last_crawled": "Dec 7, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/release-notes/990-998/external-api-changes-9810-version-994-version",
+              "last_crawled": "Dec 7, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/audit/server-logs",
+              "last_crawled": "Dec 7, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/system/jobs",
+              "last_crawled": "Dec 6, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/user-management/authentication",
+              "last_crawled": "Dec 6, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/user-management/roles",
+              "last_crawled": "Dec 6, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/system/integrations/integrating-with-splunk",
+              "last_crawled": "Dec 6, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/databases/policies/data-masking",
+              "last_crawled": "Dec 6, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/kubernetes/k8s-access-control/policies/kubernetes-policy-action-configuration-reference-guide",
+              "last_crawled": "Dec 6, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/system/integrations/integrating-with-event-callback",
+              "last_crawled": "Dec 6, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/databases/new-policy-management/data-policies",
+              "last_crawled": "Dec 5, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/web-apps/connection-management/web-app-configurations",
+              "last_crawled": "Dec 5, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/system/integrations/identity-providers",
+              "last_crawled": "Dec 5, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/company-management/licenses",
+              "last_crawled": "Dec 5, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/web-apps/wac-quickstart",
+              "last_crawled": "Dec 5, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/databases/connection-management/cloud-providers/synchronizing-db-resources-from-ms-azure",
+              "last_crawled": "Dec 5, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/workflow-management/workflow-configurations",
+              "last_crawled": "Dec 5, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/audit/web-app-logs",
+              "last_crawled": "Dec 5, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/user-manual/database-access-control",
+              "last_crawled": "Dec 5, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/kubernetes/connection-management/cloud-providers",
+              "last_crawled": "Dec 4, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/audit/database-logs/account-lock-history",
+              "last_crawled": "Dec 4, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/audit/general-logs/workflow-logs",
+              "last_crawled": "Dec 4, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/user-management",
+              "last_crawled": "Dec 4, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/user-manual/workflow/approval-additional-features-proxy-approval-resubmission-etc",
+              "last_crawled": "Dec 4, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/kubernetes/k8s-access-control",
+              "last_crawled": "Dec 3, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/databases/monitoring",
+              "last_crawled": "Dec 2, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/databases/connection-management/db-connections/custom-data-source-configuration-and-log-verification",
+              "last_crawled": "Dec 2, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/databases/connection-management/cloud-providers",
+              "last_crawled": "Dec 2, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/querypie-manual/10.2.0/-101",
+              "last_crawled": "Dec 1, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/servers/connection-management/servers",
+              "last_crawled": "Nov 30, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie-manual/10.2.0/user-agent",
+              "last_crawled": "Nov 29, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/databases/dac-general-configurations",
+              "last_crawled": "Nov 29, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/user-manual/my-dashboard",
+              "last_crawled": "Nov 29, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/system/integrations/integrating-with-secret-store",
+              "last_crawled": "Nov 29, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/user-manual/workflow/requesting-sql",
+              "last_crawled": "Nov 29, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/release-notes/1030-1034",
+              "last_crawled": "Nov 28, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/servers/server-access-control",
+              "last_crawled": "Nov 28, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/audit/web-app-logs/web-app-role-history",
+              "last_crawled": "Nov 28, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/kubernetes/k8s-access-control/roles",
+              "last_crawled": "Nov 28, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/databases/dac-general-configurations/masking-pattern-menu-relocated",
+              "last_crawled": "Nov 28, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/kubernetes/k8s-access-control/policies/kubernetes-policy-tips-guide",
+              "last_crawled": "Nov 28, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/audit/database-logs/running-queries",
+              "last_crawled": "Nov 28, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/servers/server-access-control/policies/setting-server-access-policy",
+              "last_crawled": "Nov 27, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/workflow-management/approval-rules",
+              "last_crawled": "Nov 27, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/servers/connection-management/proxyjump-configurations",
+              "last_crawled": "Nov 27, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/audit/general-logs/reverse-tunnels/communicating-with-db-through-reverse-tunnel",
+              "last_crawled": "Nov 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/querypie-overview/proxy-management/enable-database-proxy",
+              "last_crawled": "Nov 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/audit/reports",
+              "last_crawled": "Nov 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/kubernetes/kac-general-configurations",
+              "last_crawled": "Nov 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/web-apps/web-app-access-control/roles",
+              "last_crawled": "Nov 25, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/servers/connection-management/server-groups/managing-servers-as-groups",
+              "last_crawled": "Nov 25, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/servers/connection-management/server-groups",
+              "last_crawled": "Nov 25, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/servers/connection-management/cloud-providers/synchronizing-server-resources-from-aws",
+              "last_crawled": "Nov 25, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/release-notes/9100-9104",
+              "last_crawled": "Nov 25, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/user-manual/preferences",
+              "last_crawled": "Nov 25, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/user-manual/kubernetes-access-control/checking-access-permission-list",
+              "last_crawled": "Nov 25, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/release-notes/1140",
+              "last_crawled": "Nov 18, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie-manual/10.0.0/policies-1",
+              "last_crawled": "Nov 15, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/release-notes/9140-9143",
+              "last_crawled": "Nov 15, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/release-notes/9170-9171",
+              "last_crawled": "Nov 14, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie-manual/10.0.0/slack-dm-workflow",
+              "last_crawled": "Nov 14, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual",
+              "last_crawled": "Nov 13, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie-manual/10.0.0/release-notes",
+              "last_crawled": "Nov 12, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/multi-agent-limitations",
+              "last_crawled": "Nov 12, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/audit/kubernetes-logs/kubernetes-role-history",
+              "last_crawled": "Nov 10, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/databases/policies/sensitive-data",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie-manual/10.0.0/all-requests",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/release-notes/9190",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/databases/policies/masking-pattern",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/general/system/api-token",
+              "last_crawled": "Nov 7, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/audit/server-logs/server-access-history",
+              "last_crawled": "Nov 7, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie/9.16.0/-10",
+              "last_crawled": "Nov 6, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie-manual/10.3.0/web-app-configurations-wac",
+              "last_crawled": "Nov 6, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie-manual/10.2.0",
+              "last_crawled": "Nov 5, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie-manual/10.2.0/",
+              "last_crawled": "Nov 5, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/user-manual/workflow/requesting-sql/",
+              "last_crawled": "Nov 4, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/",
+              "last_crawled": "Nov 3, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie-manual/10.0.0/server-roles",
+              "last_crawled": "Nov 2, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie-manual/10.2.0/google-saml-integration",
+              "last_crawled": "Nov 2, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie-manual/11.0.0/db-connections",
+              "last_crawled": "Nov 1, 2025"
+            }
+          ]
+        },
+        "Duplicate without user-selected canonical": {
+          "total": 19,
+          "collected": 19,
+          "urls": [
+            {
+              "url": "https://docs.querypie.com/en/administrator-manual/servers",
+              "last_crawled": "Nov 12, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/servers",
+              "last_crawled": "Nov 12, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/release-notes",
+              "last_crawled": "Nov 3, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/administrator-manual/general/workflow-management",
+              "last_crawled": "Nov 1, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/kubernetes/k8s-access-control/access-control",
+              "last_crawled": "Oct 31, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/audit/server-logs/server-role-history",
+              "last_crawled": "Oct 31, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/databases/connection-management/kerberos-configurations",
+              "last_crawled": "Oct 31, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/audit/database-logs/access-control-logs",
+              "last_crawled": "Oct 29, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/databases/new-policy-management/data-paths",
+              "last_crawled": "Oct 28, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/databases/policies/data-access",
+              "last_crawled": "Oct 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/administrator-manual/servers/server-access-control/policies",
+              "last_crawled": "Oct 25, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/user-manual/workflow/requesting-db-access",
+              "last_crawled": "Oct 25, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/servers/server-access-control/access-control/granting-and-revoking-roles",
+              "last_crawled": "Oct 25, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/servers/server-access-control",
+              "last_crawled": "Oct 25, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/databases/connection-management/cloud-providers/verifying-cloud-synchronization-settings-with-dry-run-feature",
+              "last_crawled": "Oct 25, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/release-notes/990-998/external-api-changes-994-version-995-version",
+              "last_crawled": "Oct 25, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/databases/ledger-management/ledger-approval-rules",
+              "last_crawled": "Oct 25, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/general/user-management",
+              "last_crawled": "Oct 25, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/servers/server-account-management/ssh-key-configurations",
+              "last_crawled": "Oct 25, 2025"
+            }
+          ]
+        },
+        "Alternate page with proper canonical tag": {
+          "total": 1,
+          "collected": 1,
+          "urls": [
+            {
+              "url": "https://docs.querypie.com/",
+              "last_crawled": "Dec 16, 2025"
+            }
+          ]
+        },
+        "Crawled - currently not indexed": {
+          "total": 159,
+          "collected": 159,
+          "urls": [
+            {
+              "url": "https://docs.querypie.com/ja/installation/installation/comparison-of-setupsh-and-setupv2sh",
+              "last_crawled": "Feb 3, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/release-notes/1000-1002",
+              "last_crawled": "Jan 30, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/user-manual/workflow/requesting-server-access",
+              "last_crawled": "Jan 30, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/servers/connection-management/server-agents-for-rdp",
+              "last_crawled": "Jan 29, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/web-apps/web-app-access-control/access-control/granting-and-revoking-roles",
+              "last_crawled": "Jan 29, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/favicon.ico?favicon.adafc105.ico",
+              "last_crawled": "Jan 26, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/databases/connection-management/db-connections/google-bigquery-oauth-authentication-configuration",
+              "last_crawled": "Jan 26, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/audit/general-logs/reverse-tunnels/communicating-with-db-through-reverse-tunnel",
+              "last_crawled": "Jan 26, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/web-apps/wac-quickstart/1027-wac-role-policy-guide",
+              "last_crawled": "Jan 25, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/general/system/integrations/integrating-with-email",
+              "last_crawled": "Jan 25, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/general/user-management/authentication",
+              "last_crawled": "Jan 25, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/installation/installation/installation-guide-simple-configuration",
+              "last_crawled": "Jan 25, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/administrator-manual/audit/database-logs/access-control-logs",
+              "last_crawled": "Jan 24, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/audit/web-app-logs/web-event-audit",
+              "last_crawled": "Jan 24, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/general/system/integrations/integrating-with-slack-dm/slack-dm-workflow-notification-types",
+              "last_crawled": "Jan 24, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/general/system/api-token",
+              "last_crawled": "Jan 24, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/audit/general-logs/reverse-tunnels/communicating-with-servers-through-reverse-tunnel",
+              "last_crawled": "Jan 24, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/servers/server-account-management/account-management",
+              "last_crawled": "Jan 23, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/databases/connection-management/db-connections/documentdb-specific-guide",
+              "last_crawled": "Jan 23, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/kubernetes/connection-management/clusters/manually-registering-kubernetes-clusters",
+              "last_crawled": "Jan 23, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/installation/installation/installing-on-aws-eks",
+              "last_crawled": "Jan 22, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/administrator-manual/servers/server-access-control",
+              "last_crawled": "Jan 21, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/user-manual/workflow/requesting-server-privilege",
+              "last_crawled": "Jan 20, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/general/user-management/profile-editor",
+              "last_crawled": "Jan 10, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/databases/ledger-management/ledger-table-policy",
+              "last_crawled": "Jan 10, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/11c59cc40cabfed8.css?dpl=dpl_DYJHy9n2tyAbZJtQsZrHEtF6jt3o",
+              "last_crawled": "Jan 7, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/general/workflow-management",
+              "last_crawled": "Jan 6, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/372f8dcde2d2dafb.css?dpl=dpl_DYJHy9n2tyAbZJtQsZrHEtF6jt3o",
+              "last_crawled": "Jan 3, 2026"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/user-manual/my-dashboard",
+              "last_crawled": "Dec 27, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/api-reference",
+              "last_crawled": "Dec 24, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/favicon.ico",
+              "last_crawled": "Dec 20, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/servers/connection-management/cloud-providers",
+              "last_crawled": "Dec 19, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/372f8dcde2d2dafb.css?dpl=dpl_7FDCNuaBJKvnHoXYBR8Le5Hq4iqF",
+              "last_crawled": "Dec 19, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/372f8dcde2d2dafb.css?dpl=dpl_E5Lor2RvLm1cAfQKYXkPRGkL2rhS",
+              "last_crawled": "Dec 18, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/11c59cc40cabfed8.css?dpl=dpl_E5Lor2RvLm1cAfQKYXkPRGkL2rhS",
+              "last_crawled": "Dec 17, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/11c59cc40cabfed8.css?dpl=dpl_7FDCNuaBJKvnHoXYBR8Le5Hq4iqF",
+              "last_crawled": "Dec 17, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/11c59cc40cabfed8.css?dpl=dpl_Ckb3LuwWZJ36uyZGQdpPMZh8Avsq",
+              "last_crawled": "Dec 15, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/372f8dcde2d2dafb.css?dpl=dpl_Ckb3LuwWZJ36uyZGQdpPMZh8Avsq",
+              "last_crawled": "Dec 15, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/372f8dcde2d2dafb.css?dpl=dpl_94iifqtawXUZVTV8U3Y62patAwer",
+              "last_crawled": "Dec 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/372f8dcde2d2dafb.css?dpl=dpl_iggeHjikd12WAmpybUhkySFmk6ub",
+              "last_crawled": "Dec 7, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/11c59cc40cabfed8.css?dpl=dpl_94iifqtawXUZVTV8U3Y62patAwer",
+              "last_crawled": "Dec 6, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/064e7bae1d4bb9b0.css?dpl=dpl_FA4PGLsyZRS6fe6fmBP5DyYub3QH",
+              "last_crawled": "Dec 5, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/2d82b615fcca1590.css?dpl=dpl_8qBZBvQeFmWXsFDsubHtnxPMZbXW",
+              "last_crawled": "Dec 4, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/administrator-manual/audit",
+              "last_crawled": "Dec 4, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/general/company-management/alerts/new-request-template-variables-by-request-type",
+              "last_crawled": "Nov 30, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/user-manual/workflow",
+              "last_crawled": "Nov 30, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/servers/connection-management/servers/manually-registering-individual-servers",
+              "last_crawled": "Nov 29, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/audit",
+              "last_crawled": "Nov 29, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/audit/web-app-logs/user-activity-recordings",
+              "last_crawled": "Nov 29, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/audit/database-logs/policy-audit-logs",
+              "last_crawled": "Nov 29, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/372f8dcde2d2dafb.css?dpl=dpl_Eg6Ax7TfmLET7YxfZ7H4151cMhZA",
+              "last_crawled": "Nov 28, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/064e7bae1d4bb9b0.css?dpl=dpl_Eg6Ax7TfmLET7YxfZ7H4151cMhZA",
+              "last_crawled": "Nov 27, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/064e7bae1d4bb9b0.css?dpl=dpl_BeovTgVYdc3CHJ12RJkmwWQ9CpNJ",
+              "last_crawled": "Nov 25, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/064e7bae1d4bb9b0.css?dpl=dpl_28G9wnPTaSwf4KviEoUQuq4aAZQ8",
+              "last_crawled": "Nov 24, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/372f8dcde2d2dafb.css?dpl=dpl_EHRJ4RVu5gHj7JcCso1BsKQt3hGR",
+              "last_crawled": "Nov 22, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/servers/connection-management/proxyjump-configurations",
+              "last_crawled": "Nov 21, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/372f8dcde2d2dafb.css?dpl=dpl_ASUNDKYpo6NZMrvPqFUn19p94VZJ",
+              "last_crawled": "Nov 20, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/064e7bae1d4bb9b0.css?dpl=dpl_EHRJ4RVu5gHj7JcCso1BsKQt3hGR",
+              "last_crawled": "Nov 19, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/064e7bae1d4bb9b0.css?dpl=dpl_GtY1rBPKjB5fWgPronsCP2rsx3ma",
+              "last_crawled": "Nov 18, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/064e7bae1d4bb9b0.css?dpl=dpl_ASUNDKYpo6NZMrvPqFUn19p94VZJ",
+              "last_crawled": "Nov 18, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/372f8dcde2d2dafb.css?dpl=dpl_GtY1rBPKjB5fWgPronsCP2rsx3ma",
+              "last_crawled": "Nov 16, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/372f8dcde2d2dafb.css?dpl=dpl_3GDvAtXpni2t22pF1W4DXNuijTui",
+              "last_crawled": "Nov 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/064e7bae1d4bb9b0.css?dpl=dpl_7KzMzwrLEnPXDmSR4AZG8394d7gQ",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/372f8dcde2d2dafb.css?dpl=dpl_84tAaJPwLUywE1P4FZpAgPvVjpFD",
+              "last_crawled": "Nov 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/372f8dcde2d2dafb.css?dpl=dpl_HanPKwPJ5o93nN3cWr1cUp9pfNzU",
+              "last_crawled": "Nov 7, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/064e7bae1d4bb9b0.css?dpl=dpl_HanPKwPJ5o93nN3cWr1cUp9pfNzU",
+              "last_crawled": "Nov 6, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/_next/static/css/372f8dcde2d2dafb.css?dpl=dpl_7KzMzwrLEnPXDmSR4AZG8394d7gQ",
+              "last_crawled": "Nov 5, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/favicon.ico?29988679ddf1846a",
+              "last_crawled": "Nov 5, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/release-notes/1100",
+              "last_crawled": "Oct 25, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/release-notes/1010-10111",
+              "last_crawled": "Oct 25, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie-manual/10.0.0/kerberos-configurations",
+              "last_crawled": "Oct 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie-manual/10.0.0/-15",
+              "last_crawled": "Sep 27, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie-manual/10.0.0/channels",
+              "last_crawled": "Sep 16, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie/9.16.0/",
+              "last_crawled": "Sep 2, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie-manual/10.1.0/external-api-9-9-4-9-9-5",
+              "last_crawled": "Jun 24, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie-manual/10.0.0/account-lock-history",
+              "last_crawled": "May 15, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie-manual/10.1.0/user-management",
+              "last_crawled": "May 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie-manual/10.1.0/cloud-providers",
+              "last_crawled": "May 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie-manual/10.0.0/db-access-control-1",
+              "last_crawled": "Apr 28, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie-manual/10.0.0/audit-log-export",
+              "last_crawled": "Apr 27, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie-manual/10.0.0/command-audit",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.19.0/secret-store",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.19.0/-47",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.19.0/role-1",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie-manual/10.1.0/9-14-0-9-14-3",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.19.0/okta-1",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.19.0/-1",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.19.0/db-1",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.19.0/ssh-key",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.19.0/api",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.19.0/aws",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie-manual/10.0.0/external-api-9-8-10-9-9-4",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie-manual/10.0.0/roles",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie-manual/10.0.0/admin-role-history",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie-manual/10.0.0/external-api-9-10-0",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie-manual/10.0.0/request-audit",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.15.0/db-5",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie-manual/10.0.0/-13",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie-manual/10.0.0/aws-1",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie-manual/10.0.0/kubernetes-access-control",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie-manual/10.1.0/external-api-9-8-10-9-9-4",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie-manual/10.1.0/allowed-zones",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.17.0/-11",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.17.0/-41",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.17.0/database-proxy",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie-manual/10.1.0/9-12-0-9-12-14",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.18.0/-39",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie-manual/10.1.0/masking-pattern",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie-manual/10.0.0/connection-management",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.19.0/secret-store-1",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.15.0/-5",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.11.0/-21",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.11.0/external-api-9-8-10-9-9-4",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie-manual/10.1.0/ledger-approval-rules",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.18.0/tmaxtibero",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.15.0/database-proxy",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.11.0/-2",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie-manual/10.1.0/blocked-accounts",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.15.0/-19",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.15.0/9-12-0-9-12-11",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.15.0/db-access-request",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.15.0/-6",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/--",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie/9.16.0",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie-manual/10.0.0/cloud-providers",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie-manual/10.0.0/default-privilege",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie-manual/10.0.0/dml-snapshots",
+              "last_crawled": "Apr 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.19.0/okta",
+              "last_crawled": "Apr 24, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.19.0/server-access-request",
+              "last_crawled": "Apr 24, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie-manual/10.1.0/access-control-1",
+              "last_crawled": "Mar 26, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie-manual/10.1.0/cloud-providers-1",
+              "last_crawled": "Mar 23, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.20.0/db-access-request",
+              "last_crawled": "Mar 18, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie-manual/10.1.0/9-18-0-9-18-3",
+              "last_crawled": "Feb 14, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie-manual/10.0.0/9-12-0-9-12-14",
+              "last_crawled": "Feb 9, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie-manual/10.1.0/data-masking",
+              "last_crawled": "Feb 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie-manual/10.0.0/splunk",
+              "last_crawled": "Feb 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie-manual/10.0.0/company-management",
+              "last_crawled": "Feb 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.15.0/aws-db",
+              "last_crawled": "Feb 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.18.0/external-api-9-8-10-9-9-4",
+              "last_crawled": "Feb 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.18.0/-34",
+              "last_crawled": "Feb 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie-manual/10.1.0/job",
+              "last_crawled": "Feb 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.15.0/sql",
+              "last_crawled": "Feb 8, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie-manual/10.1.0/dml-snapshots",
+              "last_crawled": "Feb 7, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie-manual/10.0.0/-14",
+              "last_crawled": "Feb 7, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.16.0/-10",
+              "last_crawled": "Oct 30, 2024"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie-manual/10.1.0/9-8-0-9-8-12",
+              "last_crawled": "Oct 10, 2024"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.19.0/database-proxy",
+              "last_crawled": "Sep 12, 2024"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.12.0/external-api-9-8-10-9-9-4",
+              "last_crawled": "Sep 12, 2024"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.18.0/9-14-0-9-14-3",
+              "last_crawled": "Sep 12, 2024"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.15.0/external-api-9-8-10-9-9-4",
+              "last_crawled": "Sep 12, 2024"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.14.0/external-api-9-8-10-9-9-4",
+              "last_crawled": "Sep 12, 2024"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.19.0/-10",
+              "last_crawled": "Sep 12, 2024"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.19.0/-40",
+              "last_crawled": "Sep 12, 2024"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.19.0/external-api-9-8-10-9-9-4",
+              "last_crawled": "Sep 12, 2024"
+            },
+            {
+              "url": "https://docs.querypie.com/en/querypie-manual/10.0.0/blocked-accounts",
+              "last_crawled": "Sep 4, 2024"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.17.0/external-api-9-8-10-9-9-4",
+              "last_crawled": "Sep 4, 2024"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie/9.17.0/-42",
+              "last_crawled": "Sep 4, 2024"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie-manual/10.0.0/external-api-9-8-10-9-9-4",
+              "last_crawled": "Sep 3, 2024"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/querypie-manual/10.0.0/9-8-0-9-8-12",
+              "last_crawled": "Sep 3, 2024"
+            }
+          ]
+        },
+        "Duplicate, Google chose different canonical than user": {
+          "total": 23,
+          "collected": 23,
+          "urls": [
+            {
+              "url": "https://docs.querypie.com/ko/installation-and-customer-support/container-environment-variables",
+              "last_crawled": "Dec 4, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/installation-and-customer-support/server-configuration-requirements/server-configuration-requirements-summary",
+              "last_crawled": "Dec 4, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/installation-and-customer-support/installation/installing-on-aws-eks",
+              "last_crawled": "Dec 4, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/installation-and-customer-support/installation/installation-guide-simple-configuration",
+              "last_crawled": "Dec 4, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/installation-and-customer-support",
+              "last_crawled": "Dec 4, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/installation-and-customer-support/container-environment-variables/querypieweburl",
+              "last_crawled": "Dec 4, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/installation-and-customer-support/system-architecture-and-network-access-control",
+              "last_crawled": "Dec 4, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/installation-and-customer-support/installation/installation-guide-setupv2sh",
+              "last_crawled": "Dec 4, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/installation-and-customer-support/prerequisites",
+              "last_crawled": "Dec 4, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/installation-and-customer-support/server-configuration-requirements/on-premise-vm-requirements",
+              "last_crawled": "Dec 4, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/installation-and-customer-support/server-configuration-requirements/public-cloud-production-server-requirements",
+              "last_crawled": "Dec 4, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/installation-and-customer-support/installation/comparison-of-setupsh-and-setupv2sh",
+              "last_crawled": "Dec 4, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ko/installation-and-customer-support/container-environment-variables/optimizing-dbmaxconnectionsize",
+              "last_crawled": "Dec 4, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/administrator-manual/general/user-management/provisioning",
+              "last_crawled": "Nov 24, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/audit/general-logs/reverse-tunnels/communicating-with-clusters-through-reverse-tunnel",
+              "last_crawled": "Nov 21, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/kubernetes/k8s-access-control/policies/kubernetes-policy-yaml-code-syntax-guide",
+              "last_crawled": "Nov 21, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/servers/server-access-control/blocked-accounts",
+              "last_crawled": "Nov 21, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/audit/reports",
+              "last_crawled": "Nov 21, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/audit/kubernetes-logs/kubernetes-role-history",
+              "last_crawled": "Nov 21, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/servers/server-account-management",
+              "last_crawled": "Nov 21, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/administrator-manual/databases/connection-management/db-connections/custom-data-source-configuration-and-log-verification",
+              "last_crawled": "Nov 21, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/ja/user-manual/database-access-control/connecting-to-custom-data-source",
+              "last_crawled": "Nov 21, 2025"
+            },
+            {
+              "url": "https://docs.querypie.com/en/administrator-manual/servers/server-account-management/ssh-key-configurations",
+              "last_crawled": "Nov 13, 2025"
+            }
+          ]
+        },
+        "Discovered - currently not indexed": {
+          "total": 2,
+          "collected": 2,
+          "urls": [
+            {
+              "url": "https://docs.querypie.com/en/installation/product-versions",
+              "last_crawled": "N/A"
+            },
+            {
+              "url": "https://docs.querypie.com/en/overview/proxy-management/enable-database-proxy",
+              "last_crawled": "N/A"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
