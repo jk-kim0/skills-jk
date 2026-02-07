@@ -14,6 +14,95 @@
 
 ---
 
+## 중간 파일 사양
+
+파이프라인 실행 시 `var/<page_id>/rsync/` 하위에 중간 파일을 저장한다.
+기존 Confluence API 응답 파일(`page.*`, `*.v1.yaml` 등)과 명확히 분리된다.
+
+```
+var/<page_id>/
+├── page.v1.yaml                  ← 기존 (Confluence API 응답)
+├── page.v2.yaml                  ← 기존
+├── page.xhtml                    ← 기존 (원본 XHTML)
+├── page.html                     ← 기존
+├── page.adf                      ← 기존
+├── children.v2.yaml              ← 기존
+├── attachments.v1.yaml           ← 기존
+├── ancestors.v1.yaml             ← 기존
+├── *.png                         ← 기존 (첨부파일)
+│
+└── rsync/                        ← Reverse Sync 전용
+    ├── mapping.yaml              ← XHTML 블록 ↔ MDX 블록 매핑
+    ├── diff.yaml                 ← 변경된 블록 목록
+    ├── patched.xhtml             ← 수정된 XHTML (push 대상)
+    ├── verify.mdx                ← 패치 XHTML → forward 변환 결과 (검증용)
+    └── result.yaml               ← PASS/FAIL + diff report
+```
+
+### 파일별 형식
+
+**rsync/mapping.yaml** — `mapping_recorder.py` 생성
+
+```yaml
+page_id: "544375784"
+created_at: "2026-02-07T14:30:00"
+source_xhtml: "page.xhtml"
+blocks:
+  - block_id: "heading-1"
+    type: heading
+    xhtml_xpath: "h2[1]"
+    xhtml_text: "시스템 아키텍처 개요"
+    xhtml_plain_text: "시스템 아키텍처 개요"
+    mdx_line_start: 7
+    mdx_line_end: 7
+  - block_id: "paragraph-2"
+    type: paragraph
+    xhtml_xpath: "p[1]"
+    xhtml_text: "<strong>접근 제어</strong>를 설정합니다."
+    xhtml_plain_text: "접근 제어를 설정합니다."
+    mdx_line_start: 9
+    mdx_line_end: 9
+```
+
+**rsync/diff.yaml** — `block_diff.py` 결과를 `reverse_sync.py`가 저장
+
+```yaml
+page_id: "544375784"
+created_at: "2026-02-07T14:30:00"
+original_mdx: "src/content/ko/overview.mdx"
+improved_mdx: "improved/ko/overview.mdx"
+changes:
+  - index: 4
+    block_id: "paragraph-2"
+    change_type: modified
+    old_content: "접근 제어를 설정합니다.\n"
+    new_content: "접근 통제를 설정합니다.\n"
+```
+
+**rsync/patched.xhtml** — `xhtml_patcher.py`가 생성한 수정된 XHTML. `push` 명령의 입력.
+
+**rsync/verify.mdx** — `roundtrip_verifier.py`가 patched.xhtml을 forward converter로 변환한 결과.
+
+**rsync/result.yaml** — `reverse_sync.py`가 생성하는 최종 검증 결과
+
+```yaml
+page_id: "544375784"
+created_at: "2026-02-07T14:30:00"
+status: pass          # pass | fail | no_changes
+changes_count: 1
+verification:
+  exact_match: true
+  diff_report: ""     # 실패 시 unified diff 포함
+```
+
+### 생명주기
+
+- `verify` 실행 시: `rsync/` 디렉토리를 초기화하고 모든 중간 파일을 새로 생성
+- `push` 실행 시: `rsync/result.yaml`의 status가 `pass`인 경우만 `rsync/patched.xhtml`을 Confluence에 업로드
+- `.gitignore`에 `var/*/rsync/` 추가하여 커밋에서 제외
+
+---
+
 ## Task 1: MDX Block Parser
 
 MDX 파일을 블록 시퀀스로 파싱하는 모듈. 모든 후속 작업의 기반.
@@ -1047,40 +1136,61 @@ git commit -m "feat: add roundtrip verifier with exact match validation"
 
 ```python
 # tests/test_reverse_sync.py
+import os
 import pytest
-import tempfile
 from pathlib import Path
 from reverse_sync import run_verify
 
 
-def test_verify_no_changes(tmp_path):
-    """변경 없으면 PASS, 패치 없음."""
-    mdx_content = "---\ntitle: 'Test'\n---\n\n# Test\n\nParagraph.\n"
+@pytest.fixture
+def setup_var(tmp_path, monkeypatch):
+    """var/<page_id>/ 구조를 tmp_path에 생성하고 작업 디렉토리를 변경."""
+    monkeypatch.chdir(tmp_path)
+    page_id = "test-page-001"
+    var_dir = tmp_path / "var" / page_id
+    var_dir.mkdir(parents=True)
+    # 간단한 XHTML 원본
+    (var_dir / "page.xhtml").write_text("<h2>Title</h2><p>Paragraph.</p>")
+    return page_id, var_dir
+
+
+def test_verify_no_changes(setup_var, tmp_path):
+    """변경 없으면 no_changes, rsync/result.yaml 생성."""
+    page_id, var_dir = setup_var
+    mdx_content = "# Title\n\nParagraph.\n"
     original = tmp_path / "original.mdx"
     improved = tmp_path / "improved.mdx"
     original.write_text(mdx_content)
     improved.write_text(mdx_content)
 
     result = run_verify(
+        page_id=page_id,
         original_mdx_path=str(original),
         improved_mdx_path=str(improved),
     )
     assert result['status'] == 'no_changes'
-    assert result['changes_count'] == 0
+    assert (var_dir / "rsync" / "result.yaml").exists()
 
 
-def test_verify_detects_changes(tmp_path):
-    """텍스트 변경을 감지."""
+def test_verify_detects_changes(setup_var, tmp_path):
+    """텍스트 변경 감지, rsync/ 하위에 중간 파일 생성."""
+    page_id, var_dir = setup_var
     original = tmp_path / "original.mdx"
     improved = tmp_path / "improved.mdx"
-    original.write_text("# Title\n\n접근 제어를 설정합니다.\n")
-    improved.write_text("# Title\n\n접근 통제를 설정합니다.\n")
+    original.write_text("# Title\n\nParagraph.\n")
+    improved.write_text("# Title\n\nModified.\n")
 
     result = run_verify(
+        page_id=page_id,
         original_mdx_path=str(original),
         improved_mdx_path=str(improved),
     )
     assert result['changes_count'] == 1
+    rsync_dir = var_dir / "rsync"
+    assert (rsync_dir / "diff.yaml").exists()
+    assert (rsync_dir / "mapping.yaml").exists()
+    assert (rsync_dir / "patched.xhtml").exists()
+    assert (rsync_dir / "result.yaml").exists()
 ```
 
 ### Step 2: Run test to verify it fails
@@ -1095,85 +1205,112 @@ PYTHONPATH=bin python -m pytest tests/test_reverse_sync.py -v
 # bin/reverse_sync.py
 """Reverse Sync — MDX 변경사항을 Confluence XHTML에 역반영하는 파이프라인.
 
+중간 파일은 var/<page_id>/rsync/ 하위에 저장된다.
+
 Usage:
-    python reverse_sync.py verify --original-mdx <path> --improved-mdx <path> [--page-id <id>]
+    python reverse_sync.py verify --page-id <id> --original-mdx <path> --improved-mdx <path>
     python reverse_sync.py push --page-id <id>
 """
 import argparse
 import json
+import shutil
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Any
 
+import yaml
 from mdx_block_parser import parse_mdx_blocks
 from block_diff import diff_blocks
 
 
+def _rsync_dir(page_id: str) -> Path:
+    """var/<page_id>/rsync/ 경로를 반환하고, 디렉토리를 초기화한다."""
+    d = Path(f'var/{page_id}/rsync')
+    if d.exists():
+        shutil.rmtree(d)
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
 def run_verify(
+    page_id: str,
     original_mdx_path: str,
     improved_mdx_path: str,
-    page_id: str = None,
     xhtml_path: str = None,
 ) -> Dict[str, Any]:
     """로컬 검증 파이프라인을 실행한다.
 
-    Step 1: MDX 블록 파싱
-    Step 2: 블록 Diff 추출
-    Step 3-6: (XHTML이 있을 때만) 매핑 → 패치 → forward 변환 → 검증
-
-    Returns:
-        dict with: status, changes_count, changes, verify_result (if applicable)
+    모든 중간 파일을 var/<page_id>/rsync/ 에 저장한다.
     """
+    now = datetime.now(timezone.utc).isoformat()
+    rsync = _rsync_dir(page_id)
+
     original_mdx = Path(original_mdx_path).read_text()
     improved_mdx = Path(improved_mdx_path).read_text()
+    if not xhtml_path:
+        xhtml_path = f'var/{page_id}/page.xhtml'
+    xhtml = Path(xhtml_path).read_text()
 
-    # Step 1: MDX 블록 파싱
+    # Step 1: MDX 블록 파싱 + Step 2: 블록 Diff 추출
     original_blocks = parse_mdx_blocks(original_mdx)
     improved_blocks = parse_mdx_blocks(improved_mdx)
-
-    # Step 2: 블록 Diff 추출
     changes = diff_blocks(original_blocks, improved_blocks)
 
     if not changes:
-        return {
-            'status': 'no_changes',
-            'changes_count': 0,
-            'changes': [],
-        }
+        result = {'page_id': page_id, 'created_at': now,
+                  'status': 'no_changes', 'changes_count': 0}
+        (rsync / 'result.yaml').write_text(
+            yaml.dump(result, allow_unicode=True, default_flow_style=False))
+        return result
 
-    result = {
-        'status': 'changes_detected',
-        'changes_count': len(changes),
+    # diff.yaml 저장
+    diff_data = {
+        'page_id': page_id, 'created_at': now,
+        'original_mdx': original_mdx_path, 'improved_mdx': improved_mdx_path,
         'changes': [
-            {
-                'index': c.index,
-                'type': c.change_type,
-                'old_content': c.old_block.content,
-                'new_content': c.new_block.content,
-            }
+            {'index': c.index, 'block_id': f'{c.old_block.type}-{c.index}',
+             'change_type': c.change_type,
+             'old_content': c.old_block.content, 'new_content': c.new_block.content}
             for c in changes
         ],
     }
+    (rsync / 'diff.yaml').write_text(
+        yaml.dump(diff_data, allow_unicode=True, default_flow_style=False))
 
-    # Step 3-6: XHTML이 있으면 패치 + 검증
-    if xhtml_path and Path(xhtml_path).exists():
-        from mapping_recorder import record_mapping
-        from xhtml_patcher import patch_xhtml
-        from roundtrip_verifier import verify_roundtrip
+    # Step 3: 매핑 생성 → mapping.yaml 저장
+    from mapping_recorder import record_mapping
+    mappings = record_mapping(xhtml)
+    mapping_data = {
+        'page_id': page_id, 'created_at': now, 'source_xhtml': 'page.xhtml',
+        'blocks': [m.__dict__ for m in mappings],
+    }
+    (rsync / 'mapping.yaml').write_text(
+        yaml.dump(mapping_data, allow_unicode=True, default_flow_style=False))
 
-        xhtml = Path(xhtml_path).read_text()
+    # Step 4: XHTML 패치 → patched.xhtml 저장
+    from xhtml_patcher import patch_xhtml
+    patches = _build_patches(changes, original_blocks, improved_blocks, mappings)
+    patched_xhtml = patch_xhtml(xhtml, patches)
+    (rsync / 'patched.xhtml').write_text(patched_xhtml)
 
-        # Step 3: 매핑 생성
-        mappings = record_mapping(xhtml)
+    # Step 5: Forward 변환 → verify.mdx 저장
+    # (forward converter 호출 — 컨텍스트 필요, 실제 구현 시 완성)
+    # verify_mdx = forward_convert(patched_xhtml, page_id)
+    # (rsync / 'verify.mdx').write_text(verify_mdx)
 
-        # Step 4: XHTML 패치 — diff의 각 변경에 대해 매핑으로 패치 구성
-        patches = _build_patches(changes, original_blocks, improved_blocks, mappings)
-        patched_xhtml = patch_xhtml(xhtml, patches)
-
-        # Step 5-6: forward 변환 + 검증은 별도 호출 필요
-        # (forward converter는 파일 경로, pages.yaml 등 많은 컨텍스트 필요)
-        result['patched_xhtml'] = patched_xhtml
-        result['status'] = 'patched'
+    # Step 6: 완전 일치 검증 → result.yaml 저장
+    from roundtrip_verifier import verify_roundtrip
+    # verify_result = verify_roundtrip(expected_mdx=improved_mdx, actual_mdx=verify_mdx)
+    # 임시: forward 변환 미구현 시 patched 상태로 저장
+    result = {
+        'page_id': page_id, 'created_at': now,
+        'status': 'patched',  # forward 변환 구현 후 pass/fail 로 변경
+        'changes_count': len(changes),
+        'verification': {'exact_match': None, 'diff_report': ''},
+    }
+    (rsync / 'result.yaml').write_text(
+        yaml.dump(result, allow_unicode=True, default_flow_style=False))
 
     return result
 
@@ -1181,18 +1318,14 @@ def run_verify(
 def _build_patches(changes, original_blocks, improved_blocks, mappings):
     """diff 변경과 매핑을 결합하여 XHTML 패치 목록을 구성한다."""
     patches = []
-    # 매핑에서 content block만 필터 (frontmatter, empty 등 제외)
     content_mappings = [m for m in mappings]
 
     for change in changes:
-        # 변경된 블록이 content mapping의 어느 것에 해당하는지 찾기
         old_block = change.old_block
         if old_block.type in ('empty', 'frontmatter', 'import_statement'):
             continue
 
-        # 매핑에서 평문 텍스트가 일치하는 것을 찾기
         old_plain = old_block.content.strip()
-        # MDX 마크업 제거 (heading의 # 등)
         if old_block.type == 'heading':
             old_plain = old_plain.lstrip('#').strip()
 
@@ -1219,10 +1352,10 @@ def main():
 
     # verify
     verify_parser = subparsers.add_parser('verify', help='로컬 검증')
-    verify_parser.add_argument('--page-id', help='Confluence page ID')
+    verify_parser.add_argument('--page-id', required=True, help='Confluence page ID')
     verify_parser.add_argument('--original-mdx', required=True, help='원본 MDX 경로')
     verify_parser.add_argument('--improved-mdx', required=True, help='개선 MDX 경로')
-    verify_parser.add_argument('--xhtml', help='원본 XHTML 경로 (없으면 var/<page-id>/page.xhtml)')
+    verify_parser.add_argument('--xhtml', help='원본 XHTML 경로 (기본: var/<page-id>/page.xhtml)')
 
     # push
     push_parser = subparsers.add_parser('push', help='Confluence 반영')
@@ -1231,25 +1364,26 @@ def main():
     args = parser.parse_args()
 
     if args.command == 'verify':
-        xhtml_path = args.xhtml
-        if not xhtml_path and args.page_id:
-            xhtml_path = f'var/{args.page_id}/page.xhtml'
-
         result = run_verify(
+            page_id=args.page_id,
             original_mdx_path=args.original_mdx,
             improved_mdx_path=args.improved_mdx,
-            page_id=args.page_id,
-            xhtml_path=xhtml_path,
+            xhtml_path=args.xhtml,
         )
         print(json.dumps(result, ensure_ascii=False, indent=2))
 
-        if result['status'] == 'no_changes':
-            print('\nNo changes detected.')
-        else:
-            print(f"\n{result['changes_count']} change(s) detected.")
-
     elif args.command == 'push':
-        print(f"Push for page {args.page_id} — not yet implemented")
+        rsync = Path(f'var/{args.page_id}/rsync')
+        result_path = rsync / 'result.yaml'
+        if not result_path.exists():
+            print('Error: verify를 먼저 실행하세요.')
+            sys.exit(1)
+        result = yaml.safe_load(result_path.read_text())
+        if result.get('status') != 'pass':
+            print(f"Error: 검증 상태가 '{result.get('status')}'입니다. pass만 push 가능.")
+            sys.exit(1)
+        patched_path = rsync / 'patched.xhtml'
+        print(f"Push {patched_path} to Confluence page {args.page_id} — not yet implemented")
         sys.exit(1)
 
 
