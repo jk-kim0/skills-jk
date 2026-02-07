@@ -12,37 +12,62 @@
 
 **Design Doc:** `/Users/jk/workspace/skills-jk-1/projects/active/querypie-docs-reverse-sync.md`
 
+### 파일 구조 (구현 완료 후)
+
+```
+bin/
+  reverse_sync_cli.py              ← CLI 오케스트레이터
+  reverse_sync/                    ← 패키지
+    __init__.py
+    mdx_block_parser.py            ← Task 1
+    block_diff.py                  ← Task 2
+    mapping_recorder.py            ← Task 3
+    xhtml_patcher.py               ← Task 4
+    roundtrip_verifier.py          ← Task 5
+tests/
+  test_reverse_sync_mdx_block_parser.py
+  test_reverse_sync_block_diff.py
+  test_reverse_sync_mapping_recorder.py
+  test_reverse_sync_xhtml_patcher.py
+  test_reverse_sync_roundtrip_verifier.py
+  test_reverse_sync_cli.py
+  test_reverse_sync_e2e.py
+```
+
+> **Note:** 아래 Task별 코드 예시의 파일 경로와 import문은 초기 계획 기준이다.
+> 실제 구현에서는 위 패키지 구조를 따른다 (예: `from reverse_sync.block_diff import ...`).
+
 ---
 
 ## 중간 파일 사양
 
-파이프라인 실행 시 `var/<page_id>/rsync/` 하위에 중간 파일을 저장한다.
+파이프라인 실행 시 `var/<page_id>/` 에 `reverse-sync.` prefix로 중간 파일을 저장한다.
 기존 Confluence API 응답 파일(`page.*`, `*.v1.yaml` 등)과 명확히 분리된다.
 
 ```
 var/<page_id>/
-├── page.v1.yaml                  ← 기존 (Confluence API 응답)
-├── page.v2.yaml                  ← 기존
-├── page.xhtml                    ← 기존 (원본 XHTML)
-├── page.html                     ← 기존
-├── page.adf                      ← 기존
-├── children.v2.yaml              ← 기존
-├── attachments.v1.yaml           ← 기존
-├── ancestors.v1.yaml             ← 기존
-├── *.png                         ← 기존 (첨부파일)
+├── page.v1.yaml                           ← 기존 (Confluence API 응답)
+├── page.v2.yaml                           ← 기존
+├── page.xhtml                             ← 기존 (원본 XHTML)
+├── page.html                              ← 기존
+├── page.adf                               ← 기존
+├── children.v2.yaml                       ← 기존
+├── attachments.v1.yaml                    ← 기존
+├── ancestors.v1.yaml                      ← 기존
+├── *.png                                  ← 기존 (첨부파일)
 │
-└── rsync/                        ← Reverse Sync 전용
-    ├── mapping.original.yaml     ← 원본 XHTML ↔ 원본 MDX 매핑 (패칭용)
-    ├── mapping.verify.yaml       ← 패치 XHTML ↔ 검증 MDX 매핑 (검증/디버깅용)
-    ├── diff.yaml                 ← 변경된 블록 목록
-    ├── patched.xhtml             ← 수정된 XHTML (push 대상)
-    ├── verify.mdx                ← 패치 XHTML → forward 변환 결과 (검증용)
-    └── result.yaml               ← PASS/FAIL + diff report
+├── reverse-sync.diff.yaml                 ← 변경된 블록 목록
+├── reverse-sync.mapping.original.yaml     ← 원본 XHTML ↔ 원본 MDX 매핑 (패칭용)
+├── reverse-sync.mapping.patched.yaml      ← 패치 XHTML ↔ 검증 MDX 매핑 (검증/디버깅용)
+├── reverse-sync.patched.xhtml             ← 수정된 XHTML (push 대상)
+├── reverse-sync.result.yaml               ← PASS/FAIL + diff report
+├── verify.mdx                             ← 패치 XHTML → forward 변환 결과 (검증용)
+└── verify/                                ← forward converter가 생성하는 첨부파일 디렉토리
 ```
 
 ### 파일별 형식
 
-**rsync/mapping.original.yaml** — `mapping_recorder.py`가 원본 XHTML로부터 생성
+**reverse-sync.mapping.original.yaml** — `reverse_sync/mapping_recorder.py`가 원본 XHTML로부터 생성
 
 용도: 변경된 MDX 블록에 대응하는 XHTML 요소를 찾아 패치할 때 사용.
 
@@ -67,9 +92,9 @@ blocks:
     mdx_line_end: 9
 ```
 
-**rsync/mapping.verify.yaml** — `mapping_recorder.py`가 패치된 XHTML로부터 생성
+**reverse-sync.mapping.patched.yaml** — `reverse_sync/mapping_recorder.py`가 패치된 XHTML로부터 생성
 
-용도: round-trip 검증 시 패치 결과의 블록 구조를 확인. 검증 실패 시 `mapping.original.yaml`과 비교하여 어떤 블록에서 불일치가 발생했는지 디버깅.
+용도: round-trip 검증 시 패치 결과의 블록 구조를 확인. 검증 실패 시 `reverse-sync.mapping.original.yaml`과 비교하여 어떤 블록에서 불일치가 발생했는지 디버깅.
 
 ```yaml
 page_id: "544375784"
@@ -92,7 +117,7 @@ blocks:
     mdx_line_end: 9
 ```
 
-**rsync/diff.yaml** — `block_diff.py` 결과를 `reverse_sync.py`가 저장
+**reverse-sync.diff.yaml** — `reverse_sync/block_diff.py` 결과를 `reverse_sync_cli.py`가 저장
 
 ```yaml
 page_id: "544375784"
@@ -107,11 +132,11 @@ changes:
     new_content: "접근 통제를 설정합니다.\n"
 ```
 
-**rsync/patched.xhtml** — `xhtml_patcher.py`가 생성한 수정된 XHTML. `push` 명령의 입력.
+**reverse-sync.patched.xhtml** — `reverse_sync/xhtml_patcher.py`가 생성한 수정된 XHTML. `push` 명령의 입력.
 
-**rsync/verify.mdx** — `roundtrip_verifier.py`가 patched.xhtml을 forward converter로 변환한 결과.
+**verify.mdx** — patched.xhtml을 forward converter로 변환한 결과 (검증용).
 
-**rsync/result.yaml** — `reverse_sync.py`가 생성하는 최종 검증 결과
+**reverse-sync.result.yaml** — `reverse_sync_cli.py`가 생성하는 최종 검증 결과
 
 ```yaml
 page_id: "544375784"
@@ -125,9 +150,9 @@ verification:
 
 ### 생명주기
 
-- `verify` 실행 시: `rsync/` 디렉토리를 초기화하고 모든 중간 파일을 새로 생성
-- `push` 실행 시: `rsync/result.yaml`의 status가 `pass`인 경우만 `rsync/patched.xhtml`을 Confluence에 업로드
-- `.gitignore`에 `var/*/rsync/` 추가하여 커밋에서 제외
+- `verify` 실행 시: `var/<page_id>/` 내의 `reverse-sync.*`, `verify.mdx`, `verify/` 산출물을 정리하고 새로 생성
+- `push` 실행 시: `reverse-sync.result.yaml`의 status가 `pass`인 경우만 `reverse-sync.patched.xhtml`을 Confluence에 업로드
+- `.gitignore`에 `var/*/reverse-sync.*` 추가하여 커밋에서 제외
 
 ---
 
