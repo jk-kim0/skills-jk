@@ -1,0 +1,716 @@
+{
+  "generated_at": "2026-02-06T18:06:13.646200",
+  "sites": [
+    {
+      "label": "app.querypie.com",
+      "reasons": {
+        "Duplicate without user-selected canonical": {
+          "total": 145,
+          "collected": 145,
+          "urls": [
+            {
+              "url": "https://app.querypie.com/chat/publication/b8dc27ab-d8dd-41ae-ab3d-c2256cb10eb8/chuncheon-1night-2day-travel-recommendation",
+              "last_crawled": "Feb 3, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/b20d3be7-3c3c-43a8-9947-466905f74c65/2025-fall-mens-fashion-coordination-trends",
+              "last_crawled": "Feb 3, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/395635db-2fa8-4255-934d-b9085f19c5d4/it-worker-wrist-protection-exercises-equipment-guide",
+              "last_crawled": "Feb 3, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/bdbd52bb-2a2a-43a5-9b59-42ee0b363972/cryptocurrency-top10-daily-chart-analysis-bitcoin-ethereum",
+              "last_crawled": "Jan 31, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/cda0a024-8bc4-4e2c-b7ec-ae0d9135b400/youtube-premium-value-analysis-korean-pricing",
+              "last_crawled": "Jan 31, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/825ef2cd-ae1f-4ee4-b4b5-15d6b7a94b89/korean-mens-fall-hair-style-guide-barber-request-tips",
+              "last_crawled": "Jan 31, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/fab857c8-2b6c-4c26-bee5-aa15e5d1076c/anyang-gunpo-uiwang-dating-spots-dim-lighting-restaurants",
+              "last_crawled": "Jan 30, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/33b90907-b8f4-4199-91e8-211b984a127d/korean-couples-travel-destinations-public-transport-guide",
+              "last_crawled": "Jan 30, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/abb5cba9-dbe5-48a5-906b-77fd01ab7cab/qa-terminology-list-korean-100-terms-explanation",
+              "last_crawled": "Jan 30, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/abf9b2fe-0c79-469b-8885-944b63ca80c0/30-dae-saengil-seonmul-kakaotalk-seonmul-10-seon-gagyeok-chucheeon",
+              "last_crawled": "Jan 30, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/2f363124-beaa-4318-8d64-87443215c960/hongdae-escape-room-cafe-horror-themes-booking-times",
+              "last_crawled": "Jan 30, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/36e122d6-3925-44be-8628-c8fdda62e283/kbo-team-selection-guide-for-beginners",
+              "last_crawled": "Jan 30, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/49ec61d6-49fe-4f3d-be94-f6814ff0fa61/korean-saju-birth-time-estimation-using-past-events",
+              "last_crawled": "Jan 27, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/aa273e70-baf1-4966-9e08-355982df8bc8/s3-bucket-policy-examples",
+              "last_crawled": "Jan 16, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/6b2a81f7-a02d-40aa-b032-a45dc320e420/react-gof-design-patterns-examples",
+              "last_crawled": "Jan 16, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/2fa6d3dd-a6e8-4b35-a84c-ce7c1b7d728b/2025-korean-foreign-hiphop-trends-drake-future-popularity-discussion",
+              "last_crawled": "Jan 16, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/b49e7825-977b-4555-80d9-9c2af9bd2765/korean-instagram-photo-poses-guide",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/ec09669b-7521-4f06-a4ed-10fe9a640241/gwangmyeong-market-restaurant-recommendations",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/5732b25a-3014-4b99-b19b-9e8a6e364c8e/2026-korean-real-estate-market-forecast-prediction",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/6549b671-0d4f-4eec-b403-3d4c87b2d8cb/boys-2-planet-top-9-winner-predictions-discussion",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/80c689e9-1db9-41ec-8d5c-a476f2770b81/qa-engineer-effective-report-writing-guide",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/cfa7690f-0d60-4a01-9e30-ad8b149aa442/schedule-meeting-with-jane-project-discussion-tuesday-nov-19-2pm",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/e7d437d2-df53-4d73-bd96-8232d0a3268c/schedule-meeting-with-jane-wednesday",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/0223a74c-0a57-414c-b57c-783e832ea1da/italian-pastrami-mortadella-sandwich-recipe-korea-shopping",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/3671ea81-ac26-4abd-a931-dc40fac57a6e/apartment-dog-breed-recommendations-owner-personality-match",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/3ee7c3e0-ee3b-47c9-85c2-896658ef3b36/best-places-to-visit-europe-travel-destinations",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/6ecda236-384e-4263-be46-dcd69d7c19ed/2025-3q-4q-movie-releases-korean-list-rating-table-discussion",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/26327be9-abe2-424b-88e5-4a8b1153f6b5/gangwondo-beach-recommendations-for-kids-swimming",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/7e012e59-088b-4b07-be63-1dc4d33d5750/korean-music-recommendations-dopamine-songs-trending-kpop-hits-2025",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/f47fef57-0d1a-4d52-926d-9ce6d94f5f70/30s-employee-government-benefits-calendar-registration",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/98832e3f-e8bf-4a4b-a8e5-5af08b445eb0/hello-world-greeting",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/9a1fa878-149c-4eb7-803d-e55c1b3aac23/korean-40s-health-self-care-program-for-office-workers",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/efb947cc-81d8-494a-9fa3-b670b0c2eeea/quantum-computers-bitcoin-encryption-threat-discussion",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/8d005ec0-13c6-428f-9287-46ede82d34c7/qa-test-automation-tools-detailed-analysis",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/ef9c7c5a-d923-408d-b79a-fc28a362a4df/korean-real-estate-investment-analysis-2025-apartment-market-forecast",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/23ccc5a3-008e-44a9-be45-7a6589158b07/wedding-guest-hair-makeup-ramada-sindorim-recommendations",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/53cb4d0f-d4a9-4ba3-847b-bd69daec8a7d/how-to-invest-in-cryptocurrency-guide",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/9e58f90d-20a0-4741-9b61-1c05777c8d50/css-modern-features-learning-2025-beyond-css3",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/5047a919-6311-4dd9-b4c6-f9248144d585/powell-august-fed-speech-september-rate-cut-market-sentiment-analysis",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/8bcb7aea-489a-41ac-938b-c066dda8c119/coinness-bitcoin-ethereum-price-news-analysis",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/77dbd04d-993f-44ee-901f-036f46897ee0/parcel-hub-fraud-pattern-analysis-report",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/d1e837c9-3401-4bf2-90dd-fe55a046e2f3/m7-magnificent-seven-stocks-analysis-investment-guide",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/03b6b743-d337-4065-9976-bac466252209/bitcoin-investment-analysis-2025-price-forecast-macroeconomic-factors",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/984be0b4-3de0-4ede-949f-8875e74e96cc/korean-dermatology-treatment-recommendations-and-gangnam-clinic-events",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/b72a5b0d-16cb-4133-afb7-2b792688c65b/4-week-plan-to-reduce-child-smartphone-screen-time-gradually",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/49c45100-1a31-4408-a3a1-6bb6c021fd2d/korean-oliveyoung-cosmetics-recommendation-with-pricing",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/9c63757a-260c-4a9b-8b08-6401c2380977/quick-mbti-test-5-questions-korean",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/e919b4d0-39f4-43d1-8827-8023a16a20ef/best-budget-accommodations-tokyo-under-50-dollars-per-night",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/0b212a83-f402-472f-add1-aa5e026d1666/san-francisco-weather-today-61f-partly-cloudy",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/3c14c673-f1ff-4f80-ad2f-9ff519559972/world-top-10-travel-destinations-complete-guide",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/32e16ae5-4bb6-4bcd-8106-ebe7245d6bef/finding-cheap-flights-tips-strategies",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/d011d8d6-d842-4550-8611-39c42d2d384e/bluehands-search-bongcheon-dong-area",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/e8cd8db8-3ae5-4727-85bf-6144080ecd55/chatgpt-latest-features-and-prompt-templates-guide",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/ecd9a808-d85b-40a9-8edd-ec8cecb5cfce/ai-era-talent-skills-technical-human-capabilities-job-market",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/95ebd3c6-b508-4b83-aa4a-174565007cf5/seoul-2025-q3-events-exhibitions-concerts-performances-recommendations",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/65d85402-2f91-4dd3-9cf8-6a42c03b961f/2025-latest-kpop-dance-challenge-rankings-popularity",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/54b755e6-20a9-4fdf-97ec-f82ab1e3f18f/workplace-communication-methods-korean-discussion",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/6d301136-0803-4808-b42b-72cf0c6da95d/how-to-lose-weight-fast-safely-evidence-based-strategies",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/bfcb6ad6-3cf0-4c2a-94dd-829e149152fb/son-heung-min-mls-lafc-transfer-fee-salary-summary",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/6c1fb6e5-141a-4c1e-848a-1cdd462aaf5a/creating-information-security-pledge-for-development-company",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/dc700168-d5ca-415b-9c11-fc90a0104716/graphic-design-reference-site-recommendations",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/cca77015-6466-4a7d-b398-568cf96cb2e5/kubernetes-k8s-basic-commands-kubectl-guide",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/e67b01a3-80b6-49b4-84d2-a9b91375423a/tylenol-acetaminophen-drug-interactions-contraindications",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/91b2ac1d-d0f9-4d9b-8fc6-555ef5c268ab/qa-testing-preparation-discussion",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/21652f0f-62a6-4e24-87b4-00b848e15914/office-worker-perfume-recommendations",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/5ba59bb2-977b-423c-85d6-3bbafb92103f/ashley-queens-recipe-tips-korean-conversation",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/3649550f-ff00-424e-abd2-68a737340f2a/2025-5th-mirae-house-application-conditions-requirements",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/4bdc1b8c-7225-4603-be66-d75e929ec969/korean-office-worker-business-manners-etiquette-guide",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/80470600-55b9-46fa-a4b9-d169042ca456/kube-prometheus-stack-operator-rbac-cluster-permissions-security",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/2b45d859-fedb-486c-bed5-de37936ab336/guide-to-better-sleep-hygiene-tips",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/d5ddd8d2-2157-4f5b-8efe-4831be1f9cc4/coinbase-stock-investment-analysis-revenue-competition-bitcoin-volatility",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/1c6ed7be-b360-4a3f-b3cc-5b110d1805c1/hypertension-friendly-foods-korean-diet-recommendations",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/d80663e8-9477-40a1-a878-9b28d0228310/son-heung-min-style-changes-epl-to-mls-adaptation",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/575fa631-e785-46e1-8de2-509495d1e951/research-zai-and-chatzai-compared-with-querypie-ai",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/b542ff36-c1dd-461c-9eb1-5e3f29e64599/long-term-stock-investment-plan-for-child-born-2025-monthly-savings-strategy",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/24f86db4-525e-41d8-b366-1df31d6c1423/latest-ai-technology-trends-and-business-applications-2025",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/e6e2bd32-7f7d-4230-a70d-630049b3bdc9/shinbashi-yakitori-restaurant-recommendations",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/23e781bb-0329-4e86-9d3f-fd59e0c476b0/suwon-dongtan-blind-date-romantic-venues-recommendation",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/af436981-eebd-46de-b2e9-7c2056500b81/seoul-housing-support-policy-for-elderly-over-65-homeless-couples",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/06ae88d4-ea15-40ab-9d8c-e7c859ba9802/korean-ideal-type-personality-analysis-q-and-a",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/fc27b752-0d76-4e68-b072-da005ee72127/korean-recipe-recommendations-with-available-ingredients",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/4e543638-04be-4aed-8095-9974e08810c5/yeongdeungpo-market-restaurant-recommendations-honest-reviews",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/d37f28be-2ed6-4347-adc8-572e4fba29ae/ai-era-automation-resistant-jobs-analysis-future-career-trends",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/f56df22e-eca5-4496-afb6-d24782a07f10/cryptocurrency-stocks-coinbase-bitcoin-mining-investing-basics-korean",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/711fbd9d-cbd3-4d32-9364-0f658786b0f5/korean-gold-price-inquiry-today",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/616e686b-ce72-41d8-b485-fda6f13432d9/new-york-vs-los-angeles-5-day-vacation-comparison",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/462c12e1-3962-4350-a536-0db5571208a5/travel-luggage-size-recommendations-korean",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/d3d589fd-082e-4f47-b635-863966e9a6ef/ankle-sprain-cold-hot-compress-treatment-advice",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/7ee2df9d-9fe5-4b6c-b7d7-c6d19401e786/korean-fortune-telling-birth-chart-analysis-conversation",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/1351729a-ea37-4666-b4e3-05b247f9179a/san-francisco-weather-lookup-and-forecast",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/2889eed3-0f02-437c-ac00-ae5f2f2cffaa/nintendo-2025-upcoming-games-list-korean-request",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/3daa6132-c8be-44b0-adaa-dfc2e5e876ff/monitoring-tools-comparison-prometheus-vs-datadog-vs-newrelic",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/f23432c0-244f-4df0-af82-c88bd37f1f9f/marriage-registration-disadvantages-and-loan-issues",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/f6c5655a-1011-4522-8153-2e7f5c097570/korean-twenty-questions-guessing-hint-game",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/aa828aea-10ce-4516-8fad-be64d51c6c51/personal-color-consultation-deep-autumn-diagnosis",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/335b8b75-6eb4-4711-8d91-98589b42559b/seoul-weather-forecast-partly-cloudy-17-celsius",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/8d2b9c3a-1dd9-4b43-a60e-7e31a50d2622/bitcoin-market-cap-vs-gold-surpass-analysis",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/a7c795df-7791-49dc-941b-79fd5d0df5fd/korean-user-requests-weather-forecasts-for-seoul-and-san-francisco-with-hourly-tables",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/8276d11e-d2fe-4fc5-967c-1c03e6e8d17e/best-passive-income-ideas-2025",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/bd129b59-5ac2-4872-bbf7-4b08e958f848/busan-2-nights-3-days-winter-travel-plan-budget-100k-won-daily",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/f62ccb30-0239-4949-8cb6-3febe748e160/budget-overseas-travel-destinations-korea-cost-guide",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/34385240-8e1d-47ab-b768-ea457a331682/traditional-italian-carbonara-recipe-no-cream",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/96911063-59f3-4035-912a-f2d7405af3e0/tsa-liquid-restrictions-airplane-travel",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/35d00962-05f4-418f-ab9a-cf5bd57e5f25/korean-spelling-grammar-mistakes-correct-usage-guide",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/2e0ade7c-4dbb-4361-897c-99e824f211ea/age-based-gift-recommendation-guide-korean",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/c3eafc03-3529-465c-b883-eb329b1cb992/gangnam-blind-date-spot-recommendations-dark-lighting",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/0e2f5daa-2625-4df5-9371-c0672c1be7d0/datadog-trace-error-analysis-duplo-github-code-investigation",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/18914f11-cf41-44c3-bc5f-2062cd6e1d68/efficient-jira-usage-guide-korean",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/da81f096-a38c-478e-a7e1-79b8bdc9cd81/aws-waf-monthly-security-report-sample-creation",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/e1ea7324-636c-4d38-a467-e8839a1250b8/context-pattern-programming-state-management-oop-benefits",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/8423a6ec-c054-4673-a05b-d62c24bd0409/quantum-computing-investment-analysis-korean",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/5a4ff883-7697-455e-8e0b-676e4c444e94/korea-newlywed-housing-support-policies-2025",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/262102d0-3539-4f69-96f5-830a1828b33d/ankle-sprain-first-aid-rice-method-treatment",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/cbd326db-a6d6-42b3-a933-4bda32032770/mcp-guardian-security-framework-analysis",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/a3c4e234-865b-4f57-b8b3-7a0084f91d37/korean-youtube-comedy-channel-recommendations-for-depression",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/79f55ebe-417b-433c-b0cb-a44cba107e8c/schedule-meeting-with-jane-tuesday-afternoon",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/a87d01b3-79d0-4383-a93a-4aada192728b/schedule-meeting-with-regan-querypie",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/a5402faf-0f10-4bba-a0cf-1cbbc0366ca7/convenience-store-delivery-prices-by-weight",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/e408ed14-c910-45f2-8ce5-b1eb5e738c70/5-billion-won-apartments-gyeonggi-couples-school-districts-recommendations",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/809768c6-1043-40cd-bc3c-c1195f7c04aa/command-pattern-vs-task-pattern-typescript-explanation",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/5c8b9aa0-fbab-4f4e-96d6-fd030a70dba7/eating-exercise-tips-preventing-diabetes",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/b626f7c3-8959-46c9-83d6-e3f3af0acf92/soslab-stock-analysis-and-chinese-lidar-competition",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/06eeb3fe-43cc-46ff-866c-d7a75bd00ad5/react-hooks-vs-class-components-comparison",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/f39d3ed9-19b3-4ad7-9c05-0e1eb031c1d2/achilles-tendinitis-early-treatment-prevention-strategies",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/5a36e465-3f99-4f06-985d-0e2c06d00842/dog-dangerous-foods-korean-conversation",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/a5dcd2f2-cb43-4299-a883-d3f67fb65292/korean-zero-trust-security-model-explanation",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/6a7168b7-fffc-4056-93ef-54a46ee6abab/kubernetes-authentication-authorization-methods-practice-guide",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/d9a1764c-907a-48eb-a8e8-bf693797b0bc/cloud-security-discussion-korean-best-practices-guide",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/4b812e33-a41a-49b7-a8a3-74c6353d3115/korean-personality-test-conversation",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/e3c662c9-7bdf-4846-b84f-b60f15cb1e6f/data-management-facet-vs-tag-and-abac-implementation",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/4cbe8990-2af9-4498-ad72-8093c42b0982/clean-architecture-book-summary-korean",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/bdb34288-1298-45fe-8454-b990be6417e2/korean-greeting-and-schedule-assistant-introduction",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/17cbfaf0-9198-464c-8f0f-ae524c3dfd9d/magok-station-restaurant-discount-events-inquiry",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/2c2866ba-2c4d-463e-bce1-fdcc5949f65d/airline-baggage-regulations-korea",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/89cdb380-c962-4135-b154-9d7c7fa4c3e9/javascript-async-await-error-handling-best-practices",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/114ad6b7-cd6d-4892-8730-ba072b841ddb/korean-isa-pension-fund-irp-comparison-office-worker-recommendations",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/361d75a7-bc26-47e3-9daa-267176b55d60/simple-aglio-olio-recipe-with-cost-calculation",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/e9b87fe4-baf3-46a4-9820-51e7edd60790/aws-vpc-design-best-practices-investigation",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/b3560262-ec0b-45e0-ad36-60950d0d794d/generator-ui-agnostic-domain-modeling-discussion",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/ad97cca8-327d-4ab6-aeba-e393ecb28597/korean-domestic-activity-travel-destinations-guide",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/13cedc80-440d-44aa-accc-d5af423de4f8/qa-engineer-certifications-guide-istqb-cste-cmsq-casq-testing-qualifications",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/98395955-1326-4639-a4f7-3066561f2825/subway-route-magok-to-seongsu-schedule-transfer-guide",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/812a6064-4ede-4295-afb0-e6e6dc4ab9d3/top-10-jobs-disappearing-by-2025-automation",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/fee56a21-3f1c-4fd4-9caf-616d0210a4dd/cooper-dating-advice-commandments",
+              "last_crawled": "Jan 15, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/4dc2cb2b-4e79-4da4-b387-9802467d9b4e/korean-english-vocabulary-quiz-10-questions",
+              "last_crawled": "Jan 15, 2026"
+            }
+          ]
+        },
+        "Blocked by robots.txt": {
+          "total": 9,
+          "collected": 9,
+          "urls": [
+            {
+              "url": "https://app.querypie.com/chat/publication/ebe24a8f-8b8b-48bc-b163-a8caa60fc6b7/mcp-server-local-testing-setup-tutorial",
+              "last_crawled": "Oct 10, 2025"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/9f29d5aa-7bcb-4bba-91b9-25e6be9d2cd0/how-to-clear-cache-browsers-devices",
+              "last_crawled": "Oct 8, 2025"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/3172073e-dd1b-43c1-ab9f-0d77abd54d50/automate-daily-ai-news-morning-briefing-setup",
+              "last_crawled": "Oct 4, 2025"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/5b31355a-391a-4b9b-a3d1-c5dd9a1b502c/how-to-take-screenshots-on-windows",
+              "last_crawled": "Sep 30, 2025"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/83f9dce1-a066-442e-a93b-791fd5a904c7/usd-to-krw-exchange-rate-query",
+              "last_crawled": "Sep 29, 2025"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/7d5d1ffc-7c0e-410f-b4c6-f38e319028da/mens-hairstyle-consultation-for-wide-forehead-long-face",
+              "last_crawled": "Aug 25, 2025"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/a998af7f-2e7a-417f-b82d-129ea3713e70/korean-conversation-about-ohtani-shohei-baseball-player-details",
+              "last_crawled": "Aug 25, 2025"
+            },
+            {
+              "url": "https://app.querypie.com/api/data",
+              "last_crawled": "Aug 23, 2025"
+            },
+            {
+              "url": "https://app.querypie.com/__manifest",
+              "last_crawled": "Aug 14, 2025"
+            }
+          ]
+        },
+        "Crawled - currently not indexed": {
+          "total": 13,
+          "collected": 13,
+          "urls": [
+            {
+              "url": "https://app.querypie.com/chat/publication/3d2cf7f8-8dc4-40a8-b54e-1f764103159a/seoul-bingsu-restaurant-recommendations-top-10-hot-spots",
+              "last_crawled": "Feb 4, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/38b293c4-7006-466b-b07d-affb018161bd/korean-flirting-speech-styles-dos-and-donts",
+              "last_crawled": "Feb 4, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/6b0dabe6-13f1-4792-b4b0-4bb04729ea37/korea-post-office-registered-mail-parcel-pricing-guide",
+              "last_crawled": "Feb 4, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/52983c23-c60f-4d9f-9f95-299f27c9fc80/kpop-demon-hunters-american-reaction-discussion",
+              "last_crawled": "Feb 4, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/aa91b26e-cae7-4efa-a807-d47ca1210952/2025-birth-support-policies-seoul-seongdong-district-government-benefits",
+              "last_crawled": "Feb 4, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/34329dfa-f85b-4a35-9004-ca8982bcc438/budget-student-steak-recipe-recommendations-korean",
+              "last_crawled": "Feb 4, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/20adecf3-1151-478d-a172-14969c4430b3/photoshop-alternative-image-editing-programs-recommendation",
+              "last_crawled": "Feb 4, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/97ac23e3-33cd-4506-a74c-cec3dc0dbf0f/ancient-cacio-e-pepe-recipe-history-shepherds",
+              "last_crawled": "Feb 3, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/6b384577-dec6-4743-9d3e-fd8f4fb9fad5/korean-queen-mindset-edgy-book-recommendations",
+              "last_crawled": "Feb 3, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/login",
+              "last_crawled": "Feb 3, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/",
+              "last_crawled": "Feb 3, 2026"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/3a83c644-42da-4957-b865-63ad3f475dda/what-is-artificial-intelligence-ai-explanation",
+              "last_crawled": "Sep 4, 2025"
+            },
+            {
+              "url": "https://app.querypie.com/chat/publication/513ba9f6-27ad-48d4-847a-ee9b124fa048/best-stocks-invest-2026-recommendations-analyst-predictions",
+              "last_crawled": "Aug 21, 2025"
+            }
+          ]
+        },
+        "Duplicate, Google chose different canonical than user": {
+          "total": 1,
+          "collected": 1,
+          "urls": [
+            {
+              "url": "https://app.querypie.com/chat/publication/92ba7897-2d22-4f48-af0a-d4cb9fda8c56/workplace-harassment-reporting-procedures-evidence-collection",
+              "last_crawled": "Feb 3, 2026"
+            }
+          ]
+        },
+        "Discovered - currently not indexed": {
+          "total": 1,
+          "collected": 1,
+          "urls": [
+            {
+              "url": "https://app.querypie.com/chat/publication/44870b2d-ee13-4750-998b-8fc9ee767a33/fiber-concept-and-react-fiber-implementation",
+              "last_crawled": "N/A"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
