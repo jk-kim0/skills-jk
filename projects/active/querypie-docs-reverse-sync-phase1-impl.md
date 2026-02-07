@@ -32,7 +32,8 @@ var/<page_id>/
 ├── *.png                         ← 기존 (첨부파일)
 │
 └── rsync/                        ← Reverse Sync 전용
-    ├── mapping.yaml              ← XHTML 블록 ↔ MDX 블록 매핑
+    ├── mapping.original.yaml     ← 원본 XHTML ↔ 원본 MDX 매핑 (패칭용)
+    ├── mapping.verify.yaml       ← 패치 XHTML ↔ 검증 MDX 매핑 (검증/디버깅용)
     ├── diff.yaml                 ← 변경된 블록 목록
     ├── patched.xhtml             ← 수정된 XHTML (push 대상)
     ├── verify.mdx                ← 패치 XHTML → forward 변환 결과 (검증용)
@@ -41,7 +42,9 @@ var/<page_id>/
 
 ### 파일별 형식
 
-**rsync/mapping.yaml** — `mapping_recorder.py` 생성
+**rsync/mapping.original.yaml** — `mapping_recorder.py`가 원본 XHTML로부터 생성
+
+용도: 변경된 MDX 블록에 대응하는 XHTML 요소를 찾아 패치할 때 사용.
 
 ```yaml
 page_id: "544375784"
@@ -60,6 +63,31 @@ blocks:
     xhtml_xpath: "p[1]"
     xhtml_text: "<strong>접근 제어</strong>를 설정합니다."
     xhtml_plain_text: "접근 제어를 설정합니다."
+    mdx_line_start: 9
+    mdx_line_end: 9
+```
+
+**rsync/mapping.verify.yaml** — `mapping_recorder.py`가 패치된 XHTML로부터 생성
+
+용도: round-trip 검증 시 패치 결과의 블록 구조를 확인. 검증 실패 시 `mapping.original.yaml`과 비교하여 어떤 블록에서 불일치가 발생했는지 디버깅.
+
+```yaml
+page_id: "544375784"
+created_at: "2026-02-07T14:30:00"
+source_xhtml: "patched.xhtml"
+blocks:
+  - block_id: "heading-1"
+    type: heading
+    xhtml_xpath: "h2[1]"
+    xhtml_text: "시스템 아키텍처 개요"
+    xhtml_plain_text: "시스템 아키텍처 개요"
+    mdx_line_start: 7
+    mdx_line_end: 7
+  - block_id: "paragraph-2"
+    type: paragraph
+    xhtml_xpath: "p[1]"
+    xhtml_text: "<strong>접근 통제</strong>를 설정합니다."
+    xhtml_plain_text: "접근 통제를 설정합니다."
     mdx_line_start: 9
     mdx_line_end: 9
 ```
@@ -1278,26 +1306,35 @@ def run_verify(
     (rsync / 'diff.yaml').write_text(
         yaml.dump(diff_data, allow_unicode=True, default_flow_style=False))
 
-    # Step 3: 매핑 생성 → mapping.yaml 저장
+    # Step 3: 원본 매핑 생성 → mapping.original.yaml 저장
     from mapping_recorder import record_mapping
-    mappings = record_mapping(xhtml)
-    mapping_data = {
+    original_mappings = record_mapping(xhtml)
+    original_mapping_data = {
         'page_id': page_id, 'created_at': now, 'source_xhtml': 'page.xhtml',
-        'blocks': [m.__dict__ for m in mappings],
+        'blocks': [m.__dict__ for m in original_mappings],
     }
-    (rsync / 'mapping.yaml').write_text(
-        yaml.dump(mapping_data, allow_unicode=True, default_flow_style=False))
+    (rsync / 'mapping.original.yaml').write_text(
+        yaml.dump(original_mapping_data, allow_unicode=True, default_flow_style=False))
 
     # Step 4: XHTML 패치 → patched.xhtml 저장
     from xhtml_patcher import patch_xhtml
-    patches = _build_patches(changes, original_blocks, improved_blocks, mappings)
+    patches = _build_patches(changes, original_blocks, improved_blocks, original_mappings)
     patched_xhtml = patch_xhtml(xhtml, patches)
     (rsync / 'patched.xhtml').write_text(patched_xhtml)
 
-    # Step 5: Forward 변환 → verify.mdx 저장
+    # Step 5: Forward 변환 → verify.mdx 저장 + 검증 매핑 생성
     # (forward converter 호출 — 컨텍스트 필요, 실제 구현 시 완성)
     # verify_mdx = forward_convert(patched_xhtml, page_id)
     # (rsync / 'verify.mdx').write_text(verify_mdx)
+
+    # 패치 XHTML의 매핑 생성 → mapping.verify.yaml 저장
+    verify_mappings = record_mapping(patched_xhtml)
+    verify_mapping_data = {
+        'page_id': page_id, 'created_at': now, 'source_xhtml': 'patched.xhtml',
+        'blocks': [m.__dict__ for m in verify_mappings],
+    }
+    (rsync / 'mapping.verify.yaml').write_text(
+        yaml.dump(verify_mapping_data, allow_unicode=True, default_flow_style=False))
 
     # Step 6: 완전 일치 검증 → result.yaml 저장
     from roundtrip_verifier import verify_roundtrip
