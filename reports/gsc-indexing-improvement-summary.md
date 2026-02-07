@@ -1,6 +1,6 @@
 # GSC 인덱싱 개선 프로젝트 진행 요약
 
-- 최종 업데이트: 2026-02-07
+- 최종 업데이트: 2026-02-07 (2차)
 
 ## 배경
 
@@ -55,10 +55,35 @@ www.querypie.com 외 3개 사이트의 Google Search Console 인덱싱 상태를
 
 ### 개선 구현 (corp-web-app)
 
-| PR | 내용 | 해소 건수 |
-|----|------|----------|
-| corp-web-app #580 | `/docs/*` sitemap 기반 301/307 리다이렉트 | ~700건 |
-| corp-web-app #581 | `/wiki/*` Confluence 리다이렉트 URL 오류 수정 + 301 전환 | ~171건 |
+| PR | 내용 | 해소 건수 | 배포 |
+|----|------|----------|------|
+| corp-web-app #580 | `/docs/*` sitemap 기반 301/307 리다이렉트 | ~700건 | 2026-02-07 production 배포 완료 |
+| corp-web-app #581 | `/wiki/*` Confluence 리다이렉트 URL 오류 수정 + 301 전환 | ~171건 | 2026-02-07 production 배포 완료 |
+| corp-web-app #582 | `/docs/sitemap.xml` 빈 응답으로 변경 | — | 2026-02-07 production 배포 완료 |
+
+#### PR #580 상세: `/docs/*` 리다이렉트
+
+- `src/app/docs/[[...path]]/sitemap-paths.ts` 신규 생성
+- aip-docs.app.querypie.com과 docs.querypie.com의 sitemap에서 URL 목록을 가져와 캐시 (1시간 TTL)
+- sitemap에 존재하는 URL → 301 (영구 리다이렉트)
+- sitemap에 존재하지 않는 URL → docs.querypie.com으로 307 (임시 리다이렉트)
+- production 검증 완료: sitemap에 있는 URL은 올바른 대상으로 301, 없는 URL은 307 fallback
+
+#### PR #581 상세: `/wiki/*` 리다이렉트 버그 수정
+
+- **발견된 버그**: `/wiki` prefix를 제거하여 `querypie.atlassian.net/spaces/...`로 리다이렉트 → Confluence에서 404
+- **수정**: `querypie.atlassian.net/wiki/spaces/...`로 올바르게 리다이렉트
+- 307 (임시) → 301 (영구)로 변경하여 SEO link equity 전달 활성화
+- production 검증 완료: 모든 wiki URL이 Confluence에서 200 응답
+
+#### PR #582 상세: `/docs/sitemap.xml` 비우기
+
+- docs 콘텐츠가 docs.querypie.com으로 완전 이전 완료
+- docs.querypie.com 자체 GSC에 sitemap 등록되어 있으므로, www 측 sitemap 역할 종료
+- `/docs/sitemap.xml` → 빈 `<sitemapindex>` 반환
+- `/docs/{locale}/sitemap.xml` → 빈 `<urlset>` 반환
+- URI 자체는 유지하여 200 응답, GSC가 점진적으로 크롤 대상에서 제거하도록 유도
+- `/wiki/sitemap.xml`은 Confluence 콘텐츠를 Google에 노출시키는 유일한 경로이므로 유지
 
 ### 개선 효과 요약
 
@@ -66,7 +91,8 @@ www.querypie.com 외 3개 사이트의 Google Search Console 인덱싱 상태를
 |------|------|
 | `/docs/*` 301 리다이렉트로 해소 | ~700 |
 | `/wiki/*` 301 리다이렉트 정상화로 해소 | ~171 |
-| **합계** | **~871건 (www 전체의 34%)** |
+| `/docs/sitemap.xml` 비우기로 불필요 크롤 제거 | ~247 |
+| **합계** | **~1,118건 (www 전체의 44%)** |
 
 ---
 
@@ -90,14 +116,14 @@ Disallow: /assets/api-docs.json
 
 #### 2. GSC sitemap 등록 정리 (GSC 콘솔 수동 작업)
 
-www.querypie.com GSC에 등록된 14개 sitemap 중 불필요한 항목을 제거합니다.
+www.querypie.com GSC에 등록된 14개 sitemap 중 `/docs/sitemap.xml`을 제거합니다.
 
-| 제거 대상 | 등록 URL 수 | 사유 |
-|-----------|------------|------|
-| `/docs/sitemap.xml` | 247 | docs.querypie.com으로 이전 완료, `/docs/*`는 이제 301 리다이렉트 |
-| `/wiki/sitemap.xml` | 305 | Confluence 직접 연결, www에서 서빙할 필요 없음 |
+| 대상 | 등록 URL 수 | 조치 | 사유 |
+|------|------------|------|------|
+| `/docs/sitemap.xml` | 247 | **제거** | docs.querypie.com으로 이전 완료, 빈 sitemap으로 변경됨 (PR #582) |
+| `/wiki/sitemap.xml` | 305 | **유지** | Confluence 콘텐츠를 Google에 노출시키는 유일한 경로 |
 
-- 효과: ~550건의 불필요 크롤 해소
+- 효과: GSC에서 `/docs/sitemap.xml` 크롤 중단
 - 작업: GSC 콘솔에서 수동 삭제
 
 ### P2 — 조사 후 실행
@@ -153,7 +179,7 @@ www.querypie.com GSC에 등록된 14개 sitemap 중 불필요한 항목을 제�
 | 파일 | 설명 |
 |------|------|
 | `bin/gsc-index-report` | GSC 인덱싱 상태 스크래핑 + 리포트 생성 |
-| `bin/generate-docs-redirects` | docs 리다이렉트 맵 생성 (PR #71, open) |
+| `bin/generate-docs-redirects` | docs 리다이렉트 맵 생성 (PR #71) |
 
 ### 데이터
 
@@ -173,3 +199,13 @@ www.querypie.com GSC에 등록된 14개 sitemap 중 불필요한 항목을 제�
 | `reports/gsc-404-analysis-2026-02-06.md` | www 404 URL 분석 |
 | `reports/gsc-redirect-analysis-2026-02-06.md` | www 리다이렉트/미인덱싱 분석 |
 | `reports/gsc-all-sites-analysis-2026-02-06.md` | 4개 사이트 통합 분석 |
+
+### 배포 확인
+
+production 배포 상태는 아래 엔드포인트로 확인합니다.
+
+```bash
+curl -s https://www.querypie.com/build-info.json | python3 -m json.tool
+```
+
+상세: `skills/ops/check-deployment.md`
