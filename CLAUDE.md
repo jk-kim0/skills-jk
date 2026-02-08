@@ -23,3 +23,4 @@
 - [session-startup](skills/ops/session-startup.md): 세션 시작 시 브랜치 관리
 - [branch-workflow](skills/ops/branch-workflow.md): 브랜치 관리 전체 워크플로우
 - [commit](skills/ops/commit.md): 커밋 메시지 규칙
+- [update-project-doc](skills/ops/update-project-doc.md): PR/마일스톤 후 프로젝트 문서 갱신
