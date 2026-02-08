@@ -1,7 +1,7 @@
 # QueryPie Docs Reverse Sync
 
 > **Status:** In Progress
-> **Target Repo:** `/Users/jk/workspace/querypie-docs/confluence-mdx/`
+> **Target Repo:** [querypie/querypie-docs/confluence-mdx](https://github.com/querypie/querypie-docs/tree/main/confluence-mdx)
 > **Branch:** `refactor/reverse-sync-cli-simplify`
 
 ## 목표
@@ -99,31 +99,31 @@ verify 실행 시 다음 파일들이 `var/<page_id>/`에 생성된다:
 
 ## 모듈 작동 방식
 
-### `mdx_block_parser` ([소스](../../../querypie-docs/confluence-mdx/bin/reverse_sync/mdx_block_parser.py))
+### `mdx_block_parser` ([소스](https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/bin/reverse_sync/mdx_block_parser.py))
 
 MDX 텍스트를 블록 시퀀스(`MdxBlock` 리스트)로 파싱한다. 블록 유형: frontmatter, import_statement, heading, paragraph, code_block, list, html_block, empty. 파싱된 블록의 content를 합치면 원본과 완전 일치한다 (roundtrip 보장).
 
-### `block_diff` ([소스](../../../querypie-docs/confluence-mdx/bin/reverse_sync/block_diff.py))
+### `block_diff` ([소스](https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/bin/reverse_sync/block_diff.py))
 
 두 MDX 블록 시퀀스를 1:1 순차 비교하여 content가 달라진 블록을 `BlockChange` 리스트로 반환한다. Phase 1에서는 블록 수가 동일해야 하며, 다르면 에러를 발생시킨다.
 
-### `mapping_recorder` ([소스](../../../querypie-docs/confluence-mdx/bin/reverse_sync/mapping_recorder.py))
+### `mapping_recorder` ([소스](https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/bin/reverse_sync/mapping_recorder.py))
 
 XHTML을 BeautifulSoup으로 파싱하여 블록 레벨 요소(h1~h6, p, ul/ol, table, macro 등)를 추출하고, 각 요소의 간이 XPath, 원본 텍스트(서식 포함), 평문 텍스트를 `BlockMapping` 리스트로 반환한다.
 
-### `xhtml_patcher` ([소스](../../../querypie-docs/confluence-mdx/bin/reverse_sync/xhtml_patcher.py))
+### `xhtml_patcher` ([소스](https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/bin/reverse_sync/xhtml_patcher.py))
 
 매핑의 `xhtml_plain_text`와 diff의 `new_plain_text`를 비교하여, XHTML 요소 내의 text node를 갱신한다. 인라인 서식 태그는 보존하고 text node만 치환한다.
 
-### `roundtrip_verifier` ([소스](../../../querypie-docs/confluence-mdx/bin/reverse_sync/roundtrip_verifier.py))
+### `roundtrip_verifier` ([소스](https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/bin/reverse_sync/roundtrip_verifier.py))
 
 개선 MDX와 패치 XHTML의 forward 변환 결과를 문자 단위 완전 일치로 비교한다. 공백, 줄바꿈, 인라인 서식 모두 포함하며 어떤 정규화도 하지 않는다. 불일치 시 unified diff 리포트를 생성한다.
 
-### `confluence_client` ([소스](../../../querypie-docs/confluence-mdx/bin/reverse_sync/confluence_client.py))
+### `confluence_client` ([소스](https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/bin/reverse_sync/confluence_client.py))
 
 `~/.config/atlassian/confluence.conf`에서 인증 정보를 읽고, Confluence REST API v1으로 페이지 버전 조회 및 본문 업데이트를 수행한다.
 
-### `reverse_sync_cli` ([소스](../../../querypie-docs/confluence-mdx/bin/reverse_sync_cli.py), 464행)
+### `reverse_sync_cli` ([소스](https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/bin/reverse_sync_cli.py), 464행)
 
 위 모듈들을 조합하여 verify/push 파이프라인을 실행하는 오케스트레이터. 주요 구성:
 
@@ -142,7 +142,7 @@ XHTML을 BeautifulSoup으로 파싱하여 블록 레벨 요소(h1~h6, p, ul/ol, 
 
 ### 실행파일
 
-[`bin/reverse-sync`](../../../querypie-docs/confluence-mdx/bin/reverse-sync) — `sys.path`에 `bin/`을 추가하고 `reverse_sync_cli.main()`을 호출하는 entry point. `bin/reverse_sync/` 패키지와 이름 충돌을 피하기 위해 하이픈 사용.
+[`bin/reverse-sync`](https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/bin/reverse-sync) — `sys.path`에 `bin/`을 추가하고 `reverse_sync_cli.main()`을 호출하는 entry point. `bin/reverse_sync/` 패키지와 이름 충돌을 피하기 위해 하이픈 사용.
 
 ### 현재 구현
 
@@ -197,12 +197,12 @@ cd tests && make test-reverse-sync
 
 ### 테스트 구조
 
-- **pytest 단위 테스트**: [`test_reverse_sync_cli.py`](../../../querypie-docs/confluence-mdx/tests/test_reverse_sync_cli.py) — run_verify(), main(), 헬퍼 함수
-- **pytest e2e**: [`test_reverse_sync_e2e.py`](../../../querypie-docs/confluence-mdx/tests/test_reverse_sync_e2e.py) — 실제 testcase 데이터로 run_verify() 호출
-- **shell e2e**: [`run-tests.sh`](../../../querypie-docs/confluence-mdx/tests/run-tests.sh) `--type reverse-sync` — `reverse_sync_test_verify.py`를 통해 run_verify() 직접 호출, expected 파일과 diff 비교
+- **pytest 단위 테스트**: [`test_reverse_sync_cli.py`](https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/tests/test_reverse_sync_cli.py) — run_verify(), main(), 헬퍼 함수
+- **pytest e2e**: [`test_reverse_sync_e2e.py`](https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/tests/test_reverse_sync_e2e.py) — 실제 testcase 데이터로 run_verify() 호출
+- **shell e2e**: [`run-tests.sh`](https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/tests/run-tests.sh) `--type reverse-sync` — `reverse_sync_test_verify.py`를 통해 run_verify() 직접 호출, expected 파일과 diff 비교
 - **모듈별 pytest**: `test_reverse_sync_{module}.py` — 각 모듈 단위 테스트
 
-[`reverse_sync_test_verify.py`](../../../querypie-docs/confluence-mdx/bin/reverse_sync_test_verify.py)는 CLI가 page_id를 받지 않으므로, shell e2e 테스트에서 run_verify()를 page_id와 함께 직접 호출하는 thin wrapper이다.
+[`reverse_sync_test_verify.py`](https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/bin/reverse_sync_test_verify.py)는 CLI가 page_id를 받지 않으므로, shell e2e 테스트에서 run_verify()를 page_id와 함께 직접 호출하는 thin wrapper이다.
 
 ---
 
