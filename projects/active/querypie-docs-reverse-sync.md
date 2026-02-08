@@ -140,7 +140,9 @@ XHTML을 BeautifulSoup으로 파싱하여 블록 레벨 요소(h1~h6, p, ul/ol, 
 - [`_resolve_page_id()`][cli-L76] — `var/pages.yaml`을 통해 page_id 자동 유도
 - [`_forward_convert()`][cli-L90] — 패치된 XHTML을 forward converter로 MDX 변환
 - [`run_verify()`][cli-L128] — 로컬 검증 파이프라인 (①~⑥ 전체 수행)
-- [`main()`][cli-L353] — CLI argparse + verify/push 분기
+- [`_do_verify()`][cli-L346] — 공통 verify 로직 (MDX 소스 해석 → run_verify())
+- [`_do_push()`][cli-L363] — Confluence push 로직 (patched XHTML → API 업데이트)
+- [`main()`][cli-L390] — CLI argparse + verify/push 분기
 
 [cli-L24]: https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/bin/reverse_sync_cli.py#L24
 [cli-L50]: https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/bin/reverse_sync_cli.py#L50
@@ -148,7 +150,9 @@ XHTML을 BeautifulSoup으로 파싱하여 블록 레벨 요소(h1~h6, p, ul/ol, 
 [cli-L76]: https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/bin/reverse_sync_cli.py#L76
 [cli-L90]: https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/bin/reverse_sync_cli.py#L90
 [cli-L128]: https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/bin/reverse_sync_cli.py#L128
-[cli-L353]: https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/bin/reverse_sync_cli.py#L353
+[cli-L346]: https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/bin/reverse_sync_cli.py#L346
+[cli-L363]: https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/bin/reverse_sync_cli.py#L363
+[cli-L390]: https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/bin/reverse_sync_cli.py#L390
 
 ---
 
@@ -166,12 +170,15 @@ XHTML을 BeautifulSoup으로 파싱하여 블록 레벨 요소(h1~h6, p, ul/ol, 
 # verify — 로컬 검증 (--original-mdx 생략 시 main 자동)
 reverse-sync verify "proofread/fix-typo:src/content/ko/user-manual/user-agent.mdx"
 
-# verify — original 명시
-reverse-sync verify "proofread/fix-typo:src/content/ko/user-manual/user-agent.mdx" \
-  --original-mdx "main:src/content/ko/user-manual/user-agent.mdx"
+# push — verify 자동 수행 후 Confluence 반영
+reverse-sync push "proofread/fix-typo:src/content/ko/user-manual/user-agent.mdx"
 
-# push — 검증 통과된 패치를 Confluence에 반영
-reverse-sync push src/content/ko/user-manual/user-agent.mdx
+# push --dry-run = verify
+reverse-sync push --dry-run "proofread/fix-typo:src/content/ko/user-manual/user-agent.mdx"
+
+# original 명시
+reverse-sync push "proofread/fix-typo:src/content/ko/user-manual/user-agent.mdx" \
+  --original-mdx "main:src/content/ko/user-manual/user-agent.mdx"
 ```
 
 ### `<mdx>` 인자 형식
@@ -195,7 +202,16 @@ reverse-sync verify <mdx> [--original-mdx <mdx>] [--xhtml <path>]
 
 ### push 커맨드
 
-현재는 verify 결과(`result.yaml`)를 확인하여 pass인 경우만 push한다.
+```
+reverse-sync push <mdx> [--original-mdx <mdx>] [--xhtml <path>] [--dry-run]
+```
+
+- `<mdx>`: improved MDX (positional, required)
+- `--original-mdx`: 원본 MDX (optional, 기본: `main:<improved 경로>`)
+- `--xhtml`: 원본 XHTML (optional, 기본: `var/<page-id>/page.xhtml`)
+- `--dry-run`: 검증만 수행, Confluence 반영 안 함 (= verify)
+
+push는 내부적으로 verify 파이프라인을 먼저 실행하고, pass 시 자동으로 Confluence에 반영한다. `verify` 커맨드는 `push --dry-run`의 alias이다.
 
 ---
 
@@ -204,7 +220,7 @@ reverse-sync verify <mdx> [--original-mdx <mdx>] [--xhtml <path>]
 ```bash
 cd /Users/jk/workspace/querypie-docs/confluence-mdx
 
-# pytest (unit + e2e) — 19 tests
+# pytest (unit + e2e) — 20 tests
 PYTHONPATH=bin python3 -m pytest tests/test_reverse_sync_cli.py tests/test_reverse_sync_e2e.py -v
 
 # shell e2e — 14 testcases
@@ -227,22 +243,28 @@ cd tests && make test-reverse-sync
 
 ## 잔여 작업
 
-### push가 verify를 자동 수행
+### 브랜치 기반 배치 검증 (`--branch`)
 
-현재 push는 사전에 verify를 별도로 실행해야 한다. 목표는:
-
-- push가 내부적으로 verify 파이프라인을 먼저 실행
-- verify 통과 시 자동으로 Confluence에 push
-- `--dry-run` 플래그: verify만 수행 (= verify 커맨드와 동일)
-- verify와 push가 동일한 인자를 수용: `<mdx> [--original-mdx] [--xhtml]`
+브랜치 이름만 지정하면 해당 브랜치에서 변경된 `src/content/ko/**/*.mdx` 파일들을 자동으로 발견하여 각각 verify/push를 수행한다.
 
 ```bash
-# push (verify를 자동 수행 후 Confluence 반영)
-reverse-sync push "proofread/fix-typo:src/content/ko/user-manual/user-agent.mdx"
+# 브랜치의 모든 변경된 ko MDX 파일을 verify
+reverse-sync verify --branch proofread/fix-typo
 
-# push --dry-run (= verify)
-reverse-sync push --dry-run "proofread/fix-typo:src/content/ko/user-manual/user-agent.mdx"
+# 브랜치의 모든 변경된 ko MDX 파일을 push
+reverse-sync push --branch proofread/fix-typo
+
+# 여러 파일을 명시적으로 지정 (nargs='*')
+reverse-sync verify \
+  "proofread/fix-typo:src/content/ko/user-manual/user-agent.mdx" \
+  "proofread/fix-typo:src/content/ko/overview.mdx"
 ```
+
+구현 방식:
+- `git diff --name-only main...<branch> -- src/content/ko/` 로 변경 파일 발견
+- 각 파일에 대해 `<branch>:<path>` 를 improved, `main:<path>` 를 original로 verify 실행
+- `--branch`와 positional `<mdx>`는 상호 배타
+- 배치 결과는 JSON array로 출력
 
 ---
 
@@ -272,5 +294,6 @@ reverse-sync push --dry-run "proofread/fix-typo:src/content/ko/user-manual/user-
 - [x] Positional argument 전환 (`<mdx>`)
 - [x] `bin/reverse-sync` 실행파일
 - [x] 도움말 상세화 (예시 포함)
-- [ ] Push가 verify를 자동 수행
+- [x] Push가 verify를 자동 수행
+- [ ] 브랜치 기반 배치 검증 (`--branch`)
 - [ ] Phase 2 설계 및 구현
