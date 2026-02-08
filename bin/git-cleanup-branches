@@ -190,6 +190,11 @@ def main() -> int:
         description="Scan workspace and cleanup stale branches in git repositories",
     )
     parser.add_argument(
+        "dirs",
+        nargs="*",
+        help="Directory names under workspace to scan (default: all repos)",
+    )
+    parser.add_argument(
         "--workspace",
         type=Path,
         default=Path.home() / "workspace",
@@ -219,7 +224,20 @@ def main() -> int:
     print(f"Mode: {'DELETE' if args.delete else 'dry-run'}")
     print()
 
-    repos = find_git_repos(workspace)
+    if args.dirs:
+        repos = []
+        for name in args.dirs:
+            repo_path = workspace / name
+            if not repo_path.is_dir():
+                print(f"Warning: {repo_path} does not exist, skipping")
+            elif not (repo_path / ".git").exists():
+                print(f"Warning: {repo_path} is not a git repository, skipping")
+            else:
+                repos.append(repo_path)
+        repos.sort()
+    else:
+        repos = find_git_repos(workspace)
+
     if not repos:
         print("No git repositories found.")
         return 0
