@@ -44,7 +44,7 @@ AI Agent가 MDX를 개선해도 원본 Confluence에는 반영되지 않는 문�
 
 ### 핵심 메커니즘: 블록 매핑 기반 역반영
 
-XHTML 블록 요소(heading, paragraph, list 등)와 MDX 블록을 대응시키고, MDX에서 변경된 블록의 텍스트를 XHTML의 대응하는 요소에서 치환한다. 인라인 서식 태그(`<strong>`, `<em>` 등)는 보존하며, text node 단위로 변경을 적용한다.
+XHTML 블록 요소(heading, paragraph, list 등)와 MDX 블록을 대응시키고, MDX에서 변경된 블록의 content를 XHTML inner HTML로 직접 변환하여 대상 요소의 innerHTML을 통째로 교체한다. 이를 통해 인라인 서식 변경(bold 추가/제거, code span, link 등)도 지원한다.
 
 ### 설계 원칙
 
@@ -68,13 +68,15 @@ confluence-mdx/
       mdx_block_parser.py           ← MDX → 블록 시퀀스 파싱
       block_diff.py                 ← 블록 시퀀스 1:1 순차 비교
       mapping_recorder.py           ← XHTML 블록 요소 추출 → 매핑 생성
-      xhtml_patcher.py              ← 매핑 + diff → XHTML 텍스트 패치
+      mdx_to_xhtml_inline.py        ← MDX 블록 content → XHTML inner HTML 변환
+      xhtml_patcher.py              ← 매핑 + inner HTML → XHTML 패치 (innerHTML 교체)
       roundtrip_verifier.py         ← MDX 문자 단위 완전 일치 검증
       confluence_client.py          ← Confluence REST API 클라이언트
   tests/
     test_reverse_sync_mdx_block_parser.py
     test_reverse_sync_block_diff.py
     test_reverse_sync_mapping_recorder.py
+    test_reverse_sync_mdx_to_xhtml_inline.py  ← 인라인 변환 + 블록 변환 단위 테스트
     test_reverse_sync_xhtml_patcher.py
     test_reverse_sync_roundtrip_verifier.py
     test_reverse_sync_cli.py        ← CLI + 헬퍼 함수 단위 테스트
@@ -118,9 +120,17 @@ MDX 텍스트를 블록 시퀀스(`MdxBlock` 리스트)로 파싱한다. 블록 
 
 XHTML을 BeautifulSoup으로 파싱하여 블록 레벨 요소(h1~h6, p, ul/ol, table, macro 등)를 추출하고, 각 요소의 간이 XPath, 원본 텍스트(서식 포함), 평문 텍스트를 `BlockMapping` 리스트로 반환한다.
 
+### `mdx_to_xhtml_inline`
+
+MDX 블록 content를 XHTML inner HTML로 직접 변환한다. 블록 타입별 처리:
+- **heading**: `#` 마커 제거, bold 마커 strip (forward converter가 heading 내 strong을 strip하므로), code/link 변환
+- **paragraph**: 인라인 변환(`_convert_inline`) — code span(placeholder 보호), bold, link 순서로 처리
+- **list**: indent 기반 중첩 파싱, `<li><p>...</p></li>` 구조 생성, figure/img 줄 skip
+- **code_block**: 펜스 마커 제거, 코드 내용만 추출
+
 ### `xhtml_patcher`
 
-매핑의 `xhtml_plain_text`와 diff의 `new_plain_text`를 비교하여, XHTML 요소 내의 text node를 갱신한다. 인라인 서식 태그는 보존하고 text node만 치환한다.
+`_replace_inner_html()`로 대상 요소의 innerHTML을 통째로 교체한다. `mdx_to_xhtml_inline`이 생성한 inner HTML을 BeautifulSoup으로 파싱하여 자식 노드로 삽입한다. legacy path(difflib 기반 text node 분배)도 호환성을 위해 유지한다.
 
 ### `roundtrip_verifier`
 
@@ -234,8 +244,8 @@ push는 내부적으로 verify 파이프라인을 먼저 실행하고, pass 시 
 ```bash
 cd /Users/jk/workspace/querypie-docs/confluence-mdx
 
-# pytest (unit + e2e) — 32 tests
-PYTHONPATH=bin python3 -m pytest tests/test_reverse_sync_cli.py tests/test_reverse_sync_e2e.py -v
+# pytest (unit + e2e) — 88 tests
+PYTHONPATH=bin python3 -m pytest tests/test_reverse_sync_*.py tests/test_reverse_sync_e2e.py -v
 
 # shell e2e — 14 testcases
 cd tests && make test-reverse-sync
@@ -275,6 +285,7 @@ cd tests && make test-reverse-sync
 
 | 날짜 | PR | 내용 |
 |------|-----|------|
+| 2026-02-09 | querypie-docs#632 | MDX→XHTML inner HTML 변환 모듈 추가 (difflib 제거) |
 | 2026-02-09 | querypie-docs#624 | `--branch` 배치 verify/push 구현 |
 | 2026-02-09 | querypie-docs#623 | forward converter 로깅 개선 |
 | 2026-02-08 | querypie-docs#622 | push가 verify를 자동 수행하도록 리팩토링 |
@@ -295,4 +306,5 @@ cd tests && make test-reverse-sync
 - [x] 도움말 상세화 (예시 포함)
 - [x] Push가 verify를 자동 수행
 - [x] 브랜치 기반 배치 검증 (`--branch`)
+- [x] MDX→XHTML inner HTML 변환 모듈 (`mdx_to_xhtml_inline`) — 인라인 서식 변경 지원
 - [ ] Phase 2 설계 및 구현
