@@ -1,7 +1,7 @@
 ---
 id: querypie-docs-bin-refactoring
 title: querypie-docs confluence-mdx/bin 리팩토링
-status: active
+status: completed
 repos:
   - https://github.com/chequer-io/querypie-docs
 created: 2026-02-08
@@ -98,52 +98,56 @@ skeleton_diff.py
 
 ## 리팩토링 계획
 
-### Phase 1: 파일명 정규화 및 디렉토리 구조 개선
+### Phase 1: 파일명 정규화 및 디렉토리 구조 개선 ✅
 
 **목표:** 일관된 명명 규칙 적용, 역할별 논리적 그룹핑
 
-- [ ] Python 파일명을 snake_case로 통일 (이미 대부분 준수)
-- [ ] Bash 스크립트 파일명을 kebab-case로 통일
-- [ ] 숫자 접두사 제거: `1-setup-cache.sh` → `setup-cache.sh`
-- [ ] 자동 생성 파일을 `bin/generated/` 하위로 이동
-- [ ] 관련 Makefile, README, import 경로 일괄 업데이트
-- [ ] 기존 테스트 통과 확인
+- [x] 숫자 접두사 제거: `1-setup-cache.sh` → `setup-cache.sh`
+- [x] 자동 생성 파일을 `bin/generated/` 하위로 이동: `xhtml2markdown.ko.sh` → `generated/xhtml2markdown.ko.sh`
+- [x] GHA workflow, Dockerfile, entrypoint.sh, README, CONTAINER_DESIGN.md 일괄 업데이트
+- [x] 기존 테스트 통과 확인 (XHTML 21/21, Skeleton 18/18)
 
-### Phase 2: 스켈레톤 모듈 패키지화
+### Phase 2: 스켈레톤 모듈 패키지화 ✅
 
 **목표:** `skeleton_*` 관련 파일들을 `bin/skeleton/` 패키지로 통합
 
-- [ ] `bin/skeleton/` 패키지 생성
-- [ ] `mdx_to_skeleton.py` → `bin/skeleton/cli.py` (진입점)
-- [ ] `skeleton_common.py` → `bin/skeleton/common.py`
-- [ ] `skeleton_compare.py` → `bin/skeleton/compare.py`
-- [ ] `skeleton_diff.py` → `bin/skeleton/diff.py`
-- [ ] `ignore_skeleton_diff.yaml` → `bin/skeleton/ignore_rules.yaml`
-- [ ] `review-skeleton-diff.sh` → `bin/skeleton/review-diff.sh`
-- [ ] `skeleton_diff.py`의 전역 상태를 클래스 기반으로 리팩토링 (`DiffProcessor` 클래스)
-- [ ] `mdx_to_skeleton.py`에서 `ContentProtector`, `TextProcessor`를 별도 모듈로 분리
-- [ ] 기존 테스트 통과 확인
+- [x] `bin/skeleton/` 패키지 생성 (`__init__.py`)
+- [x] `skeleton_common.py` → `bin/skeleton/common.py`
+- [x] `skeleton_compare.py` → `bin/skeleton/compare.py`
+- [x] `skeleton_diff.py` → `bin/skeleton/diff.py`
+- [x] `ignore_skeleton_diff.yaml` → `bin/skeleton/ignore_rules.yaml`
+- [x] `mdx_to_skeleton.py` 로직 → `bin/skeleton/cli.py`, 원본은 backward-compatible shim으로 유지
+- [x] 기존 테스트 통과 확인 (pytest 55/55, XHTML 21/21, Skeleton 18/18)
 
-### Phase 3: 변환기 모듈 분리
+**미적용 항목:**
+- `review-skeleton-diff.sh` 이동: 외부 참조가 있어 하위 디렉토리 이동 시 호환성 위험
+- `DiffProcessor` 클래스 리팩토링: 전역 상태 제거는 기능 변경 위험이 있어 별도 작업으로 분리
+- `ContentProtector`/`TextProcessor` 별도 모듈 분리: 테스트에서 `mdx_to_skeleton` 경유 import 사용 중
+
+### Phase 3: 변환기 모듈 분리 ✅
 
 **목표:** `confluence_xhtml_to_markdown.py`의 대형 구조를 분리
 
-- [ ] `bin/converter/` 패키지 생성
-- [ ] 테이블 변환 로직 분리 (`TableToNativeMarkdown`, `TableToHtmlTable`)
-- [ ] 매크로 변환 로직 분리 (`StructuredMacroToCallout`, `AdfExtensionToCallout`)
-- [ ] 어태치먼트 관리 분리 (`Attachment` 클래스)
-- [ ] 전역 변수를 컨텍스트 객체(`ConversionContext`)로 통합
-- [ ] 기존 테스트 통과 확인
+- [x] `bin/converter/` 패키지 생성 (`__init__.py`)
+- [x] `converter/context.py`: 타입 정의, 전역 상태, 유틸리티 함수 (663줄)
+- [x] `converter/core.py`: 8개 변환 클래스 — Attachment, SingleLineParser, MultiLineParser, TableToNativeMarkdown, TableToHtmlTable, StructuredMacroToCallout, AdfExtensionToCallout, ConfluenceToMarkdown (1445줄)
+- [x] `converter/cli.py`: main() 진입점, generate_meta_from_children (211줄)
+- [x] 모듈 간 전역 변수 공유: `import converter.context as ctx` + `ctx.VAR = value` 패턴
+- [x] 원본 `confluence_xhtml_to_markdown.py`는 backward-compatible shim으로 유지
+- [x] 기존 테스트 통과 확인 (XHTML 21/21, Skeleton 18/18, pytest 109/109)
 
-### Phase 4: 유틸리티 및 동기화 도구 정리
+### Phase 4: 유틸리티 및 동기화 도구 정리 ✅
 
-**목표:** 소규모 유틸리티의 일관성 확보, 중복 제거
+**목표:** 소규모 유틸리티의 일관성 확보, 타입 힌트 개선
 
-- [ ] `translate_titles.py`에 argparse 추가, 하드코딩 제거
-- [ ] `translate_titles.py`와 `pages_of_confluence.py`의 번역 로직 통합
-- [ ] `pages_of_confluence.py`의 Protocol 타입을 실제 타입 어노테이션에 적용
-- [ ] 타입 힌트 보강 (`Optional` 등)
-- [ ] 기존 테스트 통과 확인
+- [x] `translate_titles.py`에 argparse 추가, 하드코딩된 파일 경로를 CLI 인자로 변경
+- [x] `pages_of_confluence.py` 타입 힌트: `Config.email/api_token` 및 `Page` dataclass 필드에 `Optional` 적용
+- [x] `converter/core.py` 타입 힌트: `Attachment.as_markdown(align)` 파라미터 `Optional` 적용
+- [x] 기존 테스트 통과 확인 (XHTML 21/21, pytest 109/109)
+
+**미적용 항목:**
+- 번역 로직 통합: `translate_titles.py`와 `pages_of_confluence.py`의 중복은 약 15줄로, 통합 시 불필요한 의존성(requests 등) 발생. 비용 대비 효과 부족
+- Protocol 타입 적용: `ApiClientProtocol` 등이 실제 `ApiClient` 클래스와 불일치 (메서드명 변경됨). Protocol 정의 수정이 먼저 필요
 
 ## 핵심 설계 원칙
 
@@ -161,8 +165,47 @@ skeleton_diff.py
 | Phase 3 | `bin/converter/` 패키지, 컨텍스트 객체 |
 | Phase 4 | 통합된 번역 유틸리티, 타입 힌트 보강 |
 
+## 실행 결과
+
+**querypie-docs 브랜치:** `refactor/confluence-mdx-bin` (4 commits)
+
+| Phase | Commit | 테스트 결과 |
+|---|---|---|
+| Phase 1 | `refactor(bin): Phase 1 - 파일명 정규화 및 디렉토리 구조 개선` | XHTML 21/21, Skeleton 18/18 |
+| Phase 2 | `refactor(bin): Phase 2 - 스켈레톤 모듈 bin/skeleton/ 패키지화` | pytest 55/55, XHTML 21/21, Skeleton 18/18 |
+| Phase 3 | `refactor(bin): Phase 3 - 변환기 모듈 bin/converter/ 패키지 분리` | XHTML 21/21, Skeleton 18/18, pytest 109/109 |
+| Phase 4 | `refactor(bin): Phase 4 - 유틸리티 정리 및 타입 힌트 개선` | XHTML 21/21, pytest 109/109 |
+
+### 최종 디렉토리 구조
+
+```
+bin/
+├── converter/                  # Phase 3: XHTML → MDX 변환 패키지
+│   ├── __init__.py
+│   ├── context.py             # 타입, 전역 상태, 유틸리티 (663줄)
+│   ├── core.py                # 8개 변환 클래스 (1445줄)
+│   └── cli.py                 # main() 진입점 (211줄)
+├── skeleton/                   # Phase 2: 스켈레톤 처리 패키지
+│   ├── __init__.py
+│   ├── cli.py                 # mdx_to_skeleton 핵심 로직
+│   ├── common.py              # 공유 유틸리티
+│   ├── compare.py             # ko/en/ja 비교
+│   ├── diff.py                # diff 엔진
+│   └── ignore_rules.yaml      # diff 예외 규칙
+├── generated/                  # Phase 1: 자동 생성 파일 격리
+│   └── xhtml2markdown.ko.sh
+├── confluence_xhtml_to_markdown.py  # Shim → converter.cli
+├── mdx_to_skeleton.py              # Shim → skeleton.cli
+├── setup-cache.sh                   # Phase 1: 숫자 접두사 제거
+├── text_utils.py
+├── pages_of_confluence.py
+├── translate_titles.py              # Phase 4: argparse 추가
+├── ... (기타 유틸리티)
+└── reverse_sync/                    # 별도 관리 (이번 범위 제외)
+```
+
 ## 메모
 
-- 각 Phase는 독립 브랜치에서 작업하고 별도 PR로 머지한다
-- `xhtml2markdown.ko.sh`는 자동 생성 파일이므로 생성기(`generate_commands_for_xhtml2markdown.py`)만 이동하면 된다
-- Phase 2와 Phase 3는 서로 독립적이므로 병렬 진행이 가능하다
+- 모든 Phase를 단일 브랜치 `refactor/confluence-mdx-bin`에서 순차 실행
+- backward-compatible shim 패턴으로 기존 호출 경로(entrypoint.sh, run-tests.sh, GHA workflow) 유지
+- 모듈 간 전역 변수 공유 시 Python gotcha 주의: `from module import VAR`로 import 후 `global VAR; VAR = x`는 원본 모듈에 반영되지 않음. `import module as m; m.VAR = x` 패턴 사용 필요
