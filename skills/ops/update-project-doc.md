@@ -49,9 +49,17 @@ ls projects/active/
 
 최신 항목이 위로 오도록 역순 정렬한다.
 
-### 4. 커밋
+### 4. 브랜치 확인 후 커밋
 
-프로젝트 문서 업데이트는 skills-jk repo의 현재 작업 브랜치에 커밋한다.
+```bash
+# 반드시 현재 브랜치 확인
+git branch --show-current
+
+# main이면 즉시 feature 브랜치 생성
+git checkout -b docs/<descriptive-name>
+```
+
+**main 브랜치에서 직접 커밋/push 금지.** 반드시 feature 브랜치에서 작업한 뒤 PR을 통해 main에 머지한다.
 
 ## 흐름도
 
@@ -74,13 +82,17 @@ projects/active/에 관련 문서 있는가? ─No─→ 종료
 문서 내용 동기화 (CLI, 파일 구조 등)
        │
        ▼
-skills-jk에 커밋
+현재 브랜치 확인 ─main─→ feature 브랜치 생성
+       │feature branch
+       ▼
+skills-jk에 커밋 → PR 생성
 ```
 
 ## 흔한 실수
 
 | 실수 | 결과 |
 |------|------|
+| **main에서 직접 커밋/push** | branch protection 위반, PR 리뷰 우회 |
 | PR 만들고 문서 업데이트 안 함 | 프로젝트 문서가 실제와 괴리 |
 | 체크박스만 갱신하고 세부 내용 미반영 | CLI 사용법이 코드와 불일치 |
 | 진행 로그 없이 체크박스만 토글 | 언제 무엇이 완료됐는지 추적 불가 |
