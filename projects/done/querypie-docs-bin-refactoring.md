@@ -245,7 +245,26 @@ bin/
 - `PYTHONPATH=bin` prefix 또는 `export PYTHONPATH="${BIN_DIR}:${PYTHONPATH:-}"`가 shell-based test runner에서 필요
 - 테스트 실행 전 `make clean`으로 stale output 파일 정리 권장 (이전 변환기 버전의 출력물이 잔존할 수 있음)
 
+### 리팩토링 후속 작업 (Phase 4 merge 이후)
+
+리팩토링된 구조를 기반으로 아래 후속 작업들이 main에 반영되었다.
+
+**converter/skeleton 모듈 보완:**
+- #635: 이미지 경로를 slug 기반으로 통일하여 roundtrip 검증 pass
+- #639: `test-xhtml` → `test-convert` 이름 변경 (Phase 3 리네이밍 반영)
+- #641: `python` → `python3` 통일로 macOS 호환성 확보
+- #642: `conftest.py` 추가로 pytest PYTHONPATH 안정화 및 전체 테스트 자동 수집
+- #645: converter에서 emoji 패키지 미설치 시 실행 중단 처리
+- #649: skeleton Badge 태그 속성 잘림 현상 수정
+
+**새 도구 추가:**
+- #637: XHTML beautify-diff 도구 추가
+- #638: xhtml-diff 테스트 타입 추가
+- #651: XHTML Beautify-Diff Viewer 사용 가이드 추가
+
 ### 향후 검토 사항
+
+아래 항목은 리팩토링 완료 후에도 미착수 상태이다.
 
 - `converter/core.py` (1445줄) 클래스 수준 분리: `TableToNativeMarkdown`/`TableToHtmlTable` → `tables.py`, `StructuredMacroToCallout`/`AdfExtensionToCallout` → `callouts.py`, `Attachment` → `attachment.py` 등 가능. 단, `SingleLineParser` ↔ `MultiLineParser`는 양방향 재귀 호출로 분리 곤란
 - `DiffProcessor` 전역 상태 제거 (skeleton/diff.py)
