@@ -1,13 +1,13 @@
-# QueryPie Docs Reverse Sync
+# QueryPie Docs Reverse Sync — Phase 1
 
-> **Status:** In Progress
+> **Status:** Completed
 > **Target Repo:** [querypie/querypie-docs/confluence-mdx][repo]
 
 [repo]: https://github.com/querypie/querypie-docs/tree/main/confluence-mdx
 
 ## 목표
 
-AI Agent가 개선한 MDX 문서의 변경사항을 원본 Confluence 문서에 신뢰성 있게 역반영하는 파이프라인.
+AI Agent가 개선한 MDX 문서의 **텍스트 수준 변경사항**(오탈자 교정, 문장 다듬기, 용어 통일)을 원본 Confluence 문서에 신뢰성 있게 역반영하는 파이프라인.
 
 ### 배경
 
@@ -15,13 +15,15 @@ AI Agent가 개선한 MDX 문서의 변경사항을 원본 Confluence 문서에 
 AI Agent가 MDX를 개선해도 원본 Confluence에는 반영되지 않는 문제가 있다.
 내부 팀이 Confluence에서 직접 편집하므로, Confluence가 최신 상태를 유지해야 한다.
 
-### 변경 범위 (Phase별)
+### 범위
 
 | Phase | 범위 | 상태 |
 |-------|------|------|
-| Phase 1 | 텍스트 수준 변경 (오탈자 교정, 문장 다듬기, 용어 통일) | 구현 완료 |
-| Phase 2 | 구조적 변경 (헤딩 재구성, 섹션 분리/통합, Callout 추가) | 미착수 |
-| Phase 3 | 전면 재구성 (문서 구조, 위치, 이름 변경) | 미착수 |
+| Phase 1 | 텍스트 수준 변경 (오탈자 교정, 문장 다듬기, 용어 통일) | **완료** |
+| Phase 2 | 구조적 변경 (헤딩 재구성, 섹션 분리/통합, Callout 추가) | [별도 프로젝트][phase23] |
+| Phase 3 | 전면 재구성 (문서 구조, 위치, 이름 변경) | [별도 프로젝트][phase23] |
+
+[phase23]: ../active/querypie-docs-reverse-sync-phase2.md
 
 ---
 
@@ -273,20 +275,6 @@ cd tests && make test-reverse-sync
 
 ---
 
-## 향후 계획
-
-### Phase 2 — 구조적 변경 역반영
-
-- `block_diff` 확장: 블록 추가/삭제/이동을 위한 시퀀스 정렬 알고리즘
-- MDX → XHTML 부분 역변환 모듈: 추가된 블록을 Confluence 매크로로 변환
-
-### Phase 3 — 전면 재구성
-
-- Confluence API 페이지 이동/이름 변경 연동
-- 설계 추가 필요
-
----
-
 ## 진행 로그
 
 | 날짜 | PR | 내용 |
@@ -310,7 +298,7 @@ cd tests && make test-reverse-sync
 | 2026-02-08 | querypie-docs#610 | push 커맨드 구현 |
 | 2026-02-08 | querypie-docs#609 | 중간 파일 prefix 방식 전환 및 패키지 구조 재구성 |
 
-## 진행 상태
+## 완료 상태
 
 - [x] Phase 1 모듈 구현 (6개 모듈 + 오케스트레이터)
 - [x] Forward converter 연동 (round-trip 검증)
@@ -332,4 +320,3 @@ cd tests && make test-reverse-sync
 - [x] 3단계 매핑 전략 (정확 일치 → prefix 길이 유사도 → 공백 무시)
 - [x] CLI 경로 독립성 — 어느 디렉토리에서든 실행 가능
 - [x] `--limit`, `--json` 옵션 및 컬러 diff 출력
-- [ ] Phase 2 설계 및 구현
