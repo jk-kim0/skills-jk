@@ -4,7 +4,6 @@
 > **Target Repo:** [querypie/querypie-docs/confluence-mdx][repo]
 
 [repo]: https://github.com/querypie/querypie-docs/tree/main/confluence-mdx
-> **Branch:** `refactor/reverse-sync-cli-simplify`
 
 ## 목표
 
@@ -144,31 +143,26 @@ MDX 블록 content를 XHTML inner HTML로 직접 변환한다. 블록 타입별 
 
 ### `reverse_sync_cli` (오케스트레이터)
 
-위 모듈들을 조합하여 verify/push 파이프라인을 실행한다. 주요 구성:
+위 모듈들을 조합하여 verify/push 파이프라인을 실행한다. 기능별로 4개 영역으로 구성된다.
 
-- [`MdxSource`][cli-L24] — MDX 내용 + 출처 표시 dataclass
-- [`_resolve_mdx_source()`][cli-L50] — `ref:path` → 파일 경로 2단계 해석
-- [`_extract_ko_mdx_path()`][cli-L66] — descriptor에서 `src/content/ko/...mdx` 경로 추출
-- [`_get_changed_ko_mdx_files()`][cli-L76] — `git diff`로 브랜치의 변경된 ko MDX 파일 발견
-- [`_resolve_page_id()`][cli-L90] — `var/pages.yaml`을 통해 page_id 자동 유도
-- [`_forward_convert()`][cli-L104] — 패치된 XHTML을 forward converter로 MDX 변환
-- [`run_verify()`][cli-L128] — 로컬 검증 파이프라인 (①~⑥ 전체 수행)
-- [`_find_mapping_by_text()`][cli-L284] — MDX normalized text와 XHTML plain text 비교 매칭
-- [`_build_patches()`][cli-L310] — 블록 diff + 텍스트 기반 매핑으로 패치 목록 구성
-- [`_do_verify()`][cli-L385] — 공통 verify 로직 (MDX 소스 해석 → run_verify())
-- [`_do_verify_batch()`][cli-L402] — 브랜치의 모든 변경 파일을 배치 verify 처리
-- [`_do_push()`][cli-L425] — Confluence push 로직 (patched XHTML → API 업데이트)
-- [`main()`][cli-L452] — CLI argparse + verify/push 분기 (단일/배치 모드)
+**MDX 소스 해석**
 
-[cli-L24]: https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/bin/reverse_sync_cli.py#L24
-[cli-L50]: https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/bin/reverse_sync_cli.py#L50
-[cli-L66]: https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/bin/reverse_sync_cli.py#L66
-[cli-L76]: https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/bin/reverse_sync_cli.py#L76
-[cli-L90]: https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/bin/reverse_sync_cli.py#L90
-[cli-L128]: https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/bin/reverse_sync_cli.py#L128
-[cli-L346]: https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/bin/reverse_sync_cli.py#L346
-[cli-L363]: https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/bin/reverse_sync_cli.py#L363
-[cli-L390]: https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/bin/reverse_sync_cli.py#L390
+`MdxSource` dataclass가 MDX 내용과 출처 정보를 담는다. `ref:path` 형식(예: `main:src/content/ko/...mdx`)이면 `git show`로, 파일 경로이면 직접 읽는다. 경로에서 `src/content/ko/` 부분을 추출하고 `var/pages.yaml`을 조회하여 page_id를 자동 유도한다.
+
+**패치 구성 (텍스트 기반 매핑)**
+
+`_build_patches()`가 블록 diff와 XHTML 매핑을 결합하여 패치 목록을 만든다. 각 변경 블록에 대해:
+1. `_normalize_mdx_to_plain()`으로 MDX content에서 마크다운 마커를 제거하여 plain text 추출
+2. `_find_mapping_by_text()`로 XHTML 매핑 중 plain text가 일치하는 요소를 탐색 (정확 일치 → prefix 50자 일치 순)
+3. 매칭된 요소의 xpath와 `mdx_block_to_inner_xhtml()` 결과를 패치로 구성
+
+**검증 파이프라인**
+
+`run_verify()`가 ①~⑥ 전체를 수행한다. 단일 파일은 `_do_verify()`가, 브랜치 배치는 `_do_verify_batch()`가 처리한다. `_forward_convert()`로 패치된 XHTML을 forward converter로 MDX 변환한 뒤, 개선 MDX와 비교하여 pass/fail을 판정한다.
+
+**Confluence 반영**
+
+`_do_push()`가 검증 통과 후 `confluence_client`를 통해 Confluence API로 업데이트한다. `main()`이 argparse로 verify/push 커맨드를 분기하고, 배치 모드(`--branch`)와 단일 파일 모드를 선택한다.
 
 ---
 
@@ -248,8 +242,8 @@ push는 내부적으로 verify 파이프라인을 먼저 실행하고, pass 시 
 ```bash
 cd /Users/jk/workspace/querypie-docs/confluence-mdx
 
-# pytest (unit + e2e) — 88 tests
-PYTHONPATH=bin python3 -m pytest tests/test_reverse_sync_*.py tests/test_reverse_sync_e2e.py -v
+# pytest (unit + e2e) — 149 tests
+PYTHONPATH=bin python3 -m pytest tests/ -v
 
 # shell e2e — 14 testcases
 cd tests && make test-reverse-sync
@@ -266,8 +260,6 @@ cd tests && make test-reverse-sync
 [t-e2e]: https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/tests/test_reverse_sync_e2e.py
 [t-sh]: https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/tests/run-tests.sh
 [t-wrapper]: https://github.com/querypie/querypie-docs/blob/main/confluence-mdx/bin/reverse_sync_test_verify.py
-
----
 
 ---
 
