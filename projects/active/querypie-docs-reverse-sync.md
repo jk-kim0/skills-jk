@@ -43,9 +43,9 @@ AI Agent가 MDX를 개선해도 원본 Confluence에는 반영되지 않는 문�
 
 ### 핵심 메커니즘: 블록 매핑 기반 역반영
 
-XHTML 블록 요소(heading, paragraph, list 등)와 MDX 블록을 **텍스트 기반**으로 대응시키고, MDX에서 변경된 블록의 content를 XHTML inner HTML로 직접 변환하여 대상 요소의 innerHTML을 통째로 교체한다. 이를 통해 인라인 서식 변경(bold 추가/제거, code span, link 등)도 지원한다.
+XHTML 블록 요소(heading, paragraph, list 등)와 MDX 블록을 **텍스트 기반**으로 대응시키고, MDX에서 변경된 블록의 plain text를 XHTML 요소에 **텍스트 레벨 패칭**(문자 정렬 기반)으로 적용한다. XHTML의 인라인 구조(`<code>`, `<ac:link>` 등)를 보존하면서 텍스트만 변경하므로 forward 변환 시 원본 MDX를 정확히 재현할 수 있다.
 
-**매핑 방식**: MDX 블록의 normalized plain text와 XHTML 매핑의 `xhtml_plain_text`를 비교하여 올바른 대상 요소를 찾는다 (정확 일치 → prefix 일치 순). 위치(순번) 기반 매핑은 MDX 페이지 제목이나 XHTML TOC 매크로 등 양쪽에만 존재하는 블록으로 인해 오프셋 오류가 발생하므로 사용하지 않는다.
+**매핑 방식**: MDX 블록의 normalized plain text와 XHTML 매핑의 `xhtml_plain_text`를 비교하여 올바른 대상 요소를 찾는다 (정확 일치 → prefix 일치 → 공백 무시 일치 순). 위치(순번) 기반 매핑은 MDX 페이지 제목이나 XHTML TOC 매크로 등 양쪽에만 존재하는 블록으로 인해 오프셋 오류가 발생하므로 사용하지 않는다.
 
 ### 설계 원칙
 
@@ -70,7 +70,7 @@ confluence-mdx/
       block_diff.py                 ← 블록 시퀀스 1:1 순차 비교
       mapping_recorder.py           ← XHTML 블록 요소 추출 → 매핑 생성
       mdx_to_xhtml_inline.py        ← MDX 블록 content → XHTML inner HTML 변환
-      xhtml_patcher.py              ← 매핑 + inner HTML → XHTML 패치 (innerHTML 교체)
+      xhtml_patcher.py              ← 매핑 + 텍스트 변경 → XHTML 패치 (텍스트 레벨 패칭)
       roundtrip_verifier.py         ← MDX 문자 단위 완전 일치 검증
       confluence_client.py          ← Confluence REST API 클라이언트
   tests/
@@ -84,7 +84,7 @@ confluence-mdx/
     test_reverse_sync_e2e.py        ← run_verify() 직접 호출 통합 테스트
     run-tests.sh                    ← shell e2e 테스트 러너
     Makefile                        ← make test-reverse-sync 타겟
-    testcases/<page_id>/            ← 14개 testcase (shell e2e용)
+    testcases/<page_id>/            ← 19개 testcase (shell e2e용)
 ```
 
 ### 중간 산출물 (`var/<page_id>/`)
@@ -131,7 +131,7 @@ MDX 블록 content를 XHTML inner HTML로 직접 변환한다. 블록 타입별 
 
 ### `xhtml_patcher`
 
-`_replace_inner_html()`로 대상 요소의 innerHTML을 통째로 교체한다. `mdx_to_xhtml_inline`이 생성한 inner HTML을 BeautifulSoup으로 파싱하여 자식 노드로 삽입한다. legacy path(difflib 기반 text node 분배)도 호환성을 위해 유지한다.
+`_apply_text_changes()`로 대상 요소의 텍스트 노드를 문자 정렬(alignment) 기반으로 패칭한다. XHTML의 인라인 구조(`<code>`, `<ac:link>`, `<strong>` 등)를 보존하면서 텍스트만 변경하므로 forward 변환 시 원본 MDX를 정확히 재현할 수 있다.
 
 ### `roundtrip_verifier`
 
@@ -152,13 +152,13 @@ MDX 블록 content를 XHTML inner HTML로 직접 변환한다. 블록 타입별 
 **패치 구성 (텍스트 기반 매핑)**
 
 `_build_patches()`가 블록 diff와 XHTML 매핑을 결합하여 패치 목록을 만든다. 각 변경 블록에 대해:
-1. `_normalize_mdx_to_plain()`으로 MDX content에서 마크다운 마커를 제거하여 plain text 추출
-2. `_find_mapping_by_text()`로 XHTML 매핑 중 plain text가 일치하는 요소를 탐색 (정확 일치 → prefix 50자 일치 순)
-3. 매칭된 요소의 xpath와 `mdx_block_to_inner_xhtml()` 결과를 패치로 구성
+1. `_normalize_mdx_to_plain()`으로 MDX content에서 마크다운 마커 및 링크를 제거하여 plain text 추출
+2. `_find_mapping_by_text()`로 XHTML 매핑 중 plain text가 일치하는 요소를 탐색 (정확 일치 → prefix 일치(길이 유사도) → 공백 무시 일치 순)
+3. 매칭된 요소의 xpath와 `new_plain_text`를 패치로 구성 (`_apply_text_changes()` 경로 사용)
 
 **검증 파이프라인**
 
-`run_verify()`가 ①~⑥ 전체를 수행한다. 단일 파일은 `_do_verify()`가, 브랜치 배치는 `_do_verify_batch()`가 처리한다. `_forward_convert()`로 패치된 XHTML을 forward converter로 MDX 변환한 뒤, 개선 MDX와 비교하여 pass/fail을 판정한다.
+`run_verify()`가 ①~⑥ 전체를 수행한다. 단일 파일은 `_do_verify()`가, 브랜치 배치는 `_do_verify_batch()`가 처리한다. `_forward_convert()`로 패치된 XHTML을 forward converter로 MDX 변환한 뒤, `_strip_frontmatter()`로 양쪽 frontmatter를 제거하고 비교하여 pass/fail을 판정한다 (forward converter가 주입하는 `confluenceUrl` 등 메타데이터 차이에 의한 false FAIL 방지).
 
 **Confluence 반영**
 
@@ -182,6 +182,12 @@ reverse-sync verify "proofread/fix-typo:src/content/ko/user-manual/user-agent.md
 
 # 브랜치 전체 배치 verify
 reverse-sync verify --branch proofread/fix-typo
+
+# 배치 verify (최대 5개 파일, 컬러 diff 출력)
+reverse-sync verify --branch proofread/fix-typo --limit 5
+
+# 배치 verify (JSON 출력)
+reverse-sync verify --branch proofread/fix-typo --json
 
 # 단일 파일 push
 reverse-sync push "proofread/fix-typo:src/content/ko/user-manual/user-agent.mdx"
@@ -210,13 +216,15 @@ page_id는 경로의 `src/content/ko/` 부분에서 `var/pages.yaml`을 통해 �
 
 ```
 reverse-sync verify <mdx> [--original-mdx <mdx>] [--xhtml <path>]
-reverse-sync verify --branch <branch>
+reverse-sync verify --branch <branch> [--limit <n>] [--json]
 ```
 
 - `<mdx>`: improved MDX (positional, optional)
 - `--branch`: 브랜치의 모든 변경 ko MDX 파일을 자동 발견하여 배치 처리
 - `--original-mdx`: 원본 MDX (optional, 기본: `main:<improved 경로>`)
 - `--xhtml`: 원본 XHTML (optional, 기본: `var/<page-id>/page.xhtml`)
+- `--limit`: 배치 모드에서 최대 처리 파일 수 제한 (기본: 0=전체)
+- `--json`: JSON 형식으로 결과 출력 (기본: 컬러 diff 포맷)
 
 `<mdx>`와 `--branch`는 상호 배타. `--branch` 사용 시 `--original-mdx`/`--xhtml` 사용 불가.
 
@@ -224,7 +232,7 @@ reverse-sync verify --branch <branch>
 
 ```
 reverse-sync push <mdx> [--original-mdx <mdx>] [--xhtml <path>] [--dry-run]
-reverse-sync push --branch <branch> [--dry-run]
+reverse-sync push --branch <branch> [--dry-run] [--limit <n>] [--json]
 ```
 
 - `<mdx>`: improved MDX (positional, optional)
@@ -232,6 +240,8 @@ reverse-sync push --branch <branch> [--dry-run]
 - `--original-mdx`: 원본 MDX (optional, 기본: `main:<improved 경로>`)
 - `--xhtml`: 원본 XHTML (optional, 기본: `var/<page-id>/page.xhtml`)
 - `--dry-run`: 검증만 수행, Confluence 반영 안 함 (= verify)
+- `--limit`: 배치 모드에서 최대 처리 파일 수 제한 (기본: 0=전체)
+- `--json`: JSON 형식으로 결과 출력 (기본: 컬러 diff 포맷)
 
 push는 내부적으로 verify 파이프라인을 먼저 실행하고, pass 시 자동으로 Confluence에 반영한다. `verify` 커맨드는 `push --dry-run`의 alias이다.
 
@@ -242,10 +252,10 @@ push는 내부적으로 verify 파이프라인을 먼저 실행하고, pass 시 
 ```bash
 cd /Users/jk/workspace/querypie-docs/confluence-mdx
 
-# pytest (unit + e2e) — 149 tests
+# pytest (unit + e2e) — 190 tests
 PYTHONPATH=bin python3 -m pytest tests/ -v
 
-# shell e2e — 14 testcases
+# shell e2e — 19 testcases
 cd tests && make test-reverse-sync
 ```
 
@@ -281,21 +291,31 @@ cd tests && make test-reverse-sync
 
 | 날짜 | PR | 내용 |
 |------|-----|------|
+| 2026-02-10 | querypie-docs#653 | 리스트/테이블 블록 매핑 및 텍스트 전이 수정 (문자 정렬 기반 재작성) |
+| 2026-02-10 | querypie-docs#650 | frontmatter 제외 비교 및 마크다운 링크 정규화로 verify 실패 수정 |
+| 2026-02-10 | querypie-docs#648 | innerHTML 교체 → 텍스트 레벨 패칭으로 verify 실패 수정 |
+| 2026-02-10 | querypie-docs#647 | CLI 경로 독립성 및 출력 개선 (`--limit`, `--json`, 컬러 diff) |
 | 2026-02-10 | querypie-docs#634 | 위치 기반 매핑→텍스트 기반 매핑 교체 (patched.xhtml 구조 파괴 버그 수정) |
 | 2026-02-09 | querypie-docs#633 | innerHTML 교체 시 old_plain_text 검증 가드 추가 |
 | 2026-02-09 | querypie-docs#632 | MDX→XHTML inner HTML 변환 모듈 추가 (difflib 제거) |
+| 2026-02-09 | querypie-docs#625 | `_build_patches` 인덱스 기반 매핑으로 블록 매칭 실패 수정 |
 | 2026-02-09 | querypie-docs#624 | `--branch` 배치 verify/push 구현 |
-| 2026-02-09 | querypie-docs#623 | forward converter 로깅 개선 |
+| 2026-02-09 | querypie-docs#623 | verify 시 이미지 경로 불일치 수정 |
 | 2026-02-08 | querypie-docs#622 | push가 verify를 자동 수행하도록 리팩토링 |
 | 2026-02-08 | querypie-docs#621 | `--page-id` 제거 및 CLI 간소화 |
-| 2026-02-07 | querypie-docs#619 | verify 커맨드에 git ref 지원 추가 |
+| 2026-02-08 | querypie-docs#619 | verify 커맨드에 git ref 지원 추가 |
+| 2026-02-08 | querypie-docs#617 | ac:layout 내부 블록 매핑 지원 + testcase 2개 추가 |
+| 2026-02-08 | querypie-docs#616 | xhtml_patcher xpath 인덱싱 불일치 수정 + testcase 3개 추가 |
+| 2026-02-08 | querypie-docs#612 | conf 파일 기반 인증으로 변경 |
+| 2026-02-08 | querypie-docs#610 | push 커맨드 구현 |
+| 2026-02-08 | querypie-docs#609 | 중간 파일 prefix 방식 전환 및 패키지 구조 재구성 |
 
 ## 진행 상태
 
 - [x] Phase 1 모듈 구현 (6개 모듈 + 오케스트레이터)
 - [x] Forward converter 연동 (round-trip 검증)
 - [x] Push 커맨드 Confluence API 연동
-- [x] Testcase 14개 + Make 타겟
+- [x] Testcase 19개 + Make 타겟
 - [x] Git ref 지원 (`ref:path` 형식)
 - [x] `--page-id` 제거, page_id 자동 유도
 - [x] `--original-mdx` optional (기본: `main:<improved 경로>`)
@@ -306,4 +326,10 @@ cd tests && make test-reverse-sync
 - [x] 브랜치 기반 배치 검증 (`--branch`)
 - [x] MDX→XHTML inner HTML 변환 모듈 (`mdx_to_xhtml_inline`) — 인라인 서식 변경 지원
 - [x] 텍스트 기반 블록 매핑 (`_find_mapping_by_text`) — 위치 기반 오프셋 버그 해결
+- [x] innerHTML 교체 → 텍스트 레벨 패칭 전환 — XHTML 인라인 구조 보존
+- [x] 텍스트 전이 문자 정렬(alignment) 기반 재작성 — 리스트/테이블 텍스트 손상 해결
+- [x] frontmatter 제외 비교 — `confluenceUrl` 등 메타데이터 차이에 의한 false FAIL 방지
+- [x] 3단계 매핑 전략 (정확 일치 → prefix 길이 유사도 → 공백 무시)
+- [x] CLI 경로 독립성 — 어느 디렉토리에서든 실행 가능
+- [x] `--limit`, `--json` 옵션 및 컬러 diff 출력
 - [ ] Phase 2 설계 및 구현
