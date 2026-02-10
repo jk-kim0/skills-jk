@@ -44,7 +44,9 @@ AI Agent가 MDX를 개선해도 원본 Confluence에는 반영되지 않는 문�
 
 ### 핵심 메커니즘: 블록 매핑 기반 역반영
 
-XHTML 블록 요소(heading, paragraph, list 등)와 MDX 블록을 대응시키고, MDX에서 변경된 블록의 content를 XHTML inner HTML로 직접 변환하여 대상 요소의 innerHTML을 통째로 교체한다. 이를 통해 인라인 서식 변경(bold 추가/제거, code span, link 등)도 지원한다.
+XHTML 블록 요소(heading, paragraph, list 등)와 MDX 블록을 **텍스트 기반**으로 대응시키고, MDX에서 변경된 블록의 content를 XHTML inner HTML로 직접 변환하여 대상 요소의 innerHTML을 통째로 교체한다. 이를 통해 인라인 서식 변경(bold 추가/제거, code span, link 등)도 지원한다.
+
+**매핑 방식**: MDX 블록의 normalized plain text와 XHTML 매핑의 `xhtml_plain_text`를 비교하여 올바른 대상 요소를 찾는다 (정확 일치 → prefix 일치 순). 위치(순번) 기반 매핑은 MDX 페이지 제목이나 XHTML TOC 매크로 등 양쪽에만 존재하는 블록으로 인해 오프셋 오류가 발생하므로 사용하지 않는다.
 
 ### 설계 원칙
 
@@ -151,6 +153,8 @@ MDX 블록 content를 XHTML inner HTML로 직접 변환한다. 블록 타입별 
 - [`_resolve_page_id()`][cli-L90] — `var/pages.yaml`을 통해 page_id 자동 유도
 - [`_forward_convert()`][cli-L104] — 패치된 XHTML을 forward converter로 MDX 변환
 - [`run_verify()`][cli-L128] — 로컬 검증 파이프라인 (①~⑥ 전체 수행)
+- [`_find_mapping_by_text()`][cli-L284] — MDX normalized text와 XHTML plain text 비교 매칭
+- [`_build_patches()`][cli-L310] — 블록 diff + 텍스트 기반 매핑으로 패치 목록 구성
 - [`_do_verify()`][cli-L385] — 공통 verify 로직 (MDX 소스 해석 → run_verify())
 - [`_do_verify_batch()`][cli-L402] — 브랜치의 모든 변경 파일을 배치 verify 처리
 - [`_do_push()`][cli-L425] — Confluence push 로직 (patched XHTML → API 업데이트)
@@ -285,6 +289,8 @@ cd tests && make test-reverse-sync
 
 | 날짜 | PR | 내용 |
 |------|-----|------|
+| 2026-02-10 | querypie-docs#634 | 위치 기반 매핑→텍스트 기반 매핑 교체 (patched.xhtml 구조 파괴 버그 수정) |
+| 2026-02-09 | querypie-docs#633 | innerHTML 교체 시 old_plain_text 검증 가드 추가 |
 | 2026-02-09 | querypie-docs#632 | MDX→XHTML inner HTML 변환 모듈 추가 (difflib 제거) |
 | 2026-02-09 | querypie-docs#624 | `--branch` 배치 verify/push 구현 |
 | 2026-02-09 | querypie-docs#623 | forward converter 로깅 개선 |
@@ -307,4 +313,5 @@ cd tests && make test-reverse-sync
 - [x] Push가 verify를 자동 수행
 - [x] 브랜치 기반 배치 검증 (`--branch`)
 - [x] MDX→XHTML inner HTML 변환 모듈 (`mdx_to_xhtml_inline`) — 인라인 서식 변경 지원
+- [x] 텍스트 기반 블록 매핑 (`_find_mapping_by_text`) — 위치 기반 오프셋 버그 해결
 - [ ] Phase 2 설계 및 구현
