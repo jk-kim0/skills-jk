@@ -1,6 +1,6 @@
 # Reverse-Sync 매핑 방식 재설계: Sidecar Mapping File
 
-> **Status:** Draft — 브레인스토밍 완료, 상세 구현 계획 작성 필요
+> **Status:** In Progress — Forward converter 매핑 생성 구현 완료, reverse-sync pipeline 전환 대기
 > **Date:** 2026-02-12
 > **Related:** [Phase 1 회고](querypie-docs-reverse-sync-phase1-retrospective.md) | [Phase 2 계획](querypie-docs-reverse-sync-phase2.md)
 
@@ -147,13 +147,61 @@ mappings:
 - `_normalize_mdx_to_plain()` 함수 제거 (더 이상 필요 없음)
 - `mapping_recorder.py`는 forward converter 측으로 이동하거나 통합
 
-## 4. 범위 한정 (Scope)
+## 4. 구현 현황
+
+### 4.1 생성 방식: Post-hoc Sequential Matching
+
+Converter 내부(1600줄 `core.py`)를 계측하지 않고, 변환 완료 후 기존 모듈 2개를 조합하는 방식을 채택했습니다.
+
+1. `record_mapping(xhtml)` → XHTML 블록 추출 (기존 `reverse_sync/mapping_recorder.py` 재사용)
+2. `parse_mdx_blocks(mdx)` → MDX 블록 파싱 (기존 `reverse_sync/mdx_block_parser.py` 재사용)
+3. 양쪽을 순서대로 매칭 — 두 모듈 모두 문서 순서(top-down)로 순회하므로 순서가 보존됨
+
+**장점:**
+- `core.py` 수정 불필요
+- 기존 테스트된 모듈 2개를 그대로 조합
+- 변환 로직과 매핑 로직의 관심사 분리
+
+### 4.2 실제 생성된 매핑 파일 형식
+
+```yaml
+version: 1
+source_page_id: "544112828"
+generated_at: "2026-02-12T11:02:52Z"
+mdx_file: page.mdx
+mappings:
+  - xhtml_xpath: "h2[1]"
+    xhtml_type: heading
+    mdx_blocks: [4]
+  - xhtml_xpath: "macro-info[1]"
+    xhtml_type: html_block
+    mdx_blocks: [22]
+```
+
+- `converter_version` 필드는 설계안 대비 생략 (버전 관리 필요 시 추후 추가)
+- `mdx_file` 필드 추가 (출력 파일명 참조용)
+- `xhtml_xpath`는 간이 XPath (`h2[1]`, `macro-info[1]` 등) — 설계안의 `//` prefix 없이 단순화
+
+### 4.3 수정 파일
+
+| 파일 | 변경 | PR |
+|---|---|---|
+| `bin/converter/sidecar_mapping.py` | **신규** — 매핑 생성 로직 (~140줄) | querypie-docs#682 |
+| `bin/converter/cli.py` | **수정** — 원본 XHTML 보존 + 매핑 생성 호출 (+13줄) | querypie-docs#682 |
+
+### 4.4 검증 결과
+
+- 21개 테스트 케이스 전체에서 `mapping.yaml` 정상 생성
+- 기존 pytest 202개 테스트 모두 통과 (회귀 없음)
+- 매핑 생성 실패 시 try/except로 변환 차단하지 않음
+
+## 6. 범위 한정 (Scope)
 
 ### 이번 설계에 포함
 
-- 블록 내 텍스트 변경의 reverse-sync (Phase 1 기능 유지)
-- Forward converter에 매핑 파일 생성 기능 추가
-- Reverse-sync pipeline에서 fuzzy matching → sidecar lookup 전환
+- [x] Forward converter에 매핑 파일 생성 기능 추가
+- [ ] Reverse-sync pipeline에서 fuzzy matching → sidecar lookup 전환
+- [ ] 블록 내 텍스트 변경의 reverse-sync (Phase 1 기능 유지, 새 매핑 방식으로 전환)
 
 ### 추후 별도 검토 (YAGNI)
 
@@ -161,9 +209,15 @@ mappings:
 - MDX 블록 인덱스 변동 시 매핑 갱신 전략
 - XHTML에 새 요소를 삽입할 때의 위치 결정 방법
 
-## 5. 다음 단계
+## 진행 로그
 
-1. **상세 구현 계획 작성** — forward converter 변경 범위 산정, 코드 수정 계획
-2. **Forward converter 변경** — 매핑 파일 생성 기능 구현
-3. **Reverse-sync pipeline 전환** — fuzzy matching 제거, sidecar lookup 적용
-4. **기존 테스트 케이스 검증** — 19개 integration test가 새 매핑 방식으로 통과하는지 확인
+| 날짜 | PR | 내용 |
+|------|-----|------|
+| 2026-02-12 | querypie-docs#682 | Forward converter sidecar mapping 생성 기능 구현 |
+
+## 7. 다음 단계
+
+- [x] **상세 구현 계획 작성** — forward converter 변경 범위 산정, 코드 수정 계획
+- [x] **Forward converter 변경** — 매핑 파일 생성 기능 구현 (querypie-docs#682)
+- [ ] **Reverse-sync pipeline 전환** — fuzzy matching 제거, sidecar lookup 적용
+- [ ] **기존 테스트 케이스 검증** — 19개 integration test가 새 매핑 방식으로 통과하는지 확인
