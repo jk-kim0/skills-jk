@@ -1,7 +1,7 @@
 # Reverse-Sync 매핑 방식 재설계: Sidecar Mapping File
 
-> **Status:** Draft — 브레인스토밍 결과 정리, 상세 설계 검토 필요
-> **Date:** 2026-02-11
+> **Status:** Draft — 브레인스토밍 완료, 상세 구현 계획 작성 필요
+> **Date:** 2026-02-12
 > **Related:** [Phase 1 회고](querypie-docs-reverse-sync-phase1-retrospective.md) | [Phase 2 계획](querypie-docs-reverse-sync-phase2.md)
 
 ## 1. 배경 및 문제
@@ -60,96 +60,110 @@ MDX 파일 자체에 `{/* xhtml:xpath */}` 주석을 삽입하는 방식.
 
 - 탈락 사유: 근본적 해결이 아님, Phase 2 구조적 변경에 여전히 불충분
 
-## 3. Sidecar Mapping File 초안 설계
+## 3. Sidecar Mapping File 설계
 
-> **Note:** 아래는 브레인스토밍 단계의 초안입니다. 상세 설계 검토가 필요합니다.
-
-### 3.1 파일 위치 규칙
+### 3.1 파일 위치
 
 ```
-src/content/ko/user-manual/user-agent.mdx
-→ var/mappings/ko/user-manual/user-agent.mapping.yaml
+var/<page_id>/mapping.yaml
 ```
 
-### 3.2 매핑 파일 스키마 (초안)
+예시: `var/12345678/mapping.yaml`
+
+- 기존 `var/<page_id>/` 디렉토리 구조와 일관됨
+- page_id 기반으로 MDX 경로 변경에 영향받지 않음
+
+### 3.2 매핑 파일 스키마
 
 ```yaml
 version: 1
 source_page_id: "12345678"
-generated_at: "2025-02-10T15:30:00Z"
+generated_at: "2026-02-10T15:30:00Z"
 converter_version: "1.2.0"
 
-blocks:
-  - mdx_line_start: 5
-    mdx_line_end: 5
-    mdx_type: heading       # heading | paragraph | list | code_block | table | macro
-    xhtml_xpath: "//h1[1]"
-    xhtml_element_index: 0  # BlockMapping 배열 인덱스 (mapping_recorder 호환)
-    text_digest: "sha256:a3f2c1..."  # 변경 감지용
+mappings:
+  - xhtml_xpath: "//h1[1]"
+    xhtml_type: heading
+    mdx_blocks: [0]
 
-  - mdx_line_start: 7
-    mdx_line_end: 9
-    mdx_type: paragraph
-    xhtml_xpath: "//p[1]"
-    xhtml_element_index: 1
-    text_digest: "sha256:b4e3d2..."
+  - xhtml_xpath: "//p[1]"
+    xhtml_type: paragraph
+    mdx_blocks: [1, 2, 3]
 
-  - mdx_line_start: 11
-    mdx_line_end: 18
-    mdx_type: macro
-    xhtml_xpath: "//ac:structured-macro[@ac:name='info'][1]/ac:rich-text-body/p[1]"
-    xhtml_element_index: 2
-    text_digest: "sha256:c5f4e3..."
+  - xhtml_xpath: "//ac:structured-macro[@ac:name='info'][1]"
+    xhtml_type: macro
+    mdx_blocks: [4, 5, 6]
 ```
 
-### 3.3 핵심 설계 결정
+### 3.3 설계 결정 사항
 
-| 필드 | 역할 |
+| 항목 | 결정 | 근거 |
+|---|---|---|
+| **기준 축** | XHTML block 요소 | 1개 XHTML block → N개 MDX 라인이 자연스러운 변환 방향. 역방향(N:1)은 거의 없음 |
+| **MDX 식별** | 블록 순서 인덱스 | 줄 번호는 AI 수정 시 바뀜. 블록 파서 순서 인덱스는 블록 내 텍스트 변경에 불변 |
+| **1:N 매핑** | `mdx_blocks` 배열 | 1개 XHTML block 내 여러 문장이 각각 MDX 라인으로 변환되는 정책 반영 |
+| **Fallback** | 없음 (매핑 필수) | 매핑 파일 없으면 reverse-sync 거부. 재생성이 쉬우므로 fuzzy matching 유지 불필요 |
+| **파일 형식** | YAML | human-readable, 기존 프로젝트의 `pages.yaml` 등과 일관 |
+| **유효성 검증** | 파일 mtime 비교 | `mapping.yaml` mtime = 원본 MDX mtime으로 설정. timestamp 비교로 가볍게 검증 |
+| **text_digest** | 미포함 | mtime 비교로 충분. 스키마 단순화 |
+
+### 3.4 생성, 유효성 검증, 재생성
+
+**생성:**
+- Forward converter가 XHTML → MDX 변환 시 자동 생성
+- 생성 후 `mapping.yaml`의 파일 mtime을 원본 MDX 파일의 mtime과 동일하게 설정 (`touch -r`)
+
+**유효성 검증 (timestamp 비교):**
+- Reverse-sync 실행 시 `mapping.yaml`의 mtime과 original MDX의 mtime을 비교
+- `mapping.yaml` mtime ≥ original MDX mtime → 유효 (매핑이 현재 MDX 기준으로 생성됨)
+- `mapping.yaml` mtime < original MDX mtime → 무효 (MDX가 재변환되었으나 매핑 미갱신)
+- 무효 시 reverse-sync를 거부하고, forward converter 재실행을 안내
+
+**재생성:**
+- Forward converter 재실행으로 전체 매핑 파일 일괄 재생성 가능
+- 재생성 비용이 낮으므로, 의심스러울 때 재생성하면 됨
+
+### 3.5 xhtml_type 값
+
+| xhtml_type | 대응 XHTML 요소 |
 |---|---|
-| `xhtml_xpath` | **Primary key** — reverse-sync가 XHTML에서 정확한 요소를 찾는 데 사용 |
-| `xhtml_element_index` | 기존 `mapping_recorder.py`의 `BlockMapping` 리스트 인덱스와 호환 |
-| `text_digest` | MDX가 수정되었을 때 매핑이 아직 유효한지 검증 |
-| `version` | 향후 스키마 진화 대응 |
+| `heading` | `<h1>` ~ `<h6>` |
+| `paragraph` | `<p>` |
+| `list` | `<ul>`, `<ol>` |
+| `table` | `<table>` |
+| `code_block` | `<ac:structured-macro ac:name="code">` |
+| `macro` | 기타 `<ac:structured-macro>` (info, warning, note 등) |
 
-### 3.4 생성 시점
+### 3.6 Reverse-Sync Pipeline 변경
 
-- Forward converter가 XHTML → MDX 변환을 실행할 때 자동 생성
-- Forward converter 재실행 시 매핑 파일도 재생성
+기존 pipeline에서 변경되는 부분:
 
-## 4. 미결 사항 (추후 검토 필요)
+```
+기존: ② Block diff → ③ _find_mapping_by_text() (7단계 fuzzy matching)
+변경: ② Block diff → ③ mapping.yaml lookup (인덱스 기반 직접 참조)
+```
 
-### 4.1 매핑 파일 구조
+- `_find_mapping_by_text()` 함수와 7단계 fallback 로직 전체 제거
+- `_normalize_mdx_to_plain()` 함수 제거 (더 이상 필요 없음)
+- `mapping_recorder.py`는 forward converter 측으로 이동하거나 통합
 
-- [ ] `text_digest` 외에 추가 필드가 필요한가? (예: `xhtml_raw_snippet` 등)
-- [ ] 불필요한 필드는 없는가? 스키마 단순화 가능 여부
-- [ ] 1:N 매핑 (하나의 XHTML 요소 → 여러 MDX 블록) 지원 필요 여부
-- [ ] N:1 매핑 (여러 XHTML 요소 → 하나의 MDX 블록) 케이스 처리
+## 4. 범위 한정 (Scope)
 
-### 4.2 매핑 동기화
+### 이번 설계에 포함
 
-- [ ] AI Agent가 MDX를 수정한 후 매핑 파일과의 정합성 유지 방법
-- [ ] MDX 줄 번호가 변경되면 `mdx_line_start/end` 갱신 전략
-- [ ] 매핑 파일이 없거나 outdated일 때의 fallback 전략 (기존 fuzzy matching 유지?)
+- 블록 내 텍스트 변경의 reverse-sync (Phase 1 기능 유지)
+- Forward converter에 매핑 파일 생성 기능 추가
+- Reverse-sync pipeline에서 fuzzy matching → sidecar lookup 전환
 
-### 4.3 Forward Converter 수정 범위
+### 추후 별도 검토 (YAGNI)
 
-- [ ] 기존 converter 코드에서 매핑 기록을 추가하기 위한 변경 범위 산정
-- [ ] 매핑 파일 출력 형식: YAML vs JSON
-- [ ] 기존 `mapping_recorder.py` 모듈과의 통합/재사용 방안
-
-### 4.4 Reverse-Sync Pipeline 변경
-
-- [ ] `_find_mapping_by_text()` 7단계 fallback을 매핑 파일 lookup으로 대체하는 마이그레이션 전략
-- [ ] Phase 1(텍스트 변경)과 Phase 2(구조 변경) 코드의 분기 구조
-
-### 4.5 Phase 2 구조적 변경 지원
-
-- [ ] 블록 이동/분할/병합 시 매핑 파일 갱신 방법
-- [ ] XHTML에 새 요소를 삽입할 때 삽입 위치 결정 방법 (xpath 기반)
+- 블록 추가/삭제/이동/분할/병합 (Phase 2 구조적 변경)
+- MDX 블록 인덱스 변동 시 매핑 갱신 전략
+- XHTML에 새 요소를 삽입할 때의 위치 결정 방법
 
 ## 5. 다음 단계
 
-1. **미결 사항 검토** — 이 문서의 섹션 4를 검토하고 결정
-2. **상세 설계** — 결정 사항을 반영하여 구현 계획 작성
-3. **Forward converter 변경** — 매핑 파일 생성 기능 구현
-4. **Reverse-sync pipeline 전환** — fuzzy matching → sidecar lookup 마이그레이션
+1. **상세 구현 계획 작성** — forward converter 변경 범위 산정, 코드 수정 계획
+2. **Forward converter 변경** — 매핑 파일 생성 기능 구현
+3. **Reverse-sync pipeline 전환** — fuzzy matching 제거, sidecar lookup 적용
+4. **기존 테스트 케이스 검증** — 19개 integration test가 새 매핑 방식으로 통과하는지 확인
