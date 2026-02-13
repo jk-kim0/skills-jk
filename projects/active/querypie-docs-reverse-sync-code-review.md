@@ -3,7 +3,7 @@
 > **Status:** 진단 완료 — 개선 작업 미착수
 > **Date:** 2026-02-13
 > **Target Repo:** querypie/querypie-docs (confluence-mdx/bin/reverse_sync/)
-> **Related:** [매핑 재설계 (완료)](querypie-docs-reverse-sync-mapping-redesign.md) | [Phase 1 회고](querypie-docs-reverse-sync-phase1-retrospective.md) | [Phase 2 계획](querypie-docs-reverse-sync-phase2.md)
+> **Related:** [매핑 재설계 (완료)](../done/querypie-docs-reverse-sync-mapping-redesign.md) | [Phase 1 회고](../done/querypie-docs-reverse-sync-phase1-retrospective.md) | [Phase 2 계획](querypie-docs-reverse-sync-phase2.md)
 
 ---
 

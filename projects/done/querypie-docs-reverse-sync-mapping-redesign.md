@@ -2,7 +2,7 @@
 
 > **Status:** Completed — Sidecar 매핑 생성 + pipeline 전환 완료 (fuzzy matching 제거)
 > **Date:** 2026-02-13
-> **Related:** [Phase 1 회고](querypie-docs-reverse-sync-phase1-retrospective.md) | [Phase 2 계획](querypie-docs-reverse-sync-phase2.md)
+> **Related:** [Phase 1 회고](querypie-docs-reverse-sync-phase1-retrospective.md) | [Phase 2 계획](../active/querypie-docs-reverse-sync-phase2.md)
 
 ## 1. 배경 및 문제
 
