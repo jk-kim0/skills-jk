@@ -3,8 +3,8 @@
 > **Status:** Not Started — 전제조건(Sidecar 매핑, 오케스트레이터 분리) 완료
 > **Target Repo:** [querypie/querypie-docs/confluence-mdx][repo]
 > **Phase 1:** [완료](../done/querypie-docs-reverse-sync.md)
-> **매핑 재설계:** [완료](querypie-docs-reverse-sync-mapping-redesign.md)
-> **Phase 1 회고:** [조치 완료](querypie-docs-reverse-sync-phase1-retrospective.md)
+> **매핑 재설계:** [완료](../done/querypie-docs-reverse-sync-mapping-redesign.md)
+> **Phase 1 회고:** [조치 완료](../done/querypie-docs-reverse-sync-phase1-retrospective.md)
 
 [repo]: https://github.com/querypie/querypie-docs/tree/main/confluence-mdx
 

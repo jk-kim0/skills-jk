@@ -1,7 +1,7 @@
 # QueryPie Docs Reverse Sync — Phase 1 회고 및 개선 방안
 
 > **Status:** 조치 완료 — 즉시 조치 3건 중 2건 완료, 매핑 재설계(Sidecar) 완료
-> **관련 프로젝트:** [Phase 1 (완료)](../done/querypie-docs-reverse-sync.md) · [Phase 2/3 (미착수)](querypie-docs-reverse-sync-phase2.md) · [매핑 재설계 (완료)](querypie-docs-reverse-sync-mapping-redesign.md)
+> **관련 프로젝트:** [Phase 1 (완료)](querypie-docs-reverse-sync.md) · [Phase 2/3 (미착수)](../active/querypie-docs-reverse-sync-phase2.md) · [매핑 재설계 (완료)](querypie-docs-reverse-sync-mapping-redesign.md)
 > **분석 대상 기간:** 2026-02-08 ~ 2026-02-11 (PR #609 ~ #677)
 > **분석 목적:** Phase 1 "완료" 이후 지속되는 bug fix PR의 근본 원인을 파악하고, Phase 2 착수 전 설계 개선 방안을 도출한다.
 
