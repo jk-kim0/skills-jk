@@ -1,7 +1,7 @@
 # Reverse-Sync 매핑 방식 재설계: Sidecar Mapping File
 
-> **Status:** In Progress — Forward converter 매핑 생성 구현 완료, reverse-sync pipeline 전환 대기
-> **Date:** 2026-02-12
+> **Status:** Completed — Sidecar 매핑 생성 + pipeline 전환 완료 (fuzzy matching 제거)
+> **Date:** 2026-02-13
 > **Related:** [Phase 1 회고](querypie-docs-reverse-sync-phase1-retrospective.md) | [Phase 2 계획](querypie-docs-reverse-sync-phase2.md)
 
 ## 1. 배경 및 문제
@@ -184,24 +184,41 @@ mappings:
 
 ### 4.3 수정 파일
 
+#### Forward Converter (매핑 생성)
+
 | 파일 | 변경 | PR |
 |---|---|---|
 | `bin/converter/sidecar_mapping.py` | **신규** — 매핑 생성 로직 (~140줄) | querypie-docs#682 |
 | `bin/converter/cli.py` | **수정** — 원본 XHTML 보존 + 매핑 생성 호출 (+13줄) | querypie-docs#682 |
 
+#### Reverse-Sync Pipeline (매핑 소비)
+
+| 파일 | 변경 | PR |
+|---|---|---|
+| `bin/reverse_sync/sidecar_lookup.py` | **신규** — mapping.yaml 로드, 인덱스 구축, 2-hop 조회 | querypie-docs#685 |
+| `tests/test_sidecar_lookup.py` | **신규** — 유닛 테스트 38개 | querypie-docs#685 |
+| `bin/reverse_sync/sidecar_lookup.py` | **수정** — 코드 리뷰 반영 (빈 YAML 방어, 미사용 코드 제거) | querypie-docs#687 |
+| `bin/reverse_sync/patch_builder.py` | **수정** — sidecar O(1) 조회로 메인 루프 재작성 | querypie-docs#688 |
+| `bin/reverse_sync/block_matcher.py` | **삭제** (-138줄) — fuzzy matching 완전 제거 | querypie-docs#688 |
+| `bin/reverse_sync/patch_builder.py` | **수정** — sidecar 미스 시 `_find_containing_mapping` 폴백 추가 | querypie-docs#694 |
+
 ### 4.4 검증 결과
 
 - 21개 테스트 케이스 전체에서 `mapping.yaml` 정상 생성
-- 기존 pytest 202개 테스트 모두 통과 (회귀 없음)
+- pytest 251개 전체 통과 (sidecar_lookup 유닛 테스트 38개 + `_find_containing_mapping` 7개 포함)
+- 148개 페이지 배치 verify: 143 pass + 5 no_changes (100%)
 - 매핑 생성 실패 시 try/except로 변환 차단하지 않음
+- Sidecar 미스 시 텍스트 포함 검색 폴백으로 4개 실패 케이스 해결:
+  - 패턴 A: 단일 MDX 리스트 블록 → 다수 XHTML 엘리먼트 분리 시 항목 단위 재매칭
+  - 패턴 B: Callout 내부 리스트 sidecar 미매핑 시 텍스트 포함 검색
 
 ## 6. 범위 한정 (Scope)
 
 ### 이번 설계에 포함
 
 - [x] Forward converter에 매핑 파일 생성 기능 추가
-- [ ] Reverse-sync pipeline에서 fuzzy matching → sidecar lookup 전환
-- [ ] 블록 내 텍스트 변경의 reverse-sync (Phase 1 기능 유지, 새 매핑 방식으로 전환)
+- [x] Reverse-sync pipeline에서 fuzzy matching → sidecar lookup 전환
+- [x] 블록 내 텍스트 변경의 reverse-sync (Phase 1 기능 유지, 새 매핑 방식으로 전환)
 
 ### 추후 별도 검토 (YAGNI)
 
@@ -213,11 +230,16 @@ mappings:
 
 | 날짜 | PR | 내용 |
 |------|-----|------|
+| 2026-02-13 | querypie-docs#694 | Sidecar 전용 매칭 전환 완료 + 텍스트 포함 검색 폴백 보완 (148페이지 배치 verify 100%) |
+| 2026-02-12 | querypie-docs#688 | Fuzzy matching 완전 제거, sidecar O(1) 직접 매핑으로 전환 (block_matcher.py 삭제) |
+| 2026-02-12 | querypie-docs#687 | sidecar_lookup.py 코드 리뷰 반영 |
+| 2026-02-12 | querypie-docs#685 | Sidecar mapping lookup 모듈 + 유닛 테스트 38개 추가 |
 | 2026-02-12 | querypie-docs#682 | Forward converter sidecar mapping 생성 기능 구현 |
 
 ## 7. 다음 단계
 
 - [x] **상세 구현 계획 작성** — forward converter 변경 범위 산정, 코드 수정 계획
 - [x] **Forward converter 변경** — 매핑 파일 생성 기능 구현 (querypie-docs#682)
-- [ ] **Reverse-sync pipeline 전환** — fuzzy matching 제거, sidecar lookup 적용
-- [ ] **기존 테스트 케이스 검증** — 19개 integration test가 새 매핑 방식으로 통과하는지 확인
+- [x] **Sidecar lookup 모듈 구현** — mapping.yaml 로드, 인덱스 구축, 2-hop 조회 (querypie-docs#685, #687)
+- [x] **Reverse-sync pipeline 전환** — fuzzy matching 제거, sidecar O(1) 직접 매핑 적용 (querypie-docs#688)
+- [x] **폴백 보완 및 최종 검증** — sidecar 미스 시 텍스트 포함 검색 폴백, 148페이지 배치 verify 100% (querypie-docs#694)
