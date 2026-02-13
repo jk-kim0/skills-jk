@@ -1,6 +1,6 @@
 # Reverse-Sync 코드 품질 진단 및 개선 계획
 
-> **Status:** 진단 완료 — 개선 작업 미착수
+> **Status:** Phase 2 독립 항목 완료 — 나머지는 Phase 2 후 진행
 > **Date:** 2026-02-13
 > **Target Repo:** querypie/querypie-docs (confluence-mdx/bin/reverse_sync/)
 > **Related:** [매핑 재설계 (완료)](../done/querypie-docs-reverse-sync-mapping-redesign.md) | [Phase 1 회고](../done/querypie-docs-reverse-sync-phase1-retrospective.md) | [Phase 2 계획](querypie-docs-reverse-sync-phase2.md)
@@ -215,28 +215,28 @@ Phase 1 회고에서 지적된 "whack-a-mole" 패턴이 축소되었으나 완�
 
 ### 4.1 P1 — 코드 품질 (patch_builder 리팩토링)
 
-| # | 작업 | 대상 파일 | 효과 |
-|---|------|----------|------|
-| 1 | `containing_changes` 패턴을 공통 함수로 추출 | `patch_builder.py` | 3곳 중복 제거, 버그 수정 시 일관성 |
-| 2 | `build_patches()` 분기를 전략 패턴 또는 helper 함수로 분리 | `patch_builder.py` | 순환 복잡도 감소 |
-| 3 | `patch_builder.py` 전용 유닛 테스트 확충 | `tests/test_reverse_sync_patch_builder.py` | 6개 분기 경로별 테스트 |
+| # | 작업 | 대상 파일 | 효과 | 상태 |
+|---|------|----------|------|------|
+| 1 | `containing_changes` 패턴을 공통 함수로 추출 | `patch_builder.py` | 3곳 중복 제거, 버그 수정 시 일관성 | **보류** — Phase 2가 구조 변경 예정 |
+| 2 | `build_patches()` 분기를 전략 패턴 또는 helper 함수로 분리 | `patch_builder.py` | 순환 복잡도 감소 | **보류** — 동일 사유 |
+| 3 | `patch_builder.py` 전용 유닛 테스트 확충 | `tests/test_reverse_sync_patch_builder.py` | 6개 분기 경로별 테스트 | **완료** — querypie-docs#699 (7→52 tests) |
 
 ### 4.2 P2 — 모듈 구조 개선
 
-| # | 작업 | 대상 파일 | 효과 |
-|---|------|----------|------|
-| 4 | `sidecar_lookup.py` 생성/소비 분리 | `sidecar_lookup.py` → `sidecar_generator.py` 분리 | 책임 분리, forward converter와 일관성 |
-| 5 | `_INVISIBLE_RE` 통합 — `text_normalizer.py`로 단일 정의 | `patch_builder.py`, `text_normalizer.py` | 정규화 규칙 일관성 |
-| 6 | `text_transfer.py`, `text_normalizer.py` 전용 테스트 추가 | `tests/` | 핵심 유틸리티 안전망 확보 |
+| # | 작업 | 대상 파일 | 효과 | 상태 |
+|---|------|----------|------|------|
+| 4 | `sidecar_lookup.py` 생성/소비 분리 | `sidecar_lookup.py` → `sidecar_generator.py` 분리 | 책임 분리, forward converter와 일관성 | **보류** — Phase 2 sidecar 활용 방식 확정 후 |
+| 5 | `_INVISIBLE_RE` 통합 — `text_normalizer.py`로 단일 정의 | `patch_builder.py`, `text_normalizer.py` | 정규화 규칙 일관성 | **완료** — querypie-docs#697 |
+| 6 | `text_transfer.py`, `text_normalizer.py` 전용 테스트 추가 | `tests/` | 핵심 유틸리티 안전망 확보 | **완료** — querypie-docs#697 (59 tests) |
 
 ### 4.3 P3 — 가독성/정리
 
-| # | 작업 | 대상 파일 | 효과 |
-|---|------|----------|------|
-| 7 | `run_verify()` 파이프라인 단계별 private 함수 분리 | `reverse_sync_cli.py` | 가독성, inline import 제거 |
-| 8 | `mapping_recorder.py` rich_text/adf 중복 제거 | `mapping_recorder.py` | DRY, ~45줄 절감 |
-| 9 | `test_verify.py`를 `tests/`로 이동 | `bin/reverse_sync/` → `tests/` | 일관성 |
-| 10 | `pages.yaml` 로드 캐싱 | `reverse_sync_cli.py` | 미미한 성능 개선 |
+| # | 작업 | 대상 파일 | 효과 | 상태 |
+|---|------|----------|------|------|
+| 7 | `run_verify()` 파이프라인 단계별 private 함수 분리 | `reverse_sync_cli.py` | 가독성, inline import 제거 | **보류** — Phase 2 파이프라인 확정 후 |
+| 8 | `mapping_recorder.py` rich_text/adf 중복 제거 | `mapping_recorder.py` | DRY, ~45줄 절감 | **완료** — querypie-docs#700 (232→210줄) |
+| 9 | `test_verify.py`를 `tests/`로 이동 | `bin/reverse_sync/` → `tests/` | 일관성 | **스킵** — CLI wrapper이며 run-tests.sh가 참조 |
+| 10 | `pages.yaml` 로드 캐싱 | `reverse_sync_cli.py` | 미미한 성능 개선 | **보류** |
 
 ---
 
@@ -244,11 +244,15 @@ Phase 1 회고에서 지적된 "whack-a-mole" 패턴이 축소되었으나 완�
 
 | 날짜 | PR | 내용 |
 |------|-----|------|
-| 2026-02-13 | skills-jk#102 (예정) | 코드 품질 진단 문서 작성 |
+| 2026-02-13 | skills-jk#102 | 코드 품질 진단 문서 작성 |
+| 2026-02-13 | querypie-docs#697 | P2-#5 `_INVISIBLE_RE` 통합 + P2-#6 text utility 테스트 59개 추가 |
+| 2026-02-13 | querypie-docs#699 | P1-#3 `patch_builder` 테스트 확충 (7→52 tests) |
+| 2026-02-13 | querypie-docs#700 | P3-#8 `mapping_recorder` 중복 제거 (232→210줄) |
 
 ## 진행 상태
 
 - [x] 코드 리뷰 및 진단
-- [ ] P1: patch_builder 리팩토링
-- [ ] P2: 모듈 구조 개선
-- [ ] P3: 가독성/정리
+- [x] Phase 2 독립 항목 완료 (P1-#3, P2-#5, P2-#6, P3-#8)
+- [ ] P1-#1, #2: Phase 2 완료 후 patch_builder 리팩토링
+- [ ] P2-#4: Phase 2 완료 후 sidecar_lookup 분리
+- [ ] P3-#7, #10: Phase 2 완료 후 정리
