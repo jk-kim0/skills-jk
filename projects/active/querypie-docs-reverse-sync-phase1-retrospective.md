@@ -1,7 +1,7 @@
 # QueryPie Docs Reverse Sync — Phase 1 회고 및 개선 방안
 
-> **Status:** 검토 중
-> **관련 프로젝트:** [Phase 1 (완료)](../done/querypie-docs-reverse-sync.md) · [Phase 2/3 (미착수)](querypie-docs-reverse-sync-phase2.md)
+> **Status:** 조치 완료 — 즉시 조치 3건 중 2건 완료, 매핑 재설계(Sidecar) 완료
+> **관련 프로젝트:** [Phase 1 (완료)](../done/querypie-docs-reverse-sync.md) · [Phase 2/3 (미착수)](querypie-docs-reverse-sync-phase2.md) · [매핑 재설계 (완료)](querypie-docs-reverse-sync-mapping-redesign.md)
 > **분석 대상 기간:** 2026-02-08 ~ 2026-02-11 (PR #609 ~ #677)
 > **분석 목적:** Phase 1 "완료" 이후 지속되는 bug fix PR의 근본 원인을 파악하고, Phase 2 착수 전 설계 개선 방안을 도출한다.
 
@@ -259,21 +259,22 @@ XHTML 요소 → (forward converter 로직) → MDX 텍스트 → strip markers 
 
 ### 5.1 즉시 조치 (Phase 1 안정화)
 
-1. ~~Open PR 5건 (#673~#677) 리뷰 및 머지~~ 상태 확인 후 진행
-2. `reverse_sync_cli.py` 리팩토링 (Section 4.1-A) — 모듈 분리
-3. 정규화 테스트 매트릭스 구축 (Section 4.1-B)
-4. 매칭 실패 로깅 강화 (Section 4.1-C)
+1. ~~Open PR 5건 (#673~#677) 리뷰 및 머지~~ → **완료** (2026-02-11, 전부 머지)
+2. ~~`reverse_sync_cli.py` 리팩토링 (Section 4.1-A) — 모듈 분리~~ → **완료** (querypie-docs#679: `text_normalizer.py`, `block_matcher.py`, `text_transfer.py`, `patch_builder.py` 4개 모듈 분리)
+3. 정규화 테스트 매트릭스 구축 (Section 4.1-B) — 미착수 (Sidecar 전환으로 정규화 의존도 대폭 감소)
+4. 매칭 실패 로깅 강화 (Section 4.1-C) — 미착수 (Sidecar 전환으로 fuzzy matching 제거됨)
 
 ### 5.2 Phase 2 착수 전 필수 검토
 
-1. **Block ID Embedding 방안 결정** (Section 4.2-D)
-   - forward converter 수정 비용 vs 현재 fuzzy matching 유지 비용 비교
-   - Phase 2의 구조적 변경 매핑에 필수적
-2. **공통 Plain Text 추출기 설계** (Section 4.2-E)
-   - 정규화 whack-a-mole 패턴의 근본 해결
+1. ~~**Block ID Embedding 방안 결정** (Section 4.2-D)~~ → **완료** — Sidecar Mapping File 방식으로 결정 및 구현 완료 ([매핑 재설계 문서](querypie-docs-reverse-sync-mapping-redesign.md) 참조)
+   - Forward converter가 `var/<page_id>/mapping.yaml` 생성 (querypie-docs#682)
+   - Reverse-sync pipeline이 sidecar O(1) 직접 조회로 전환 (querypie-docs#688, #694)
+   - Fuzzy matching 완전 제거, `block_matcher.py` 삭제
+2. **공통 Plain Text 추출기 설계** (Section 4.2-E) — 미착수 (Sidecar 전환으로 정규화 의존도 대폭 감소하여 우선순위 하락)
 3. 현재 테스트 커버리지 검토
-   - 19개 testcase가 전체 문서 유형을 충분히 커버하는지 확인
-   - 특히 table, ADF panel, nested list, multi-language 문서에 대한 커버리지
+   - pytest 251개로 확대 (Phase 1 초기 대비 +49)
+   - 148개 페이지 배치 verify 100% 통과
+   - 특히 table, ADF panel, nested list, multi-language 문서에 대한 커버리지 추가 필요
 
 ### 5.3 결론
 
@@ -332,9 +333,9 @@ Phase 1의 reverse-sync는 **빠른 프로토타이핑**에 성공했다. 3일�
 | #633 | fix(reverse_sync): innerHTML 교체 시 old_plain_text 검증 가드 추가 | 02-09 |
 | #632 | feat(reverse_sync): MDX→XHTML inner HTML 변환 모듈 추가 | 02-09 |
 
-### Open (5건)
+### ~~Open (5건)~~ → 전부 Merged (2026-02-11)
 
-| PR | 제목 | 생성일 |
+| PR | 제목 | 머지일 |
 |----|------|--------|
 | #677 | feat(pages_of_confluence): --recent 모드에서 변경 범위 자동 판별 기능 추가 | 02-11 |
 | #676 | fix(reverse-sync): Markdown table 행별 분리 매칭 및 패딩 정규화 | 02-11 |
