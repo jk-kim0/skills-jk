@@ -44,6 +44,58 @@ git push -u origin <branch>
 gh workflow run create-pr.yml -f branch="<branch>" -f title="<type>: ..."
 ```
 
+## PR Scope Gate (필수)
+
+PR 생성 전에 아래 검증을 **반드시 통과**해야 합니다.  
+목적: base 브랜치 대비 불필요한 커밋/파일 포함 방지.
+
+### 1) 기준(base) 명시
+
+- 기본값: `origin/main`
+- Stacked PR인 경우: 직전 브랜치(`origin/<parent-branch>`)를 base로 명시
+
+### 2) 커밋 범위 검증
+
+```bash
+git fetch origin --prune
+git log --oneline <base>..HEAD
+```
+
+판정 기준:
+- 의도한 커밋만 보여야 함
+- 작업과 무관한 과거 커밋이 보이면 **PR 생성 중단**
+
+### 3) 파일 범위 검증
+
+```bash
+git diff --name-status <base>...HEAD
+```
+
+판정 기준:
+- 의도한 파일만 포함되어야 함
+- 무관한 파일이 있으면 **PR 생성 중단**
+
+### 4) 이상 시 복구 절차 (스크립트 금지, 수동 명령만)
+
+```bash
+# 새 정리 브랜치를 base에서 시작
+git checkout -b <new-branch> <base>
+
+# 필요한 커밋만 선택 반영
+git cherry-pick <commit1> [<commit2> ...]
+
+# 기존 PR 브랜치에 강제 반영
+git push --force-with-lease origin <new-branch>:<old-pr-branch>
+```
+
+### 5) PR 생성 전 보고 형식 (필수)
+
+PR 생성 실행 전에 아래 4개를 먼저 공유:
+- base 브랜치
+- `git log --oneline <base>..HEAD` 결과
+- `git diff --name-status <base>...HEAD` 결과
+- 이상 유무와 진행 여부(생성/중단)
+
 ## gh 실행 환경 규칙
 
 로컬에서 `gh`를 실행할 때는 환경변수 토큰을 제거하고 keyring 인증을 사용합니다.
@@ -84,6 +136,8 @@ gh pr edit <pr-number> --title "..." --body "..."
 **체크리스트:**
 - [ ] PR 제목이 최종 커밋 내용을 반영하는가?
 - [ ] PR 설명이 모든 변경사항을 포함하는가?
+- [ ] `<base>..HEAD` 커밋 범위가 의도와 일치하는가?
+- [ ] `<base>...HEAD` 파일 범위가 의도와 일치하는가?
 
 ## 실수 방지 Hook 설치
 
