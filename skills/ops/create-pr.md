@@ -56,6 +56,19 @@ env -u GITHUB_TOKEN -u GH_TOKEN gh <subcommand>
 - 셸에 주입된 `GITHUB_TOKEN`/`GH_TOKEN`이 권한 제한 토큰일 경우 `gh pr create`/`gh pr edit`/`gh pr view` 등이 실패할 수 있음
 - 사용자 계정 keyring 토큰(`gh auth login`)을 우선 사용해야 일관된 권한으로 동작
 
+## 스크립트 실행 규칙
+
+`python3 script.py` 대신, 스크립트에 실행권한을 부여해 직접 실행합니다.
+
+```bash
+chmod +x ./script.py
+./script.py
+```
+
+적용 범위:
+- 로컬 자동화 스크립트 실행 전반
+- PR 본문의 실행 예시 명령어 작성 시 동일 규칙 적용
+
 ## 커밋 수정 후 PR 업데이트
 
 커밋을 amend/추가한 경우:
