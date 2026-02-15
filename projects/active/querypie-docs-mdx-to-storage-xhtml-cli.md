@@ -35,6 +35,10 @@ created: 2026-02-15
   - `tests/test_reverse_sync_cli.py`
   - `tests/reverse-sync/*`
   - `tests/testcases/*`
+- 신규 진행 (2026-02-15):
+  - `bin/mdx_to_storage_xhtml_verify_cli.py` 추가 (expected.mdx -> XHTML 생성/검증)
+  - 비교 엔진을 `bin/xhtml_beautify_diff.py` (`xhtml_diff`) 기반으로 통일
+  - 전체 베이스라인: `total=21, passed=0, failed=21`
 
 ## 범위
 
@@ -91,6 +95,12 @@ mdx-to-storage-xhtml verify <input.mdx> [--page-id <id>] [--show-diff]
 mdx-to-storage-xhtml batch --from <glob|manifest> --out-dir <dir> [--fail-fast]
 ```
 
+현재 구현된 검증 CLI:
+
+```bash
+python3 bin/mdx_to_storage_xhtml_verify_cli.py --testcases-dir tests/testcases --show-diff-limit 3
+```
+
 출력:
 - 기본: Storage XHTML 파일
 - verify 모드: `pass/fail`, 구조 diff, 주요 경고(unsupported node)
@@ -105,9 +115,9 @@ mdx-to-storage-xhtml batch --from <glob|manifest> --out-dir <dir> [--fail-fast]
 
 ### Phase 1 — 최소 동작 버전 (3~4일)
 
-- [ ] CLI 뼈대 + 단일 파일 변환
+- [x] CLI 뼈대 + 단일 파일 변환 (검증용)
 - [ ] heading/paragraph/code/list(1-depth) 지원
-- [ ] 단위 테스트 작성
+- [x] 단위 테스트 작성 (`tests/test_mdx_to_storage_xhtml_verify.py`)
 
 ### Phase 2 — 구조 확장 (4~5일)
 
@@ -118,7 +128,7 @@ mdx-to-storage-xhtml batch --from <glob|manifest> --out-dir <dir> [--fail-fast]
 
 ### Phase 3 — 검증/배치 (2~3일)
 
-- [ ] verify 모드 + diff 리포트
+- [~] verify 모드 + diff 리포트 (기본 동작 구현, pass/fail 개선 필요)
 - [ ] batch 변환 + 결과 요약
 - [ ] 성능/오류 보고 개선
 
@@ -136,6 +146,13 @@ mdx-to-storage-xhtml batch --from <glob|manifest> --out-dir <dir> [--fail-fast]
   - MDX -> XHTML -> (기존 converter) -> MDX roundtrip 비교
 - 회귀 테스트:
   - 기존 reverse-sync 실패 유형(공백, 빈 strong, 리스트/Callout 손상) 재현 케이스 추가
+
+### XHTML 비교 기준
+
+- `xhtml_beautify_diff.py`를 canonical 비교 도구로 사용한다.
+- 문자열 raw diff가 아닌 `beautify_xhtml` 정규화 후 `xhtml_diff` 결과를 기준으로 pass/fail을 판단한다.
+- 운영 명령 예시:
+  - `python3 bin/xhtml_beautify_diff.py tests/testcases/<id>/page.xhtml tests/testcases/<id>/generated.from.expected.xhtml`
 
 ## 리스크 및 대응
 
@@ -158,4 +175,3 @@ mdx-to-storage-xhtml batch --from <glob|manifest> --out-dir <dir> [--fail-fast]
 - [ ] `confluence-mdx` 내 구현 브랜치 생성
 - [ ] Phase 0 착수: 의존점 맵/샘플 세트/성공기준 문서 작성
 - [ ] Phase 1 구현 시작
-
