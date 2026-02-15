@@ -70,8 +70,11 @@ git remote prune origin
 ### 3. 새 Feature 브랜치 생성
 
 ```bash
-git checkout -b <prefix>/<descriptive-name>
+git checkout -b <prefix>/<descriptive-name> origin/main
 ```
+
+> 브랜치 시작점은 항상 `origin/main`으로 고정한다.  
+> 로컬의 다른 작업 브랜치에서 분기하지 않는다.
 
 ## 브랜치 네이밍 규칙
 
