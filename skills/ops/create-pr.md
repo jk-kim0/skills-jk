@@ -44,6 +44,18 @@ git push -u origin <branch>
 gh workflow run create-pr.yml -f branch="<branch>" -f title="<type>: ..."
 ```
 
+## gh 실행 환경 규칙
+
+로컬에서 `gh`를 실행할 때는 환경변수 토큰을 제거하고 keyring 인증을 사용합니다.
+
+```bash
+env -u GITHUB_TOKEN -u GH_TOKEN gh <subcommand>
+```
+
+이유:
+- 셸에 주입된 `GITHUB_TOKEN`/`GH_TOKEN`이 권한 제한 토큰일 경우 `gh pr create`/`gh pr edit`/`gh pr view` 등이 실패할 수 있음
+- 사용자 계정 keyring 토큰(`gh auth login`)을 우선 사용해야 일관된 권한으로 동작
+
 ## 커밋 수정 후 PR 업데이트
 
 커밋을 amend/추가한 경우:
