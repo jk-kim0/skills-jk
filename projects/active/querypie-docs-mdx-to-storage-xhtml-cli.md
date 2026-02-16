@@ -5,299 +5,189 @@ status: active
 repos:
   - https://github.com/querypie/querypie-docs
 created: 2026-02-15
-updated: 2026-02-18
+updated: 2026-02-16
 ---
 
 # QueryPie Docs MDX -> Confluence Storage XHTML CLI
 
-## 목표
+## 목표 (변경)
 
-`../querypie-docs-translation-1/confluence-mdx` 기반으로, MDX 문서를 Confluence Storage Format(XHTML)으로 변환하는 모듈을 구현한다.
+기존 목표(의미 동등성, 정규화 비교)를 폐기하고, 다음 목표로 전환한다.
 
-핵심 요구사항:
-- 문서 의미(구조/매크로/링크/코드)를 보존하는 변환
-- 배치 실행 및 검증 가능한 테스트 체계 구축
-- reverse-sync에서 재사용 가능한 변환 모듈 제공
+- **원문 `page.xhtml`를 바이트 단위로 복원**한다.
+- 사소한 노드/속성/공백 차이도 허용하지 않는다.
+- `MDX -> XHTML` 결과가 원문 `page.xhtml`와 `byte-equal`이어야 한다.
 
-## 아키텍처
+즉, 이 프로젝트는 "유사 XHTML 생성기"가 아니라 **lossless roundtrip 복원기**다.
 
-```
-MDX 입력
-  │
-  ├─ 1. 전처리: frontmatter 파싱(title 추출), import 제거
-  │
-  ├─ 2. 블록 파싱: line-based parser → Block[]
-  │     (heading, paragraph, list, code_block, callout,
-  │      figure, table, blockquote, html_block, hr, empty)
-  │
-  ├─ 3. 블록별 XHTML 생성: Block → XHTML string
-  │     ├─ 인라인 변환: **bold**, *italic*, `code`, [link](), <br/> 등
-  │     └─ 구조 변환: Callout→macro, figure→ac:image, table→<table>
-  │
-  └─ 4. XHTML 조립: 모든 블록의 XHTML을 연결
-```
+## 왜 기존 접근으로는 실패하는가
 
-**IR 레이어 없음.** Block 타입은 dataclass:
+현재 구조(`line-based parser + emitter + verify normalize`)는 다음 한계를 갖는다.
 
-```python
-@dataclass
-class Block:
-    type: str           # "heading", "paragraph", "callout", "figure", "hr", ...
-    content: str        # 원본 MDX 텍스트
-    level: int = 0      # heading level, list depth
-    language: str = ""  # code block language
-    children: list = field(default_factory=list)  # nested blocks (callout body 등)
-    attrs: dict = field(default_factory=dict)      # callout type, image src/width 등
-```
+1. Forward 단계에서 정보 손실 발생 (`#link-error`, `ac:emoticon`, `ac:adf-extension`, filename 정규화 등)
+2. 역변환이 "추론 기반 재생성"이므로 원문 문자열을 1:1 복제할 수 없음
+3. 일반 XML/HTML serializer가 공백/속성순서/self-closing 표기를 바꿈
+4. verify가 정규화 중심이라 "정확 복원" 설계 압박을 약화시킴
 
-### 모듈 구조
+결론: **복원에 필요한 원본 정보를 forward 단계에서 보존**하지 않으면 목표 달성 불가.
+
+## 설계 원칙
+
+1. Lossless by default: 원본 정보를 절대 버리지 않는다.
+2. Source of truth 분리: 의미 표현(MDX)과 복원 메타(sidecar)를 함께 유지한다.
+3. Deterministic rendering: serializer가 원문 토큰/표현을 보존한다.
+4. Byte-equal gate: 최종 품질지표는 pass율이 아니라 byte-equal 비율이다.
+
+## 새 아키텍처 (Lossless Roundtrip)
 
 ```
-bin/
-├── mdx_to_storage_xhtml_verify_cli.py   # 검증 CLI (배치/단건 검증 + 분석 리포트)
-├── xhtml_beautify_diff.py               # XHTML 정규화 + unified diff
-├── mdx_to_storage/
-│   ├── __init__.py                      # 공개 API: parse_mdx, emit_document, Block
-│   ├── parser.py                        # MDX → Block[] 파싱 (400줄)
-│   ├── emitter.py                       # Block → XHTML 문자열 생성 (318줄)
-│   └── inline.py                        # 인라인 MDX → XHTML 변환 (63줄)
-└── reverse_sync/
-    └── mdx_to_storage_xhtml_verify.py   # 검증 유틸 (정규화 필터 + 분석) (257줄)
+Confluence XHTML (source)
+  ├─ A. Forward convert -> expected.mdx
+  └─ B. Sidecar extract -> expected.roundtrip.json
 
-tests/
-├── test_mdx_to_storage/
-│   ├── test_parser.py                   # 27 tests
-│   ├── test_inline.py                   # 9 tests
-│   └── test_emitter.py                  # 46 tests
-├── test_mdx_to_storage_xhtml_verify.py  # 16 tests (필터 + 분석)
-└── test_mdx_to_storage_xhtml_verify_cli.py  # 8 tests
+expected.mdx + expected.roundtrip.json
+  -> MDX to XHTML restore pipeline
+     1) parse mdx -> blocks (+ stable block_id)
+     2) compare with sidecar fingerprints
+     3) unchanged block = raw xhtml splice
+     4) changed block = deterministic re-render
+     5) token-preserving document stitch
+
+output.xhtml == page.xhtml (byte-equal)
 ```
 
-## 변환 규칙
+### 핵심 컴포넌트
+
+- `roundtrip_sidecar.py` (신규)
+  - 원문 XHTML의 블록 경계, raw fragment, 링크/매크로 원본, 속성 순서/표기 보존
+- `block_identity.py` (신규)
+  - forward/reverse 양방향에서 안정적인 `block_id` 생성
+- `rehydrator.py` (신규)
+  - sidecar를 이용해 unchanged 블록 raw 복원, changed 블록만 렌더링
+- `token_preserving_serializer.py` (신규)
+  - `<br/>` vs `<br />`, attribute order, whitespace, CDATA 표기 보존
+- `byte_verify_cli.py` (신규 또는 기존 확장)
+  - `byte-equal` 검증을 기본 모드로 강제
 
-### Block 레벨 (parser.py + emitter.py)
+## 데이터 계약 (Roundtrip Sidecar v1)
+
+`expected.roundtrip.json` 예시 필드:
 
-| # | MDX 입력 | XHTML 출력 | 상태 |
-|---|---------|-----------|------|
-| 1 | `## Heading` | `<h1>Heading</h1>` (레벨 -1 보정) | ✅ |
-| 2 | `# Title` (page title) | skip (XHTML 미포함) | ✅ |
-| 3 | 일반 텍스트 | `<p>inline content</p>` | ✅ |
-| 4 | `* item` / `1. item` | `<ul><li><p>...</p></li></ul>` (중첩 포함) | ✅ |
-| 5 | ` ```lang ` | `<ac:structured-macro ac:name="code">` + CDATA | ✅ |
-| 6 | `<Callout type="X">` | `<ac:structured-macro ac:name="Y"><ac:rich-text-body>` | ✅ |
-| 7 | `<figure><img>` | `<ac:image><ri:attachment>` | ✅ |
-| 8 | `______` | `<hr />` | ✅ |
-| 9 | `\| col \|` 마크다운 테이블 | `<table><tbody><tr><td><p>` | ✅ |
-| 10 | `<table>` HTML 테이블 | XHTML로 보존 (인라인만 변환) | ✅ |
-| 11 | `> blockquote` | `<blockquote><p>` | ✅ |
-| 12 | `<details><summary>` | `<ac:structured-macro ac:name="expand">` | Phase 3 |
-| 13 | `<Badge color="X">` | `<ac:structured-macro ac:name="status">` | Phase 3 |
+- `page_id`
+- `source_sha256`
+- `blocks[]`
+  - `block_id`
+  - `kind` (`paragraph`, `list`, `macro`, `table`, ...)
+  - `raw_xhtml`
+  - `raw_span` (offset begin/end)
+  - `semantic_fingerprint`
+  - `link_metadata[]` (`ri:content-title`, `ri:space-key`, `ac:anchor`, original href)
+  - `macro_metadata` (`ac:adf-extension` payload 포함)
+  - `attachment_metadata` (원본 filename/ids)
+- `document_tokens`
+  - 문서 단위 접합 시 필요한 토큰(개행/indent/prefix/suffix)
 
-### Inline 레벨 (inline.py)
+## 구현 단계
 
-| # | MDX | XHTML | 상태 |
-|---|-----|-------|------|
-| 1 | `**text**` | `<strong>text</strong>` | ✅ |
-| 2 | `*text*` | `<em>text</em>` | ✅ |
-| 3 | `` `text` `` | `<code>text</code>` | ✅ |
-| 4 | `[text](url)` | `<a href="url">text</a>` (외부 링크) | ✅ |
-| 5 | `[text](relative)` | `<ac:link><ri:page ri:content-title="...">` (내부 링크) | Phase 3 |
-| 6 | `&gt;` `&lt;` | 그대로 보존 | ✅ |
+### Phase L1 — 계약/인프라 (필수)
 
-### 특수 처리
+#### Task L1.1: Roundtrip Sidecar 스키마 확정
+- [ ] `expected.roundtrip.json` 스키마 정의
+- [ ] 스키마 버전(`roundtrip_schema_version`) 도입
+- [ ] fixture 3건에 샘플 sidecar 생성
 
-| 항목 | 처리 | 상태 |
-|------|------|------|
-| Frontmatter (`---`) | 파싱하여 title 추출, XHTML 출력에 미포함 | ✅ |
-| `# Title` | Frontmatter title과 동일하면 skip | ✅ |
-| Import 문 | 무시 (skip) | ✅ |
-| Callout 타입 역매핑 | `default→tip`, `info→info`, `important→note`, `error→warning` | ✅ |
-| Panel with emoji | `<Callout type="info" emoji="🌈">` → `ac:name="panel"` + panelIcon | ✅ |
-| Heading 레벨 보정 | `##`→`<h1>`, `###`→`<h2>`. 1단계 감소 | ✅ |
-| Heading 내 bold | `**text**` 마커 제거 (forward converter가 strip하므로) | ✅ |
+#### Task L1.2: Forward sidecar 생성기 구현
+- [ ] forward 변환 시 sidecar 동시 생성
+- [ ] link/macro/attachment 원본 정보 저장
+- [ ] 기존 CLI에 `--write-sidecar` 옵션 추가
 
-## 검증 파이프라인
+#### Task L1.3: Stable block_id 설계
+- [ ] 블록 경계 규칙 정의
+- [ ] block_id 생성 알고리즘 구현
+- [ ] forward/reverse 일치 테스트
 
-### 정규화 필터 (4단계)
+### Phase L2 — 복원 파이프라인
 
-1. **구조 제거:** `<ac:layout>`, `<ac:layout-section>`, `<ac:layout-cell>` 래핑 제거 (내용 보존)
-2. **매크로 제거:** `<ac:structured-macro ac:name="toc">`, `view-file` 등 역변환 불가 매크로 제거
-3. **장식 제거:** `<ac:adf-mark>`, `<ac:inline-comment-marker>`, `<colgroup>`, 빈 `<p>` 제거 (내용 보존)
-4. **속성 제거:** 무시 대상 속성 19종 제거 (`ac:macro-id`, `ac:local-id`, `local-id`, `ac:schema-version`, `ri:version-at-save`, `ac:original-height`, `ac:original-width`, `ac:custom-width`, `ac:alt`, `ac:layout`, `data-table-width`, `data-layout`, `data-highlight-colour`, `data-card-appearance`, `ac:breakout-mode`, `ac:breakout-width`, `ri:space-key`, `style`, `class`)
+#### Task L2.1: Rehydrator 구현
+- [ ] unchanged 블록 raw splice
+- [ ] changed 블록 fallback renderer
+- [ ] hybrid 문서 조립
 
-정규화 후 `beautify_xhtml()` + unified diff 비교.
+#### Task L2.2: Token-preserving serializer 구현
+- [ ] self-closing 표기 보존
+- [ ] attribute 순서 보존
+- [ ] whitespace/line-break 보존
+- [ ] CDATA 경계 보존
 
-### CLI 사용법
+#### Task L2.3: 비가역 케이스 복원
+- [ ] `#link-error`를 sidecar 기반으로 원복
+- [ ] `ac:adf-extension` raw payload 원복
+- [ ] `ac:emoticon`, `ri:filename` 원복
 
-```bash
-# 단위 테스트
-cd confluence-mdx
-python3 -m pytest tests/test_mdx_to_storage/ tests/test_mdx_to_storage_xhtml_verify.py tests/test_mdx_to_storage_xhtml_verify_cli.py -v
+### Phase L3 — 검증 체계 전환
 
-# 배치 검증 + 분석 리포트
-python3 bin/mdx_to_storage_xhtml_verify_cli.py \
-    --show-analysis \
-    --write-analysis-report reports/mdx_to_storage_batch_verify_analysis.md
+#### Task L3.1: Byte verify를 기본 게이트로 전환
+- [ ] `verify` 기본 모드를 byte-equal로 변경
+- [ ] 실패 시 semantic diff는 보조 출력만 제공
 
-# 개별 케이스 검증
-python3 bin/mdx_to_storage_xhtml_verify_cli.py --case-id 544375741 --show-diff-limit 1
+#### Task L3.2: 회귀 테스트 재정의
+- [ ] testcase 21건 전체 byte-equal snapshot 추가
+- [ ] CI 실패 기준을 byte-equal mismatch로 고정
 
-# diff 출력 수 조절
-python3 bin/mdx_to_storage_xhtml_verify_cli.py --show-diff-limit 0  # diff 생략
-```
+#### Task L3.3: 성능/안정성 보강
+- [ ] 대용량 문서 복원 시간 측정
+- [ ] sidecar schema migration 전략 수립
 
-## 현재 상태 (2026-02-18)
+## 완료 기준 (DoD)
 
-### 완료된 Phase
+1. `tests/testcases/*` 대상 `MDX + sidecar -> XHTML` 결과가 원문과 byte-equal
+2. known exception 없음 (임시 예외 허용 금지)
+3. sidecar 없는 입력에 대해선 명시적으로 "lossless 미보장" 경고 출력
+4. CI에서 byte-equal gate 통과
 
-| Phase | 범위 | 상태 | PR |
-|-------|------|------|-----|
-| Phase 1 (Task 1.1~1.7) | 모듈 구조 + 핵심 블록/인라인 | **완료** | #766~#771 |
-| Phase 2 (Task 2.1~2.7) | 복합 구조 + 검증 필터 + 통합 검증 | **완료** | #772~#778 |
+## 테스트 전략
 
-### 모듈 규모
+### 필수 테스트
 
-- 변환 모듈: **781줄** (parser 400 + emitter 318 + inline 63)
-- 검증 모듈: **406줄** (verify 257 + verify-cli 149)
-- 합계: **1,187줄**
+- `test_roundtrip_sidecar_schema.py`
+- `test_block_identity_stability.py`
+- `test_rehydrator_raw_splice.py`
+- `test_token_preserving_serializer.py`
+- `test_lossless_roundtrip_e2e.py` (21 fixtures)
 
-### 테스트 현황
+### 실패 분석 출력
 
-- **총 106개** (parser 27, inline 9, emitter 46, verify 16, verify-cli 8)
-- 전체 pass
+byte mismatch 시 최소 정보 출력:
 
-### Batch verify 결과
+- 최초 mismatch byte offset
+- 주변 200-byte context
+- block_id 매핑 정보
 
-- **결과: 0/21 pass**
-- 필터 효과: verify_filter_noise 20→1, non_reversible_macro_noise 10→0, table_cell_structure_mismatch 9→2, P2 7→0 (소멸)
+## 리스크와 대응
 
-**실패 원인 분류:**
+1. Sidecar 크기 증가
+- 대응: gzip 저장 옵션 + CI artifact 분리
 
-| 우선순위 | 건수 | 주요 원인 |
-|----------|------|-----------|
-| P1 | 10 | `internal_link_unresolved` 8건, `table_cell_structure_mismatch` 2건 |
-| P3 | 11 | `other` (아래 근본 원인 분석 참조) |
+2. Block 경계 변경 시 기존 sidecar 무효화
+- 대응: schema version + migration tool
 
-**P1: `internal_link_unresolved` 8건의 근본 한계:**
+3. serializer 구현 난이도
+- 대응: full rewrite 대신 토큰 스트림 기반 최소 구현부터 시작
 
-Forward converter가 `pages.yaml`에서 대상 페이지를 찾지 못하면 `[text](#link-error)`를 생성한다. 이 시점에서 원본 정보(`ri:content-title`, `ri:space-key`)가 소실된다. 역변환 시 `#link-error`에서 원본 `<ac:link>`를 복원할 수 없다.
+4. 기존 파이프라인과의 충돌
+- 대응: `--mode semantic`(기존), `--mode lossless`(신규) 병행 후 점진 전환
 
-대응 전략 (택일):
-1. verify 필터에서 `<ac:link>` → `<a>` 변환하여 비교 기준 완화
-2. Forward converter 수정: `#link-error` 대신 원본 정보를 보존하는 형식 사용
-3. 이 8건을 "알려진 제약"으로 분류하고 pass 목표에서 제외
+## 운영 정책 변경
 
-**P3: `other` 11건의 근본 원인 분석:**
+- 기존 "pass/fail + reason 통계"는 보조 지표로 강등
+- 핵심 KPI를 다음으로 교체:
+  - `byte_equal_pass_count / total`
+  - `unchanged_block_raw_splice_ratio`
+  - `fallback_rendered_block_ratio`
 
-| 근본 원인 | 영향 케이스 | 수정 난이도 |
-|-----------|-----------|------------|
-| `<ol>`에 `start="1"` 누락 | 5건+ (lists, 544113141, 544381877, 880181257, 544112828) | **trivial** |
-| `<br/>` → `<br />` 정규화 미처리 | 10건 (43% — 99회 출현) | **low** |
-| `ac:image`가 리스트 내에서 `<figure>`로 출력 | 2건 (544113141, 880181257) | medium |
-| `ac:emoticon` → 유니코드 이모지 비가역 변환 | 2건 (544113141, 544381877) | high |
-| `<details>` → `expand` 매크로 변환 미구현 | 1건 (544381877) | medium |
-| 테이블 셀 내 리스트가 raw markdown으로 출력 | 1건 (544375741) | medium |
-| `ac:adf-extension` 패널 vs `ac:structured-macro` 형식 차이 | 1건 (panels) | high |
+## 다음 액션 (즉시)
 
-## Phase 3 — Quick win + 내부 링크 + 매크로
-
-영향도와 난이도 기반으로 태스크를 재배치한다. quick win을 먼저 수확하여 pass율을 조기에 올린다.
-
-#### Task 3.0: Quick win 수정
-
-- [ ] `<ol>` 생성 시 `start="1"` 속성 추가 — 이미터 1줄 수정, 5건+ 영향
-- [ ] `<br/>` → `<br />` 정규화 — verify 필터에 추가, 10건 영향
-- [ ] `classify_failure_reasons()` 분류기 보강 — `other` 11건을 구체적 카테고리로 재분류
-- [ ] batch-verify 재측정 — quick win 효과 확인
-
-#### Task 3.1: 내부 링크 해석 (`link_resolver.py`)
-
-정상 해석된 상대 경로 링크(`[text](../relative/path)`)만 대상. `#link-error` 링크는 별도 전략.
-
-- [ ] `pages.yaml` 로딩 — 기존 `context.py`의 `load_pages_yaml()` 재사용
-- [ ] 상대 경로 → page title 역매핑 (path segments → `title_orig`)
-- [ ] XHTML 생성 — `<ac:link><ri:page ri:content-title="..."/><ac:plain-text-link-body><![CDATA[text]]></ac:plain-text-link-body></ac:link>`
-- [ ] 외부 링크 구분 — `http://`, `https://`, `#link-error` 는 `<a href>` 유지
-
-#### Task 3.1b: `#link-error` 대응 전략 결정
-
-- [ ] 대응 전략 택일:
-  - (A) verify 필터에서 `<ac:link>` → `<a>` 변환 (비교 기준 완화, 8건 즉시 해소)
-  - (B) Forward converter 수정: link text + content-title을 MDX에 보존
-  - (C) 8건을 pass 목표에서 제외 (알려진 제약)
-- [ ] 선택한 전략 구현
-
-#### Task 3.2: 추가 매크로
-
-- [ ] `<details><summary>` → `<ac:structured-macro ac:name="expand">` (1건 영향)
-- [ ] `<Badge color="X">text</Badge>` → `<ac:structured-macro ac:name="status">` (2건, 31회 출현)
-
-#### Task 3.3: Edge case 처리
-
-- [ ] `ac:emoticon` → 유니코드 이모지 비가역 — verify 필터에서 `<ac:emoticon>` strip (2건)
-- [ ] 리스트 내 `<figure>` → `<ac:image>` 구조 수정 (2건)
-- [ ] 테이블 셀 내 markdown 리스트 → XHTML 리스트 변환 (1건)
-- [ ] 이미지 파일명 불일치 — verify 필터에서 `ri:filename` 무시 옵션
-
-#### Task 3.4: 최종 검증
-
-- [ ] batch-verify 실행
-- [ ] **목표:** `#link-error` 전략에 따라:
-  - 전략 (A) 적용 시: 13건 이상 pass 목표
-  - 전략 (C) 적용 시: 8건 이상 pass (13건 중, `#link-error` 8건 제외)
-- [ ] 나머지 실패 케이스 원인 문서화
-
----
-
-### Phase 4 — reverse-sync 통합
-
-#### Task 4.1: reverse-sync 파이프라인 통합 PoC
-
-- [ ] 기존 reverse-sync에서 `mdx_to_storage_xhtml_fragment()` 호출부를 신규 모듈로 교체
-- [ ] 기존 reverse-sync 테스트 통과 확인
-
-#### Task 4.2: 인터페이스 고정 및 문서화
-
-- [ ] 공개 API 확정: `parse_mdx()`, `emit_document()`, `convert_inline()`
-- [ ] 지원 매트릭스 문서화 (지원/미지원 MDX 구문)
-
----
-
-## 알려진 제약
-
-1. **`#link-error` 링크 비가역성**: Forward converter가 `pages.yaml`에서 대상 페이지를 찾지 못하면 `[text](#link-error)`를 생성한다. 이 시점에서 원본 `ri:content-title`, `ri:space-key` 정보가 소실되어 역변환으로 복원할 수 없다. 8건의 testcase가 영향.
-
-2. **`ac:emoticon` 비가역 변환**: Forward converter가 `<ac:emoticon ac:name="tick">` → `✔️` (유니코드)로 변환한다. 이모지 shortname 정보가 소실되어 원본 `<ac:emoticon>` 태그를 복원할 수 없다.
-
-3. **`ac:adf-extension` 미지원**: 일부 panel(note 등)은 `ac:adf-extension` 포맷을 사용한다. 현재는 `ac:structured-macro`만 생성. 원본 ADF 구조와 근본적으로 다르다.
-
-4. **이미지 파일명 매핑 불가**: Forward converter가 파일명을 정규화(한글→ASCII 등)하므로, MDX의 파일명에서 원본 Confluence 첨부 파일명을 복원할 수 없다.
-
-5. **Layout 섹션 미생성**: Forward converter가 `<ac:layout>` 래핑을 strip하므로 역변환 시 layout 정보가 없다. 검증 시 layout을 strip하여 비교한다.
-
-6. **Inline comment marker 미복원**: `<ac:inline-comment-marker>` 내부 텍스트는 보존하되 마커 자체는 역변환 불가. 검증 시 strip.
-
-7. **`<ol start="N">` 속성**: Confluence가 `<ol>` 에 자동 부여하는 `start` 속성은 MDX에 정보가 없다. `start="1"`은 기본값이므로 추가 가능하나, continuation numbering(`start="3"` 등)은 복원 불가.
-
-## 핵심 파일 참조
-
-| 파일 | 역할 |
-|------|------|
-| `bin/mdx_to_storage/parser.py` | MDX → Block[] 파싱 (400줄) |
-| `bin/mdx_to_storage/emitter.py` | Block → XHTML 문자열 생성 (318줄) |
-| `bin/mdx_to_storage/inline.py` | 인라인 MDX → XHTML 변환 (63줄) |
-| `bin/reverse_sync/mdx_to_storage_xhtml_verify.py` | 검증 유틸 + 정규화 필터 + 분석 (257줄) |
-| `bin/mdx_to_storage_xhtml_verify_cli.py` | 검증 CLI (149줄) |
-| `bin/converter/core.py` | Forward converter XHTML→MDX (1,438줄) |
-| `bin/converter/context.py` | 전역 상태, pages.yaml, 링크 해석 (665줄) |
-| `var/pages.yaml` | 페이지 메타데이터 (293건) |
-| `tests/testcases/*/page.xhtml` | 검증 기준 XHTML |
-| `tests/testcases/*/expected.mdx` | 변환 입력 MDX |
-
-## 다음 액션
-
-- [ ] Task 3.0 quick win 구현: `ol start="1"`, `<br/>` 정규화, 분류기 보강
-- [ ] Task 3.1b `#link-error` 대응 전략 결정
-- [ ] Task 3.1 내부 링크 해석 (정상 경로만)
-- [ ] Task 3.2 매크로 구현 (details, Badge)
-- [ ] Task 3.4 최종 검증 — batch-verify pass 목표 재측정
+- [ ] L1.1 sidecar 스키마 초안 작성
+- [ ] L1.2 forward sidecar 생성 PoC 구현
+- [ ] testcase 3건(`lists`, `panels`, `544211126`)에 대해 byte-equal 복원 실험
+- [ ] 프로젝트 문서/PR 템플릿에 "lossless gate" 반영
