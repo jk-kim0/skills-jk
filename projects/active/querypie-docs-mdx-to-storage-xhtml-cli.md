@@ -5,7 +5,7 @@ status: active
 repos:
   - https://github.com/querypie/querypie-docs
 created: 2026-02-15
-updated: 2026-02-15
+updated: 2026-02-17
 ---
 
 # QueryPie Docs MDX -> Confluence Storage XHTML CLI
@@ -169,6 +169,45 @@ confluence-mdx/
 | `<hr />` → `______` | `______` → `<hr />` |
 | `<Badge color="blue">` ← `ac:structured-macro name="status"` | `<Badge>` → `ac:structured-macro name="status"` |
 
+## 진행 현황 (2026-02-17)
+
+### Phase 완료 상태
+
+| Phase | 범위 | 상태 |
+|-------|------|------|
+| Phase 1 (Task 1.1~1.7) | 모듈 구조 + 핵심 블록/인라인 | **완료** — main 머지 완료 |
+| Phase 2 (Task 2.1~2.3) | Callout, Figure, 중첩 리스트 | **완료** — main 머지 완료 (PR #772, #773, #774) |
+| Phase 2 (Task 2.4~2.6) | 테이블, Blockquote, verify 필터 | **진행 중** — PR #775~#777 리뷰 대기 |
+| Phase 2 (Task 2.7) | 통합 검증 | 미착수 |
+
+### 모듈 현재 규모
+
+| 모듈 | 줄 수 |
+|------|-------|
+| `bin/mdx_to_storage/parser.py` | 320줄 |
+| `bin/mdx_to_storage/emitter.py` | 240줄 |
+| `bin/mdx_to_storage/inline.py` | 63줄 |
+| **합계** | **623줄** |
+
+### 단위 테스트 현황
+
+- **총 60개** (parser 16, inline 14, emitter 30)
+- 전체 pass
+
+### Batch verify 현황
+
+- **결과: 0/21 pass** (변동 없음)
+- **원인:** verify 정규화 필터(Task 2.6)가 아직 main에 미적용. `ac:macro-id`, `ac:layout` 등이 diff에 노출되어 모든 케이스 실패
+- verify 필터가 적용되면 즉시 pass 수 증가 예상
+
+### 오픈 PR 목록
+
+| PR | Task | 제목 |
+|----|------|------|
+| #775 | Task 2.4 | 테이블 변환(마크다운/HTML) 구현 |
+| #776 | Task 2.5 | blockquote 변환 구현 |
+| #777 | Task 2.6 | verify 정규화 필터 구현 |
+
 ## 아키텍처
 
 ```
@@ -314,65 +353,65 @@ python3 bin/mdx_to_storage_xhtml_cli.py batch-verify \
 기본 블록(heading, paragraph, code, list)과 인라인(bold, italic, code, link)을
 새 모듈로 구현하고, 검증 CLI를 신규 모듈로 전환한다.
 
-#### Task 1.1: 모듈 구조 생성
+#### Task 1.1: 모듈 구조 생성 ✅
 
-- [ ] `bin/mdx_to_storage/__init__.py` 생성
-- [ ] `bin/mdx_to_storage/parser.py` 스켈레톤 — `Block` dataclass + `parse_mdx()` 함수
-- [ ] `bin/mdx_to_storage/inline.py` 스켈레톤 — `convert_inline()` 함수
-- [ ] `bin/mdx_to_storage/emitter.py` 스켈레톤 — `emit_block()` + `emit_document()` 함수
-- [ ] `tests/test_mdx_to_storage/` 디렉토리 생성
+- [x] `bin/mdx_to_storage/__init__.py` 생성
+- [x] `bin/mdx_to_storage/parser.py` 스켈레톤 — `Block` dataclass + `parse_mdx()` 함수
+- [x] `bin/mdx_to_storage/inline.py` 스켈레톤 — `convert_inline()` 함수
+- [x] `bin/mdx_to_storage/emitter.py` 스켈레톤 — `emit_block()` + `emit_document()` 함수
+- [x] `tests/test_mdx_to_storage/` 디렉토리 생성
 
-#### Task 1.2: 블록 파서 구현 (`parser.py`)
+#### Task 1.2: 블록 파서 구현 (`parser.py`) ✅
 
 기존 `mdx_block_parser.py`를 참조하되 새로 작성. 추가 블록 타입 지원:
 
-- [ ] `Block` dataclass 정의 (type, content, level, language, children, attrs)
-- [ ] Frontmatter 파싱 — `---` 블록에서 `title` 추출, `attrs['title']`에 저장
-- [ ] Import 문 감지 — `import ` 시작 줄
-- [ ] Heading 파싱 — `#` 개수로 level 추출
-- [ ] Paragraph 파싱 — fallback, 빈 줄까지 수집
-- [ ] Code block 파싱 — ` ``` ` 펜스, `language` 추출
-- [ ] List 파싱 — `*`/`-`/`1.` 시작, 들여쓰기 연속 포함
-- [ ] 수평선 감지 — `______` 패턴 → `type="hr"`
-- [ ] Callout 블록 감지 — `<Callout` 시작 ~ `</Callout>` 종료, `type`/`emoji` attrs 추출
-- [ ] Figure 블록 감지 — `<figure` 시작 ~ `</figure>` 종료, `src`/`alt`/`width` attrs 추출
-- [ ] HTML block 감지 — `<table`, `<div` 등 기존 로직 유지
-- [ ] Empty line 처리
-- [ ] `parse_mdx(text: str) -> list[Block]` 통합 함수
+- [x] `Block` dataclass 정의 (type, content, level, language, children, attrs)
+- [x] Frontmatter 파싱 — `---` 블록에서 `title` 추출, `attrs['title']`에 저장
+- [x] Import 문 감지 — `import ` 시작 줄
+- [x] Heading 파싱 — `#` 개수로 level 추출
+- [x] Paragraph 파싱 — fallback, 빈 줄까지 수집
+- [x] Code block 파싱 — ` ``` ` 펜스, `language` 추출
+- [x] List 파싱 — `*`/`-`/`1.` 시작, 들여쓰기 연속 포함
+- [x] 수평선 감지 — `______` 패턴 → `type="hr"`
+- [x] Callout 블록 감지 — `<Callout` 시작 ~ `</Callout>` 종료, `type`/`emoji` attrs 추출
+- [x] Figure 블록 감지 — `<figure` 시작 ~ `</figure>` 종료, `src`/`alt`/`width` attrs 추출
+- [x] HTML block 감지 — `<table`, `<div` 등 기존 로직 유지
+- [x] Empty line 처리
+- [x] `parse_mdx(text: str) -> list[Block]` 통합 함수
 
-#### Task 1.3: 인라인 변환 구현 (`inline.py`)
+#### Task 1.3: 인라인 변환 구현 (`inline.py`) ✅
 
-- [ ] Code span 보호 — `` `text` `` → placeholder → `<code>text</code>` 복원
-- [ ] Bold — `**text**` → `<strong>text</strong>`
-- [ ] Italic — `*text*` → `<em>text</em>` (bold과 충돌 방지: bold 먼저 처리)
-- [ ] Link — `[text](url)` → `<a href="url">text</a>`
-- [ ] `<br/>` 보존
-- [ ] HTML entity 보존 (`&gt;`, `&lt;`, `&amp;`)
-- [ ] `convert_inline(text: str) -> str` 통합 함수
-- [ ] `convert_heading_inline(text: str) -> str` — bold 마커 제거, code/link만 변환
+- [x] Code span 보호 — `` `text` `` → placeholder → `<code>text</code>` 복원
+- [x] Bold — `**text**` → `<strong>text</strong>`
+- [x] Italic — `*text*` → `<em>text</em>` (bold과 충돌 방지: bold 먼저 처리)
+- [x] Link — `[text](url)` → `<a href="url">text</a>`
+- [x] `<br/>` 보존
+- [x] HTML entity 보존 (`&gt;`, `&lt;`, `&amp;`)
+- [x] `convert_inline(text: str) -> str` 통합 함수
+- [x] `convert_heading_inline(text: str) -> str` — bold 마커 제거, code/link만 변환
 
-#### Task 1.4: XHTML 이미터 구현 (`emitter.py`)
+#### Task 1.4: XHTML 이미터 구현 (`emitter.py`) ✅
 
-- [ ] Heading — level-1 보정, `<h{level-1}>content</h{level-1}>`
-- [ ] Page title skip — `# Title`이 frontmatter title과 동일하면 건너뛰기
-- [ ] Paragraph — `<p>convert_inline(content)</p>`
-- [ ] Code block — `<ac:structured-macro ac:name="code">` + `<ac:parameter ac:name="language">` + CDATA
-- [ ] List (단일 depth) — `<ul>/<ol>` + `<li><p>convert_inline(item)</p></li>`
-- [ ] Horizontal rule — `<hr />`
-- [ ] Frontmatter/import/empty — skip
-- [ ] HTML block — passthrough
-- [ ] `emit_block(block: Block, context: dict) -> str` 함수
-- [ ] `emit_document(blocks: list[Block]) -> str` — 전체 문서 XHTML 조립
+- [x] Heading — level-1 보정, `<h{level-1}>content</h{level-1}>`
+- [x] Page title skip — `# Title`이 frontmatter title과 동일하면 건너뛰기
+- [x] Paragraph — `<p>convert_inline(content)</p>`
+- [x] Code block — `<ac:structured-macro ac:name="code">` + `<ac:parameter ac:name="language">` + CDATA
+- [x] List (단일 depth) — `<ul>/<ol>` + `<li><p>convert_inline(item)</p></li>`
+- [x] Horizontal rule — `<hr />`
+- [x] Frontmatter/import/empty — skip
+- [x] HTML block — passthrough
+- [x] `emit_block(block: Block, context: dict) -> str` 함수
+- [x] `emit_document(blocks: list[Block]) -> str` — 전체 문서 XHTML 조립
 
-#### Task 1.5: 검증 CLI 전환
+#### Task 1.5: 검증 CLI 전환 ✅
 
-- [ ] `bin/mdx_to_storage_xhtml_verify_cli.py` 수정: 신규 모듈 import
-- [ ] `mdx_to_storage_xhtml_fragment()` 함수를 신규 모듈 기반으로 교체
-- [ ] 기존 `batch-verify` 동작 유지
+- [x] `bin/mdx_to_storage_xhtml_verify_cli.py` 수정: 신규 모듈 import
+- [x] `mdx_to_storage_xhtml_fragment()` 함수를 신규 모듈 기반으로 교체
+- [x] 기존 `batch-verify` 동작 유지
 
-#### Task 1.6: 단위 테스트
+#### Task 1.6: 단위 테스트 ✅
 
-- [ ] `tests/test_mdx_to_storage/test_parser.py`
+- [x] `tests/test_mdx_to_storage/test_parser.py`
   - frontmatter 파싱 + title 추출
   - heading 레벨 감지
   - code block 언어 추출
@@ -380,21 +419,21 @@ python3 bin/mdx_to_storage_xhtml_cli.py batch-verify \
   - callout 블록 감지
   - figure 블록 감지
   - paragraph fallback
-- [ ] `tests/test_mdx_to_storage/test_inline.py`
+- [x] `tests/test_mdx_to_storage/test_inline.py`
   - bold, italic, code, link 개별 + 조합
   - code span 내부 bold/link 보호
   - HTML entity 보존
-- [ ] `tests/test_mdx_to_storage/test_emitter.py`
+- [x] `tests/test_mdx_to_storage/test_emitter.py`
   - heading 레벨 보정
   - page title skip
   - code block CDATA 래핑
   - list ul/ol 생성
   - hr 생성
 
-#### Task 1.7: 베이스라인 검증
+#### Task 1.7: 베이스라인 검증 ✅
 
-- [ ] `batch-verify` 실행하여 현재 pass 수 측정
-- [ ] 개선된 pass 수 기록 (목표: heading/paragraph/code 위주 간단한 케이스 pass)
+- [x] `batch-verify` 실행하여 현재 pass 수 측정
+- [x] 개선된 pass 수 기록 (목표: heading/paragraph/code 위주 간단한 케이스 pass)
 
 **Phase 1 완료 기준:** 단순 MDX 파일(heading + paragraph + list + code)의 XHTML 생성이
 구조적으로 원본과 부분 일치. heading 레벨 보정 동작 확인.
@@ -405,34 +444,34 @@ python3 bin/mdx_to_storage_xhtml_cli.py batch-verify \
 
 Callout, 이미지, 중첩 리스트, 테이블 등 복합 구조를 구현한다.
 
-#### Task 2.1: Callout → ac:structured-macro
+#### Task 2.1: Callout → ac:structured-macro ✅ (PR #772)
 
-- [ ] Callout body 파싱 — `<Callout>` ~ `</Callout>` 사이 내용을 재귀 파싱
-- [ ] 타입 역매핑 — `default→tip`, `info→info`, `important→note`, `error→warning`
-- [ ] XHTML 생성 — `<ac:structured-macro ac:name="{macro_name}"><ac:rich-text-body>{body}</ac:rich-text-body></ac:structured-macro>`
-- [ ] Callout body 내 다중 paragraph 지원 — 각각 `<p>` 래핑
-- [ ] Callout body 내 code block 지원 — 중첩 매크로
-- [ ] Panel with emoji — `<Callout type="info" emoji="🌈">` → `ac:name="panel"` + panelIcon params
-- [ ] 테스트: `panels` testcase 검증
+- [x] Callout body 파싱 — `<Callout>` ~ `</Callout>` 사이 내용을 재귀 파싱
+- [x] 타입 역매핑 — `default→tip`, `info→info`, `important→note`, `error→warning`
+- [x] XHTML 생성 — `<ac:structured-macro ac:name="{macro_name}"><ac:rich-text-body>{body}</ac:rich-text-body></ac:structured-macro>`
+- [x] Callout body 내 다중 paragraph 지원 — 각각 `<p>` 래핑
+- [x] Callout body 내 code block 지원 — 중첩 매크로
+- [x] Panel with emoji — `<Callout type="info" emoji="🌈">` → `ac:name="panel"` + panelIcon params
+- [x] 테스트: `panels` testcase 검증
 
-#### Task 2.2: 이미지/Figure → ac:image
+#### Task 2.2: 이미지/Figure → ac:image ✅ (PR #773)
 
-- [ ] Figure 블록 파싱 — `src`, `alt`, `width`, `data-layout` 추출
-- [ ] 파일명 추출 — `/path/to/image.png` → `image.png` (basename)
-- [ ] XHTML 생성 — `<ac:image ac:align="center"><ri:attachment ri:filename="..."/></ac:image>`
-- [ ] Caption 지원 — `<ac:caption><p>caption text</p></ac:caption>`
-- [ ] `ac:width` 속성 — figure의 width 반영
-- [ ] 캡션 없는 이미지 지원
-- [ ] 테스트: 이미지가 포함된 testcase 검증
+- [x] Figure 블록 파싱 — `src`, `alt`, `width`, `data-layout` 추출
+- [x] 파일명 추출 — `/path/to/image.png` → `image.png` (basename)
+- [x] XHTML 생성 — `<ac:image ac:align="center"><ri:attachment ri:filename="..."/></ac:image>`
+- [x] Caption 지원 — `<ac:caption><p>caption text</p></ac:caption>`
+- [x] `ac:width` 속성 — figure의 width 반영
+- [x] 캡션 없는 이미지 지원
+- [x] 테스트: 이미지가 포함된 testcase 검증
 
-#### Task 2.3: 중첩 리스트
+#### Task 2.3: 중첩 리스트 ✅ (PR #774)
 
-- [ ] Indent 기반 깊이 계산 (4칸 = 1 depth)
-- [ ] Mixed ul/ol 중첩 — 각 depth에서 마커 타입에 따라 `<ul>` 또는 `<ol>` 사용
-- [ ] `<li><p>content</p>{nested_list}</li>` 구조 생성
-- [ ] 테스트: `lists` testcase 검증
+- [x] Indent 기반 깊이 계산 (4칸 = 1 depth)
+- [x] Mixed ul/ol 중첩 — 각 depth에서 마커 타입에 따라 `<ul>` 또는 `<ol>` 사용
+- [x] `<li><p>content</p>{nested_list}</li>` 구조 생성
+- [x] 테스트: `lists` testcase 검증
 
-#### Task 2.4: 테이블
+#### Task 2.4: 테이블 (PR #775 리뷰 대기)
 
 - [ ] HTML 테이블 (`<table>`) — passthrough + 인라인 변환
   - `<td>` 내부의 bold, code 등 인라인 변환 적용
@@ -442,12 +481,16 @@ Callout, 이미지, 중첩 리스트, 테이블 등 복합 구조를 구현한�
   - body rows → `<td>`
   - 셀 내용 인라인 변환
 
-#### Task 2.5: Blockquote
+#### Task 2.5: Blockquote (PR #776 리뷰 대기)
 
 - [ ] `>` 시작 줄 감지 → `type="blockquote"`
 - [ ] XHTML: `<blockquote><p>content</p></blockquote>`
 
-#### Task 2.6: 검증 속성/구조 필터 구현
+#### Task 2.6: 검증 속성/구조 필터 구현 (PR #777 리뷰 대기)
+
+> **우선순위 노트:** verify 필터가 없으면 batch-verify에서 pass 수를 측정할 수 없다.
+> `ac:macro-id`, `ac:layout` 등의 노이즈가 모든 diff를 실패로 만들기 때문이다.
+> Task 2.4~2.5보다 이 Task를 먼저 머지하면 현재까지의 구현 진척도를 즉시 측정할 수 있다.
 
 - [ ] `strip_ignored_attributes()` — 무시 대상 속성 제거
 - [ ] `strip_layout_sections()` — `<ac:layout>` 래핑 제거 (내용 보존)
@@ -460,6 +503,11 @@ Callout, 이미지, 중첩 리스트, 테이블 등 복합 구조를 구현한�
 - [ ] `batch-verify` 실행
 - [ ] 목표: **21건 중 10건 이상 pass**
 - [ ] 실패 케이스 분석 및 우선순위 분류
+
+**점진적 pass 목표:**
+- verify 필터(Task 2.6) 적용 직후: ~3건 pass 예상 (1844969501, lists, panels 등 단순 구조)
+- 테이블(Task 2.4) 머지 후: +3~5건
+- Phase 2 전체 완료 후: 10건 이상
 
 ---
 
@@ -488,7 +536,7 @@ edge case 처리, 내부 링크, 추가 매크로를 구현하여 pass율을 높
 - [ ] 빈 paragraph → `<p />`
 - [ ] `<u>text</u>` passthrough
 - [ ] Emoticon 텍스트 (✅, 📎 등) 보존
-- [ ] `<br/>` → `<br />`
+- [ ] `<br/>` → `<br />` — **우선순위 상향 검토:** 다수 testcase에서 `<br/>`가 사용되어 Phase 2 완료 전 처리가 pass율 향상에 유리
 - [ ] Multiline paragraph join — 줄바꿈을 공백으로 변환
 - [ ] 이미지 파일명 불일치 — 비교 시 `ri:filename` 속성 무시 옵션
 
@@ -585,6 +633,10 @@ python3 bin/mdx_to_storage_xhtml_cli.py verify \
 
 ## 다음 액션
 
-- [ ] `confluence-mdx` 내 구현 브랜치 생성 (`feat/mdx-to-storage-xhtml`)
-- [ ] Phase 1 구현 시작: 모듈 구조 생성 → 파서 → 인라인 → 이미터 → CLI 전환
-- [ ] Phase 1 완료 후 batch-verify 결과 기록
+- [x] ~~`confluence-mdx` 내 구현 브랜치 생성 (`feat/mdx-to-storage-xhtml`)~~
+- [x] ~~Phase 1 구현 완료: 모듈 구조 → 파서 → 인라인 → 이미터 → CLI 전환~~
+- [x] ~~Phase 1 batch-verify 결과 기록~~
+- [ ] PR #775~#777 리뷰 및 머지 (Task 2.4~2.6)
+- [ ] Task 2.6 (verify 필터) 우선 머지 → batch-verify 재측정으로 진척 확인
+- [ ] Task 2.7 통합 검증 실행 — 10건 이상 pass 목표
+- [ ] Phase 3 착수: 내부 링크 해석(Task 3.1) 구현
