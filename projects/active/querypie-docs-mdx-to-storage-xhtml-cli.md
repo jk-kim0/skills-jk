@@ -5,7 +5,7 @@ status: active
 repos:
   - https://github.com/querypie/querypie-docs
 created: 2026-02-15
-updated: 2026-02-17
+updated: 2026-02-18
 ---
 
 # QueryPie Docs MDX -> Confluence Storage XHTML CLI
@@ -169,44 +169,65 @@ confluence-mdx/
 | `<hr />` → `______` | `______` → `<hr />` |
 | `<Badge color="blue">` ← `ac:structured-macro name="status"` | `<Badge>` → `ac:structured-macro name="status"` |
 
-## 진행 현황 (2026-02-17)
+## 진행 현황 (2026-02-18)
 
 ### Phase 완료 상태
 
 | Phase | 범위 | 상태 |
 |-------|------|------|
 | Phase 1 (Task 1.1~1.7) | 모듈 구조 + 핵심 블록/인라인 | **완료** — main 머지 완료 |
-| Phase 2 (Task 2.1~2.3) | Callout, Figure, 중첩 리스트 | **완료** — main 머지 완료 (PR #772, #773, #774) |
-| Phase 2 (Task 2.4~2.6) | 테이블, Blockquote, verify 필터 | **진행 중** — PR #775~#777 리뷰 대기 |
-| Phase 2 (Task 2.7) | 통합 검증 | 미착수 |
+| Phase 2 (Task 2.1~2.7) | 복합 구조 + 검증 필터 + 통합 검증 | **완료** — main 머지 완료 (PR #772~#778) |
+
+### 머지된 PR 전체 목록
+
+| PR | Task | 제목 | 머지일 |
+|----|------|------|--------|
+| #772 | Task 2.1 | Callout 매크로 변환 구현 | 2026-02-16 |
+| #773 | Task 2.2 | Figure → ac:image 변환 구현 | 2026-02-16 |
+| #774 | Task 2.3 | 중첩 리스트 렌더링 구현 | 2026-02-16 |
+| #775 | Task 2.4 | 마크다운/HTML 테이블 변환 구현 | 2026-02-16 |
+| #776 | Task 2.5 | blockquote 변환 구현 | 2026-02-16 |
+| #777 | Task 2.6 | verify 정규화 필터 구현 | 2026-02-17 |
+| #778 | Task 2.7 | 통합 검증 분석 자동화 | 2026-02-17 |
 
 ### 모듈 현재 규모
 
 | 모듈 | 줄 수 |
 |------|-------|
-| `bin/mdx_to_storage/parser.py` | 320줄 |
-| `bin/mdx_to_storage/emitter.py` | 240줄 |
+| `bin/mdx_to_storage/parser.py` | 400줄 |
+| `bin/mdx_to_storage/emitter.py` | 318줄 |
 | `bin/mdx_to_storage/inline.py` | 63줄 |
-| **합계** | **623줄** |
+| `bin/reverse_sync/mdx_to_storage_xhtml_verify.py` | 257줄 |
+| `bin/mdx_to_storage_xhtml_verify_cli.py` | 149줄 |
+| **합계** | **1,187줄** |
 
 ### 단위 테스트 현황
 
-- **총 60개** (parser 16, inline 14, emitter 30)
+- **총 106개** (parser 27, inline 9, emitter 46, verify 16, verify-cli 8)
 - 전체 pass
 
-### Batch verify 현황
+### Batch verify 현황 (2026-02-18, PR #777 필터 적용 후)
 
-- **결과: 0/21 pass** (변동 없음)
-- **원인:** verify 정규화 필터(Task 2.6)가 아직 main에 미적용. `ac:macro-id`, `ac:layout` 등이 diff에 노출되어 모든 케이스 실패
-- verify 필터가 적용되면 즉시 pass 수 증가 예상
+- **결과: 0/21 pass**
+- **필터 효과:** verify_filter_noise 20→1, non_reversible_macro_noise 10→0, table_cell_structure_mismatch 9→2
+- P2 카테고리 7→0으로 완전 소멸 (필터만으로 해결 가능한 노이즈 제거 완료)
 
-### 오픈 PR 목록
+**실패 원인 분류:**
 
-| PR | Task | 제목 |
-|----|------|------|
-| #775 | Task 2.4 | 테이블 변환(마크다운/HTML) 구현 |
-| #776 | Task 2.5 | blockquote 변환 구현 |
-| #777 | Task 2.6 | verify 정규화 필터 구현 |
+| 우선순위 | 건수 | 주요 원인 |
+|----------|------|-----------|
+| P1 | 10 | `internal_link_unresolved` 8건, `table_cell_structure_mismatch` 2건 |
+| P2 | 0 | — |
+| P3 | 11 | `other` (미분류 잔여 diff) |
+
+**P1 케이스 (10건):**
+- `internal_link_unresolved` (8건): `<ac:link><ri:page>` ↔ `<a href="#link-error">` — Phase 3 내부 링크 구현(Task 3.1) 필요
+- `table_cell_structure_mismatch` (2건): 544384417, 793608206 — HTML table 내 `<p>` 래핑 차이
+
+**P3 케이스 (11건):**
+- `other`로 분류된 잔여 diff — `classify_failure_reasons()` 분류기가 인식하지 못하는 패턴
+- 추가 필터 또는 분류기 보강으로 일부 pass 전환 가능성 있음
+- 대상: 544112828, 544113141, 544145591, 544375741, 544379140, 544381877, 544382364, 880181257, 883654669, lists, panels
 
 ## 아키텍처
 
@@ -471,43 +492,42 @@ Callout, 이미지, 중첩 리스트, 테이블 등 복합 구조를 구현한�
 - [x] `<li><p>content</p>{nested_list}</li>` 구조 생성
 - [x] 테스트: `lists` testcase 검증
 
-#### Task 2.4: 테이블 (PR #775 리뷰 대기)
+#### Task 2.4: 테이블 ✅ (PR #775)
 
-- [ ] HTML 테이블 (`<table>`) — passthrough + 인라인 변환
+- [x] HTML 테이블 (`<table>`) — passthrough + 인라인 변환
   - `<td>` 내부의 bold, code 등 인라인 변환 적용
   - list 포함 셀 처리
-- [ ] Markdown 테이블 (`| col |`) — 파서에서 감지 + `<table>` XHTML 생성 (P2)
+- [x] Markdown 테이블 (`| col |`) — 파서에서 감지 + `<table>` XHTML 생성 (P2)
   - header row → `<th>`
   - body rows → `<td>`
   - 셀 내용 인라인 변환
 
-#### Task 2.5: Blockquote (PR #776 리뷰 대기)
+#### Task 2.5: Blockquote ✅ (PR #776)
 
-- [ ] `>` 시작 줄 감지 → `type="blockquote"`
-- [ ] XHTML: `<blockquote><p>content</p></blockquote>`
+- [x] `>` 시작 줄 감지 → `type="blockquote"` (false positive 방지: `> ` 또는 bare `>` 만 매칭)
+- [x] XHTML: `<blockquote><p>content</p></blockquote>`
 
-#### Task 2.6: 검증 속성/구조 필터 구현 (PR #777 리뷰 대기)
+#### Task 2.6: 검증 속성/구조 필터 구현 ✅ (PR #777)
 
-> **우선순위 노트:** verify 필터가 없으면 batch-verify에서 pass 수를 측정할 수 없다.
-> `ac:macro-id`, `ac:layout` 등의 노이즈가 모든 diff를 실패로 만들기 때문이다.
-> Task 2.4~2.5보다 이 Task를 먼저 머지하면 현재까지의 구현 진척도를 즉시 측정할 수 있다.
+- [x] `strip_ignored_attributes()` — 무시 대상 속성 19종 제거
+- [x] `strip_layout_sections()` — `<ac:layout>` 래핑 제거 (내용 보존)
+- [x] `strip_nonreversible_macros()` — TOC, view-file 매크로 제거
+- [x] `strip_decorations()` — `<ac:adf-mark>`, `<ac:inline-comment-marker>`, `<colgroup>`, 빈 `<p>` 제거
+- [x] 검증 파이프라인에 필터 통합
 
-- [ ] `strip_ignored_attributes()` — 무시 대상 속성 제거
-- [ ] `strip_layout_sections()` — `<ac:layout>` 래핑 제거 (내용 보존)
-- [ ] `strip_nonreversible_macros()` — TOC, view-file 매크로 제거
-- [ ] `strip_decorations()` — `<ac:adf-mark>`, `<ac:inline-comment-marker>` 제거
-- [ ] 검증 파이프라인에 필터 통합
+#### Task 2.7: 통합 검증 ✅ (PR #778)
 
-#### Task 2.7: 통합 검증
+- [x] `classify_failure_reasons()` — diff 토큰 기반 실패 원인 자동 분류
+- [x] `FailureAnalysis` / `VerificationSummary` 데이터클래스 추가
+- [x] CLI에 `--show-analysis`, `--write-analysis-report` 옵션 추가
+- [x] 생성된 리포트 파일(`reports/`)을 `.gitignore`에 추가
+- [x] 결과: 0/21 pass — 필터 효과 확인(P2 소멸), 잔여 실패 원인 분류 완료
 
-- [ ] `batch-verify` 실행
-- [ ] 목표: **21건 중 10건 이상 pass**
-- [ ] 실패 케이스 분석 및 우선순위 분류
-
-**점진적 pass 목표:**
-- verify 필터(Task 2.6) 적용 직후: ~3건 pass 예상 (1844969501, lists, panels 등 단순 구조)
-- 테이블(Task 2.4) 머지 후: +3~5건
-- Phase 2 전체 완료 후: 10건 이상
+**Phase 2 종료 시점 batch verify 결과:**
+- 0/21 pass (당초 목표 10건 미달)
+- 필터 효과로 노이즈 대폭 감소: verify_filter_noise 20→1, non_reversible_macro_noise 10→0
+- **pass 미달 주요 원인:** internal_link_unresolved 8건 (Phase 3 Task 3.1 필요), other 11건 (분류기 미인식 잔여 diff)
+- 10건 이상 pass 달성을 위해 Phase 3 내부 링크 구현 + P3 other 케이스 분석이 필요
 
 ---
 
@@ -636,7 +656,9 @@ python3 bin/mdx_to_storage_xhtml_cli.py verify \
 - [x] ~~`confluence-mdx` 내 구현 브랜치 생성 (`feat/mdx-to-storage-xhtml`)~~
 - [x] ~~Phase 1 구현 완료: 모듈 구조 → 파서 → 인라인 → 이미터 → CLI 전환~~
 - [x] ~~Phase 1 batch-verify 결과 기록~~
-- [ ] PR #775~#777 리뷰 및 머지 (Task 2.4~2.6)
-- [ ] Task 2.6 (verify 필터) 우선 머지 → batch-verify 재측정으로 진척 확인
-- [ ] Task 2.7 통합 검증 실행 — 10건 이상 pass 목표
-- [ ] Phase 3 착수: 내부 링크 해석(Task 3.1) 구현
+- [x] ~~PR #772~#778 리뷰 및 머지 (Task 2.1~2.7)~~
+- [x] ~~verify 필터 적용 후 batch-verify 재측정~~
+- [ ] P3 `other` 11건의 잔여 diff 분석 — 분류기 보강 또는 추가 필터로 pass 전환 가능 케이스 식별
+- [ ] Phase 3 착수: 내부 링크 해석(Task 3.1) 구현 — P1 8건 해결의 핵심
+- [ ] `<br/>` → `<br />` 정규화 처리 — 다수 testcase에서 사용, pass율 향상에 직접 기여
+- [ ] Phase 3 완료 후 batch-verify 10건 이상 pass 목표 재측정
