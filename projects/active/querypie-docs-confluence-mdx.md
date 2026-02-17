@@ -62,14 +62,14 @@ AI Agent가 MDX 문서를 교정하면, 해당 변경 사항을 블록 단위로
 | Phase L0 | 코드 통합 (lossless_roundtrip → reverse_sync 흡수) | **완료** (#791) |
 | Phase L1 | Roundtrip Sidecar v2 + block fragment 추출 | **완료** (#792) |
 | Phase L2 | Block alignment + splice rehydrator | **완료** (#794) |
-| Phase L3 | Forward Conversion 정보 보존 강화 | 미착수 |
+| Phase L3 | Forward Conversion 정보 보존 강화 (lost_info 수집) | **완료** (#801) |
 | Phase L4 | Metadata-enhanced emitter + patcher | 미착수 |
 | Phase L5 | Backward Converter 정확도 개선 | **완료** (#799) |
 | Phase L6 | CI gate 전환 (byte-equal을 기본 게이트로) | **완료** (#800) |
 
 ### 3. 코드 품질 개선
 
-Reverse Sync 코드베이스(2,726줄 / 13 모듈)의 구조적 문제를 개선한다.
+코드베이스(53 파일 / ~14,200줄)의 구조적 문제를 개선한다.
 
 | 항목 | 상태 |
 |------|------|
@@ -133,7 +133,7 @@ record_mapping()   Sidecar 인덱스             ← mapping_recorder.py + sidec
 |------|-------|------|
 | `reverse_sync_cli.py` | 734 | 오케스트레이터 + CLI |
 | `patch_builder.py` | 547 | BlockChange → XHTML 패치 변환 |
-| `sidecar.py` | 524 | Roundtrip sidecar + 매핑 인덱스 |
+| `sidecar.py` | 526 | Roundtrip sidecar + 매핑 인덱스 (v2 스키마) |
 | `xhtml_patcher.py` | 333 | BeautifulSoup으로 XHTML 패치 적용 |
 | `mdx_to_xhtml_inline.py` | 240 | 삽입 패치용 MDX → XHTML 블록 변환 (`mdx_to_storage.inline` 활용) |
 | `mapping_recorder.py` | 210 | XHTML → BlockMapping 추출 |
@@ -146,24 +146,54 @@ record_mapping()   Sidecar 인덱스             ← mapping_recorder.py + sidec
 | `text_transfer.py` | 79 | 텍스트 변경을 XHTML에 전사 |
 | `confluence_client.py` | 65 | Confluence REST API 클라이언트 |
 
-**테스트:** 632 유닛 테스트, 19 E2E 테스트 시나리오
+**테스트:** 644+ 유닛 테스트 (21/21 byte-equal splice 검증 포함), 19 E2E 테스트 시나리오
 
 **운영 실적:** 148페이지 배치 verify 100% 통과
 
-### Backward Conversion (역순변환)
+### Forward Conversion (정순변환) — L3 lost_info 수집
 
-MDX를 Confluence Storage Format XHTML로 변환하는 역순변환기이다.
+XHTML → MDX 변환 시 손실되는 정보를 `LostInfoCollector`로 수집하여 `mapping.yaml` v2에 기록한다.
 
 **모듈 구성:**
 
 | 모듈 | 줄 수 | 역할 |
 |------|-------|------|
-| `mdx_to_storage/parser.py` | 474 | MDX → Block AST 파싱 (줄 단위 상태머신) |
-| `mdx_to_storage/emitter.py` | 398 | Block AST → XHTML 생성 |
-| `mdx_to_storage/inline.py` | 95 | 인라인 Markdown → XHTML 변환 |
+| `converter/core.py` | 1,460 | XHTML → MDX 변환 (lost_info 수집 통합) |
+| `converter/context.py` | 664 | 전역 상태, pages.yaml |
+| `converter/cli.py` | 234 | 정순변환 CLI |
+| `converter/lost_info.py` | 57 | LostInfoCollector (L3 신규) |
+
+**수집 대상 (4개 카테고리):**
+
+| 카테고리 | 수집 내용 |
+|----------|----------|
+| `emoticons[]` | ac:name, ac:emoji-shortname, ac:emoji-id, ac:emoji-fallback |
+| `links[]` | content-title, space-key, raw XHTML (미해결 링크) |
+| `filenames[]` | 원본 vs 정규화 첨부파일명 |
+| `adf_extensions[]` | panel_type, raw XHTML 구조 |
+
+### Backward Conversion (역순변환)
+
+MDX를 Confluence Storage Format XHTML로 변환하는 역순변환기이다. L5에서 정확도가 개선되었다.
+
+**모듈 구성:**
+
+| 모듈 | 줄 수 | 역할 |
+|------|-------|------|
+| `mdx_to_storage/parser.py` | 506 | MDX → Block AST 파싱 (줄 단위 상태머신) |
+| `mdx_to_storage/emitter.py` | 445 | Block AST → XHTML 생성 (L5: ol/Badge/이미지 개선) |
+| `mdx_to_storage/inline.py` | 119 | 인라인 Markdown → XHTML 변환 (L5: Badge 매크로) |
 | `mdx_to_storage/link_resolver.py` | 158 | MDX 상대 경로 → `<ac:link>` 변환 |
 
-**Batch verify 결과 (emitter 단독):**
+**L5 개선 사항:**
+
+| 개선 항목 | 내용 |
+|-----------|------|
+| `<ol start="1">` | 순서 목록에 start 속성 추가 (12건 영향) |
+| Badge → status 매크로 | `<Badge color="...">` → `<ac:structured-macro ac:name="status">` 변환 |
+| 리스트 내 이미지 | `<figure><img>` → `<ac:image><ri:attachment>` 구조 수정 (5건) |
+
+**Batch verify 결과:**
 
 | 검증 기준 | 결과 | 비고 |
 |-----------|------|------|
@@ -171,6 +201,7 @@ MDX를 Confluence Storage Format XHTML로 변환하는 역순변환기이다.
 | document-level sidecar (Lossless v1) | **21/21 pass** | MDX 미변경 시 원본 XHTML 그대로 반환 |
 | L1 fragment reassembly | **21/21 pass** | sidecar v2 프래그먼트 재조립 byte-equal |
 | block-level splice (L2) | **21/21 pass** | forced-splice 경로 byte-equal |
+| CI byte-equal gate (L6) | **21/21 pass** | CI에서 자동 검증 |
 
 ### 정순변환 시 비가역 정보 손실
 
@@ -193,40 +224,9 @@ MDX를 Confluence Storage Format XHTML로 변환하는 역순변환기이다.
 
 ## 앞으로 구현할 것
 
-### Phase L2: Block Alignment + Splice Rehydrator
-
-**목표:** MDX 블록과 Roundtrip Sidecar 블록을 해시 매칭하고, 변경되지 않은 블록은 원본 프래그먼트를 그대로 splice한다.
-
-**알고리즘:**
-
-1. MDX → `MdxBlock[]` 파싱 + content 해시 계산
-2. 각 `MdxBlock`의 해시를 sidecar 블록의 `mdx_content_hash`와 매칭
-3. 매칭된 블록: `sidecar.blocks[j].xhtml_fragment` 그대로 사용
-4. 매칭되지 않은 블록: `emitter.emit_block()` 폴백
-5. `envelope.prefix` + fragments + separators + `envelope.suffix`로 조립
-
-**인수 기준:** MDX 미변경 시 block-level splice 경로로 21/21 byte-equal
-
-### Phase L3: Forward Conversion 정보 보존 강화
-
-**목표:** 정순변환(Forward Conversion) 과정에서 손실되는 정보를 Roundtrip Sidecar v2의 `lost_info` 필드에 기록한다.
-
-**수집 대상:**
-
-| 필드 | 대상 | 저장 내용 |
-|------|------|----------|
-| `emoticons[]` | `ac:emoticon` 태그 | shortname, raw XHTML |
-| `links[]` | `#link-error` 링크 | 원본 `ri:content-title`, `ri:space-key`, raw XHTML |
-| `filenames[]` | 정규화된 파일명 | 원본 `ri:filename` |
-| `adf_extensions[]` | `ac:adf-extension` | raw XHTML 전체 |
-| `stripped_attrs` | 제거된 속성 19종 | `{attr_name: value}` |
-| `layout_wrapper` | `ac:layout` 래핑 | 래핑 구조 raw XHTML |
-
-**인수 기준:** 비가역 정보를 포함하는 모든 블록에서 `lost_info`에 해당 원본 정보 존재 + 기존 splice 21/21 유지
-
 ### Phase L4: Metadata-Enhanced Emitter + Patcher
 
-**목표:** 변경된 블록을 재생성할 때 `lost_info`를 활용하여 원본에 가까운 XHTML을 생성한다.
+**목표:** 변경된 블록을 재생성할 때 L3에서 수집한 `lost_info`를 활용하여 원본에 가까운 XHTML을 생성한다.
 
 **패치 유형:**
 
@@ -322,7 +322,7 @@ Document-level fast path(MDX 전체 해시 일치 → 원본 반환)는 producti
 
 - **21개 실제 QueryPie 페이지**: `tests/testcases/<case_id>/` (page.xhtml, expected.mdx, mapping.yaml)
 - **19개 E2E 역반영 시나리오**: 버그 재현 포함
-- **632 유닛 테스트**
+- **644+ 유닛 테스트** (99.7% pass rate)
 
 ---
 
@@ -330,7 +330,7 @@ Document-level fast path(MDX 전체 해시 일치 → 원본 반환)는 producti
 
 ### Byte-equal 라운드트립
 
-1. `tests/testcases/*` 전체에서 **block-level splice 경로**로 `output.xhtml == page.xhtml` (byte-equal)
+1. ~~`tests/testcases/*` 전체에서 **block-level splice 경로**로 `output.xhtml == page.xhtml` (byte-equal)~~ **완료** (21/21 pass)
 2. "known limitation"으로 제외되는 케이스 없음
 3. Partial edit 시 unchanged blocks byte-equal 유지
 4. ~~CI가 byte mismatch를 즉시 fail 처리~~ **완료** (#800)
@@ -344,14 +344,15 @@ Document-level fast path(MDX 전체 해시 일치 → 원본 반환)는 producti
 
 ## 통합 후 모듈 구조
 
-L6 완료 후 현재 모듈 구조 (L3~L4 완료 시 추가 변경 예정):
+L6 완료 후 현재 모듈 구조 (L4 완료 시 추가 변경 예정):
 
 ```
 bin/
 ├── converter/                              # Forward Conversion (정순변환)
-│   ├── core.py                             # XHTML → MDX 변환 (L3: lost_info 수집 추가)
+│   ├── core.py                             # XHTML → MDX 변환 + lost_info 수집
 │   ├── context.py                          # 전역 상태, pages.yaml
-│   └── cli.py                              # 단일 페이지 변환 진입점
+│   ├── cli.py                              # 단일 페이지 변환 진입점
+│   └── lost_info.py                        # ★ L3: LostInfoCollector
 │
 ├── mdx_to_storage/                         # Backward Conversion (역순변환)
 │   ├── parser.py                           # MDX → Block AST (emission + diff/alignment 통합)
@@ -387,12 +388,14 @@ bin/
 
 | 날짜 | PR | 내용 |
 |------|-----|------|
+| 2026-02-18 | querypie-docs#801 | **Phase L3: lost_info 수집 및 mapping.yaml v2 구현** |
 | 2026-02-18 | querypie-docs#802 | 코드 품질 분석 보고서 전면 갱신 |
 | 2026-02-18 | querypie-docs#800 | **Phase L6: byte-equal CI gate 추가** |
 | 2026-02-18 | querypie-docs#799 | **Phase L5: Backward Converter 정확도 개선** |
 | 2026-02-18 | querypie-docs#798 | Dead code 삭제 + 코드 품질 분석 문서 통합 |
 | 2026-02-18 | querypie-docs#796 | 불필요/중복 코드 분석 + CLI 통합 리팩토링 |
 | 2026-02-17 | querypie-docs#797 | 아키텍처 문서 L2 완료 상태 반영 |
+| 2026-02-17 | querypie-docs#795 | architecture.md 검증 현황 및 로드맵 업데이트 |
 | 2026-02-17 | querypie-docs#794 | **Phase L2: Block alignment + splice rehydrator** |
 | 2026-02-17 | skills-jk#117 | 프로젝트 문서 통합 재작성 |
 | 2026-02-17 | querypie-docs#792 | **Phase L1: Roundtrip Sidecar v2 + block fragment 추출** |
@@ -419,6 +422,9 @@ bin/
 | 문서 | 위치 | 내용 |
 |------|------|------|
 | architecture.md | querypie-docs-translation-2 | 전체 시스템 아키텍처 + 용어 정의 |
+| L3 설계 | docs/plans/2026-02-17-l3-lost-info-design.md | Lost info 수집 아키텍처 + 스키마 v2 |
+| L5 설계 | docs/plans/2026-02-17-l5-emitter-accuracy-design.md | Backward Converter 정확도 개선 |
+| 코드 품질 분석 | docs/analysis-code-quality.md | 코드 품질 메트릭 + 리팩토링 로드맵 |
 | Phase 2 설계 | docs/plans/2026-02-13-reverse-sync-phase2-design.md | Reverse Sync Phase 2 설계 |
 | Phase 2 구현 계획 | docs/plans/2026-02-13-reverse-sync-phase2-impl.md | Phase 2 구현 태스크 분해 |
 | Phase 1 회고 | projects/done/querypie-docs-reverse-sync-phase1-retrospective.md | Phase 1 회고 + 설계 개선 도출 |
