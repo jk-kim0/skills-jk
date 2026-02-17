@@ -59,8 +59,8 @@ AI Agent가 MDX 문서를 교정하면, 해당 변경 사항을 블록 단위로
 | Phase 1 | 핵심 블록/인라인 emitter | **완료** |
 | Phase 2 | 복합 구조 + normalize 기반 검증 | **완료** |
 | Lossless v1 | Document-level sidecar + trivial rehydrator | **완료** |
-| Phase L0 | 코드 통합 (lossless_roundtrip → reverse_sync 흡수) | 미착수 |
-| Phase L1 | Roundtrip Sidecar v2 + block fragment 추출 | 미착수 |
+| Phase L0 | 코드 통합 (lossless_roundtrip → reverse_sync 흡수) | **완료** (#791) |
+| Phase L1 | Roundtrip Sidecar v2 + block fragment 추출 | **완료** (#792) |
 | Phase L2 | Block alignment + splice rehydrator | 미착수 |
 | Phase L3 | Forward Conversion 정보 보존 강화 | 미착수 |
 | Phase L4 | Metadata-enhanced emitter + patcher | 미착수 |
@@ -164,7 +164,8 @@ MDX를 Confluence Storage Format XHTML로 변환하는 역순변환기이다.
 |-----------|------|------|
 | normalize-diff | **0/21 pass** | emitter 단독 출력 |
 | document-level sidecar (Lossless v1) | **21/21 pass** | MDX 미변경 시 원본 XHTML 그대로 반환 |
-| block-level splice | **미구현** | Phase L2에서 구현 예정 |
+| L1 fragment reassembly | **21/21 pass** | sidecar v2 프래그먼트 재조립 byte-equal |
+| block-level splice (L2) | **미구현** | Phase L2에서 구현 예정 |
 
 ### 정순변환 시 비가역 정보 손실
 
@@ -186,65 +187,6 @@ MDX를 Confluence Storage Format XHTML로 변환하는 역순변환기이다.
 ---
 
 ## 앞으로 구현할 것
-
-### Phase L0: 코드 통합 — `lossless_roundtrip` → `reverse_sync` 흡수
-
-**목표:** `lossless_roundtrip` 패키지를 `reverse_sync`로 흡수하고, 중복을 제거한다.
-
-**현재 중복:**
-
-| 중복 항목 | 위치 A | 위치 B |
-|-----------|--------|--------|
-| Testcase 디렉토리 순회 | `lossless_roundtrip/byte_verify.py` | `reverse_sync/mdx_to_storage_xhtml_verify.py` |
-| Sidecar 스키마/IO | `lossless_roundtrip/sidecar.py` | `reverse_sync/sidecar_lookup.py` |
-| Sidecar 생성 | `lossless_roundtrip/sidecar.py` | `converter/sidecar_mapping.py` |
-
-**작업:**
-
-1. `lossless_roundtrip/sidecar.py` + `sidecar_lookup.py` → `reverse_sync/sidecar.py`로 병합
-2. `lossless_roundtrip/rehydrator.py` → `reverse_sync/rehydrator.py`로 이동
-3. `lossless_roundtrip/byte_verify.py` → `reverse_sync/byte_verify.py`로 이동
-4. CLI import 경로 수정, 테스트 rename
-5. `bin/lossless_roundtrip/` 디렉토리 삭제
-
-**인수 기준:** `lossless_roundtrip` 디렉토리 삭제 + 기존 147개 테스트 전체 pass
-
-### Phase L1: Roundtrip Sidecar v2 + Block Fragment 추출
-
-**목표:** 정순변환(Forward Conversion) 시 block-level Roundtrip Sidecar v2를 생성하고, 프래그먼트 재조립이 byte-equal함을 검증한다.
-
-**Roundtrip Sidecar v2 스키마:**
-
-```json
-{
-  "schema_version": "2",
-  "page_id": "544381877",
-  "mdx_sha256": "<전체 MDX SHA256>",
-  "source_xhtml_sha256": "<전체 XHTML SHA256>",
-  "blocks": [
-    {
-      "block_index": 0,
-      "xhtml_xpath": "h2[1]",
-      "xhtml_fragment": "<h2>Title</h2>",
-      "mdx_content_hash": "<블록 MDX SHA256>",
-      "mdx_line_range": [3, 3],
-      "lost_info": null
-    }
-  ],
-  "separators": ["\n"],
-  "document_envelope": { "prefix": "", "suffix": "\n" }
-}
-```
-
-**핵심 불변조건:**
-
-```
-envelope.prefix + blocks[0].xhtml_fragment + separators[0] + ... + blocks[N-1].xhtml_fragment + envelope.suffix == page.xhtml (byte-equal)
-```
-
-**핵심 기술 과제:** BeautifulSoup은 HTML 파싱 시 원본 텍스트를 변형할 수 있다 (속성 재정렬, 공백 정규화, self-closing 변환). 원본 byte-equal 프래그먼트 추출에는 원본 텍스트의 위치 기반 추출이 필요하다. `fragment_extractor.py`가 이를 담당하며, 이미 구현되어 있다.
-
-**인수 기준:** 21개 testcase에서 fragment 재조립 byte-equal
 
 ### Phase L2: Block Alignment + Splice Rehydrator
 
@@ -385,7 +327,7 @@ Document-level fast path(MDX 전체 해시 일치 → 원본 반환)는 producti
 2. "known limitation"으로 제외되는 케이스 없음
 3. Partial edit 시 unchanged blocks byte-equal 유지
 4. CI가 byte mismatch를 즉시 fail 처리
-5. `bin/lossless_roundtrip/` 디렉토리 완전 삭제, 모든 기능이 `reverse_sync/`에 통합
+5. ~~`bin/lossless_roundtrip/` 디렉토리 완전 삭제, 모든 기능이 `reverse_sync/`에 통합~~ **완료** (#791)
 
 ### Reverse Sync Phase 3
 
@@ -395,7 +337,7 @@ Document-level fast path(MDX 전체 해시 일치 → 원본 반환)는 producti
 
 ## 통합 후 모듈 구조
 
-Phase L0~L6 완료 시 목표 모듈 구조:
+L0 완료 후 현재 모듈 구조 (L2~L6 완료 시 추가 변경 예정):
 
 ```
 bin/
@@ -443,7 +385,9 @@ bin/lossless_roundtrip/                     # ★ 삭제 (reverse_sync로 흡수
 
 | 날짜 | PR | 내용 |
 |------|-----|------|
-| 2026-02-17 | skills-jk#— | 프로젝트 문서 통합 재작성 |
+| 2026-02-17 | skills-jk#117 | 프로젝트 문서 통합 재작성 |
+| 2026-02-17 | querypie-docs#792 | **Phase L1: Roundtrip Sidecar v2 + block fragment 추출** |
+| 2026-02-17 | querypie-docs#791 | **Phase L0: 코드 통합 — reverse_sync 패키지 일원화** |
 | 2026-02-15 | querypie-docs#790 | Lossless v1: document-level sidecar + trivial rehydrator |
 | 2026-02-15 | querypie-docs#778 | Backward Converter Phase 2 완료 |
 | 2026-02-15 | querypie-docs#740 | 버그 재현 테스트케이스 17건 + CLI 출력 개선 |
