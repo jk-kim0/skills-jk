@@ -9,7 +9,7 @@ replaces:
   - querypie-docs-mdx-to-storage-xhtml-cli
   - querypie-docs-reverse-sync-code-review
 created: 2026-02-17
-updated: 2026-02-17
+updated: 2026-02-18
 ---
 
 # QueryPie Docs: Confluence ↔ MDX 양방향 변환 시스템
@@ -64,8 +64,8 @@ AI Agent가 MDX 문서를 교정하면, 해당 변경 사항을 블록 단위로
 | Phase L2 | Block alignment + splice rehydrator | **완료** (#794) |
 | Phase L3 | Forward Conversion 정보 보존 강화 | 미착수 |
 | Phase L4 | Metadata-enhanced emitter + patcher | 미착수 |
-| Phase L5 | Backward Converter 정확도 개선 | 미착수 |
-| Phase L6 | CI gate 전환 (byte-equal을 기본 게이트로) | 미착수 |
+| Phase L5 | Backward Converter 정확도 개선 | **완료** (#799) |
+| Phase L6 | CI gate 전환 (byte-equal을 기본 게이트로) | **완료** (#800) |
 
 ### 3. 코드 품질 개선
 
@@ -77,9 +77,13 @@ Reverse Sync 코드베이스(2,726줄 / 13 모듈)의 구조적 문제를 개선
 | `_INVISIBLE_RE` 정규식 통합 | **완료** |
 | `text_transfer.py`, `text_normalizer.py` 테스트 추가 (59건) | **완료** |
 | `mapping_recorder.py` 중복 제거 (232→210줄) | **완료** |
+| CLI 통합 (`mdx_to_storage_xhtml_cli.py` 단일 진입점) | **완료** (#796) |
+| 텍스트 유틸리티 통합 (`text_normalizer.py` → `text_utils.py`) | **완료** (#796) |
+| MDX 파서 통합 (`mdx_block_parser.py` → `parser.py`) | **완료** (#796) |
+| 인라인 변환기 통합 (`mdx_to_xhtml_inline` → `mdx_to_storage.inline`) | **완료** (#796) |
+| Dead code 삭제 (`sidecar_mapping.py`, `test_verify.py` 등 235줄) | **완료** (#798) |
 | `containing_changes` 패턴 공통 함수 추출 | 착수 가능 |
 | `build_patches()` 분기 분리 (순환 복잡도 감소) | 착수 가능 |
-| `sidecar_lookup.py` 생성/소비 분리 | L0에서 해결 예정 |
 | `run_verify()` God Function 분리 | 착수 가능 |
 
 ---
@@ -131,17 +135,18 @@ record_mapping()   Sidecar 인덱스             ← mapping_recorder.py + sidec
 | `patch_builder.py` | 547 | BlockChange → XHTML 패치 변환 |
 | `sidecar.py` | 524 | Roundtrip sidecar + 매핑 인덱스 |
 | `xhtml_patcher.py` | 333 | BeautifulSoup으로 XHTML 패치 적용 |
-| `mdx_to_xhtml_inline.py` | 271 | 삽입 패치용 MDX → XHTML 블록 변환 |
+| `mdx_to_xhtml_inline.py` | 240 | 삽입 패치용 MDX → XHTML 블록 변환 (`mdx_to_storage.inline` 활용) |
 | `mapping_recorder.py` | 210 | XHTML → BlockMapping 추출 |
 | `fragment_extractor.py` | 204 | XHTML byte-exact 프래그먼트 추출 |
+| `rehydrator.py` | 149 | Sidecar 기반 무손실 XHTML 복원 |
+| `byte_verify.py` | 126 | Byte-equal 검증 |
 | `roundtrip_verifier.py` | 174 | 라운드트립 검증 |
-| `mdx_block_parser.py` | 130 | MDX → MdxBlock 시퀀스 파싱 |
-| `text_normalizer.py` | 97 | MDX 블록 → 일반 텍스트 정규화 |
+| `text_utils.py` | 94 | 텍스트 정규화 유틸리티 (통합) |
 | `block_diff.py` | 90 | SequenceMatcher 기반 블록 시퀀스 diff |
 | `text_transfer.py` | 79 | 텍스트 변경을 XHTML에 전사 |
 | `confluence_client.py` | 65 | Confluence REST API 클라이언트 |
 
-**테스트:** 625+ 유닛 테스트, 19 E2E 테스트 시나리오
+**테스트:** 632 유닛 테스트, 19 E2E 테스트 시나리오
 
 **운영 실적:** 148페이지 배치 verify 100% 통과
 
@@ -162,7 +167,7 @@ MDX를 Confluence Storage Format XHTML로 변환하는 역순변환기이다.
 
 | 검증 기준 | 결과 | 비고 |
 |-----------|------|------|
-| normalize-diff | **0/21 pass** | emitter 단독 출력 |
+| normalize-diff | **1/21 pass** | emitter 단독 출력 (L5 개선 후) |
 | document-level sidecar (Lossless v1) | **21/21 pass** | MDX 미변경 시 원본 XHTML 그대로 반환 |
 | L1 fragment reassembly | **21/21 pass** | sidecar v2 프래그먼트 재조립 byte-equal |
 | block-level splice (L2) | **21/21 pass** | forced-splice 경로 byte-equal |
@@ -232,27 +237,29 @@ MDX를 Confluence Storage Format XHTML로 변환하는 역순변환기이다.
 
 **인수 기준:** partial edit 시 unchanged blocks byte-equal 유지 + changed blocks well-formed
 
-### Phase L5: Backward Converter 정확도 개선
+### Phase L5: Backward Converter 정확도 개선 ✅
 
-**목표:** 역순변환기(Backward Converter)의 XHTML 출력 품질 개선.
+**완료** (#799). 3개 항목 개선:
 
-- `<ol>` 생성 시 `start="1"` 속성 추가 (12건 영향)
-- `<br/>` → `<br />` 표기 통일
-- 리스트 내 `<ac:image>` 구조 수정 (5건)
-- `<details>` → `expand` 매크로 매핑 개선
-- `<Badge>` → `status` 매크로 매핑 개선
+| 항목 | 영향 | 결과 |
+|------|------|------|
+| `<ol start="1">` 속성 추가 | 12건 | `ordered_list_start_mismatch` 완전 해소 |
+| 인라인 `<Badge>` → `status` 매크로 | 2건 | paragraph/list 내 Badge 변환 |
+| 리스트 내 `<figure>` → `<ac:image>` 형제 구조 | 5→3건 | 단순 구조 2건 해소 |
 
-**인수 기준:** emitter 개선 항목별 단위 테스트 통과 + block-level splice 21/21 유지
+나머지 항목(`<br/>` 표기, `<details>` 매핑)은 이미 구현 완료 상태였음. normalize-diff 0/21 → 1/21 pass, splice 21/21 byte-equal 유지.
 
-### Phase L6: CI Gate 전환
+### Phase L6: CI Gate 전환 ✅
 
-**목표:** Byte-equal 검증을 CI의 기본 게이트로 설정한다.
+**완료** (#800). byte-equal 검증을 CI의 기본 게이트로 설정:
 
-- `byte_verify` CLI를 CI 스크립트에 통합
-- 기존 normalize-verify를 `--diagnostic` 모드로 전환
-- Byte mismatch → build fail (exit code 1)
+- `byte_verify` CLI에 `--splice` 플래그 추가 (forced-splice 경로 검증)
+- `run-tests.sh`에 `byte-verify` 테스트 타입 추가
+- Makefile에 `test-byte-verify` 타겟 추가
+- GitHub Actions CI에 `Byte-equal verify` 단계 추가
+- byte mismatch → build fail (exit code 1)
 
-**인수 기준:** CI pipeline에서 byte-equal gate 활성화, 21/21 pass
+검증 결과: fast-path 21/21 pass, forced-splice 21/21 pass
 
 ### Reverse Sync Phase 3: 전면 재구성 (설계 미착수)
 
@@ -315,7 +322,7 @@ Document-level fast path(MDX 전체 해시 일치 → 원본 반환)는 producti
 
 - **21개 실제 QueryPie 페이지**: `tests/testcases/<case_id>/` (page.xhtml, expected.mdx, mapping.yaml)
 - **19개 E2E 역반영 시나리오**: 버그 재현 포함
-- **310+ 유닛 테스트**
+- **632 유닛 테스트**
 
 ---
 
@@ -326,7 +333,7 @@ Document-level fast path(MDX 전체 해시 일치 → 원본 반환)는 producti
 1. `tests/testcases/*` 전체에서 **block-level splice 경로**로 `output.xhtml == page.xhtml` (byte-equal)
 2. "known limitation"으로 제외되는 케이스 없음
 3. Partial edit 시 unchanged blocks byte-equal 유지
-4. CI가 byte mismatch를 즉시 fail 처리
+4. ~~CI가 byte mismatch를 즉시 fail 처리~~ **완료** (#800)
 5. ~~`bin/lossless_roundtrip/` 디렉토리 완전 삭제, 모든 기능이 `reverse_sync/`에 통합~~ **완료** (#791)
 
 ### Reverse Sync Phase 3
@@ -337,46 +344,41 @@ Document-level fast path(MDX 전체 해시 일치 → 원본 반환)는 producti
 
 ## 통합 후 모듈 구조
 
-L2 완료 후 현재 모듈 구조 (L3~L6 완료 시 추가 변경 예정):
+L6 완료 후 현재 모듈 구조 (L3~L4 완료 시 추가 변경 예정):
 
 ```
 bin/
 ├── converter/                              # Forward Conversion (정순변환)
 │   ├── core.py                             # XHTML → MDX 변환 (L3: lost_info 수집 추가)
 │   ├── context.py                          # 전역 상태, pages.yaml
-│   └── sidecar_mapping.py                  # reverse_sync/sidecar.py에 위임
+│   └── cli.py                              # 단일 페이지 변환 진입점
 │
 ├── mdx_to_storage/                         # Backward Conversion (역순변환)
-│   ├── parser.py                           # MDX → Block AST (emission용)
-│   ├── emitter.py                          # Block → XHTML (L4: lost_info 지원)
-│   ├── inline.py                           # 인라인 변환
+│   ├── parser.py                           # MDX → Block AST (emission + diff/alignment 통합)
+│   ├── emitter.py                          # Block → XHTML (L5: ol start, Badge, figure 개선)
+│   ├── inline.py                           # 인라인 변환 (L5: Badge → status 매크로 추가)
 │   └── link_resolver.py                    # 내부 링크 해석
 │
 ├── reverse_sync/                           # Reverse Sync (역반영) + Roundtrip Sidecar
 │   ├── sidecar.py                          # ★ 통합: v1+v2 스키마, IO, 인덱스
 │   ├── rehydrator.py                       # ★ v1 fast path + v2 block splice
-│   ├── byte_verify.py                      # ★ byte-equal 검증
+│   ├── byte_verify.py                      # ★ byte-equal 검증 (L6: --splice 지원)
 │   ├── fragment_extractor.py               # XHTML byte-exact 프래그먼트 추출
 │   ├── mapping_recorder.py                 # XHTML block 추출 (L1: fragment 추가)
-│   ├── mdx_block_parser.py                 # MDX → MdxBlock[] (diff/alignment용)
+│   ├── mdx_block_parser.py                 # backward-compat re-export 래퍼 → parser.py
 │   ├── block_diff.py                       # SequenceMatcher 기반 블록 diff
 │   ├── patch_builder.py                    # XHTML 패치 생성 (L4: lost_info 패치)
 │   ├── xhtml_patcher.py                    # XHTML 패치 적용
-│   ├── text_normalizer.py                  # 텍스트 정규화
 │   ├── text_transfer.py                    # 텍스트 변경 전사
-│   ├── mdx_to_xhtml_inline.py              # 삽입 패치용 MDX → XHTML
+│   ├── mdx_to_xhtml_inline.py              # 삽입 패치용 MDX → XHTML (mdx_to_storage.inline 활용)
 │   ├── roundtrip_verifier.py               # 라운드트립 검증
-│   ├── confluence_client.py                # Confluence REST API
-│   ├── mdx_to_storage_xhtml_verify.py      # normalize-diff (diagnostic)
-│   └── mdx_to_storage_final_verify.py      # 최종 보고서
+│   └── confluence_client.py                # Confluence REST API
 │
+├── text_utils.py                           # ★ 텍스트 정규화 유틸리티 (통합)
 ├── reverse_sync_cli.py                     # 역반영 CLI
-├── mdx_to_storage_xhtml_cli.py             # 역순변환 CLI
+├── mdx_to_storage_xhtml_cli.py             # 역순변환 통합 CLI (convert/verify/batch-verify/final-verify/baseline)
 ├── mdx_to_storage_roundtrip_sidecar_cli.py # Sidecar 생성 CLI
-├── mdx_to_storage_xhtml_byte_verify_cli.py # Byte-equal 검증 CLI
-└── mdx_to_storage_xhtml_verify_cli.py      # Normalize-diff CLI (diagnostic)
-
-bin/lossless_roundtrip/                     # ★ 삭제 (reverse_sync로 흡수)
+└── mdx_to_storage_xhtml_byte_verify_cli.py # Byte-equal 검증 CLI (L6: CI gate)
 ```
 
 ---
@@ -385,6 +387,12 @@ bin/lossless_roundtrip/                     # ★ 삭제 (reverse_sync로 흡수
 
 | 날짜 | PR | 내용 |
 |------|-----|------|
+| 2026-02-18 | querypie-docs#802 | 코드 품질 분석 보고서 전면 갱신 |
+| 2026-02-18 | querypie-docs#800 | **Phase L6: byte-equal CI gate 추가** |
+| 2026-02-18 | querypie-docs#799 | **Phase L5: Backward Converter 정확도 개선** |
+| 2026-02-18 | querypie-docs#798 | Dead code 삭제 + 코드 품질 분석 문서 통합 |
+| 2026-02-18 | querypie-docs#796 | 불필요/중복 코드 분석 + CLI 통합 리팩토링 |
+| 2026-02-17 | querypie-docs#797 | 아키텍처 문서 L2 완료 상태 반영 |
 | 2026-02-17 | querypie-docs#794 | **Phase L2: Block alignment + splice rehydrator** |
 | 2026-02-17 | skills-jk#117 | 프로젝트 문서 통합 재작성 |
 | 2026-02-17 | querypie-docs#792 | **Phase L1: Roundtrip Sidecar v2 + block fragment 추출** |
