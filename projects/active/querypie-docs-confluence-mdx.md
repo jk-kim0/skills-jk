@@ -61,7 +61,7 @@ AI Agent가 MDX 문서를 교정하면, 해당 변경 사항을 블록 단위로
 | Lossless v1 | Document-level sidecar + trivial rehydrator | **완료** |
 | Phase L0 | 코드 통합 (lossless_roundtrip → reverse_sync 흡수) | **완료** (#791) |
 | Phase L1 | Roundtrip Sidecar v2 + block fragment 추출 | **완료** (#792) |
-| Phase L2 | Block alignment + splice rehydrator | 미착수 |
+| Phase L2 | Block alignment + splice rehydrator | **완료** (#794) |
 | Phase L3 | Forward Conversion 정보 보존 강화 | 미착수 |
 | Phase L4 | Metadata-enhanced emitter + patcher | 미착수 |
 | Phase L5 | Backward Converter 정확도 개선 | 미착수 |
@@ -141,7 +141,7 @@ record_mapping()   Sidecar 인덱스             ← mapping_recorder.py + sidec
 | `text_transfer.py` | 79 | 텍스트 변경을 XHTML에 전사 |
 | `confluence_client.py` | 65 | Confluence REST API 클라이언트 |
 
-**테스트:** 310+ 유닛 테스트, 19 E2E 테스트 시나리오
+**테스트:** 625+ 유닛 테스트, 19 E2E 테스트 시나리오
 
 **운영 실적:** 148페이지 배치 verify 100% 통과
 
@@ -165,7 +165,7 @@ MDX를 Confluence Storage Format XHTML로 변환하는 역순변환기이다.
 | normalize-diff | **0/21 pass** | emitter 단독 출력 |
 | document-level sidecar (Lossless v1) | **21/21 pass** | MDX 미변경 시 원본 XHTML 그대로 반환 |
 | L1 fragment reassembly | **21/21 pass** | sidecar v2 프래그먼트 재조립 byte-equal |
-| block-level splice (L2) | **미구현** | Phase L2에서 구현 예정 |
+| block-level splice (L2) | **21/21 pass** | forced-splice 경로 byte-equal |
 
 ### 정순변환 시 비가역 정보 손실
 
@@ -337,7 +337,7 @@ Document-level fast path(MDX 전체 해시 일치 → 원본 반환)는 producti
 
 ## 통합 후 모듈 구조
 
-L0 완료 후 현재 모듈 구조 (L2~L6 완료 시 추가 변경 예정):
+L2 완료 후 현재 모듈 구조 (L3~L6 완료 시 추가 변경 예정):
 
 ```
 bin/
@@ -385,6 +385,7 @@ bin/lossless_roundtrip/                     # ★ 삭제 (reverse_sync로 흡수
 
 | 날짜 | PR | 내용 |
 |------|-----|------|
+| 2026-02-17 | querypie-docs#794 | **Phase L2: Block alignment + splice rehydrator** |
 | 2026-02-17 | skills-jk#117 | 프로젝트 문서 통합 재작성 |
 | 2026-02-17 | querypie-docs#792 | **Phase L1: Roundtrip Sidecar v2 + block fragment 추출** |
 | 2026-02-17 | querypie-docs#791 | **Phase L0: 코드 통합 — reverse_sync 패키지 일원화** |
