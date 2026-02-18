@@ -63,7 +63,7 @@ AI Agent가 MDX 문서를 교정하면, 해당 변경 사항을 블록 단위로
 | Phase L1 | Roundtrip Sidecar v2 + block fragment 추출 | **완료** (#792) |
 | Phase L2 | Block alignment + splice rehydrator | **완료** (#794) |
 | Phase L3 | Forward Conversion 정보 보존 강화 (lost_info 수집) | **완료** (#801) |
-| Phase L4 | Metadata-enhanced emitter + patcher | 미착수 |
+| Phase L4 | Metadata-enhanced emitter + patcher (lost_info 활용) | **완료** (#804) |
 | Phase L5 | Backward Converter 정확도 개선 | **완료** (#799) |
 | Phase L6 | CI gate 전환 (byte-equal을 기본 게이트로) | **완료** (#800) |
 
@@ -82,9 +82,9 @@ AI Agent가 MDX 문서를 교정하면, 해당 변경 사항을 블록 단위로
 | MDX 파서 통합 (`mdx_block_parser.py` → `parser.py`) | **완료** (#796) |
 | 인라인 변환기 통합 (`mdx_to_xhtml_inline` → `mdx_to_storage.inline`) | **완료** (#796) |
 | Dead code 삭제 (`sidecar_mapping.py`, `test_verify.py` 등 235줄) | **완료** (#798) |
-| `containing_changes` 패턴 공통 함수 추출 | **완료** (#803) |
-| `build_patches()` 분기 분리 (순환 복잡도 감소) | **완료** (#803) |
-| `run_verify()` God Function 분리 | **완료** (#803) |
+| `_flush_containing_changes()` 추출 (3곳 중복 제거) | **완료** (#803) |
+| `_resolve_mapping_for_change()` 추출 (순환 복잡도 감소) | **완료** (#803) |
+| `run_verify()` God Function 분리 (`_parse_and_diff`, `_save_diff_yaml`, `_compile_result`) | **완료** (#803) |
 
 ---
 
@@ -131,14 +131,15 @@ record_mapping()   Sidecar 인덱스             ← mapping_recorder.py + sidec
 
 | 모듈 | 줄 수 | 역할 |
 |------|-------|------|
-| `reverse_sync_cli.py` | 734 | 오케스트레이터 + CLI |
-| `patch_builder.py` | 547 | BlockChange → XHTML 패치 변환 |
-| `sidecar.py` | 526 | Roundtrip sidecar + 매핑 인덱스 (v2 스키마) |
+| `reverse_sync_cli.py` | 788 | 오케스트레이터 + CLI (L4: lost_info 전달) |
+| `patch_builder.py` | 546 | BlockChange → XHTML 패치 변환 (L4: lost_info 적용) |
+| `sidecar.py` | 535 | Roundtrip sidecar + 매핑 인덱스 (v2 스키마, lost_info 지원) |
 | `xhtml_patcher.py` | 333 | BeautifulSoup으로 XHTML 패치 적용 |
 | `mdx_to_xhtml_inline.py` | 240 | 삽입 패치용 MDX → XHTML 블록 변환 (`mdx_to_storage.inline` 활용) |
 | `mapping_recorder.py` | 210 | XHTML → BlockMapping 추출 |
 | `fragment_extractor.py` | 204 | XHTML byte-exact 프래그먼트 추출 |
-| `rehydrator.py` | 149 | Sidecar 기반 무손실 XHTML 복원 |
+| `rehydrator.py` | 176 | Sidecar 기반 무손실 XHTML 복원 (L4: lost_info 패치) |
+| `lost_info_patcher.py` | 169 | L4: lost_info 메타데이터 패처 (신규) |
 | `byte_verify.py` | 126 | Byte-equal 검증 |
 | `roundtrip_verifier.py` | 174 | 라운드트립 검증 |
 | `text_utils.py` | 94 | 텍스트 정규화 유틸리티 (통합) |
@@ -146,7 +147,7 @@ record_mapping()   Sidecar 인덱스             ← mapping_recorder.py + sidec
 | `text_transfer.py` | 79 | 텍스트 변경을 XHTML에 전사 |
 | `confluence_client.py` | 65 | Confluence REST API 클라이언트 |
 
-**테스트:** 644+ 유닛 테스트 (21/21 byte-equal splice 검증 포함), 19 E2E 테스트 시나리오
+**테스트:** 669+ 유닛 테스트 (21/21 byte-equal splice 검증 포함), 19 E2E 테스트 시나리오
 
 **운영 실적:** 148페이지 배치 verify 100% 통과
 
@@ -171,6 +172,24 @@ XHTML → MDX 변환 시 손실되는 정보를 `LostInfoCollector`로 수집하
 | `links[]` | content-title, space-key, raw XHTML (미해결 링크) |
 | `filenames[]` | 원본 vs 정규화 첨부파일명 |
 | `adf_extensions[]` | panel_type, raw XHTML 구조 |
+
+### Lost Info Patcher (L4) — 변경 블록의 메타데이터 복원
+
+L3에서 수집한 `lost_info`를 변경된 블록의 XHTML에 적용하여, emitter가 재생성할 수 없는 원본 정보를 복원한다.
+
+**적용 경로 (2가지):**
+
+- **Splice rehydration**: hash 불일치 블록 → `emit_single_block()` → `apply_lost_info()`
+- **Insert patch**: 신규 블록 → `mdx_block_to_xhtml_element()` → `apply_lost_info()`
+
+**패치 유형 (4개):**
+
+| 패치 | 동작 | 비고 |
+|------|------|------|
+| Emoticon | 유니코드 이모지 → 원본 `<ac:emoticon>` 태그 | emoji 라이브러리로 shortname 역매핑 |
+| Link | `<a href="#link-error">` → 원본 `<ac:link>` raw XHTML | 순차 치환 (중복 방지) |
+| Filename | 정규화 `ri:filename` → 원본 파일명 | 속성값 치환 |
+| ADF Extension | `<ac:structured-macro>` → 원본 `<ac:adf-extension>` raw | panel type 일치 검증 |
 
 ### Backward Conversion (역순변환)
 
@@ -223,43 +242,6 @@ MDX를 Confluence Storage Format XHTML로 변환하는 역순변환기이다. L5
 ---
 
 ## 앞으로 구현할 것
-
-### Phase L4: Metadata-Enhanced Emitter + Patcher
-
-**목표:** 변경된 블록을 재생성할 때 L3에서 수집한 `lost_info`를 활용하여 원본에 가까운 XHTML을 생성한다.
-
-**패치 유형:**
-
-- Emoticon: 유니코드 이모지 → 원본 `<ac:emoticon>` 태그
-- 링크: `#link-error` → 원본 `<ac:link>` 태그
-- 파일명: 정규화 이름 → 원본 `ri:filename`
-- ADF: Callout → 원본 `ac:adf-extension` raw
-
-**인수 기준:** partial edit 시 unchanged blocks byte-equal 유지 + changed blocks well-formed
-
-### Phase L5: Backward Converter 정확도 개선 ✅
-
-**완료** (#799). 3개 항목 개선:
-
-| 항목 | 영향 | 결과 |
-|------|------|------|
-| `<ol start="1">` 속성 추가 | 12건 | `ordered_list_start_mismatch` 완전 해소 |
-| 인라인 `<Badge>` → `status` 매크로 | 2건 | paragraph/list 내 Badge 변환 |
-| 리스트 내 `<figure>` → `<ac:image>` 형제 구조 | 5→3건 | 단순 구조 2건 해소 |
-
-나머지 항목(`<br/>` 표기, `<details>` 매핑)은 이미 구현 완료 상태였음. normalize-diff 0/21 → 1/21 pass, splice 21/21 byte-equal 유지.
-
-### Phase L6: CI Gate 전환 ✅
-
-**완료** (#800). byte-equal 검증을 CI의 기본 게이트로 설정:
-
-- `byte_verify` CLI에 `--splice` 플래그 추가 (forced-splice 경로 검증)
-- `run-tests.sh`에 `byte-verify` 테스트 타입 추가
-- Makefile에 `test-byte-verify` 타겟 추가
-- GitHub Actions CI에 `Byte-equal verify` 단계 추가
-- byte mismatch → build fail (exit code 1)
-
-검증 결과: fast-path 21/21 pass, forced-splice 21/21 pass
 
 ### Reverse Sync Phase 3: 전면 재구성 (설계 미착수)
 
@@ -322,7 +304,7 @@ Document-level fast path(MDX 전체 해시 일치 → 원본 반환)는 producti
 
 - **21개 실제 QueryPie 페이지**: `tests/testcases/<case_id>/` (page.xhtml, expected.mdx, mapping.yaml)
 - **19개 E2E 역반영 시나리오**: 버그 재현 포함
-- **644+ 유닛 테스트** (99.7% pass rate)
+- **669+ 유닛 테스트**
 
 ---
 
@@ -344,7 +326,7 @@ Document-level fast path(MDX 전체 해시 일치 → 원본 반환)는 producti
 
 ## 통합 후 모듈 구조
 
-L6 완료 후 현재 모듈 구조 (L4 완료 시 추가 변경 예정):
+L4 완료 후 현재 모듈 구조:
 
 ```
 bin/
@@ -352,7 +334,7 @@ bin/
 │   ├── core.py                             # XHTML → MDX 변환 + lost_info 수집
 │   ├── context.py                          # 전역 상태, pages.yaml
 │   ├── cli.py                              # 단일 페이지 변환 진입점
-│   └── lost_info.py                        # ★ L3: LostInfoCollector
+│   └── lost_info.py                        # L3: LostInfoCollector
 │
 ├── mdx_to_storage/                         # Backward Conversion (역순변환)
 │   ├── parser.py                           # MDX → Block AST (emission + diff/alignment 통합)
@@ -368,7 +350,8 @@ bin/
 │   ├── mapping_recorder.py                 # XHTML block 추출 (L1: fragment 추가)
 │   ├── mdx_block_parser.py                 # backward-compat re-export 래퍼 → parser.py
 │   ├── block_diff.py                       # SequenceMatcher 기반 블록 diff
-│   ├── patch_builder.py                    # XHTML 패치 생성 (L4: lost_info 패치)
+│   ├── patch_builder.py                    # XHTML 패치 생성 (L4: lost_info 적용)
+│   ├── lost_info_patcher.py                # ★ L4: lost_info 메타데이터 패처
 │   ├── xhtml_patcher.py                    # XHTML 패치 적용
 │   ├── text_transfer.py                    # 텍스트 변경 전사
 │   ├── mdx_to_xhtml_inline.py              # 삽입 패치용 MDX → XHTML (mdx_to_storage.inline 활용)
@@ -388,7 +371,8 @@ bin/
 
 | 날짜 | PR | 내용 |
 |------|-----|------|
-| 2026-02-18 | querypie-docs#803 | 코드 품질 리팩토링 3건 (함수 추출 + 테스트 17건 추가) |
+| 2026-02-18 | querypie-docs#804 | **Phase L4: lost_info 메타데이터 패처 구현** |
+| 2026-02-18 | querypie-docs#803 | 코드 품질 리팩토링 3건 (함수 추출 + 테스트 추가) |
 | 2026-02-18 | querypie-docs#801 | **Phase L3: lost_info 수집 및 mapping.yaml v2 구현** |
 | 2026-02-18 | querypie-docs#802 | 코드 품질 분석 보고서 전면 갱신 |
 | 2026-02-18 | querypie-docs#800 | **Phase L6: byte-equal CI gate 추가** |
@@ -423,6 +407,8 @@ bin/
 | 문서 | 위치 | 내용 |
 |------|------|------|
 | architecture.md | querypie-docs-translation-2 | 전체 시스템 아키텍처 + 용어 정의 |
+| L4 설계 | docs/plans/2026-02-18-l4-lost-info-patcher-design.md | Lost info 패처 아키텍처 |
+| L4 구현 계획 | docs/plans/2026-02-18-l4-lost-info-patcher-impl.md | L4 구현 태스크 분해 |
 | L3 설계 | docs/plans/2026-02-17-l3-lost-info-design.md | Lost info 수집 아키텍처 + 스키마 v2 |
 | L5 설계 | docs/plans/2026-02-17-l5-emitter-accuracy-design.md | Backward Converter 정확도 개선 |
 | 코드 품질 분석 | docs/analysis-code-quality.md | 코드 품질 메트릭 + 리팩토링 로드맵 |
