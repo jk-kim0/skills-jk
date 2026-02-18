@@ -82,9 +82,9 @@ AI Agent가 MDX 문서를 교정하면, 해당 변경 사항을 블록 단위로
 | MDX 파서 통합 (`mdx_block_parser.py` → `parser.py`) | **완료** (#796) |
 | 인라인 변환기 통합 (`mdx_to_xhtml_inline` → `mdx_to_storage.inline`) | **완료** (#796) |
 | Dead code 삭제 (`sidecar_mapping.py`, `test_verify.py` 등 235줄) | **완료** (#798) |
-| `containing_changes` 패턴 공통 함수 추출 | 착수 가능 |
-| `build_patches()` 분기 분리 (순환 복잡도 감소) | 착수 가능 |
-| `run_verify()` God Function 분리 | 착수 가능 |
+| `containing_changes` 패턴 공통 함수 추출 | **완료** (#803) |
+| `build_patches()` 분기 분리 (순환 복잡도 감소) | **완료** (#803) |
+| `run_verify()` God Function 분리 | **완료** (#803) |
 
 ---
 
@@ -388,6 +388,7 @@ bin/
 
 | 날짜 | PR | 내용 |
 |------|-----|------|
+| 2026-02-18 | querypie-docs#803 | 코드 품질 리팩토링 3건 (함수 추출 + 테스트 17건 추가) |
 | 2026-02-18 | querypie-docs#801 | **Phase L3: lost_info 수집 및 mapping.yaml v2 구현** |
 | 2026-02-18 | querypie-docs#802 | 코드 품질 분석 보고서 전면 갱신 |
 | 2026-02-18 | querypie-docs#800 | **Phase L6: byte-equal CI gate 추가** |
