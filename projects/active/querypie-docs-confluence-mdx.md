@@ -9,7 +9,7 @@ replaces:
   - querypie-docs-mdx-to-storage-xhtml-cli
   - querypie-docs-reverse-sync-code-review
 created: 2026-02-17
-updated: 2026-02-18
+updated: 2026-02-23
 ---
 
 # QueryPie Docs: Confluence ↔ MDX 양방향 변환 시스템
@@ -46,6 +46,8 @@ AI Agent가 MDX 문서를 교정하면, 해당 변경 사항을 블록 단위로
 | Phase 1 | 텍스트 수준 변경 (블록 수 동일) | **완료** |
 | Phase 2 | 구조적 변경 (블록 추가/삭제, 헤딩 재구성) | **완료** |
 | Phase 2 안정화 | 버그 수정, CLI 개선, 정규화 보완 | **완료** |
+| Inline format 변경 감지 | bold/code/italic/link 서식 변경 역반영 | **완료** (#831, #837) |
+| Verify 엄격 모드 전환 | 기본 동작을 정규화 없는 문자 그대로 비교로 변경 | **완료** (#834) |
 | Phase 3 | 전면 재구성 (문서 위치/이름 변경, 페이지 트리) | 미착수 |
 
 ### 2. Byte-equal 라운드트립 — 원문 XHTML의 무손실 복원
@@ -127,12 +129,24 @@ record_mapping()   Sidecar 인덱스             ← mapping_recorder.py + sidec
      Confluence API push                      ← confluence_client.py
 ```
 
+**2/19~2/23 주요 개선:**
+
+| PR | 내용 |
+|-----|------|
+| #813 | verify 정규화 강화 5종 + callout 매핑 개선 (65/65 통과 달성) |
+| #817 | Forward Converter heading strip 제거 (원문 공백 보존) |
+| #821 | `<strong>` 뒤 조사 앞 공백 제거 패치 |
+| #831 | **Inline format 변경 감지** — backtick/bold/italic/link 서식 변경 시 `new_inner_xhtml` 패치 생성 |
+| #834 | **Verify 엄격 모드** 기본 전환 — 정규화 없는 문자 그대로 비교, `--lenient` 옵션 분리 |
+| #835 | Forward Converter `--language` 옵션 — reverse-sync verify 시 날짜 locale 문제 해결 |
+| #837 | 연속 inline 마커 사이 텍스트 변경 감지 수정 (쉼표 소실 버그) |
+
 **모듈 구성:**
 
 | 모듈 | 줄 수 | 역할 |
 |------|-------|------|
 | `reverse_sync_cli.py` | 788 | 오케스트레이터 + CLI (L4: lost_info 전달) |
-| `patch_builder.py` | 546 | BlockChange → XHTML 패치 변환 (L4: lost_info 적용) |
+| `patch_builder.py` | 546 | BlockChange → XHTML 패치 변환 (L4: lost_info 적용, inline format 감지) |
 | `sidecar.py` | 535 | Roundtrip sidecar + 매핑 인덱스 (v2 스키마, lost_info 지원) |
 | `xhtml_patcher.py` | 333 | BeautifulSoup으로 XHTML 패치 적용 |
 | `mdx_to_xhtml_inline.py` | 240 | 삽입 패치용 MDX → XHTML 블록 변환 (`mdx_to_storage.inline` 활용) |
@@ -141,13 +155,13 @@ record_mapping()   Sidecar 인덱스             ← mapping_recorder.py + sidec
 | `rehydrator.py` | 176 | Sidecar 기반 무손실 XHTML 복원 (L4: lost_info 패치) |
 | `lost_info_patcher.py` | 169 | L4: lost_info 메타데이터 패처 (신규) |
 | `byte_verify.py` | 126 | Byte-equal 검증 |
-| `roundtrip_verifier.py` | 174 | 라운드트립 검증 |
+| `roundtrip_verifier.py` | 174 | 라운드트립 검증 (엄격/관대 모드) |
 | `text_utils.py` | 94 | 텍스트 정규화 유틸리티 (통합) |
 | `block_diff.py` | 90 | SequenceMatcher 기반 블록 시퀀스 diff |
 | `text_transfer.py` | 79 | 텍스트 변경을 XHTML에 전사 |
 | `confluence_client.py` | 65 | Confluence REST API 클라이언트 |
 
-**테스트:** 669+ 유닛 테스트 (21/21 byte-equal splice 검증 포함), 19 E2E 테스트 시나리오
+**테스트:** 711+ 유닛 테스트 (21/21 byte-equal splice 검증 포함), 19 E2E 테스트 시나리오
 
 **운영 실적:** 148페이지 배치 verify 100% 통과
 
@@ -268,7 +282,8 @@ MDX를 Confluence Storage Format XHTML로 변환하는 역순변환기이다. L5
       └──── 교정된 MDX와 비교 ───┘
 ```
 
-- 정규화 항목: trailing whitespace, 날짜 포맷, 테이블 패딩, h1 헤딩, 코드 블록 엔티티
+- **엄격 모드 (기본)**: 정규화 없이 문자 그대로 비교 (#834)
+- **관대 모드 (`--lenient`)**: trailing whitespace, 날짜 포맷, 따옴표, 문장 분리, 코드 경계 등 정규화 후 비교
 - 운영: `reverse_sync_cli.py verify <mdx>` (dry-run) / `push <mdx>` (반영)
 - 배치: `reverse_sync_cli.py --branch <branch>` (브랜치 전체)
 
@@ -304,7 +319,7 @@ Document-level fast path(MDX 전체 해시 일치 → 원본 반환)는 producti
 
 - **21개 실제 QueryPie 페이지**: `tests/testcases/<case_id>/` (page.xhtml, expected.mdx, mapping.yaml)
 - **19개 E2E 역반영 시나리오**: 버그 재현 포함
-- **669+ 유닛 테스트**
+- **711+ 유닛 테스트** (inline format 감지 21개, roundtrip verifier 엄격/관대 9개 포함)
 
 ---
 
@@ -371,6 +386,13 @@ bin/
 
 | 날짜 | PR | 내용 |
 |------|-----|------|
+| 2026-02-23 | querypie-docs#837 | 연속 inline 마커 사이 텍스트 변경 감지 수정 |
+| 2026-02-23 | querypie-docs#835 | Forward Converter `--language` 옵션 (날짜 locale 해결) |
+| 2026-02-23 | querypie-docs#834 | **Verify 엄격 모드 기본 전환** + `--lenient` 옵션 분리 |
+| 2026-02-23 | querypie-docs#831 | **Inline format 변경 감지 및 패치 생성 구현** |
+| 2026-02-20 | querypie-docs#821 | `<strong>` 뒤 조사 앞 공백 제거 패치 |
+| 2026-02-19 | querypie-docs#817 | Forward Converter heading strip 제거 |
+| 2026-02-19 | querypie-docs#813 | Verify 정규화 강화 5종 + callout 매핑 개선 |
 | 2026-02-18 | querypie-docs#804 | **Phase L4: lost_info 메타데이터 패처 구현** |
 | 2026-02-18 | querypie-docs#803 | 코드 품질 리팩토링 3건 (함수 추출 + 테스트 추가) |
 | 2026-02-18 | querypie-docs#801 | **Phase L3: lost_info 수집 및 mapping.yaml v2 구현** |
