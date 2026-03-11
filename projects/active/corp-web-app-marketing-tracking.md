@@ -206,5 +206,4 @@ GA4 기본 리포트로 부족할 경우 Looker Studio에서 커스텀 대시보
 
 | 과제 | 설명 |
 |------|------|
-| DB 기반 Lead 저장 | Salesforce Deprecate 이후 자체 DB에 리드/attribution 저장 (분석·조회용) |
 | 전환 이벤트 세분화 | form_type별 별도 Conversion 등록 여부 (예: partner 폼과 contact_us 폼을 분리 추적) |
