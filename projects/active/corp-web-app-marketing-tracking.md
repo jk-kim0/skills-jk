@@ -140,7 +140,9 @@ GA4 리포트 / Looker Studio 대시보드
 | `unlock_document` | 문서 잠금 해제 | `unlock-document` |
 | `community_license` | Community 라이선스 신청 | `apply-querypie-community-license` |
 
-**완료 기준:** GA4 > Acquisition > Traffic acquisition 리포트에서 utm_campaign별 `generate_lead` Conversions 컬럼 확인 가능
+**완료 기준:**
+- GA4 > Acquisition > Traffic acquisition 리포트에서 utm_campaign별 `generate_lead` Conversions 컬럼 확인 가능
+- `form_type` Custom Dimension이 동작 확인: Traffic acquisition에서 Secondary dimension으로 `form_type` 선택 시 `community_license` 등 값이 분리되어 표시됨
 
 ### Phase 2B — Plans 페이지 버튼 클릭 Conversion (`select_plan`)
 
@@ -166,7 +168,9 @@ GA4 리포트 / Looker Studio 대시보드
 | Contact Us (Standard) | `acp_standard` | /company/contact-us |
 | Contact Us (Enterprise) | `acp_enterprise` | /company/contact-us |
 
-**완료 기준:** GA4 > Acquisition > Traffic acquisition 리포트에서 utm_campaign별 `select_plan` Conversions 컬럼 확인 가능
+**완료 기준:**
+- GA4 > Acquisition > Traffic acquisition 리포트에서 utm_campaign별 `select_plan` Conversions 컬럼 확인 가능
+- `plan_name` Custom Dimension이 동작 확인: Traffic acquisition에서 Secondary dimension으로 `plan_name` 선택 시 `acp_community` 등 값이 분리되어 표시됨
 
 ---
 
@@ -181,8 +185,9 @@ Phase 2A 또는 2B 완료 시 해당 이벤트 리포트부터 추가 구현 없
 | 리포트 위치 | 확인 가능 항목 |
 |------------|--------------|
 | Acquisition > Traffic acquisition | 채널·캠페인별 세션 수, 전환 수, 전환율 (`generate_lead` + `select_plan`) |
-| Acquisition > Traffic acquisition (Conversion 필터: `select_plan`) | 채널별 ACP Community Edition 설치 유도율 |
-| Acquisition > Traffic acquisition (Secondary dimension: utm_content) | 광고 소재별 전환율 비교 |
+| Acquisition > Traffic acquisition (Conversion 필터: `select_plan` + Secondary dimension: `plan_name`) | 채널별 ACP Community Edition 설치 유도율 (`acp_community` 분리) |
+| Acquisition > Traffic acquisition (Conversion 필터: `generate_lead` + Secondary dimension: `form_type`) | 채널별 Community 라이선스 신청 유도율 (`community_license` 분리) |
+| Acquisition > Traffic acquisition (Secondary dimension: `utm_content`) | 광고 소재별 전환율 비교 |
 | Acquisition > User acquisition | 신규 사용자 유입 채널 분포 |
 | Engagement > Landing page | 랜딩 페이지별 세션 수, 전환율 |
 
