@@ -6,12 +6,15 @@ repos:
   - https://github.com/querypie/corp-web-app
 created: 2026-03-09
 updated: 2026-03-11
+wiki:
+  - https://github.com/querypie/corp-web-app/wiki/UTM-Tracking-Parameter-Guide
 ---
 
 # corp-web-app: 온라인 마케팅 트래킹 및 Lead 저장
 
 > **Target Repo:** [querypie/corp-web-app](https://github.com/querypie/corp-web-app)
 > **설계 문서:** [docs/utm-tracking.md](https://github.com/querypie/corp-web-app/blob/main/docs/utm-tracking.md)
+> **마케터 가이드:** [Wiki — UTM Tracking Parameter Guide](https://github.com/querypie/corp-web-app/wiki/UTM-Tracking-Parameter-Guide)
 
 ---
 
@@ -55,7 +58,19 @@ www.querypie.com 방문자의 마케팅 유입 경로(UTM)를 추적하고, 폼 
 - `src/utils/utm.ts` — UTM 로직 단일 모듈 (parseUtm, updateUtmAttribution, toSalesforceFields, readUtmCookie, useUtmCapture)
 - `src/utils/__tests__/utm.test.ts` — 유닛 테스트 12개
 - `tests/e2e/utm-tracking.spec.ts` — E2E 테스트 5개 (Playwright, stage.querypie.com 검증 완료)
-- `docs/utm-tracking.md` — 설계 및 동작 방식 문서
+- `docs/utm-tracking.md` — 설계 및 동작 방식 문서 (개발자용)
+
+---
+
+## Phase 2 — 마케터 가이드 문서
+
+**상태: 완료**
+
+| 문서 | 위치 | 작성일 |
+|------|------|--------|
+| UTM Tracking Parameter Guide | [corp-web-app Wiki](https://github.com/querypie/corp-web-app/wiki/UTM-Tracking-Parameter-Guide) | 2026-03-11 |
+
+EN/JA/KO 3개국어 병기. 파라미터 종류, URL 작성법, 작명 규칙, Salesforce 저장 내용, 자주 하는 실수 포함.
 
 ---
 
