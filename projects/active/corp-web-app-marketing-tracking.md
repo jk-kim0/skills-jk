@@ -20,7 +20,16 @@ wiki:
 
 ## 목표
 
-www.querypie.com 방문자의 마케팅 유입 경로(UTM)를 추적하고, 폼 제출 시 Salesforce Lead에 attribution 정보를 함께 저장하여 디지털 마케팅 캠페인 성과를 측정한다.
+www.querypie.com 방문자의 마케팅 유입 경로(UTM)를 추적하고, **캠페인별 리드 전환율과 이용자 행동 분석 대시보드를 구성**하여 디지털 마케팅 캠페인 성과를 측정한다.
+
+### 최종 목표 상태
+
+캠페인 담당자가 다음 질문에 스스로 답할 수 있는 환경:
+
+- "이번 달 Google CPC 캠페인이 만든 리드는 몇 건인가?"
+- "linkedin vs google, 어느 채널의 전환율이 높은가?"
+- "어떤 landing page에서 폼 제출이 가장 많이 발생하는가?"
+- "첫 방문 채널과 전환 직전 채널이 다른 비율은?"
 
 ---
 
@@ -74,11 +83,75 @@ EN/JA/KO 3개국어 병기. 파라미터 종류, URL 작성법, 작명 규칙, S
 
 ---
 
-## 다음 단계 (미착수)
+---
 
-| 과제 | 설명 |
-|------|------|
-| Attribution 리포트 | GA4 또는 내부 대시보드에서 캠페인별 리드 전환율 확인 |
+## Phase 3 — Attribution Report 대시보드
+
+**상태: 미착수**
+
+### 데이터 흐름 (현재 → 목표)
+
+```
+방문자 UTM URL 접속
+  ├─ GA4 세션 자동 기록 (utm_source/medium/campaign 포함) ← 이미 동작
+  └─ utm-attribution 쿠키 저장 ← Phase 1 완료
+
+폼 제출
+  ├─ Salesforce Lead (UTM 필드 저장) ← Phase 1 완료
+  └─ GA4 Conversion Event (generate_lead) ← Phase 3A 구현 예정
+
+Looker Studio 대시보드
+  ├─ GA4 데이터 소스: 세션 수, 이벤트, 전환 (캠페인별)
+  └─ Salesforce 데이터 소스: 리드 수, UTM 필드 ← Phase 3B 구현 예정
+```
+
+### Phase 3A — GA4 Conversion Event 등록
+
+**목표:** 폼 제출을 GA4 전환 이벤트로 등록해, GA4 Acquisition 리포트에서 캠페인별 전환수·전환율을 바로 확인할 수 있게 한다.
+
+**구현 내용:**
+
+1. Contact Us 폼 제출 성공 시 `generate_lead` 이벤트 전송
+   - 기존 `cta_submit_gating_form` 이벤트는 있으나 GA4 Conversion으로 미등록
+   - `src/models/ga.ts`에 `generate_lead` 추가, `sendToEvent` 호출
+   - GA4 Admin에서 `generate_lead`를 Conversion으로 마킹
+2. 이벤트 파라미터에 `form_type` 포함 (contact_us / partner / startup 구분)
+
+**완료 기준:** GA4 > Acquisition > Traffic acquisition 리포트에서 utm_campaign별 Conversions 컬럼 확인 가능
+
+### Phase 3B — Looker Studio 대시보드
+
+**목표:** GA4 + Salesforce 데이터를 하나의 대시보드에서 조회한다.
+
+**대시보드 구성:**
+
+| 차트 | 데이터 소스 | 측정 항목 |
+|------|------------|----------|
+| 채널별 세션 → 전환 퍼널 | GA4 | 세션 수 / generate_lead 이벤트 수 / 전환율 |
+| 캠페인별 리드 수 추이 | Salesforce | utm_campaign별 Lead 생성 건수 (월별) |
+| First-touch vs Last-touch 비교 | Salesforce | pi__first_touch_url__c vs pi__utm_source__c 분포 |
+| 랜딩 페이지별 전환율 | GA4 | 페이지별 세션 수 대비 generate_lead 발생 비율 |
+| 국가 × 채널 교차 분석 | GA4 + Salesforce | 지역별 유입 채널 분포 |
+
+**연결 방법:**
+- GA4 → Looker Studio: Google Analytics 기본 커넥터 (무료)
+- Salesforce → Looker Studio: Salesforce 커넥터 또는 CSV 정기 Export → Google Sheets 연동
+
+**완료 기준:** 캠페인 담당자가 링크 하나로 주요 지표를 자체 확인 가능
+
+### Phase 3C — 이용자 행동 분석 (선택)
+
+**목표:** 캠페인 유입 방문자가 전환 전 어떤 페이지를 탐색하는지 파악한다.
+
+**구현 내용:**
+
+1. GA4 Funnel Exploration: UTM 방문자의 페이지 탐색 경로 분석
+2. 주요 랜딩 페이지에 scroll depth 이벤트 추가 (콘텐츠 소비 측정)
+3. `/en/contact` 등 전환 직전 페이지 체류 시간 분석
+
+> Phase 3A, 3B 완료 후 필요 여부 재검토
+
+---
 
 ## 검토 후보 (미정)
 
