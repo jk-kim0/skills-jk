@@ -438,4 +438,5 @@ bin/
 | Phase 2 구현 계획 | docs/plans/2026-02-13-reverse-sync-phase2-impl.md | Phase 2 구현 태스크 분해 |
 | Phase 1 회고 | projects/done/querypie-docs-reverse-sync-phase1-retrospective.md | Phase 1 회고 + 설계 개선 도출 |
 | 매핑 재설계 | projects/done/querypie-docs-reverse-sync-mapping-redesign.md | Sidecar mapping 전환 |
+| 타입 기반 정렬 | projects/active/querypie-docs-reverse-sync-type-alignment.md | generate_sidecar_mapping 텍스트 매칭 제거 |
 | Phase 1 완료 | projects/done/querypie-docs-reverse-sync.md | Reverse Sync Phase 1 |
