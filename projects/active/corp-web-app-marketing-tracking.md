@@ -22,6 +22,12 @@ wiki:
 
 www.querypie.com 방문자의 마케팅 유입 경로(UTM)를 추적하고, **캠페인별 리드 전환율과 이용자 행동 분석 대시보드를 구성**하여 디지털 마케팅 캠페인 성과를 측정한다.
 
+### Conversion 정의
+
+> **유일한 Conversion: 폼 제출 (Lead 저장)**
+>
+> Contact Us 폼 제출 성공 = 리드 정보가 저장되는 시점을 전환으로 간주한다. 현재 다른 Conversion은 없다.
+
 ### 최종 목표 상태
 
 캠페인 담당자가 다음 질문에 스스로 답할 수 있는 환경:
@@ -117,6 +123,8 @@ GA4 기본 리포트 / Looker Studio 대시보드
    - GA4 Admin에서 `generate_lead`를 Conversion으로 마킹
 2. 이벤트 파라미터에 `form_type` 포함 (contact_us / partner / startup 구분)
 
+> 현재 `generate_lead`가 유일한 Conversion이다. 추가 Conversion은 별도 결정 전까지 등록하지 않는다.
+
 **완료 기준:** GA4 > Acquisition > Traffic acquisition 리포트에서 utm_campaign별 Conversions 컬럼 확인 가능
 
 ### Phase 3B — 대시보드 구성
@@ -171,4 +179,4 @@ GA4 기본 리포트로 부족할 경우 Looker Studio에서 커스텀 대시보
 | 과제 | 설명 |
 |------|------|
 | DB 기반 Lead 저장 | Salesforce Deprecate 이후 자체 DB에 리드/attribution 저장 (분석·조회용) |
-| 전환 이벤트 확장 | Contact Us 외 다른 폼(파트너, 스타트업 등)에도 generate_lead 이벤트 전달 여부 확인 |
+| 전환 이벤트 확장 | 파트너, 스타트업 등 다른 폼을 추가 Conversion으로 등록할지 여부 (현재 미결정) |
