@@ -243,3 +243,4 @@ mappings:
 - [x] **Sidecar lookup 모듈 구현** — mapping.yaml 로드, 인덱스 구축, 2-hop 조회 (querypie-docs#685, #687)
 - [x] **Reverse-sync pipeline 전환** — fuzzy matching 제거, sidecar O(1) 직접 매핑 적용 (querypie-docs#688)
 - [x] **폴백 보완 및 최종 검증** — sidecar 미스 시 텍스트 포함 검색 폴백, 148페이지 배치 verify 100% (querypie-docs#694)
+- [ ] **`generate_sidecar_mapping()` 텍스트 매칭 제거** — type-based sequential alignment로 매핑 생성 자체를 개선, `_find_containing_mapping` 폴백 완전 제거 → [계획 문서](../active/querypie-docs-reverse-sync-type-alignment.md)
