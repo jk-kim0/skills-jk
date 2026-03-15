@@ -9,10 +9,19 @@ that have been merged or closed via PR.
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 import sys
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
+from urllib.parse import urlparse
+
+
+@dataclass(frozen=True)
+class BranchInfo:
+    name: str
+    last_commit: datetime | None
 
 
 def run_command(cmd: list[str], cwd: str | None = None) -> tuple[int, str, str]:
@@ -72,10 +81,15 @@ def get_base_branch(repo_path: Path) -> str:
     return "main"
 
 
-def get_local_branches(repo_path: Path) -> list[str]:
-    """Get list of local branches excluding base branches."""
+def get_branch_infos(repo_path: Path) -> list[BranchInfo]:
+    """Get local branch names and last commit dates in a single git call."""
     code, stdout, _ = run_command(
-        ["git", "branch", "--format=%(refname:short)"],
+        [
+            "git",
+            "for-each-ref",
+            "--format=%(refname:short)\t%(committerdate:unix)",
+            "refs/heads",
+        ],
         cwd=str(repo_path),
     )
     if code != 0 or not stdout:
@@ -83,60 +97,154 @@ def get_local_branches(repo_path: Path) -> list[str]:
 
     base_branch = get_base_branch(repo_path)
     exclude = {"main", "master", "develop", base_branch}
+    branches: list[BranchInfo] = []
 
-    branches = []
     for line in stdout.split("\n"):
-        branch = line.strip()
-        if branch and branch not in exclude:
-            branches.append(branch)
+        branch_name, _, ts = line.partition("\t")
+        branch_name = branch_name.strip()
+        if not branch_name or branch_name in exclude:
+            continue
+
+        last_commit = None
+        ts = ts.strip()
+        if ts:
+            try:
+                last_commit = datetime.fromtimestamp(int(ts))
+            except (ValueError, OSError):
+                last_commit = None
+
+        branches.append(BranchInfo(name=branch_name, last_commit=last_commit))
 
     return branches
 
 
-def get_last_commit_date(repo_path: Path, branch: str) -> datetime | None:
-    """Get the date of the last commit on a branch."""
+def parse_github_remote(repo_path: Path) -> tuple[str, str, str] | None:
+    """Parse origin remote into (host, owner, repo)."""
     code, stdout, _ = run_command(
-        ["git", "log", "-1", "--format=%ct", branch],
+        ["git", "remote", "get-url", "origin"],
         cwd=str(repo_path),
     )
     if code != 0 or not stdout:
         return None
 
-    try:
-        timestamp = int(stdout.strip())
-        return datetime.fromtimestamp(timestamp)
-    except (ValueError, OSError):
+    remote_url = stdout.strip()
+
+    if "://" in remote_url:
+        parsed = urlparse(remote_url)
+        host = parsed.hostname
+        path = parsed.path.lstrip("/")
+    elif ":" in remote_url and "@" in remote_url:
+        host_part, _, path = remote_url.partition(":")
+        _, _, host = host_part.partition("@")
+    else:
         return None
 
+    if not host:
+        return None
 
-def get_pr_status(repo_path: Path, branch: str) -> str | None:
-    """Get PR status for a branch using gh CLI."""
+    parts = path.removesuffix(".git").split("/")
+    if len(parts) < 2:
+        return None
+
+    owner = parts[-2]
+    repo = parts[-1]
+    if not owner or not repo:
+        return None
+
+    return host, owner, repo
+
+
+def get_pr_statuses(repo_path: Path, branches: list[str]) -> dict[str, str]:
+    """Get PR status for branch heads in a repository using batched GraphQL."""
+    if not branches:
+        return {}
+
+    remote = parse_github_remote(repo_path)
+    if remote is None:
+        return {}
+
+    host, owner, repo = remote
+
+    statuses: dict[str, str] = {}
+    chunk_size = 20
+
+    for chunk_start in range(0, len(branches), chunk_size):
+        chunk = branches[chunk_start:chunk_start + chunk_size]
+        fields = []
+        alias_to_branch: dict[str, str] = {}
+        for idx, branch in enumerate(chunk):
+            alias = f"b{chunk_start + idx}"
+            alias_to_branch[alias] = branch
+            fields.append(
+                f'{alias}: pullRequests(headRefName: {json.dumps(branch)}, '
+                "states: [OPEN, MERGED, CLOSED], first: 1, "
+                "orderBy: {field: UPDATED_AT, direction: DESC}) "
+                "{ nodes { state } }"
+            )
+
+        query = (
+            "query($owner:String!, $name:String!) { "
+            "repository(owner:$owner, name:$name) { "
+            f"{' '.join(fields)}"
+            " } }"
+        )
+
+        cmd = ["gh", "api", "graphql"]
+        if host != "github.com":
+            cmd.extend(["--hostname", host])
+        cmd.extend(
+            [
+                "-f",
+                f"query={query}",
+                "-F",
+                f"owner={owner}",
+                "-F",
+                f"name={repo}",
+            ]
+        )
+
+        code, stdout, _ = run_command(cmd, cwd=str(repo_path))
+        if code != 0 or not stdout:
+            continue
+
+        try:
+            payload = json.loads(stdout)
+        except json.JSONDecodeError:
+            continue
+
+        repository = payload.get("data", {}).get("repository") or {}
+        for alias, branch in alias_to_branch.items():
+            nodes = repository.get(alias, {}).get("nodes") or []
+            if not nodes:
+                continue
+
+            state = str(nodes[0].get("state", "")).upper()
+            if state in ("OPEN", "MERGED", "CLOSED"):
+                statuses[branch] = state
+
+    return statuses
+
+
+def get_remote_branches(repo_path: Path) -> set[str]:
+    """Get remote branches under origin in a single git call."""
     code, stdout, _ = run_command(
         [
-            "gh", "pr", "list",
-            "--head", branch,
-            "--state", "all",
-            "--json", "state",
-            "--jq", ".[0].state",
+            "git",
+            "for-each-ref",
+            "--format=%(refname:short)",
+            "refs/remotes/origin",
         ],
         cwd=str(repo_path),
     )
     if code != 0 or not stdout:
-        return None
+        return set()
 
-    state = stdout.strip().upper()
-    if state in ("MERGED", "CLOSED", "OPEN"):
-        return state
-    return None
-
-
-def has_remote_branch(repo_path: Path, branch: str) -> bool:
-    """Check if a remote tracking branch exists."""
-    code, _, _ = run_command(
-        ["git", "rev-parse", "--verify", f"origin/{branch}"],
-        cwd=str(repo_path),
-    )
-    return code == 0
+    branches = set()
+    for line in stdout.splitlines():
+        ref = line.strip()
+        if ref.startswith("origin/") and ref != "origin/HEAD":
+            branches.add(ref.removeprefix("origin/"))
+    return branches
 
 
 def get_current_branch(repo_path: Path) -> str | None:
@@ -251,7 +359,32 @@ def main() -> int:
 
         print(f"[{idx}/{total_repos}] {repo_name} (base: {base_branch})")
 
-        # Fetch
+        branch_infos = get_branch_infos(repo_path)
+        if not branch_infos:
+            print("  - no local branches to check")
+            print()
+            continue
+
+        recent_branches = [
+            branch_info
+            for branch_info in branch_infos
+            if branch_info.last_commit is not None and branch_info.last_commit >= cutoff_date
+        ]
+        old_or_unknown_count = len(branch_infos) - len(recent_branches)
+
+        if not recent_branches:
+            print(
+                f"  - skipping fetch/API: {len(branch_infos)} branch(es), "
+                "all older than cutoff or missing commit info"
+            )
+            print()
+            continue
+
+        print(
+            f"  - checking {len(branch_infos)} branch(es) "
+            f"({len(recent_branches)} recent, {old_or_unknown_count} skipped by date)..."
+        )
+
         print("  - fetching...", end=" ", flush=True)
         if fetch_repo(repo_path):
             print("done")
@@ -259,20 +392,18 @@ def main() -> int:
             print()
             continue
 
-        branches = get_local_branches(repo_path)
-        if not branches:
-            print("  - no local branches to check")
-            print()
-            continue
+        pr_statuses = get_pr_statuses(
+            repo_path,
+            [branch_info.name for branch_info in recent_branches],
+        )
+        remote_branches = get_remote_branches(repo_path)
 
-        print(f"  - checking {len(branches)} branch(es)...")
-
-        for branch in branches:
+        for branch_info in branch_infos:
+            branch = branch_info.name
             # Print branch being checked
             print(f"    > {branch}: ", end="", flush=True)
 
-            # Check last commit date
-            last_commit = get_last_commit_date(repo_path, branch)
+            last_commit = branch_info.last_commit
             if last_commit is None:
                 print("skip (no commit info)")
                 continue
@@ -285,8 +416,8 @@ def main() -> int:
 
             # Check PR status
             print("checking PR...", end=" ", flush=True)
-            pr_status = get_pr_status(repo_path, branch)
-            remote_exists = has_remote_branch(repo_path, branch)
+            pr_status = pr_statuses.get(branch)
+            remote_exists = branch in remote_branches
 
             # Build status parts
             pr_str = pr_status if pr_status else "none"
