@@ -76,7 +76,7 @@ def find_git_repos(workspace: Path) -> list[Path]:
 def get_base_branch(repo_path: Path) -> str:
     """Determine the base branch for a repository."""
     repo_name = repo_path.name
-    if repo_name == "querypie-mono":
+    if repo_name in ("querypie-mono", "deck"):
         return "develop"
     return "main"
 
