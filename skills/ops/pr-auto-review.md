@@ -18,7 +18,7 @@ These are independent outcomes. One agent's review must not suppress the other.
 
 ## Inputs
 
-- Config file: `config/pr-auto-review.yml`
+- Config file: `~/workspace/skills-jk/config/pr-auto-review.yml` (absolute path)
 - State file:
   - Claude Code: `~/.claude/pr-review-state.json`
   - Codex: `~/.codex/pr-review-state.json`
@@ -34,12 +34,22 @@ env -u GITHUB_TOKEN -u GH_TOKEN gh <subcommand>
 
 ## Runtime Contract
 
-Determine the active runtime from the caller context, not from the mere existence of `~/.claude` or `~/.codex`.
+The calling prompt must declare the agent identity explicitly. Do not infer runtime from filesystem state.
 
-| Runtime | Agent ID | State file | Review engine |
-|---------|----------|------------|---------------|
-| Claude Code | `claude` | `~/.claude/pr-review-state.json` | Claude-assisted review, optionally using `/code-review` as analysis aid |
-| Codex | `codex` | `~/.codex/pr-review-state.json` | Codex-native review flow |
+| Runtime | How invoked | Agent ID | State file | Review engine |
+|---------|-------------|----------|------------|---------------|
+| Claude Code | `/ralph-loop` prompt includes `agent=claude` | `claude` | `~/.claude/pr-review-state.json` | Claude-native review |
+| Codex | `codex exec` prompt includes `agent=codex` | `codex` | `~/.codex/pr-review-state.json` | Codex-native review |
+
+Example invocation prompts:
+
+```
+# Claude Code (/ralph-loop)
+Review pending PRs (agent=claude): load ~/workspace/skills-jk/skills/ops/pr-auto-review.md and execute it
+
+# Codex (cron)
+Review pending PRs (agent=codex): load ~/workspace/skills-jk/skills/ops/pr-auto-review.md and execute it
+```
 
 ## Review Contract
 
@@ -48,11 +58,11 @@ Determine the active runtime from the caller context, not from the mere existenc
 Collect open PRs from both:
 
 1. `review-requested=@me`
-2. Every repo listed in `config/pr-auto-review.yml`
+2. Every repo listed in `~/workspace/skills-jk/config/pr-auto-review.yml`
 
 Normalize each PR into:
 
-- `repo`
+- `repo` (e.g. `chequer-io/deck`)
 - `number`
 - `url`
 - `created_at`
@@ -60,13 +70,26 @@ Normalize each PR into:
 - `is_draft`
 - `state`
 
-If `head_sha` is missing from list output, fetch it with `gh pr view`.
+**Important:** The two `gh` sources return different JSON structures:
+
+- `gh search prs` returns `repository.nameWithOwner` for the repo field and does **not** include `headRefOid`
+- `gh pr list --repo <repo>` returns results scoped to that repo (repo name from the command argument) and **does** include `headRefOid`
+
+Normalize `repo` as follows:
+- From `gh search prs`: use `repository.nameWithOwner`
+- From `gh pr list`: use the `--repo` argument value
+
+If `head_sha` is missing (always the case for `gh search prs` results), fetch it with:
+
+```bash
+env -u GITHUB_TOKEN -u GH_TOKEN gh pr view <number> --repo <repo> --json headRefOid --jq .headRefOid
+```
 
 ### Ordering and limit
 
-- De-duplicate by `repo + pr_number`
+- De-duplicate by `repo + number`
 - Sort by `created_at` ascending
-- Process at most `max_prs_per_run`
+- Apply `max_prs_per_run` cap **after** deduplication and sort, **before** fetching missing `head_sha` values
 
 ### Skip rules
 
@@ -98,10 +121,10 @@ Only publish actionable findings in these sections:
 
 Each finding should include a file reference when possible.
 
-Example:
+Example (claude):
 
 ```text
-[auto-review:codex][sha:abc1234]
+[auto-review:claude][sha:abc1234]
 
 ## Warning
 - src/api.ts:42 - Retries are unbounded and can loop forever on repeated 5xx failures.
@@ -118,7 +141,7 @@ If there are no actionable findings, prefer skipping comment publication. Do not
 
 ### 1. Load config
 
-Read `config/pr-auto-review.yml` and resolve:
+Read `~/workspace/skills-jk/config/pr-auto-review.yml` and resolve:
 
 - `repos`
 - `max_prs_per_run`
@@ -127,22 +150,39 @@ Fail fast if the config file is missing or malformed.
 
 ### 2. Resolve runtime
 
-Set:
+Extract `agent_id` from the calling prompt (look for `agent=claude` or `agent=codex`).
 
-- `agent_id`
-- `state_file`
-- `comment_prefix`
+Set based on `agent_id`:
+
+| `agent_id` | `state_file` | `comment_prefix` |
+|------------|--------------|------------------|
+| `claude` | `~/.claude/pr-review-state.json` | `[auto-review:claude]` |
+| `codex` | `~/.codex/pr-review-state.json` | `[auto-review:codex]` |
+
+Abort if `agent_id` cannot be determined.
 
 ### 3. Collect candidate PRs
 
 Run:
 
 ```bash
-env -u GITHUB_TOKEN -u GH_TOKEN gh search prs --review-requested=@me --state open --json number,repository,createdAt,url,isDraft
-env -u GITHUB_TOKEN -u GH_TOKEN gh pr list --repo <owner/repo> --state open --json number,createdAt,headRefOid,isDraft,url
+# Source 1: review-requested PRs (headRefOid not available here)
+env -u GITHUB_TOKEN -u GH_TOKEN gh search prs \
+  --review-requested=@me --state open \
+  --json number,repository,createdAt,url,isDraft
+
+# Source 2: per configured repo (headRefOid available)
+env -u GITHUB_TOKEN -u GH_TOKEN gh pr list \
+  --repo <owner/repo> --state open \
+  --json number,createdAt,headRefOid,isDraft,url
 ```
 
-Then normalize, de-duplicate, sort, and cap by `max_prs_per_run`.
+Then:
+1. Extract `repo`: use `repository.nameWithOwner` from source 1; use the `--repo` argument value from source 2
+2. Merge both lists
+3. De-duplicate by `repo + number`
+4. Sort by `createdAt` ascending
+5. Cap to `max_prs_per_run`
 
 ### 4. Load state
 
@@ -155,7 +195,7 @@ Expected record shape:
   "owner/repo#123": {
     "head_sha": "abc1234",
     "reviewed_at": "2026-03-26T20:00:00+09:00",
-    "comment_tag": "[auto-review:codex][sha:abc1234]"
+    "comment_tag": "[auto-review:claude][sha:abc1234]"
   }
 }
 ```
@@ -165,49 +205,52 @@ If the file is corrupted, back it up and continue with an empty state.
 
 ### 5. For each candidate PR
 
-For each PR:
+For each PR in order:
 
-1. Fetch current `head_sha` if needed
-2. Build `comment_tag`
-3. Check state for same-agent same-SHA completion
-4. Check existing PR comments for the same `comment_tag`
-5. Skip or review
+1. If `head_sha` is missing, fetch: `env -u GITHUB_TOKEN -u GH_TOKEN gh pr view <number> --repo <repo> --json headRefOid --jq .headRefOid`
+2. Build `comment_tag`: `[auto-review:<agent_id>][sha:<head_sha>]`
+3. Check state: if same `agent_id` + same `head_sha` already recorded → skip
+4. Check existing PR comments for exact `comment_tag`: `gh pr view <number> --repo <repo> --json comments --jq '.comments[].body'` → if found, update state and skip
+5. Otherwise proceed to review
 
 ### 6. Run review
 
 #### Claude Code path
 
-- Use Claude-native review capabilities
-- `/code-review <PR URL>` may be used to generate analysis
-- Do not rely on `/code-review` to satisfy the final publication contract
-- If `/code-review` cannot guarantee the required comment header, generate the final normalized comment yourself and publish it with `gh pr comment`
+- Retrieve PR diff: `env -u GITHUB_TOKEN -u GH_TOKEN gh pr diff <number> --repo <repo>`
+- Optionally use `/code-review <PR URL>` as analysis aid
+- Do **not** rely on `/code-review` to satisfy the final publication contract — it does not produce the required `[auto-review:claude][sha:...]` header
+- Synthesize findings and build the final normalized comment body yourself
+- Publish with `gh pr comment` (step 7)
 
 #### Codex path
 
-- Run a Codex-native review against the PR diff
-- `codex review` may be used when operating locally on a checked-out branch
-- When reviewing by PR URL without a prepared checkout, use Codex-native reasoning plus `gh`-retrieved diff/context and publish the final normalized comment with `gh pr comment`
+- Retrieve PR diff: `env -u GITHUB_TOKEN -u GH_TOKEN gh pr diff <number> --repo <repo>`
+- `codex review` operates on local uncommitted changes only and **cannot** review a PR by URL — do not use it here
+- Use Codex-native reasoning on the retrieved diff to generate review findings
+- Build the final normalized comment body and publish with `gh pr comment` (step 7)
 
 ### 7. Publish comment
 
-Publish only after the final comment body is normalized to the required header and section format.
-
-Example:
+Publish only after the final comment body is normalized to the required header and section format:
 
 ```bash
-env -u GITHUB_TOKEN -u GH_TOKEN gh pr comment <pr-number> --repo <owner/repo> --body "$COMMENT_BODY"
+env -u GITHUB_TOKEN -u GH_TOKEN gh pr comment <number> --repo <owner/repo> --body "$COMMENT_BODY"
 ```
 
 ### 8. Verify publication
 
-Re-read comments and confirm the exact `comment_tag` exists on the PR.
+Re-read comments and confirm the exact `comment_tag` exists on the PR:
+
+```bash
+env -u GITHUB_TOKEN -u GH_TOKEN gh pr view <number> --repo <repo> \
+  --json comments --jq '.comments[].body' | grep -F "$COMMENT_TAG"
+```
 
 Only after verification:
 
-- update state for `repo#pr`
-- set `head_sha`
-- set `reviewed_at`
-- set `comment_tag`
+- update state for `repo#number`
+- set `head_sha`, `reviewed_at`, `comment_tag`
 
 ## Failure Handling
 
@@ -216,15 +259,16 @@ Only after verification:
 - Comment verification fails: do not update state
 - GitHub auth/network failure: stop this run without mutating state
 
-The same SHA may be retried on the next scheduled run unless the matching comment tag is already present.
+The same SHA will be retried on the next scheduled run unless the matching comment tag is already present on the PR.
 
 ## Common Mistakes
 
 - Treating Claude and Codex as mutually exclusive reviewers
 - Recording state before verifying the published comment
 - Using generic comments without the required agent/SHA header
-- Assuming `/code-review` is the final publication step
+- Using `/code-review` or `codex review` as the final publication step
 - Skipping a PR because the other agent already reviewed it
+- Using a relative path for the config file
 
 ## Quick Reference
 
@@ -232,6 +276,7 @@ The same SHA may be retried on the next scheduled run unless the matching commen
 |------|------|
 | Review frequency | Once per agent per PR SHA |
 | Shared suppression | Not allowed |
-| Final comment publisher | This skill |
+| Config path | `~/workspace/skills-jk/config/pr-auto-review.yml` (absolute) |
+| Final comment publisher | This skill (not `/code-review` or `codex review`) |
 | Comment identity | `[auto-review:<agent>][sha:<head_sha>]` |
 | Success condition | Verified comment exists, then state update |
