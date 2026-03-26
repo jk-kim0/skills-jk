@@ -135,7 +135,7 @@ Example (claude):
 
 ### Empty review policy
 
-If there are no actionable findings, prefer skipping comment publication. Do not post filler comments.
+If there are no actionable findings, skip comment publication and record the SHA with `outcome=no_findings`. Do not post filler comments.
 
 ## Procedure
 
@@ -195,6 +195,7 @@ Expected record shape:
   "owner/repo#123": {
     "head_sha": "abc1234",
     "reviewed_at": "2026-03-26T20:00:00+09:00",
+    "outcome": "commented",
     "comment_tag": "[auto-review:claude][sha:abc1234]"
   }
 }
@@ -226,7 +227,7 @@ For each PR in order:
 #### Codex path
 
 - Retrieve PR diff: `env -u GITHUB_TOKEN -u GH_TOKEN gh pr diff <number> --repo <repo>`
-- `codex review` operates on local uncommitted changes only and **cannot** review a PR by URL — do not use it here
+- `codex review` can review local repo changes via `--base` or `--commit`, but it does **not** accept a PR URL as input — do not use it in this URL/diff-driven flow
 - Use Codex-native reasoning on the retrieved diff to generate review findings
 - Build the final normalized comment body and publish with `gh pr comment` (step 7)
 
@@ -252,6 +253,13 @@ Only after verification:
 - update state for `repo#number`
 - set `head_sha`, `reviewed_at`, `comment_tag`
 
+If there are no actionable findings:
+
+- do not publish a comment
+- update state for `repo#number`
+- set `head_sha`, `reviewed_at`, `outcome=no_findings`
+- omit `comment_tag`
+
 ## Failure Handling
 
 - Review generation fails: do not update state
@@ -259,7 +267,10 @@ Only after verification:
 - Comment verification fails: do not update state
 - GitHub auth/network failure: stop this run without mutating state
 
-The same SHA will be retried on the next scheduled run unless the matching comment tag is already present on the PR.
+The same SHA will be retried on the next scheduled run unless either:
+
+- the matching comment tag is already present on the PR
+- the state file already records `outcome=no_findings` for that SHA
 
 ## Common Mistakes
 
@@ -279,4 +290,4 @@ The same SHA will be retried on the next scheduled run unless the matching comme
 | Config path | `~/workspace/skills-jk/config/pr-auto-review.yml` (absolute) |
 | Final comment publisher | This skill (not `/code-review` or `codex review`) |
 | Comment identity | `[auto-review:<agent>][sha:<head_sha>]` |
-| Success condition | Verified comment exists, then state update |
+| Success condition | Verified comment exists, or `outcome=no_findings` state recorded |
