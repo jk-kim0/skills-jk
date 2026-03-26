@@ -57,25 +57,42 @@ git show-ref --verify --quiet refs/remotes/origin/main && echo "main" \
 
 ---
 
-## Step 3: Workspace 전체 Stale Branch 정리
+## Step 3: Stale Local Branch 정리
 
-`~/workspace/skills-jk/bin/git-cleanup-branches` 스크립트를 사용한다.
+`git-cleanup-branches` 스크립트는 **사용하지 않는다** (성능 이슈). 직접 git 명령으로 정리한다.
 
-### 3-1. Dry-run으로 확인
-
-```bash
-git-cleanup-branches
-```
-
-stale로 감지된 브랜치 목록을 사용자에게 보고한다.
-
-### 3-2. 삭제 실행
+### 3-1. Remote 최신화 및 삭제된 remote branch 반영
 
 ```bash
-git-cleanup-branches --delete
+git fetch origin --prune
 ```
 
-> 스크립트가 삭제 전 현재 브랜치가 stale이면 자동으로 base branch로 이동한다.
+### 3-2. Merged branch 목록 확인
+
+```bash
+# BASE_BRANCH에 이미 merge된 로컬 브랜치 목록
+git branch --merged <BASE_BRANCH> | grep -v "^\*" | grep -v "^  <BASE_BRANCH>$"
+```
+
+### 3-3. Remote tracking이 사라진(gone) 브랜치 목록 확인
+
+```bash
+git branch -vv | grep ": gone]"
+```
+
+### 3-4. 삭제 실행
+
+merged 브랜치와 gone 브랜치를 각각 확인 후 삭제한다:
+
+```bash
+# merged 브랜치 삭제
+git branch -d <branch-name>
+
+# gone 브랜치 삭제 (force 필요할 수 있음)
+git branch -D <branch-name>
+```
+
+삭제된 브랜치 목록을 사용자에게 보고한다.
 
 ---
 
@@ -183,4 +200,4 @@ git pull origin <BASE_BRANCH>
 
 - `OPEN` 상태의 worktree는 **절대 자동 제거하지 않는다** — 사용자 확인 후 진행
 - `git worktree remove` 실패 시 `--force` 옵션으로 재시도
-- `git-cleanup-branches`가 PATH에 없으면 `~/workspace/skills-jk/bin/git-cleanup-branches`를 직접 실행
+- Stale branch 정리 시 `git-cleanup-branches` 스크립트는 사용하지 않는다 (성능 이슈)
