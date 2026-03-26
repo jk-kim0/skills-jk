@@ -184,10 +184,13 @@ Claude Code 세션이 열려 있는 동안 5분마다 자동 실행된다.
 crontab에 등록:
 
 ```cron
-*/5 * * * * /usr/local/bin/codex --non-interactive "Review pending PRs: load skills-jk/skills/ops/pr-auto-review.md and execute it"
+*/5 * * * * /opt/homebrew/bin/codex --yolo "Review pending PRs: load skills-jk/skills/ops/pr-auto-review.md and execute it"
 ```
 
 macOS에서 백그라운드로 상시 실행된다. 세션 독립적.
+
+- Codex 바이너리: `/opt/homebrew/bin/codex` (v0.116.0)
+- `--yolo` 플래그: 확인 프롬프트 없이 자동 실행 (cron 환경에서 필수)
 
 ---
 
@@ -196,4 +199,3 @@ macOS에서 백그라운드로 상시 실행된다. 세션 독립적.
 - **Claude Code 세션 의존성**: Claude Code는 세션이 활성 상태여야 동작. Codex cron은 세션 무관하게 동작.
 - **중복 리뷰 의도**: 두 에이전트가 동일 PR에 각각 댓글을 남기는 것은 설계상 의도된 동작.
 - **rate limit**: 두 에이전트가 동시에 실행될 경우 GitHub API 호출이 2배가 되나, 5분 주기 + max 10 PR 기준으로 rate limit(시간당 5,000 요청) 내 안전한 범위.
-- **Codex cron 경로**: `codex` 바이너리 경로는 설치 환경에 따라 다를 수 있으므로 `which codex`로 확인 후 등록.
