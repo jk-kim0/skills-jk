@@ -48,7 +48,7 @@ Example invocation prompts:
 Review pending PRs (agent=claude): load ~/workspace/skills-jk/skills/ops/pr-auto-review.md and execute it
 
 # Codex (cron)
-Review pending PRs (agent=codex): load ~/workspace/skills-jk/skills/ops/pr-auto-review.md and execute it
+Review pending PRs (agent=codex): load $HOME/workspace/skills-jk/skills/ops/pr-auto-review.md and execute it
 ```
 
 ## Review Contract

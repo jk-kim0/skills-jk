@@ -288,7 +288,7 @@ Claude Code 세션에서 아래와 같이 반복 실행한다.
 Codex CLI를 cron으로 5분마다 실행한다.
 
 ```cron
-*/5 * * * * HOME=/Users/jk PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin /opt/homebrew/bin/codex exec "Review pending PRs (agent=codex): load /Users/jk/workspace/skills-jk/skills/ops/pr-auto-review.md and execute it"
+*/5 * * * * PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin /opt/homebrew/bin/codex exec "Review pending PRs (agent=codex): load $HOME/workspace/skills-jk/skills/ops/pr-auto-review.md and execute it"
 ```
 
 ### 리뷰 수행 방식
