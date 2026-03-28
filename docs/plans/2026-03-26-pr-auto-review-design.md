@@ -209,13 +209,12 @@ env -u GITHUB_TOKEN -u GH_TOKEN gh pr list --repo <owner/repo> --state open --js
 ### 4. 정상 완료 처리
 
 - actionable finding이 없으면 댓글 없이 `outcome=no_findings`로 상태 기록
-- 같은 SHA의 댓글이 이미 존재: skip, 상태는 최신화 가능
 
 ### 5. 실패 처리
 
 - 리뷰 생성 실패: 상태 미기록
 - 댓글 게시 실패: 상태 미기록
-- 상태 파일 손상: 빈 상태로 복구 후 진행
+- 상태 파일 손상: `<state_file>.bak.<unix_timestamp>`으로 백업 후 빈 상태로 재초기화
 
 ---
 

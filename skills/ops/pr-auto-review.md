@@ -18,7 +18,7 @@ These are independent outcomes. One agent's review must not suppress the other.
 
 ## Inputs
 
-- Config file: `~/workspace/skills-jk/config/pr-auto-review.yml` (absolute path, fixed to this machine's checkout location)
+- Config file: `~/workspace/skills-jk/config/pr-auto-review.yml` (machine-specific path, fixed to this machine's checkout location)
 - State file:
   - Claude Code: `~/.claude/pr-review-state.json`
   - Codex: `~/.codex/pr-review-state.json`
@@ -211,7 +211,7 @@ For each PR in order:
 1. If `head_sha` is missing, fetch: `env -u GITHUB_TOKEN -u GH_TOKEN gh pr view <number> --repo <repo> --json headRefOid --jq .headRefOid`
 2. Build `comment_tag`: `[auto-review:<agent_id>][sha:<head_sha>]`
 3. Check state: if same `agent_id` + same `head_sha` already recorded → skip
-4. Check existing PR comments for exact `comment_tag`: `gh pr view <number> --repo <repo> --json comments --jq '.comments[].body'` → if found, update state and skip
+4. Check existing PR comments for exact `comment_tag`: `env -u GITHUB_TOKEN -u GH_TOKEN gh pr view <number> --repo <repo> --json comments --jq '.comments[].body'` → if found, update state and skip
 5. Otherwise proceed to review
 
 ### 6. Run review
@@ -287,7 +287,7 @@ The same SHA will be retried on the next scheduled run unless either:
 |------|------|
 | Review frequency | Once per agent per PR SHA |
 | Shared suppression | Not allowed |
-| Config path | `~/workspace/skills-jk/config/pr-auto-review.yml` (absolute) |
+| Config path | `~/workspace/skills-jk/config/pr-auto-review.yml` (machine-specific) |
 | Final comment publisher | This skill (not `/code-review` or `codex review`) |
 | Comment identity | `[auto-review:<agent>][sha:<head_sha>]` |
 | Success condition | Verified comment exists, or `outcome=no_findings` state recorded |
