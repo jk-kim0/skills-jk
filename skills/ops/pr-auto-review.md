@@ -18,7 +18,7 @@ These are independent outcomes. One agent's review must not suppress the other.
 
 ## Inputs
 
-- Config file: `~/workspace/skills-jk/config/pr-auto-review.yml` (absolute path)
+- Config file: `~/workspace/skills-jk/config/pr-auto-review.yml` (absolute path, fixed to this machine's checkout location)
 - State file:
   - Claude Code: `~/.claude/pr-review-state.json`
   - Codex: `~/.codex/pr-review-state.json`
@@ -97,7 +97,7 @@ Skip a PR when any of the following is true:
 
 - PR is closed
 - PR is draft
-- Same agent already recorded the same `head_sha`
+- State file already has any record for this agent + `head_sha` (regardless of outcome: `commented` or `no_findings`)
 - Same agent comment tag already exists on the PR
 
 Do not skip because the other agent already commented.
@@ -202,7 +202,7 @@ Expected record shape:
 ```
 
 If the file is missing, start from an empty state.
-If the file is corrupted, back it up and continue with an empty state.
+If the file is corrupted, back it up to `<state_file>.bak.<unix_timestamp>` and continue with an empty state.
 
 ### 5. For each candidate PR
 
