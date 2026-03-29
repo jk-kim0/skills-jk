@@ -68,7 +68,6 @@ Normalize each PR into:
 - `created_at`
 - `head_sha`
 - `is_draft`
-- `state`
 
 **Important:** The two `gh` sources return different JSON structures:
 
@@ -251,7 +250,7 @@ env -u GITHUB_TOKEN -u GH_TOKEN gh pr view <number> --repo <repo> \
 Only after verification:
 
 - update state for `repo#number`
-- set `head_sha`, `reviewed_at`, `comment_tag`
+- set `head_sha`, `reviewed_at`, `outcome=commented`, `comment_tag`
 
 If there are no actionable findings:
 

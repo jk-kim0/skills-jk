@@ -368,10 +368,10 @@ Codex 자동 리뷰 댓글은 deterministic하게 제한한다.
 
 1. ~~`config/pr-auto-review.yml` 추가~~ ✅
 2. ~~`skills/ops/pr-auto-review.md` 초안 작성~~ ✅
-3. 공통 PR 수집/정렬/중복 제거 로직 구현
-4. 상태 파일 read/write 로직 구현
-5. Codex 댓글 포맷과 중복 판정 구현
-6. Claude 댓글 검증 로직 구현
+3. ~~공통 PR 수집/정렬/중복 제거 로직 구현~~ ✅
+4. ~~상태 파일 read/write 로직 구현~~ ✅
+5. ~~Codex 댓글 포맷과 중복 판정 구현~~ ✅
+6. ~~Claude 댓글 검증 로직 구현~~ ✅
 7. cron 및 `/ralph-loop` 운영 설정
 
 ---
