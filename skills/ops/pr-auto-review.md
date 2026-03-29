@@ -87,8 +87,11 @@ env -u GITHUB_TOKEN -u GH_TOKEN gh pr view <number> --repo <repo> --json headRef
 ### Ordering and limit
 
 - De-duplicate by `repo + number`
+- Remove draft PRs (`isDraft=true`) — already available from collection, no extra API call needed
 - Sort by `created_at` ascending
-- Apply `max_prs_per_run` cap **after** deduplication and sort, **before** fetching missing `head_sha` values
+- Apply `max_prs_per_run` cap **after** deduplication, draft removal, and sort, **before** fetching missing `head_sha` values
+
+The cap limits the **candidate pool** (post-draft-filter), not the number of reviews actually posted. State- and comment-based skips still occur per-PR after head_sha is resolved.
 
 ### Skip rules
 
@@ -180,8 +183,9 @@ Then:
 1. Extract `repo`: use `repository.nameWithOwner` from source 1; use the `--repo` argument value from source 2
 2. Merge both lists
 3. De-duplicate by `repo + number`
-4. Sort by `createdAt` ascending
-5. Cap to `max_prs_per_run`
+4. Remove entries where `isDraft=true`
+5. Sort by `createdAt` ascending
+6. Cap to `max_prs_per_run`
 
 ### 4. Load state
 
