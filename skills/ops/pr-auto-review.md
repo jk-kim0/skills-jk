@@ -97,12 +97,13 @@ The cap limits the **candidate pool** (post-draft-filter), not the number of rev
 
 Skip a PR when any of the following is true:
 
-- PR is closed
-- PR is draft
+- PR is draft (handled in Step 3 pre-filter; retained as defensive check)
 - State file already has any record for this agent + `head_sha` (regardless of outcome: `commented` or `no_findings`)
 - Same agent comment tag already exists on the PR
 
 Do not skip because the other agent already commented.
+
+Note: closed PRs are filtered by `--state open` at collection time. If a PR closes between collection and review, the `gh pr diff` or `gh pr comment` call will fail and Failure Handling applies — no state update, retried next run (at which point the PR will no longer appear in collection).
 
 ## Comment Contract
 
@@ -170,12 +171,12 @@ Run:
 ```bash
 # Source 1: review-requested PRs (headRefOid not available here)
 env -u GITHUB_TOKEN -u GH_TOKEN gh search prs \
-  --review-requested=@me --state open \
+  --review-requested=@me --state open --limit 100 \
   --json number,repository,createdAt,url,isDraft
 
 # Source 2: per configured repo (headRefOid available)
 env -u GITHUB_TOKEN -u GH_TOKEN gh pr list \
-  --repo <owner/repo> --state open \
+  --repo <owner/repo> --state open --limit 100 \
   --json number,createdAt,headRefOid,isDraft,url
 ```
 
