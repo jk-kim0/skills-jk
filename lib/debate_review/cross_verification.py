@@ -20,16 +20,18 @@ def _recalculate_accepted_by(issue):
     issue["accepted_by"] = seen
 
 
-def _apply_withdraw(issue, report):
+def _apply_withdraw(issue, report, reason=""):
     """Mark report as withdrawn and recalculate issue consensus state."""
     report["status"] = "withdrawn"
     _recalculate_accepted_by(issue)
     accepted_by = issue["accepted_by"]
     if not accepted_by:
         issue["consensus_status"] = "withdrawn"
+        issue["consensus_reason"] = reason
         issue["application_status"] = "not_applicable"
     elif set(accepted_by) != {"cc", "codex"}:
         issue["consensus_status"] = "open"
+        issue["consensus_reason"] = None
 
 
 def record_cross_verification(state, *, round_num, verifications) -> dict:
@@ -85,13 +87,13 @@ def resolve_rebuttals(state, *, round_num, step, decisions) -> dict:
                 "reason": reason,
             })
             if decision == "withdraw":
-                _apply_withdraw(issue, report)
+                _apply_withdraw(issue, report, reason)
             elif decision == "maintain":
                 re_report_ids.append(report_id)
 
         elif step == "3":
             if decision == "withdraw":
-                _apply_withdraw(issue, report)
+                _apply_withdraw(issue, report, reason)
                 if report_id not in round_["step3"]["withdrawn_report_ids"]:
                     round_["step3"]["withdrawn_report_ids"].append(report_id)
             elif decision == "maintain":

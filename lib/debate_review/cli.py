@@ -154,8 +154,8 @@ def cmd_init(args):
         is_fork = existing["is_fork"]
         dry_run = existing["dry_run"]
     else:
-        # Terminal state
-        existing_sha = existing["head"]["last_observed_pr_sha"]
+        # Terminal state — use terminal_sha for session identity
+        existing_sha = existing["head"].get("terminal_sha") or existing["head"]["last_observed_pr_sha"]
         if existing_sha == head_sha:
             print(json.dumps({
                 "state_file": state_path,

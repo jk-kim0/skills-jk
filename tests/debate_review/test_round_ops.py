@@ -44,6 +44,7 @@ def test_settle_consensus(sample_state):
     assert sample_state["status"] == "consensus_reached"
     assert sample_state["final_outcome"] == "consensus"
     assert sample_state["finished_at"] is not None
+    assert sample_state["head"]["terminal_sha"] == sample_state["head"]["last_observed_pr_sha"]
 
 
 def test_settle_max_rounds(sample_state):
@@ -54,6 +55,7 @@ def test_settle_max_rounds(sample_state):
     assert result["result"] == "max_rounds_exceeded"
     assert sample_state["status"] == "max_rounds_exceeded"
     assert sample_state["final_outcome"] == "no_consensus"
+    assert sample_state["head"]["terminal_sha"] == sample_state["head"]["last_observed_pr_sha"]
 
 
 def test_settle_unresolved_issues(sample_state):

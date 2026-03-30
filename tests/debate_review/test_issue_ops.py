@@ -157,3 +157,4 @@ def test_upsert_resets_applied_issue(sample_state):
     assert issue["application_status"] == "pending"
     assert issue["applied_by"] is None
     assert issue["application_commit_sha"] is None
+    assert issue["accepted_by"] == ["codex"]  # reset to reporting agent only

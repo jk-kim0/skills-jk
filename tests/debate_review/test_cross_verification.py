@@ -74,6 +74,7 @@ def test_resolve_rebuttals_step1a_withdraw():
     result = resolve_rebuttals(state, round_num=1, step="1a", decisions=decisions)
     issue = state["issues"]["isu_001"]
     assert issue["consensus_status"] == "withdrawn"
+    assert issue["consensus_reason"] == "Fair point"
     assert issue["accepted_by"] == []
     assert issue["application_status"] == "not_applicable"
     # Check report status
@@ -146,3 +147,4 @@ def test_resolve_rebuttals_withdraw_partial():
     assert issue["reports"][1]["status"] == "open"
     assert issue["accepted_by"] == ["cc"]  # only cc has open report
     assert issue["consensus_status"] == "open"  # not both agents
+    assert issue.get("consensus_reason") is None  # cleared on partial withdraw

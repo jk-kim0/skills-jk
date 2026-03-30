@@ -128,6 +128,7 @@ def settle_round(state, *, round_num) -> dict:
         state["status"] = "consensus_reached"
         state["final_outcome"] = "consensus"
         state["finished_at"] = now
+        state["head"]["terminal_sha"] = state["head"]["last_observed_pr_sha"]
         round_["step4"]["result"] = "consensus_reached"
         return {
             "round": round_num,
@@ -139,6 +140,7 @@ def settle_round(state, *, round_num) -> dict:
         state["status"] = "max_rounds_exceeded"
         state["final_outcome"] = "no_consensus"
         state["finished_at"] = now
+        state["head"]["terminal_sha"] = state["head"]["last_observed_pr_sha"]
         round_["step4"]["result"] = "max_rounds_exceeded"
         return {
             "round": round_num,

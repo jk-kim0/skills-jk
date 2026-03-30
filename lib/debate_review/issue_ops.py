@@ -140,8 +140,7 @@ def upsert_issue(
         issue["application_status"] = "pending"
         issue["applied_by"] = None
         issue["application_commit_sha"] = None
-        if agent not in issue["accepted_by"]:
-            issue["accepted_by"].append(agent)
+        issue["accepted_by"] = [agent]
     else:
         if agent not in issue["accepted_by"]:
             issue["accepted_by"].append(agent)
