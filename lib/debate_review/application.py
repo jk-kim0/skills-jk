@@ -14,6 +14,12 @@ def record_application_phase1(state, *, round_num, applied_issue_ids, failed_iss
     _find_round(state, round_num)
     journal = state["journal"]
 
+    # Validate all issue IDs exist
+    all_ids = list(applied_issue_ids) + list(failed_issue_ids)
+    unknown = [iid for iid in all_ids if iid not in state["issues"]]
+    if unknown:
+        raise ValueError(f"Unknown issue IDs: {unknown}")
+
     # Checkpoint 0: initialize
     journal["step"] = "step3_lead_apply"
     journal["applied_issue_ids"] = []
@@ -23,12 +29,10 @@ def record_application_phase1(state, *, round_num, applied_issue_ids, failed_iss
 
     # Update each issue's application_status
     for issue_id in applied_issue_ids:
-        if issue_id in state["issues"]:
-            state["issues"][issue_id]["application_status"] = "applied"
+        state["issues"][issue_id]["application_status"] = "applied"
 
     for issue_id in failed_issue_ids:
-        if issue_id in state["issues"]:
-            state["issues"][issue_id]["application_status"] = "failed"
+        state["issues"][issue_id]["application_status"] = "failed"
 
     # Checkpoint 1: record in journal
     journal["applied_issue_ids"] = list(applied_issue_ids)
@@ -44,9 +48,21 @@ def record_application_phase1(state, *, round_num, applied_issue_ids, failed_iss
 
 def record_application_phase2(state, *, round_num, commit_sha) -> dict:
     """Phase 2: Record commit SHA."""
+    _find_round(state, round_num)
     journal = state["journal"]
 
-    # Checkpoint 2
+    if journal.get("step") != "step3_lead_apply":
+        raise ValueError("Phase 2 requires Phase 1 to be completed first")
+
+    # Checkpoint 2 (idempotent: skip if same SHA already recorded)
+    if journal.get("commit_sha") == commit_sha:
+        return {"phase": 2, "round": round_num, "commit_sha": commit_sha}
+
+    if journal.get("commit_sha") is not None:
+        raise ValueError(
+            f"commit_sha already recorded as {journal['commit_sha']}, cannot overwrite with {commit_sha}"
+        )
+
     journal["commit_sha"] = commit_sha
 
     return {"phase": 2, "round": round_num, "commit_sha": commit_sha}

@@ -177,14 +177,7 @@ def cmd_init(args):
         # Terminal state — use terminal_sha for session identity
         existing_sha = existing["head"].get("terminal_sha") or existing["head"]["last_observed_pr_sha"]
         if existing_sha == head_sha:
-            print(json.dumps({
-                "state_file": state_path,
-                "status": "already_terminal",
-                "current_round": existing["current_round"],
-                "is_fork": existing["is_fork"],
-                "dry_run": existing["dry_run"],
-            }))
-            return
+            _error_exit("Session already completed for this HEAD")
         else:
             # Archive old state and create new
             archive_sha = existing_sha[:8]
@@ -218,7 +211,6 @@ def cmd_show(args):
     if not state_path:
         _error_exit("--state-file is required")
 
-    from debate_review.state import load_state
     state = load_state(state_path)
     if state is None:
         _error_exit(f"No state file found at {state_path}")

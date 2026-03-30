@@ -145,6 +145,8 @@ def upsert_issue(
         issues[issue_id] = {
             "issue_id": issue_id,
             "issue_key": issue_key,
+            "opened_by": agent,
+            "introduced_in_round": round_num,
             "criterion": criterion,
             "file": file,
             "line": line,

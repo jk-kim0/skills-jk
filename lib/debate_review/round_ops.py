@@ -91,6 +91,8 @@ def record_verdict(state, *, round_num, verdict) -> dict:
 
 def settle_round(state, *, round_num) -> dict:
     round_ = _find_round(state, round_num)
+    if round_["status"] != "active":
+        raise ValueError(f"Round {round_num} is not active (status={round_['status']})")
     round_["status"] = "completed"
 
     issues = state["issues"]
@@ -124,6 +126,7 @@ def settle_round(state, *, round_num) -> dict:
     last_two = completed[-2:]
     consensus_reached = (
         len(last_two) >= 2
+        and last_two[1]["round"] == last_two[0]["round"] + 1
         and all(r["clean_pass"] for r in last_two)
         and last_two[0]["lead_agent"] != last_two[1]["lead_agent"]
     )

@@ -51,6 +51,8 @@ def test_upsert_creates_new_issue(sample_state):
     assert issue["file"] == "src/foo.py"
     assert issue["line"] == 42
     assert issue["anchor"] == "L42"
+    assert issue["opened_by"] == "cc"
+    assert issue["introduced_in_round"] == 1
     assert issue["consensus_status"] == "open"
     assert issue["application_status"] == "pending"
     assert "cc" in issue["accepted_by"]

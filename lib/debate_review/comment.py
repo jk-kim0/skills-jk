@@ -149,7 +149,7 @@ def _find_existing_comment(state):
         for comment in data.get("comments", []):
             if comment.get("body", "").startswith(tag):
                 return comment.get("id")
-    except Exception:
+    except RuntimeError:
         pass
     return None
 

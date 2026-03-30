@@ -112,6 +112,15 @@ def test_settle_fork_recommendation_issue_ids(sample_state):
     assert "isu_001" in result["recommendation_issue_ids"]
 
 
+def test_settle_rejects_non_active_round(sample_state):
+    """settle_round should reject already-completed rounds."""
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    record_verdict(sample_state, round_num=1, verdict="has_findings")
+    settle_round(sample_state, round_num=1)
+    with pytest.raises(ValueError, match="not active"):
+        settle_round(sample_state, round_num=1)
+
+
 def test_upsert_populates_step1_tracking(sample_state):
     """upsert_issue should populate the active round's step1 tracking arrays."""
     from debate_review.issue_ops import upsert_issue

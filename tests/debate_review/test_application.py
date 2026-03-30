@@ -147,3 +147,33 @@ def test_phase3_requires_pr_head_to_match_commit_sha():
 
     with pytest.raises(ValueError, match="match commit_sha"):
         record_application_phase3(state, round_num=1, _get_head=lambda repo, pr: "other-sha")
+
+
+def test_phase1_rejects_unknown_issue_ids():
+    """Phase 1 should raise ValueError for non-existent issue IDs."""
+    import pytest
+    state = _state_with_accepted_issues()
+    with pytest.raises(ValueError, match="Unknown issue IDs"):
+        record_application_phase1(
+            state, round_num=1,
+            applied_issue_ids=["isu_missing"], failed_issue_ids=[],
+        )
+
+
+def test_phase2_requires_phase1():
+    """Phase 2 should raise if Phase 1 was not completed."""
+    import pytest
+    state = _state_with_accepted_issues()
+    # journal.step is "init", not "step3_lead_apply"
+    with pytest.raises(ValueError, match="Phase 1"):
+        record_application_phase2(state, round_num=1, commit_sha="abc")
+
+
+def test_phase2_rejects_different_sha_overwrite():
+    """Phase 2 should raise if trying to overwrite with a different SHA."""
+    import pytest
+    state = _state_with_accepted_issues()
+    record_application_phase1(state, round_num=1, applied_issue_ids=["isu_001"], failed_issue_ids=[])
+    record_application_phase2(state, round_num=1, commit_sha="sha_first")
+    with pytest.raises(ValueError, match="already recorded"):
+        record_application_phase2(state, round_num=1, commit_sha="sha_different")
