@@ -6,6 +6,7 @@ import shutil
 from debate_review.config import load_config
 from debate_review.gh import gh_json
 from debate_review.issue_ops import upsert_issue
+from debate_review.round_ops import init_round, record_verdict, settle_round
 from debate_review.state import (
     create_initial_state,
     load_state,
@@ -43,6 +44,17 @@ def build_parser() -> argparse.ArgumentParser:
     p_upsert.add_argument("--line", type=int, required=True)
     p_upsert.add_argument("--anchor", required=True)
     p_upsert.add_argument("--message", required=True)
+
+    # record-verdict subcommand
+    p_verdict = subparsers.add_parser("record-verdict")
+    p_verdict.add_argument("--state-file", required=True)
+    p_verdict.add_argument("--round", type=int, required=True)
+    p_verdict.add_argument("--verdict", required=True, choices=["has_findings", "no_findings_mergeable"])
+
+    # settle-round subcommand
+    p_settle = subparsers.add_parser("settle-round")
+    p_settle.add_argument("--state-file", required=True)
+    p_settle.add_argument("--round", type=int, required=True)
 
     return parser
 
@@ -187,6 +199,26 @@ def cmd_upsert_issue(args):
     print(json.dumps(result))
 
 
+def cmd_record_verdict(args):
+    state = load_state(args.state_file)
+    if state is None:
+        print(json.dumps({"error": f"No state file found at {args.state_file}"}))
+        return
+    result = record_verdict(state, round_num=args.round, verdict=args.verdict)
+    save_state(state, args.state_file)
+    print(json.dumps(result))
+
+
+def cmd_settle_round(args):
+    state = load_state(args.state_file)
+    if state is None:
+        print(json.dumps({"error": f"No state file found at {args.state_file}"}))
+        return
+    result = settle_round(state, round_num=args.round)
+    save_state(state, args.state_file)
+    print(json.dumps(result))
+
+
 def main():
     parser = build_parser()
     args = parser.parse_args()
@@ -195,6 +227,8 @@ def main():
         "init": cmd_init,
         "show": cmd_show,
         "upsert-issue": cmd_upsert_issue,
+        "record-verdict": cmd_record_verdict,
+        "settle-round": cmd_settle_round,
     }
 
     if args.command in commands:
