@@ -446,6 +446,32 @@ bin/debate-review post-comment --state-file "$STATE_FILE" --no-comment
 
 코멘트 본문이 stdout에 출력되고 실제 게시는 생략.
 
+#### PR Title / Description 업데이트
+
+코드 수정이 반영된 경우, PR title과 description이 최종 변경 내역을 정확히 반영하도록 업데이트한다.
+
+1. 현재 PR title/body 확인:
+   ```bash
+   env -u GITHUB_TOKEN -u GH_TOKEN gh pr view "$PR_NUMBER" --repo "$REPO" --json title,body
+   ```
+2. 최종 diff 기준으로 변경 내역 재분석:
+   ```bash
+   env -u GITHUB_TOKEN -u GH_TOKEN gh pr diff "$PR_NUMBER" --repo "$REPO"
+   ```
+3. PR title/body가 최신 코드와 불일치하면 업데이트:
+   ```bash
+   env -u GITHUB_TOKEN -u GH_TOKEN gh pr edit "$PR_NUMBER" --repo "$REPO" \
+     --title "$UPDATED_TITLE" \
+     --body "$UPDATED_BODY"
+   ```
+
+**업데이트 기준:**
+- Debate review에서 적용된 수정사항이 반영되었는지
+- 파일 줄 수, 구조, 설정 항목 등 구체적 수치가 정확한지
+- 코드 예시(명령어, 변수명 등)가 실제 코드와 일치하는지
+
+코드 수정이 없었으면 (모든 라운드가 clean pass였으면) 이 단계를 건너뛴다.
+
 #### 워크트리 정리
 
 Terminal 상태 후:
