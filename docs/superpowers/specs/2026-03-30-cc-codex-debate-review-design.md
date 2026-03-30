@@ -501,13 +501,13 @@ L은 PR 최신 상태(title, body, commits, diff, 가이드 문서)와 **리뷰 
   - `consensus_reason = null`
   - `accepted_by = [<reporting_agent>]` (새 report를 제출한 agent 하나로 재초기화)
   - 이전 round에서의 철회 사유와 무관하게, 새 report는 새로운 코드 맥락에서의 발견으로 취급한다.
-- **applied issue re-discovery 규칙:** 기존 issue의 `application_status = applied` 인 상태에서 새 report가 추가되면, 이전 수정이 불충분하다는 의미이므로 application 상태만 리셋한다:
+- **applied issue re-discovery 규칙:** 기존 issue의 `application_status = applied` 인 상태에서 새 report가 추가되면, 이전 수정이 불충분하다는 새로운 주장이므로 현재 round에서 재합의를 거쳐야 한다:
+  - `consensus_status = open`
+  - `accepted_by = [<reporting_agent>]` (재발견한 agent 하나로 재초기화)
   - `application_status = pending`
   - `applied_by = null`
   - `application_commit_sha = null`
-  - `consensus_status` 는 유지한다 (양쪽 Agent가 issue 타당성에 이미 동의한 상태이므로 재합의 불필요)
-  - `accepted_by` 는 유지한다
-  - 이를 통해 해당 round의 Step 3 apply 조건 (`consensus_status=accepted` + `application_status=pending|failed`)에 다시 진입할 수 있다.
+  - 과거 합의(`accepted`)를 유지하면, 현재 round의 cross-verifier가 rebut해도 Step 3 apply 조건에 걸려 재적용되는 문제가 있다. `open`으로 리셋하여 현재 round의 교차검증(Step 2 accept)을 거친 후에만 재적용이 가능하게 한다.
 - 새 issue 생성 시 `opened_by` 는 issue를 처음 제기한 agent로 고정한다
 - 새 issue 생성 시 `accepted_by` 는 issue를 처음 제기한 agent 하나로 초기화한다
 - 새 issue 생성 시 `application_status=pending` 으로 초기화한다
