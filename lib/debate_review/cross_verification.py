@@ -45,7 +45,8 @@ def record_cross_verification(state, *, round_num, verifications) -> dict:
         issue_id, issue, _report = _find_issue_by_report_id(state, report_id)
 
         if decision == "accept":
-            round_["step2"]["accepted_report_ids"].append(report_id)
+            if report_id not in round_["step2"]["accepted_report_ids"]:
+                round_["step2"]["accepted_report_ids"].append(report_id)
             if cross_verifier not in issue["accepted_by"]:
                 issue["accepted_by"].append(cross_verifier)
             if set(issue["accepted_by"]) >= {"cc", "codex"}:
@@ -63,6 +64,8 @@ def record_cross_verification(state, *, round_num, verifications) -> dict:
 
 
 def resolve_rebuttals(state, *, round_num, step, decisions) -> dict:
+    if step not in ("1a", "3"):
+        raise ValueError(f"step must be '1a' or '3', got {step!r}")
     round_ = _find_round(state, round_num)
     lead_agent = round_["lead_agent"]
 
@@ -89,7 +92,8 @@ def resolve_rebuttals(state, *, round_num, step, decisions) -> dict:
         elif step == "3":
             if decision == "withdraw":
                 _apply_withdraw(issue, report)
-                round_["step3"]["withdrawn_report_ids"].append(report_id)
+                if report_id not in round_["step3"]["withdrawn_report_ids"]:
+                    round_["step3"]["withdrawn_report_ids"].append(report_id)
             elif decision == "maintain":
                 round_["step3"]["rebuttals"].append({
                     "report_id": report_id,
@@ -103,7 +107,8 @@ def resolve_rebuttals(state, *, round_num, step, decisions) -> dict:
                     issue["consensus_status"] = "accepted"
                     if state.get("is_fork"):
                         issue["application_status"] = "recommended"
-                round_["step3"]["accepted_report_ids"].append(report_id)
+                if report_id not in round_["step3"]["accepted_report_ids"]:
+                    round_["step3"]["accepted_report_ids"].append(report_id)
 
     result = {"round": round_num, "step": step, "processed": len(decisions)}
     if re_report_ids:

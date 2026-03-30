@@ -238,7 +238,11 @@ def cmd_record_cross_verification(args):
     if state is None:
         print(json.dumps({"error": f"No state file found at {args.state_file}"}))
         return
-    verifications = json.loads(args.verifications)
+    try:
+        verifications = json.loads(args.verifications)
+    except json.JSONDecodeError as e:
+        print(json.dumps({"error": f"Invalid JSON for --verifications: {e}"}))
+        return
     result = record_cross_verification(state, round_num=args.round, verifications=verifications)
     save_state(state, args.state_file)
     print(json.dumps(result))
@@ -249,7 +253,11 @@ def cmd_resolve_rebuttals(args):
     if state is None:
         print(json.dumps({"error": f"No state file found at {args.state_file}"}))
         return
-    decisions = json.loads(args.decisions)
+    try:
+        decisions = json.loads(args.decisions)
+    except json.JSONDecodeError as e:
+        print(json.dumps({"error": f"Invalid JSON for --decisions: {e}"}))
+        return
     result = resolve_rebuttals(state, round_num=args.round, step=args.step, decisions=decisions)
     save_state(state, args.state_file)
     print(json.dumps(result))
