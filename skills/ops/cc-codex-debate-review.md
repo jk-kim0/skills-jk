@@ -559,7 +559,7 @@ CLI가 에러 템플릿으로 코멘트를 생성한다.
 호출 패턴:
 1. 프롬프트 템플릿 읽기
 2. 플레이스홀더 치환 (아래 도출 방법 참조)
-3. `codex exec -s danger-full-access "$FILLED_PROMPT"` 실행
+3. `codex exec -s "$CODEX_SANDBOX" "$FILLED_PROMPT"` 실행
 4. JSON 출력 파싱 (실패 시 최대 3회 재시도)
 
 #### 플레이스홀더 도출 방법
