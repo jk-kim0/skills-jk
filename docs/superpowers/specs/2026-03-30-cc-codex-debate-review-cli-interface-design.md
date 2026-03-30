@@ -104,7 +104,8 @@ bin/debate-review init \
   --pr <number> \
   [--repo-root <path>] \
   [--config <path>] \
-  [--max-rounds <number>]
+  [--max-rounds <number>] \
+  [--dry-run]
 ```
 
 **동작:**
@@ -136,13 +137,16 @@ Step 0: PR HEAD를 로컬에 동기화한다.
 bin/debate-review sync-head --state-file <path>
 ```
 
+상태 파일에서 `repo`, `repo_root`, `pr_number`, `head.target_ref` 를 읽어 git 조작을 수행한다. `init`이 이미 이 값들을 상태 파일에 기록해 두므로, `sync-head`는 추가 인자 없이 `--state-file`만으로 동작한다.
+
 **동작:**
-1. 현재 PR HEAD 조회
+1. 현재 PR HEAD 조회 (`gh pr view`)
 2. `journal.pre_sync_head_sha` 기록
-3. `git fetch` → synthetic local ref 갱신
-4. worktree hard reset
-5. 외부 변경 감지 (supersede 판정)
-6. `journal.post_sync_head_sha`, `head.synced_worktree_sha` 기록
+3. `git fetch origin pull/<number>/head:<target_ref>` → synthetic local ref 갱신
+4. worktree 생성 또는 재사용 (`<repo_root>/.worktrees/debate-pr-<number>`)
+5. worktree를 target_ref로 `reset --hard`
+6. 외부 변경 감지: `pre_sync_head_sha != post_sync_head_sha`이고 이전 라운드의 `step3.commit_sha`가 아닌 경우 supersede 판정
+7. `head.last_observed_pr_sha`, `journal.post_sync_head_sha`, `head.synced_worktree_sha` 갱신
 
 **stdout:**
 
@@ -168,13 +172,18 @@ bin/debate-review upsert-issue \
   --criterion <number> \
   --file <path> \
   --line <number> \
+  --anchor <text> \
   --message <text>
 ```
 
+`--anchor`는 심볼명, 함수명, heading, config key 등 라인 이동에 덜 민감한 식별자다. CC(오케스트레이터)가 코드를 읽고 판단하여 전달한다. 적절한 anchor가 없으면 `line<N>` 형식으로 전달한다 (예: `--anchor line42`).
+
+설계 문서에 따라 issue_key 생성은 오케스트레이터의 책임이지만, key 조합의 정확성(canonical-kind 매핑, SHA1 fallback)은 CLI가 보장한다. CC는 `--criterion`, `--file`, `--anchor`를 전달하고, CLI가 이를 조합하여 `issue_key`를 생성한다.
+
 **동작:**
-1. issue_key 생성 (설계 문서 규칙: canonical-kind 또는 fallback SHA1)
+1. issue_key 생성: `criterion:<N>|file:<path>|anchor:<anchor>|kind:<canonical-kind>`. criterion이 1-15이면 canonical-kind 테이블에서 kind를 매핑. 그 외이면 fallback 형식 사용 (`msg:<sha1(normalize(message))[:12]>`)
 2. 기존 issue_key 탐색 → 있으면 report 추가, 없으면 새 issue 생성
-3. `accepted_by` 초기화/갱신
+3. `accepted_by` 초기화/갱신 (withdrawn issue reopen, applied issue re-discovery 규칙 포함)
 4. 상태 파일 저장
 
 **stdout:**
@@ -240,16 +249,23 @@ bin/debate-review record-cross-verification \
 3. rebut → `rounds[round].step2.rebuttals`에 기록
 4. 상태 파일 저장
 
+**cross-verifier의 새 findings:** 설계 문서에 따라 cross-verifier는 lead의 reports를 검증하는 것 외에 자신의 새 findings도 보고할 수 있다. 새 findings는 이 subcommand가 아니라 별도의 `upsert-issue` 호출로 기록한다. CC는 Step 2에서 `record-cross-verification` 호출 전후에 `upsert-issue`를 호출하여 cross-verifier의 새 findings를 먼저 반영해야 한다.
+
 ### `resolve-rebuttals`
 
-Step 3 또는 Step 1a에서 rebuttal에 대한 lead agent의 응답을 기록한다.
+Rebuttal에 대한 lead agent의 응답을 기록한다. Step 1a(이전 라운드의 미결 rebuttal 처리)와 Step 3(이번 라운드의 cross-verifier rebuttal 처리)에서 사용된다.
 
 ```bash
 bin/debate-review resolve-rebuttals \
   --state-file <path> \
   --round <number> \
+  --step <1a|3> \
   --decisions <json>
 ```
+
+`--step` 에 따라 기록 위치가 다르다:
+- `1a` → `rounds[round].step1.rebuttal_responses`에 기록
+- `3` → `rounds[round].step3.withdrawn_report_ids`, `step3.accepted_report_ids`, `step3.rebuttals`에 기록
 
 `--decisions` JSON 형식:
 
@@ -262,27 +278,60 @@ bin/debate-review resolve-rebuttals \
 
 **동작:**
 1. withdraw → report status를 `withdrawn`으로, `accepted_by` 재계산, consensus_status 갱신
-2. maintain → 재보고 대상으로 표시
+2. maintain → Step 1a에서는 이번 round에서 재보고 대상으로 표시 (CC가 `upsert-issue`로 재보고). Step 3에서는 `rounds[round].step3.rebuttals`에 기록 (다음 round의 Step 1a에서 상대 agent가 처리).
 3. 상태 파일 저장
 
 ### `record-application`
 
-Step 3 코드 반영 결과를 기록한다.
+Step 3 코드 반영 결과를 기록한다. 설계 문서의 checkpoint 순서에 맞춰 **단계별로 호출**한다.
+
+#### Phase 1: 반영 결과 기록 (commit 전)
 
 ```bash
 bin/debate-review record-application \
   --state-file <path> \
   --round <number> \
   --applied-issues <json> \
-  --failed-issues <json> \
-  [--commit-sha <sha>] \
-  [--push-verified]
+  --failed-issues <json>
 ```
 
 **동작:**
-1. 각 issue의 `application_status` 갱신 (`applied`/`failed`)
-2. journal checkpoint 순서대로 기록 (설계 문서 Section 3의 checkpoint 0-6)
-3. 상태 파일 저장
+1. `journal.step = step3_lead_apply`, checkpoint 필드 초기화 (checkpoint 0)
+2. 각 issue의 `application_status` 갱신 (`applied`/`failed`)
+3. `journal.applied_issue_ids`, `journal.failed_application_issue_ids` 기록 (checkpoint 1)
+4. 상태 파일 저장
+
+#### Phase 2: commit 기록
+
+```bash
+bin/debate-review record-application \
+  --state-file <path> \
+  --round <number> \
+  --commit-sha <sha>
+```
+
+**동작:**
+1. `journal.commit_sha` 기록 (checkpoint 2)
+2. 상태 파일 저장
+
+#### Phase 3: push 검증
+
+```bash
+bin/debate-review record-application \
+  --state-file <path> \
+  --round <number> \
+  --verify-push
+```
+
+**동작:**
+1. PR HEAD가 `journal.commit_sha`와 일치하는지 확인
+2. `journal.push_verified = true` 기록 (checkpoint 3)
+3. issue별 `applied_by`, `application_commit_sha` 갱신
+4. `rounds[round].step3` 필드 최종 기록
+5. `journal.state_persisted = true` (checkpoint 4)
+6. 상태 파일 저장
+
+CC는 코드 반영 → Phase 1 → git commit → Phase 2 → git push → Phase 3 순서로 호출한다. 중간에 실패하면 resume 시 마지막 완료 phase부터 재개한다. 각 phase는 idempotent하다.
 
 ### `settle-round`
 
@@ -352,30 +401,51 @@ skill 문서가 CC에게 안내할 전형적 흐름:
 STATE=$(bin/debate-review init --repo owner/repo --pr 123)
 STATE_FILE=$(echo "$STATE" | jq -r .state_file)
 
-# 2. 라운드 루프 시작
+# 2. 라운드 루프 시작 (Round 1: lead=codex, cross=cc)
+
 # Step 0: sync
 bin/debate-review sync-head --state-file "$STATE_FILE"
 
-# Step 1: Lead 리뷰 (홀수 라운드 → Codex 호출, 짝수 → CC 자체 리뷰)
-# CC가 Codex 호출 또는 자체 리뷰 후 결과를 파싱하여:
+# Step 1a: 미결 rebuttal 처리 (Round 1에서는 건너뜀)
+# bin/debate-review resolve-rebuttals --state-file "$STATE_FILE" \
+#   --round 1 --step 1a --decisions '[...]'
+
+# Step 1b: Lead 리뷰 (홀수 라운드 → Codex 호출)
+# CC가 Codex 응답을 파싱하여 각 finding을 upsert:
 bin/debate-review upsert-issue --state-file "$STATE_FILE" \
-  --agent codex --round 1 --severity warning --criterion 5 \
-  --file src/foo.ts --line 42 --message "unbounded retry"
+  --agent codex --round 1 --severity warning --criterion 3 \
+  --file src/foo.ts --line 42 --anchor retryWithExponentialBackoff \
+  --message "unbounded retry without max attempts"
 
 bin/debate-review record-verdict --state-file "$STATE_FILE" \
   --round 1 --verdict has_findings
 
-# Step 2: Cross-verification (CC가 cross-verifier 결과를 파싱하여)
+# Step 2: Cross-verification (CC가 cross-verifier 역할)
+# CC가 자체 리뷰로 새 findings 발견 시 먼저 upsert:
+bin/debate-review upsert-issue --state-file "$STATE_FILE" \
+  --agent cc --round 1 --severity suggestion --criterion 7 \
+  --file src/config.ts --line 10 --anchor MAX_TIMEOUT \
+  --message "hardcoded timeout value"
+
+# 그 후 lead의 reports에 대한 교차 검증 결과 기록:
 bin/debate-review record-cross-verification --state-file "$STATE_FILE" \
-  --round 1 --verifications '[{"report_id":"rpt_001","decision":"accept","reason":"valid"}]'
+  --round 1 --verifications '[{"report_id":"rpt_001","decision":"accept","reason":"valid finding"}]'
 
-# Step 3: Lead 응답 + 코드 반영
+# Step 3: Lead 응답 (Codex가 CC의 rebuttal과 새 findings를 처리)
+# 3a: rebuttal 처리
 bin/debate-review resolve-rebuttals --state-file "$STATE_FILE" \
-  --round 1 --decisions '[...]'
+  --round 1 --step 3 --decisions '[...]'
 
+# 3b: 코드 반영 (same-repo PR)
+# CC가 코드 수정 후 단계별 기록:
 bin/debate-review record-application --state-file "$STATE_FILE" \
-  --round 1 --applied-issues '["isu_001"]' --failed-issues '[]' \
-  --commit-sha abc1234 --push-verified
+  --round 1 --applied-issues '["isu_001"]' --failed-issues '[]'
+# git commit 후:
+bin/debate-review record-application --state-file "$STATE_FILE" \
+  --round 1 --commit-sha abc1234
+# git push 후:
+bin/debate-review record-application --state-file "$STATE_FILE" \
+  --round 1 --verify-push
 
 # Step 4: 정산
 bin/debate-review settle-round --state-file "$STATE_FILE" --round 1
@@ -412,7 +482,18 @@ fork PR에서는 `--no-push`가 자동 적용된다 (is_fork=true이면 push 불
 
 ### subcommand별 적용
 
-안전 플래그는 해당 subcommand에 전달된 경우에만 적용된다. CC(오케스트레이터)가 "이번 세션은 dry-run"이라고 판단하면, 각 subcommand 호출 시 `--dry-run`을 전달하는 방식이다.
+`--no-push`와 `--no-comment`는 해당 subcommand(`record-application`, `post-comment`)에 직접 전달한다.
+
+`--dry-run`은 `init` 시점에 상태 파일의 메타데이터로 기록된다 (`"dry_run": true`). 이후 모든 subcommand는 상태 파일에서 이 플래그를 읽어 mutation을 억제한다. CC가 매 호출마다 `--dry-run`을 반복 전달할 필요가 없다.
+
+```bash
+# dry-run 세션 시작
+bin/debate-review init --repo owner/repo --pr 123 --dry-run
+# 이후 subcommand는 상태 파일의 dry_run 플래그를 자동 참조
+bin/debate-review sync-head --state-file "$STATE_FILE"  # 읽기만 수행
+```
+
+`--dry-run` 세션에서 `init`은 상태 파일을 임시 경로(`<기본경로>.dry-run.json`)에 저장하여 실제 세션 상태와 충돌하지 않도록 한다.
 
 ---
 
