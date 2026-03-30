@@ -120,7 +120,14 @@ SYNC_RESULT=$(bin/debate-review sync-head --state-file "$STATE_FILE")
 
 CLI가 git fetch, worktree 관리, supersede 감지를 모두 처리한다.
 
-`SYNC_RESULT`에서 `external_change: true`이면 supersede 발생. CLI가 이미 issue 상태 재설정과 `current_round` 증가를 처리했으므로, CC는 `show --json`으로 최신 상태를 다시 읽고 새 라운드로 진행.
+`SYNC_RESULT`에서 `external_change: true`이면 supersede 발생. CLI가 이미 issue 상태 재설정과 `current_round` 증가를 처리했으므로, CC는 `show --json`으로 최신 상태를 다시 읽고 `CURRENT_ROUND`를 갱신한 뒤 새 라운드로 진행한다.
+
+```bash
+if [ "$(echo "$SYNC_RESULT" | jq -r '.external_change')" = "true" ]; then
+  STATE_JSON=$(bin/debate-review show --state-file "$STATE_FILE" --json)
+  CURRENT_ROUND=$(echo "$STATE_JSON" | jq -r '.current_round')
+fi
+```
 
 ---
 
@@ -340,22 +347,30 @@ Codex가 lead이고 `code_fixes` 배열이 비어 있지 않으면, CC가 각 di
 
 **Fork PR에서는 code_fixes 적용을 건너뛴다.** push가 불가능하므로 워크트리에 패치를 적용해도 의미가 없다. `IS_FORK`가 `true`이면 이 섹션 전체를 생략.
 
+**`DRY_RUN=true`이면 실제 워크트리 변경도 금지한다.** 검토용 시뮬레이션이므로 `git apply`, `git commit`, `git push`는 실행하지 않고, agent가 제안한 `code_fixes`와 적용 대상 issue만 기록한 뒤 정산 단계로 진행한다.
+
 각 `code_fixes` 항목의 `diff` 값을 파일에 저장하고 `git apply`로 적용:
 
 ```bash
+STAGED_FILES=$(mktemp)
+
 # 각 code_fix 항목에 대해 반복
 printf '%s\n' "$DIFF_CONTENT" > /tmp/fix.patch
 git -C "$WORKTREE_PATH" apply --check /tmp/fix.patch  # 검증
 git -C "$WORKTREE_PATH" apply /tmp/fix.patch           # 적용
+git -C "$WORKTREE_PATH" apply --numstat /tmp/fix.patch | awk '{print $3}' >> "$STAGED_FILES"
 ```
 
 - `--check` 실패 시 해당 issue_id를 `failed-issues`로 기록하고 다음 항목으로 진행
 - 모든 적용이 끝난 후 Phase 1의 `--applied-issues`와 `--failed-issues`에 반영
+- 성공한 patch가 실제로 수정한 파일 경로를 누적해 두고, Phase 2에서 중복 제거 후 스테이징한다
 - CC가 lead일 때는 CC가 직접 코드를 수정한다 (code_fixes 불필요)
 
 #### 코드 반영 (동일 저장소 PR, 3-phase)
 
 `consensus_status=accepted`이고 `application_status=pending|failed`인 모든 issue를 lead agent가 수정.
+
+`DRY_RUN=true`이면 아래 3개 phase를 모두 생략한다. dry-run에서는 상태 검증만 수행하고 commit/push를 만들지 않는다.
 
 **Phase 1: 반영 결과 기록**
 
@@ -371,12 +386,14 @@ bin/debate-review record-application \
 
 코드 수정 후 commit (수정된 파일만 스테이징):
 ```bash
-git -C "$WORKTREE_PATH" add <수정된 파일들>
+sort -u "$STAGED_FILES" | while IFS= read -r path; do
+  [ -n "$path" ] && git -C "$WORKTREE_PATH" add -- "$path"
+done
 git -C "$WORKTREE_PATH" commit -m "fix: apply debate review findings (round $CURRENT_ROUND)"
 COMMIT_SHA=$(git -C "$WORKTREE_PATH" rev-parse HEAD)
 ```
 
-스테이징 대상은 `code_fixes`의 `file` 필드 또는 CC가 직접 수정한 파일 경로. `git add -A`는 사용하지 않는다.
+스테이징 대상은 각 성공한 patch의 diff에서 추출한 실제 변경 파일 경로(중복 제거 후) 또는 CC가 직접 수정한 파일 경로다. `code_fixes`의 `file` 필드는 대표 경로 힌트로만 취급하고, `git add -A`는 사용하지 않는다.
 
 ```bash
 bin/debate-review record-application \
@@ -386,6 +403,8 @@ bin/debate-review record-application \
 ```
 
 **Phase 3: push 검증**
+
+`DRY_RUN=true`이면 이 단계도 실행하지 않는다.
 
 ```bash
 git -C "$WORKTREE_PATH" push origin "HEAD:$HEAD_BRANCH"
@@ -601,7 +620,7 @@ Step별 플레이스홀더 (`show --json` 출력에서 도출):
 
 | 플레이스홀더 | 데이터 경로 | 설명 |
 |---|---|---|
-| `{PENDING_REBUTTALS}` | `rounds[N-1].step3.rebuttals` | 이전 라운드 step3의 rebuttals 배열. JSON 배열로 전달 |
+| `{PENDING_REBUTTALS}` | `rounds[N-1].step3.rebuttals` + `issues[*].reports[*]` | 이전 라운드 step3의 rebuttals에 원 finding의 `issue_id`, `severity`, `file`, `line`, `anchor`, `message`를 조합한 JSON 배열. Lead agent가 반박 사유와 원문 맥락을 함께 보고 판단할 수 있게 전달 |
 | `{LEAD_AGENT_ID}` | `rounds[N].lead_agent` | 현재 라운드의 lead agent ID |
 | `{LEAD_REPORTS}` | `rounds[N].step1.report_ids` → `issues[*].reports[*]` | report_id로 issues에서 각 report의 severity, file, line, anchor, message를 조합하여 JSON 배열로 전달 |
 | `{CROSS_REBUTTALS}` | `rounds[N].step2.rebuttals` | 현재 라운드 step2의 rebuttals 배열. JSON 배열로 전달 |
