@@ -66,6 +66,7 @@ Agent는 아래 스키마의 JSON 배열을 출력해야 한다:
     "criterion": 1,
     "file": "src/foo.ts",
     "line": 42,
+    "anchor": "validate_input",
     "message": "이슈 설명과 중요한 이유"
   }
 ]
@@ -74,6 +75,7 @@ Agent는 아래 스키마의 JSON 배열을 출력해야 한다:
 - `criterion`: 리뷰 기준 번호. 해당 시 표준 종류 인덱스(1-15) 사용, 아니면 폴백 번호.
 - `file`: 저장소 상대 경로
 - `line`: 현재 PR diff 기준 라인 번호
+- `anchor`: 심볼명, 함수명 등 라인 이동에 덜 민감한 식별자. 없으면 `line<N>` 형식.
 - `message`: 무엇이 잘못되었고 왜 문제인지 명확히 설명
 
 ---

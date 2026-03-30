@@ -24,7 +24,7 @@
 
 교차 검증자가 독립적으로 제출한 findings입니다. 각 항목에 대해 결정하세요:
 - `accept`: finding이 타당함
-- `rebut`: finding이 부정확하거나, 이미 처리되었거나, 과도함 — 명확한 사유 제시
+- `maintain`: finding이 부정확하거나, 이미 처리되었거나, 과도함 — 명확한 사유 제시 (다음 라운드에서 반박으로 전달됨)
 
 교차 검증자의 findings:
 {CROSS_FINDINGS}
@@ -46,10 +46,10 @@
     { "report_id": "rpt_001", "decision": "withdraw|maintain", "reason": "..." }
   ],
   "cross_finding_evaluations": [
-    { "report_id": "rpt_005", "decision": "accept|rebut", "reason": "..." }
+    { "report_id": "rpt_005", "decision": "accept|maintain", "reason": "..." }
   ],
   "code_fixes": [
-    { "issue_id": "isu_001", "file": "src/foo.ts", "description": "수정 설명", "diff": "--- a/src/foo.ts\n+++ b/src/foo.ts\n@@ ... @@\n..." }
+    { "issue_id": "isu_001", "file": "src/foo.ts", "description": "수정 설명", "diff": "--- a/src/foo.ts\n+++ b/src/foo.ts\n@@ ... @@\n...\n+수정된 코드" }
   ]
 }
 ```

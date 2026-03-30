@@ -35,13 +35,13 @@ Lead 리뷰어 (agent: {LEAD_AGENT_ID})가 제출한 findings:
     { "report_id": "rpt_001", "decision": "accept|rebut", "reason": "..." }
   ],
   "findings": [
-    { "severity": "critical|warning|suggestion", "criterion": 1, "file": "src/foo.ts", "line": 42, "message": "..." }
+    { "severity": "critical|warning|suggestion", "criterion": 1, "file": "src/foo.ts", "line": 42, "anchor": "validate_input", "message": "..." }
   ]
 }
 ```
 
 - `cross_verifications`: lead의 각 finding에 대해 하나씩. Lead findings 배열의 모든 `report_id`를 포함해야 함.
-- `findings`: lead가 제기하지 않은 자체 추가 findings. 없으면 빈 배열 `[]`.
+- `findings`: lead가 제기하지 않은 자체 추가 findings. 없으면 빈 배열 `[]`. `anchor`는 심볼명/함수명 등 라인 이동에 덜 민감한 식별자 (없으면 `line<N>`).
 
 ## 리뷰 기준
 
