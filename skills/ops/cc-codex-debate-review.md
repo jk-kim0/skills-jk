@@ -359,10 +359,12 @@ Codex가 lead이고 `code_fixes` 배열이 비어 있지 않으면, CC가 각 di
 STAGED_FILES=$(mktemp)
 
 # 각 code_fix 항목에 대해 반복
-printf '%s\n' "$DIFF_CONTENT" > /tmp/fix.patch
-git -C "$WORKTREE_PATH" apply --check /tmp/fix.patch  # 검증
-git -C "$WORKTREE_PATH" apply /tmp/fix.patch           # 적용
-git -C "$WORKTREE_PATH" apply --numstat /tmp/fix.patch | awk '{print $3}' >> "$STAGED_FILES"
+PATCH_FILE=$(mktemp /tmp/debate-patch-XXXXXX.patch)
+printf '%s\n' "$DIFF_CONTENT" > "$PATCH_FILE"
+git -C "$WORKTREE_PATH" apply --check "$PATCH_FILE"  # 검증
+git -C "$WORKTREE_PATH" apply "$PATCH_FILE"           # 적용
+git -C "$WORKTREE_PATH" apply --numstat "$PATCH_FILE" | awk '{print $3}' >> "$STAGED_FILES"
+rm -f "$PATCH_FILE"
 ```
 
 - `--check` 실패 시 해당 issue_id를 `failed-issues`로 기록하고 다음 항목으로 진행
@@ -388,19 +390,27 @@ bin/debate-review record-application \
 
 **Phase 2: commit SHA 기록**
 
-코드 수정 후 commit (수정된 파일만 스테이징):
+코드 수정 후 commit (수정된 파일만 스테이징). 성공한 patch가 없으면 commit을 건너뛴다:
 ```bash
 sort -u "$STAGED_FILES" | while IFS= read -r path; do
   [ -n "$path" ] && git -C "$WORKTREE_PATH" add -- "$path"
 done
-git -C "$WORKTREE_PATH" commit -m "fix: apply debate review findings (round $CURRENT_ROUND)"
-COMMIT_SHA=$(git -C "$WORKTREE_PATH" rev-parse HEAD)
+rm -f "$STAGED_FILES"
+if git -C "$WORKTREE_PATH" diff --cached --quiet; then
+  # 실제 반영된 변경사항 없음 → commit/push 건너뜀
+  COMMIT_SHA=""
+else
+  git -C "$WORKTREE_PATH" commit -m "fix: apply debate review findings (round $CURRENT_ROUND)"
+  COMMIT_SHA=$(git -C "$WORKTREE_PATH" rev-parse HEAD)
+fi
 ```
 
 스테이징 대상은 각 성공한 patch의 diff에서 추출한 실제 변경 파일 경로(중복 제거 후) 또는 CC가 직접 수정한 파일 경로다. `code_fixes`의 `file` 필드는 대표 경로 힌트로만 취급하고, `git add -A`는 사용하지 않는다.
 
+`COMMIT_SHA`가 비어 있으면 (`applied-issues`가 없거나 모든 patch가 실패한 경우) `--commit-sha`와 Phase 3를 건너뛴다.
+
 ```bash
-bin/debate-review record-application \
+[ -n "$COMMIT_SHA" ] && bin/debate-review record-application \
   --state-file "$STATE_FILE" \
   --round "$CURRENT_ROUND" \
   --commit-sha "$COMMIT_SHA"
@@ -408,14 +418,14 @@ bin/debate-review record-application \
 
 **Phase 3: push 검증**
 
-`DRY_RUN=true`이면 이 단계도 실행하지 않는다.
+`DRY_RUN=true`이면 이 단계도 실행하지 않는다. `COMMIT_SHA`가 비어 있으면 push 및 검증을 건너뛴다.
 
 ```bash
-git -C "$WORKTREE_PATH" push origin "HEAD:$HEAD_BRANCH"
+[ -n "$COMMIT_SHA" ] && git -C "$WORKTREE_PATH" push origin "HEAD:$HEAD_BRANCH"
 ```
 
 ```bash
-bin/debate-review record-application \
+[ -n "$COMMIT_SHA" ] && bin/debate-review record-application \
   --state-file "$STATE_FILE" \
   --round "$CURRENT_ROUND" \
   --verify-push
