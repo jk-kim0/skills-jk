@@ -24,8 +24,8 @@ CANONICAL_KINDS = {
 
 def normalize_message(msg: str) -> str:
     msg = msg.lower()
-    # Remove file paths (e.g. src/foo.py, /abs/path)
-    msg = re.sub(r"\S+/\S+", " ", msg)
+    # Remove file paths (e.g. src/foo.py, /abs/path) — require path-like chars
+    msg = re.sub(r"(?:/|[\w.-]+/)+[\w.-]+", " ", msg)
     # Remove line numbers (e.g. line 42, L42)
     msg = re.sub(r"\bl\d+\b", " ", msg)
     msg = re.sub(r"\bline\s+\d+\b", " ", msg)
@@ -67,6 +67,17 @@ def _all_report_ids(issues: dict) -> set:
     return ids
 
 
+def _update_round_step1_tracking(state, round_num, report_id, issue_id):
+    """Update the active round's step1 tracking arrays."""
+    for r in state.get("rounds", []):
+        if r["round"] == round_num and r["status"] == "active":
+            if report_id not in r["step1"]["report_ids"]:
+                r["step1"]["report_ids"].append(report_id)
+            if issue_id not in r["step1"]["issue_ids_touched"]:
+                r["step1"]["issue_ids_touched"].append(issue_id)
+            break
+
+
 def upsert_issue(
     state: dict,
     *,
@@ -102,6 +113,7 @@ def upsert_issue(
         "severity": severity,
         "message": message,
         "reported_at": now,
+        "status": "open",
     }
 
     if existing_id is None:
@@ -124,6 +136,7 @@ def upsert_issue(
             "created_at": now,
             "updated_at": now,
         }
+        _update_round_step1_tracking(state, round_num, report_id, issue_id)
         return {"issue_id": issue_id, "report_id": report_id, "action": "created", "issue_key": issue_key}
 
     # Existing issue — handle special statuses
@@ -147,5 +160,7 @@ def upsert_issue(
 
     issue["reports"].append(new_report)
     issue["updated_at"] = now
+
+    _update_round_step1_tracking(state, round_num, report_id, existing_id)
 
     return {"issue_id": existing_id, "report_id": report_id, "action": "appended", "issue_key": issue_key}

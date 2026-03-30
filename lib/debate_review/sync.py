@@ -58,6 +58,17 @@ def sync_head(state, *, _get_head=None, _fetch=None, _ensure_wt=None) -> dict:
     target_ref = state["head"]["target_ref"]
     journal = state["journal"]
 
+    # Dry run: skip all git/gh operations
+    if state.get("dry_run"):
+        current_sha = state["head"]["last_observed_pr_sha"]
+        return {
+            "pre_sync_sha": current_sha,
+            "post_sync_sha": current_sha,
+            "external_change": False,
+            "superseded_rounds": [],
+            "dry_run": True,
+        }
+
     # Step 1: Record pre-sync SHA
     pre_sync_sha = state["head"]["last_observed_pr_sha"]
     journal["pre_sync_head_sha"] = pre_sync_sha
@@ -95,6 +106,14 @@ def sync_head(state, *, _get_head=None, _fetch=None, _ensure_wt=None) -> dict:
                     superseded_rounds.append(r["round"])
             _reset_issues_for_supersede(state)
             state["current_round"] += 1
+            # Reset journal for the new round
+            journal["round"] = state["current_round"]
+            journal["step"] = "step0_sync"
+            journal["applied_issue_ids"] = []
+            journal["failed_application_issue_ids"] = []
+            journal["commit_sha"] = None
+            journal["push_verified"] = False
+            journal["state_persisted"] = True
 
     # Step 7: Update state
     state["head"]["last_observed_pr_sha"] = post_sync_sha
@@ -102,9 +121,12 @@ def sync_head(state, *, _get_head=None, _fetch=None, _ensure_wt=None) -> dict:
     state["head"]["synced_worktree_sha"] = synced_sha
     journal["synced_worktree_sha"] = synced_sha
 
-    return {
+    result = {
         "pre_sync_sha": pre_sync_sha,
         "post_sync_sha": post_sync_sha,
         "external_change": external_change,
         "superseded_rounds": superseded_rounds,
     }
+    if external_change:
+        result["next_round"] = state["current_round"]
+    return result

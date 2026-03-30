@@ -29,9 +29,11 @@ def _apply_withdraw(issue, report, reason=""):
         issue["consensus_status"] = "withdrawn"
         issue["consensus_reason"] = reason
         issue["application_status"] = "not_applicable"
-    elif set(accepted_by) != {"cc", "codex"}:
-        issue["consensus_status"] = "open"
+    else:
+        # Partial withdraw or still both agents — clear stale reason
         issue["consensus_reason"] = None
+        if set(accepted_by) != {"cc", "codex"}:
+            issue["consensus_status"] = "open"
 
 
 def record_cross_verification(state, *, round_num, verifications) -> dict:
@@ -45,6 +47,12 @@ def record_cross_verification(state, *, round_num, verifications) -> dict:
         reason = v.get("reason", "")
 
         issue_id, issue, _report = _find_issue_by_report_id(state, report_id)
+
+        # Track in step2
+        if report_id not in round_["step2"]["report_ids"]:
+            round_["step2"]["report_ids"].append(report_id)
+        if issue_id not in round_["step2"]["issue_ids_touched"]:
+            round_["step2"]["issue_ids_touched"].append(issue_id)
 
         if decision == "accept":
             if report_id not in round_["step2"]["accepted_report_ids"]:

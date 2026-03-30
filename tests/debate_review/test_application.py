@@ -112,6 +112,16 @@ def test_phase3_idempotent():
     assert state["issues"]["isu_001"]["applied_by"] == "codex"
 
 
+def test_phase3_requires_commit_sha():
+    """Phase 3 should raise if commit_sha is None (Phase 2 not completed)."""
+    import pytest
+    state = _state_with_accepted_issues()
+    record_application_phase1(state, round_num=1, applied_issue_ids=["isu_001"], failed_issue_ids=[])
+    # Skip Phase 2 — commit_sha remains None
+    with pytest.raises(ValueError, match="commit_sha"):
+        record_application_phase3(state, round_num=1)
+
+
 def test_full_3phase_flow():
     state = _state_with_accepted_issues()
     record_application_phase1(state, round_num=1, applied_issue_ids=["isu_001", "isu_002"], failed_issue_ids=[])

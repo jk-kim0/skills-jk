@@ -115,9 +115,14 @@ def settle_round(state, *, round_num) -> dict:
     round_["step4"]["recommendation_issue_ids"] = recommendation_issue_ids
 
     # Check consensus: last 2 completed rounds both have clean_pass==True
+    # AND different lead agents (spec requirement)
     completed = [r for r in state["rounds"] if r["status"] == "completed"]
     last_two = completed[-2:]
-    consensus_reached = len(last_two) >= 2 and all(r["clean_pass"] for r in last_two)
+    consensus_reached = (
+        len(last_two) >= 2
+        and all(r["clean_pass"] for r in last_two)
+        and last_two[0]["lead_agent"] != last_two[1]["lead_agent"]
+    )
 
     # Check max_rounds
     max_rounds_exceeded = state["current_round"] >= state["max_rounds"]
@@ -150,6 +155,7 @@ def settle_round(state, *, round_num) -> dict:
         }
     else:
         state["current_round"] += 1
+        state["journal"]["round"] = state["current_round"]
         round_["step4"]["result"] = "continue"
         return {
             "round": round_num,

@@ -111,6 +111,33 @@ def test_reset_issues_recommended_to_pending():
     assert state["issues"]["isu_001"]["accepted_by"] == []
 
 
+def test_sync_supersede_returns_next_round_and_resets_journal():
+    """Supersede should return next_round and reset journal for new round."""
+    state = _make_state_with_round()
+    result = sync_head(
+        state,
+        _get_head=lambda repo, pr: "sha_external",
+        _fetch=lambda rr, pn, tr: None,
+        _ensure_wt=lambda rr, pn, tr: ("/tmp/wt", "sha_external"),
+    )
+    assert result["next_round"] == 2
+    assert state["journal"]["round"] == 2
+    assert state["journal"]["step"] == "step0_sync"
+    assert state["journal"]["commit_sha"] is None
+    assert state["journal"]["push_verified"] is False
+
+
+def test_sync_dry_run_skips_operations():
+    """sync_head should skip all git/gh operations in dry_run mode."""
+    state = _make_state_with_round()
+    state["dry_run"] = True
+    result = sync_head(state)
+    assert result["dry_run"] is True
+    assert result["external_change"] is False
+    assert result["pre_sync_sha"] == "sha_initial"
+    assert result["post_sync_sha"] == "sha_initial"
+
+
 def test_sync_updates_state_fields():
     state = _make_state_with_round()
     result = sync_head(

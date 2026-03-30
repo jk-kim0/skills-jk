@@ -170,6 +170,10 @@ def post_comment(state, *, no_comment=False, _find_existing=None, _post=None) ->
     - _find_existing(state) -> comment_id or None
     - _post(state, body) -> post result string
     """
+    # Dry run: suppress posting
+    if state.get("dry_run"):
+        no_comment = True
+
     # Already posted?
     if state.get("final_comment_id"):
         body = build_comment_body(state)

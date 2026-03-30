@@ -80,3 +80,17 @@ def test_state_file_path_normal():
 def test_state_file_path_dry_run():
     path = state_file_path("owner/repo", 42, dry_run=True)
     assert path.endswith("owner-repo-42.dry-run.json")
+
+
+def test_load_config_missing_default():
+    """load_config should return {} when default config file doesn't exist."""
+    from debate_review.config import load_config
+    result = load_config()  # default path likely doesn't exist in test env
+    assert isinstance(result, dict)
+
+
+def test_load_config_missing_explicit_raises():
+    """load_config should raise when explicit --config path doesn't exist."""
+    from debate_review.config import load_config
+    with pytest.raises(FileNotFoundError):
+        load_config("/nonexistent/path/config.yml")

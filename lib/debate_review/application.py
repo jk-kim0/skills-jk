@@ -51,6 +51,9 @@ def record_application_phase3(state, *, round_num) -> dict:
     round_ = _find_round(state, round_num)
     journal = state["journal"]
 
+    if not journal.get("commit_sha"):
+        raise ValueError("Phase 3 requires commit_sha from Phase 2 (record-application --commit-sha)")
+
     # Checkpoint 3
     journal["push_verified"] = True
 

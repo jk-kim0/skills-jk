@@ -176,19 +176,81 @@ def test_cli_resolve_rebuttals(monkeypatch, capsys, state_path):
     assert issue["consensus_status"] == "withdrawn"
 
 
-# Test 6: Error on missing state file
+# Test 6: Error on missing state file exits with code 1
 def test_cli_missing_state_file(monkeypatch, capsys, tmp_path):
     fake_path = str(tmp_path / "nonexistent.json")
-    _run_cli(monkeypatch, ["upsert-issue", "--state-file", fake_path,
+    monkeypatch.setattr(sys, "argv", ["debate-review", "upsert-issue", "--state-file", fake_path,
         "--agent", "cc", "--round", "1", "--severity", "critical",
         "--criterion", "1", "--file", "a.py", "--line", "1",
         "--anchor", "x", "--message", "test"])
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+    assert exc_info.value.code == 1
     out = capsys.readouterr().out
     result = json.loads(out)
     assert "error" in result
 
 
-# Test 7: Invalid JSON in --verifications
+# Test 7: init-round subcommand
+def test_cli_init_round(monkeypatch, capsys, tmp_path):
+    """init-round creates a round in a fresh state (no manual init_round needed)."""
+    state = create_initial_state(
+        repo="owner/repo", repo_root="/tmp/repo", pr_number=123,
+        is_fork=False, head_sha="abc123", pr_branch_name="feat/test",
+    )
+    path = str(tmp_path / "fresh-state.json")
+    save_state(state, path)
+
+    _run_cli(monkeypatch, [
+        "init-round", "--state-file", path,
+        "--round", "1", "--lead-agent", "codex", "--synced-head-sha", "abc123",
+    ])
+    out = capsys.readouterr().out
+    result = json.loads(out)
+    assert result["round"] == 1
+    assert result["lead_agent"] == "codex"
+
+    reloaded = load_state(path)
+    assert len(reloaded["rounds"]) == 1
+    assert reloaded["rounds"][0]["lead_agent"] == "codex"
+    assert reloaded["journal"]["step"] == "step0_sync"
+
+
+# Test 8: journal.step updated by subcommands
+def test_cli_journal_step_progression(monkeypatch, capsys, state_path):
+    """CLI subcommands should update journal.step as they execute."""
+    # upsert-issue sets step1_lead_review
+    _run_cli(monkeypatch, [
+        "upsert-issue", "--state-file", state_path,
+        "--agent", "codex", "--round", "1",
+        "--severity", "warning", "--criterion", "7",
+        "--file", "src/c.py", "--line", "5",
+        "--anchor", "MAX", "--message", "Hardcoded",
+    ])
+    capsys.readouterr()
+    state = load_state(state_path)
+    assert state["journal"]["step"] == "step1_lead_review"
+
+    # record-verdict stays step1_lead_review
+    _run_cli(monkeypatch, [
+        "record-verdict", "--state-file", state_path,
+        "--round", "1", "--verdict", "has_findings",
+    ])
+    capsys.readouterr()
+    state = load_state(state_path)
+    assert state["journal"]["step"] == "step1_lead_review"
+
+    # settle-round sets step4_settle
+    _run_cli(monkeypatch, [
+        "settle-round", "--state-file", state_path,
+        "--round", "1",
+    ])
+    capsys.readouterr()
+    state = load_state(state_path)
+    assert state["journal"]["step"] == "step4_settle"
+
+
+# Test 9: Invalid JSON in --verifications
 def test_cli_invalid_json_verifications(monkeypatch, capsys, state_path):
     _run_cli(monkeypatch, [
         "record-cross-verification", "--state-file", state_path,

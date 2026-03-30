@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 import shutil
+import sys
 
 from debate_review.config import load_config
 from debate_review.gh import gh_json
@@ -53,6 +54,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_upsert.add_argument("--anchor", required=True)
     p_upsert.add_argument("--message", required=True)
 
+    # init-round subcommand
+    p_initr = subparsers.add_parser("init-round", help="Initialize a new round")
+    p_initr.add_argument("--state-file", required=True)
+    p_initr.add_argument("--round", type=int, required=True)
+    p_initr.add_argument("--lead-agent", required=True, choices=["cc", "codex"])
+    p_initr.add_argument("--synced-head-sha", required=True)
+
     # record-verdict subcommand
     p_verdict = subparsers.add_parser("record-verdict")
     p_verdict.add_argument("--state-file", required=True)
@@ -96,6 +104,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_app.add_argument("--verify-push", action="store_true")
 
     return parser
+
+
+def _error_exit(message):
+    """Print JSON error and exit with code 1."""
+    print(json.dumps({"error": message}))
+    sys.exit(1)
 
 
 def _resolve_repo_root(repo, repo_root_arg):
@@ -167,7 +181,8 @@ def cmd_init(args):
             return
         else:
             # Archive old state and create new
-            archive_path = state_path + ".archived"
+            archive_sha = existing_sha[:8]
+            archive_path = f"{state_path}.{archive_sha}.archived"
             shutil.copy2(state_path, archive_path)
             state = create_initial_state(
                 repo=repo,
@@ -195,14 +210,12 @@ def cmd_init(args):
 def cmd_show(args):
     state_path = args.state_file
     if not state_path:
-        print("Error: --state-file is required", flush=True)
-        return
+        _error_exit("--state-file is required")
 
     from debate_review.state import load_state
     state = load_state(state_path)
     if state is None:
-        print(f"No state file found at {state_path}")
-        return
+        _error_exit(f"No state file found at {state_path}")
 
     if args.as_json:
         print(json.dumps(state, indent=2))
@@ -218,11 +231,22 @@ def cmd_show(args):
         print(f"Branch:        {state['head']['pr_branch_name']}")
 
 
+def cmd_init_round(args):
+    state = load_state(args.state_file)
+    if state is None:
+        _error_exit(f"No state file found at {args.state_file}")
+    init_round(state, round_num=args.round, lead_agent=args.lead_agent, synced_head_sha=args.synced_head_sha)
+    state["journal"]["round"] = args.round
+    state["journal"]["step"] = "step0_sync"
+    save_state(state, args.state_file)
+    print(json.dumps({"round": args.round, "lead_agent": args.lead_agent}))
+
+
 def cmd_upsert_issue(args):
     state = load_state(args.state_file)
     if state is None:
-        print(json.dumps({"error": f"No state file found at {args.state_file}"}))
-        return
+        _error_exit(f"No state file found at {args.state_file}")
+    state["journal"]["step"] = "step1_lead_review"
     result = upsert_issue(
         state,
         agent=args.agent,
@@ -241,8 +265,8 @@ def cmd_upsert_issue(args):
 def cmd_record_verdict(args):
     state = load_state(args.state_file)
     if state is None:
-        print(json.dumps({"error": f"No state file found at {args.state_file}"}))
-        return
+        _error_exit(f"No state file found at {args.state_file}")
+    state["journal"]["step"] = "step1_lead_review"
     result = record_verdict(state, round_num=args.round, verdict=args.verdict)
     save_state(state, args.state_file)
     print(json.dumps(result))
@@ -251,8 +275,8 @@ def cmd_record_verdict(args):
 def cmd_settle_round(args):
     state = load_state(args.state_file)
     if state is None:
-        print(json.dumps({"error": f"No state file found at {args.state_file}"}))
-        return
+        _error_exit(f"No state file found at {args.state_file}")
+    state["journal"]["step"] = "step4_settle"
     result = settle_round(state, round_num=args.round)
     save_state(state, args.state_file)
     print(json.dumps(result))
@@ -261,13 +285,12 @@ def cmd_settle_round(args):
 def cmd_record_cross_verification(args):
     state = load_state(args.state_file)
     if state is None:
-        print(json.dumps({"error": f"No state file found at {args.state_file}"}))
-        return
+        _error_exit(f"No state file found at {args.state_file}")
     try:
         verifications = json.loads(args.verifications)
     except json.JSONDecodeError as e:
-        print(json.dumps({"error": f"Invalid JSON for --verifications: {e}"}))
-        return
+        _error_exit(f"Invalid JSON for --verifications: {e}")
+    state["journal"]["step"] = "step2_cross_verify"
     result = record_cross_verification(state, round_num=args.round, verifications=verifications)
     save_state(state, args.state_file)
     print(json.dumps(result))
@@ -276,13 +299,13 @@ def cmd_record_cross_verification(args):
 def cmd_resolve_rebuttals(args):
     state = load_state(args.state_file)
     if state is None:
-        print(json.dumps({"error": f"No state file found at {args.state_file}"}))
-        return
+        _error_exit(f"No state file found at {args.state_file}")
     try:
         decisions = json.loads(args.decisions)
     except json.JSONDecodeError as e:
-        print(json.dumps({"error": f"Invalid JSON for --decisions: {e}"}))
-        return
+        _error_exit(f"Invalid JSON for --decisions: {e}")
+    step_map = {"1a": "step1a_rebuttal_response", "3": "step3_lead_respond"}
+    state["journal"]["step"] = step_map.get(args.step, state["journal"]["step"])
     result = resolve_rebuttals(state, round_num=args.round, step=args.step, decisions=decisions)
     save_state(state, args.state_file)
     print(json.dumps(result))
@@ -291,8 +314,8 @@ def cmd_resolve_rebuttals(args):
 def cmd_sync_head(args):
     state = load_state(args.state_file)
     if state is None:
-        print(json.dumps({"error": f"No state file found at {args.state_file}"}))
-        return
+        _error_exit(f"No state file found at {args.state_file}")
+    state["journal"]["step"] = "step0_sync"
     result = sync_head(state)
     save_state(state, args.state_file)
     print(json.dumps(result))
@@ -301,8 +324,7 @@ def cmd_sync_head(args):
 def cmd_post_comment(args):
     state = load_state(args.state_file)
     if state is None:
-        print(json.dumps({"error": f"No state file found at {args.state_file}"}))
-        return
+        _error_exit(f"No state file found at {args.state_file}")
     result = post_comment(state, no_comment=args.no_comment)
     save_state(state, args.state_file)
     print(json.dumps(result))
@@ -311,8 +333,7 @@ def cmd_post_comment(args):
 def cmd_record_application(args):
     state = load_state(args.state_file)
     if state is None:
-        print(json.dumps({"error": f"No state file found at {args.state_file}"}))
-        return
+        _error_exit(f"No state file found at {args.state_file}")
 
     if args.verify_push:
         result = record_application_phase3(state, round_num=args.round)
@@ -323,15 +344,13 @@ def cmd_record_application(args):
             applied = json.loads(args.applied_issues)
             failed = json.loads(args.failed_issues) if args.failed_issues else []
         except json.JSONDecodeError as e:
-            print(json.dumps({"error": f"Invalid JSON: {e}"}))
-            return
+            _error_exit(f"Invalid JSON: {e}")
         result = record_application_phase1(
             state, round_num=args.round,
             applied_issue_ids=applied, failed_issue_ids=failed,
         )
     else:
-        print(json.dumps({"error": "Must provide --applied-issues, --commit-sha, or --verify-push"}))
-        return
+        _error_exit("Must provide --applied-issues, --commit-sha, or --verify-push")
 
     save_state(state, args.state_file)
     print(json.dumps(result))
@@ -344,6 +363,7 @@ def main():
     commands = {
         "init": cmd_init,
         "show": cmd_show,
+        "init-round": cmd_init_round,
         "upsert-issue": cmd_upsert_issue,
         "record-verdict": cmd_record_verdict,
         "settle-round": cmd_settle_round,

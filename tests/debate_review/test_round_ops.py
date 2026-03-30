@@ -67,3 +67,38 @@ def test_settle_unresolved_issues(sample_state):
     record_verdict(sample_state, round_num=1, verdict="has_findings")
     result = settle_round(sample_state, round_num=1)
     assert len(result["unresolved_issue_ids"]) == 1
+
+
+def test_settle_consensus_requires_different_agents(sample_state):
+    """Consensus requires 2 consecutive clean passes from DIFFERENT lead agents."""
+    # Round 1: clean pass (codex)
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    record_verdict(sample_state, round_num=1, verdict="no_findings_mergeable")
+    settle_round(sample_state, round_num=1)
+    # Round 2: clean pass (codex again — same agent)
+    init_round(sample_state, round_num=2, lead_agent="codex", synced_head_sha="abc")
+    record_verdict(sample_state, round_num=2, verdict="no_findings_mergeable")
+    result = settle_round(sample_state, round_num=2)
+    # Should NOT be consensus — same lead agent
+    assert result["result"] == "continue"
+    assert sample_state["status"] == "in_progress"
+
+
+def test_settle_continue_syncs_journal_round(sample_state):
+    """settle_round with 'continue' should update journal.round."""
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    record_verdict(sample_state, round_num=1, verdict="has_findings")
+    settle_round(sample_state, round_num=1)
+    assert sample_state["journal"]["round"] == 2
+
+
+def test_upsert_populates_step1_tracking(sample_state):
+    """upsert_issue should populate the active round's step1 tracking arrays."""
+    from debate_review.issue_ops import upsert_issue
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    result = upsert_issue(sample_state, agent="codex", round_num=1, severity="warning",
+                          criterion=3, file="src/foo.ts", line=42, anchor="retry",
+                          message="unbounded")
+    r = sample_state["rounds"][0]
+    assert result["report_id"] in r["step1"]["report_ids"]
+    assert result["issue_id"] in r["step1"]["issue_ids_touched"]

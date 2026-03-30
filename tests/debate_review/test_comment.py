@@ -148,6 +148,15 @@ def test_post_comment_posts():
     assert len(posted) == 1
 
 
+# Test: dry_run suppresses posting (auto-sets no_comment)
+def test_post_comment_dry_run():
+    state = _consensus_state()
+    state["dry_run"] = True
+    result = post_comment(state)
+    assert result["action"] == "dry_run"
+    assert state.get("final_comment_id") is None
+
+
 # Test 9: No issues — shows "No actionable issues remain."
 def test_build_comment_no_issues():
     state = create_initial_state(

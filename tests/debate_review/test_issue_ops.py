@@ -121,6 +121,16 @@ def test_upsert_reopens_withdrawn_issue(sample_state):
     assert "codex" in issue["accepted_by"]
 
 
+def test_upsert_sets_report_status_open(sample_state):
+    """upsert_issue should set report status to 'open' explicitly."""
+    result = upsert_issue(
+        sample_state, agent="cc", round_num=1, severity="critical",
+        criterion=1, file="src/a.py", line=1, anchor="x", message="test",
+    )
+    issue = sample_state["issues"][result["issue_id"]]
+    assert issue["reports"][0]["status"] == "open"
+
+
 def test_upsert_resets_applied_issue(sample_state):
     upsert_issue(
         sample_state,
