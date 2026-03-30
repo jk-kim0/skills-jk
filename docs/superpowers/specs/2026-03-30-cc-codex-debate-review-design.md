@@ -335,9 +335,72 @@ git -C <repo_root>/.worktrees/debate-pr-<number> \
 
 `current_round` 가 홀수이면 `lead_agent=codex`, 짝수이면 `lead_agent=cc`. 이하 문서에서 **L** 은 lead agent, **X** 는 cross-verifier를 가리킨다.
 
+### 리뷰 컨텍스트 구성
+
+Step 1과 Step 2에서 agent에게 리뷰를 요청할 때, 오케스트레이터는 **직전 2개 round의 리뷰 경과**를 context로 함께 전달한다. Round 1에서는 이전 경과가 없으므로 생략한다.
+
+#### 포함 범위
+
+`max(1, current_round - 2)` 부터 `current_round - 1` 까지의 completed/superseded round를 대상으로 한다.
+
+#### 구성 항목
+
+각 round별로 아래 항목을 시간순으로 정리한다:
+
+1. **Round 메타데이터**: round 번호, lead agent, status (`completed`/`superseded`), `clean_pass` 여부
+2. **Step 1 결과**: lead agent가 보고한 findings 요약 (issue ID, severity, file, message). clean pass면 "No findings — mergeable" 로 요약.
+3. **Step 2 결과** (clean pass가 아닌 경우):
+   - cross-verifier의 accept/rebut 판정 (report ID별)
+   - cross-verifier가 새로 보고한 findings
+4. **Step 3 결과** (clean pass가 아닌 경우):
+   - lead agent의 rebuttal 수용/거부 결정
+   - lead agent의 cross-verifier findings accept/rebut 판정
+   - 코드 반영 결과 (`applied_issue_ids`, `failed_application_issue_ids`)
+5. **미해결 issue 현황**: 해당 round 종료 시점의 `consensus_status=open` issue 목록
+
+#### 전달 형식
+
+```text
+## Review Context (Round <N-2> ~ <N-1>)
+
+### Round <N-2> [lead: <agent>, status: <status>, clean_pass: <bool>]
+
+**Step 1 (<agent> review):**
+- isu_001 (warning) src/foo.ts:42 — Unbounded retry loop
+- isu_002 (suggestion) src/bar.ts:10 — Duplicated error mapping
+
+**Step 2 (<agent> cross-verification):**
+- rpt_001 (isu_001): accepted
+- rpt_002 (isu_002): rebutted — "Intentional duplication for readability"
+- New finding: isu_003 (warning) src/baz.ts:5 — Missing null check
+
+**Step 3 (<agent> response + apply):**
+- Rebuttal on rpt_002: accepted → isu_002 withdrawn
+- rpt_003 (isu_003): accepted
+- Applied: isu_001, isu_003
+
+**Open issues after round <N-2>:** (none)
+
+### Round <N-1> [lead: <agent>, status: <status>, clean_pass: true]
+
+**Step 1 (<agent> review):**
+No findings — mergeable
+
+---
+```
+
+#### 생성 책임
+
+컨텍스트 구성은 **오케스트레이터(CC)** 가 상태 파일의 `rounds[]` 와 `issues` 데이터로부터 생성한다. Agent의 원시 출력을 그대로 전달하지 않고, 정규화된 issue ID와 consensus/application 상태를 기준으로 요약한다.
+
+#### 용도별 차이
+
+- **Step 1 (L에게 전달):** L이 이전 라운드에서 어떤 issue가 제기·해결·철회되었는지 파악하고, 중복 보고를 줄이며, 이전 rebuttal에 대한 후속 판단에 활용한다.
+- **Step 2 (X에게 전달):** X가 L의 이번 round findings와 이전 경과를 함께 보고, 이미 논의된 issue에 대한 맥락 있는 accept/rebut 판정을 내린다.
+
 ### Step 1: Lead agent 리뷰
 
-L은 PR 최신 상태(title, body, commits, diff, 가이드 문서)를 읽고 raw reports를 생성한다.
+L은 PR 최신 상태(title, body, commits, diff, 가이드 문서)와 **리뷰 컨텍스트**(직전 2개 round 경과)를 읽고 raw reports를 생성한다.
 
 출력 형식:
 
@@ -422,7 +485,7 @@ clean pass 시:
 
 ### Step 2: Cross-verifier 평가
 
-clean pass가 아닌 경우에만 실행한다.
+clean pass가 아닌 경우에만 실행한다. X에게는 L의 이번 round Step 1 결과와 함께 **리뷰 컨텍스트**(직전 2개 round 경과)를 전달한다.
 
 X는 두 가지를 수행한다:
 
