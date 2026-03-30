@@ -61,6 +61,7 @@ def record_cross_verification(state, *, round_num, verifications) -> dict:
                 issue["accepted_by"].append(cross_verifier)
             if set(issue["accepted_by"]) >= {"cc", "codex"}:
                 issue["consensus_status"] = "accepted"
+                issue["consensus_reason"] = None
                 if state.get("is_fork"):
                     issue["application_status"] = "recommended"
         elif decision == "rebut":
@@ -115,6 +116,7 @@ def resolve_rebuttals(state, *, round_num, step, decisions) -> dict:
                     issue["accepted_by"].append(lead_agent)
                 if set(issue["accepted_by"]) >= {"cc", "codex"}:
                     issue["consensus_status"] = "accepted"
+                    issue["consensus_reason"] = None
                     if state.get("is_fork"):
                         issue["application_status"] = "recommended"
                 if report_id not in round_["step3"]["accepted_report_ids"]:

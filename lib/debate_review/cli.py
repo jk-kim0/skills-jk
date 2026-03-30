@@ -229,6 +229,8 @@ def cmd_show(args):
         print(f"Started at:    {state['started_at']}")
         print(f"Head SHA:      {state['head']['last_observed_pr_sha']}")
         print(f"Branch:        {state['head']['pr_branch_name']}")
+        open_count = sum(1 for i in state.get("issues", {}).values() if i.get("consensus_status") == "open")
+        print(f"Open issues:   {open_count}")
 
 
 def cmd_init_round(args):
@@ -375,6 +377,9 @@ def main():
     }
 
     if args.command in commands:
-        commands[args.command](args)
+        try:
+            commands[args.command](args)
+        except ValueError as e:
+            _error_exit(str(e))
     else:
         parser.print_help()

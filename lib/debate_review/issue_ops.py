@@ -24,8 +24,10 @@ CANONICAL_KINDS = {
 
 def normalize_message(msg: str) -> str:
     msg = msg.lower()
-    # Remove file paths (e.g. src/foo.py, /abs/path) — require path-like chars
-    msg = re.sub(r"(?:/|[\w.-]+/)+[\w.-]+", " ", msg)
+    # Remove file paths — require dot-extension or 2+ separators (src/foo.py, /abs/path/file)
+    msg = re.sub(r"(?:[\w.-]+/){2,}[\w.-]+", " ", msg)  # 2+ separators: a/b/c
+    msg = re.sub(r"[\w.-]+/[\w.-]*\.[\w]+", " ", msg)    # dot-extension: src/foo.py
+    msg = re.sub(r"/[\w.-]+(?:/[\w.-]+)+", " ", msg)     # absolute: /abs/path
     # Remove line numbers (e.g. line 42, L42)
     msg = re.sub(r"\bl\d+\b", " ", msg)
     msg = re.sub(r"\bline\s+\d+\b", " ", msg)
@@ -132,6 +134,7 @@ def upsert_issue(
             "rejected_by": [],
             "applied_by": None,
             "application_commit_sha": None,
+            "consensus_reason": None,
             "reports": [new_report],
             "created_at": now,
             "updated_at": now,
@@ -146,10 +149,12 @@ def upsert_issue(
 
     if consensus_status == "withdrawn":
         issue["consensus_status"] = "open"
+        issue["consensus_reason"] = None
         issue["application_status"] = "pending"
         issue["accepted_by"] = [agent]
     elif application_status == "applied":
         issue["consensus_status"] = "open"
+        issue["consensus_reason"] = None
         issue["application_status"] = "pending"
         issue["applied_by"] = None
         issue["application_commit_sha"] = None

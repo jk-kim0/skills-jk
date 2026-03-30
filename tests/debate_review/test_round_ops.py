@@ -92,6 +92,26 @@ def test_settle_continue_syncs_journal_round(sample_state):
     assert sample_state["journal"]["round"] == 2
 
 
+def test_init_round_idempotent(sample_state):
+    """init_round should skip if round already exists (no duplicate)."""
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    assert len(sample_state["rounds"]) == 1
+
+
+def test_settle_fork_recommendation_issue_ids(sample_state):
+    """Fork PR settle should populate recommendation_issue_ids."""
+    sample_state["is_fork"] = True
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    sample_state["issues"]["isu_001"] = {
+        "issue_id": "isu_001", "consensus_status": "accepted",
+        "application_status": "recommended", "accepted_by": ["cc", "codex"],
+    }
+    record_verdict(sample_state, round_num=1, verdict="no_findings_mergeable")
+    result = settle_round(sample_state, round_num=1)
+    assert "isu_001" in result["recommendation_issue_ids"]
+
+
 def test_upsert_populates_step1_tracking(sample_state):
     """upsert_issue should populate the active round's step1 tracking arrays."""
     from debate_review.issue_ops import upsert_issue

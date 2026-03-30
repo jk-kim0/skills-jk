@@ -158,3 +158,15 @@ def test_resolve_rebuttals_withdraw_partial():
     assert issue["accepted_by"] == ["cc"]  # only cc has open report
     assert issue["consensus_status"] == "open"  # not both agents
     assert issue.get("consensus_reason") is None  # cleared on partial withdraw
+
+
+# Test: consensus_reason is cleared when withdrawn issue is re-accepted
+def test_consensus_reason_cleared_on_accept():
+    state = _state_with_round_and_issues()
+    # Manually set a stale consensus_reason on isu_001
+    state["issues"]["isu_001"]["consensus_reason"] = "Old reason"
+    verifications = [{"report_id": "rpt_001", "decision": "accept", "reason": "Valid"}]
+    record_cross_verification(state, round_num=1, verifications=verifications)
+    issue = state["issues"]["isu_001"]
+    assert issue["consensus_status"] == "accepted"
+    assert issue["consensus_reason"] is None  # stale reason cleared

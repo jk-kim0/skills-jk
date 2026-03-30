@@ -2,6 +2,10 @@ from datetime import datetime, timezone
 
 
 def init_round(state, *, round_num, lead_agent, synced_head_sha):
+    # Idempotent: skip if round already exists
+    for r in state["rounds"]:
+        if r["round"] == round_num:
+            return
     state["rounds"].append({
         "round": round_num,
         "status": "active",

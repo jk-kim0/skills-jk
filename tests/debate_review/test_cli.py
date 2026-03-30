@@ -250,7 +250,33 @@ def test_cli_journal_step_progression(monkeypatch, capsys, state_path):
     assert state["journal"]["step"] == "step4_settle"
 
 
-# Test 9: Invalid JSON in --verifications
+# Test 9: ValueError from business logic produces JSON error + exit 1
+def test_cli_valueerror_json_exit(monkeypatch, capsys, state_path):
+    """Business logic ValueError should produce JSON error, exit 1."""
+    # record-verdict with no_findings_mergeable but open issues exist
+    _run_cli(monkeypatch, [
+        "upsert-issue", "--state-file", state_path,
+        "--agent", "codex", "--round", "1",
+        "--severity", "critical", "--criterion", "1",
+        "--file", "src/a.py", "--line", "1",
+        "--anchor", "x", "--message", "test",
+    ])
+    capsys.readouterr()
+
+    monkeypatch.setattr(sys, "argv", ["debate-review",
+        "record-verdict", "--state-file", state_path,
+        "--round", "1", "--verdict", "no_findings_mergeable",
+    ])
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+    assert exc_info.value.code == 1
+    out = capsys.readouterr().out
+    result = json.loads(out)
+    assert "error" in result
+    assert "open issue" in result["error"]
+
+
+# Test 10: Invalid JSON in --verifications
 def test_cli_invalid_json_verifications(monkeypatch, capsys, state_path):
     _run_cli(monkeypatch, [
         "record-cross-verification", "--state-file", state_path,
