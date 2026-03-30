@@ -1,7 +1,3 @@
 # CC-Codex Debate Review configuration
-repos:
-  - chequer-io/deck
-  - querypie/querypie-docs
-
 max_rounds: 10
 codex_sandbox: danger-full-access
