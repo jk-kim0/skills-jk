@@ -5,6 +5,7 @@ import shutil
 
 from debate_review.config import load_config
 from debate_review.gh import gh_json
+from debate_review.issue_ops import upsert_issue
 from debate_review.state import (
     create_initial_state,
     load_state,
@@ -30,6 +31,18 @@ def build_parser() -> argparse.ArgumentParser:
     show_parser = subparsers.add_parser("show", help="Show debate-review state")
     show_parser.add_argument("--state-file", help="Path to state file")
     show_parser.add_argument("--json", action="store_true", dest="as_json", help="Output as JSON")
+
+    # upsert-issue subcommand
+    p_upsert = subparsers.add_parser("upsert-issue")
+    p_upsert.add_argument("--state-file", required=True)
+    p_upsert.add_argument("--agent", required=True, choices=["cc", "codex"])
+    p_upsert.add_argument("--round", type=int, required=True)
+    p_upsert.add_argument("--severity", required=True, choices=["critical", "warning", "suggestion"])
+    p_upsert.add_argument("--criterion", type=int, required=True)
+    p_upsert.add_argument("--file", required=True)
+    p_upsert.add_argument("--line", type=int, required=True)
+    p_upsert.add_argument("--anchor", required=True)
+    p_upsert.add_argument("--message", required=True)
 
     return parser
 
@@ -154,13 +167,37 @@ def cmd_show(args):
         print(f"Branch:        {state['head']['pr_branch_name']}")
 
 
+def cmd_upsert_issue(args):
+    state = load_state(args.state_file)
+    if state is None:
+        print(json.dumps({"error": f"No state file found at {args.state_file}"}))
+        return
+    result = upsert_issue(
+        state,
+        agent=args.agent,
+        round_num=args.round,
+        severity=args.severity,
+        criterion=args.criterion,
+        file=args.file,
+        line=args.line,
+        anchor=args.anchor,
+        message=args.message,
+    )
+    save_state(state, args.state_file)
+    print(json.dumps(result))
+
+
 def main():
     parser = build_parser()
     args = parser.parse_args()
 
-    if args.command == "init":
-        cmd_init(args)
-    elif args.command == "show":
-        cmd_show(args)
+    commands = {
+        "init": cmd_init,
+        "show": cmd_show,
+        "upsert-issue": cmd_upsert_issue,
+    }
+
+    if args.command in commands:
+        commands[args.command](args)
     else:
         parser.print_help()
