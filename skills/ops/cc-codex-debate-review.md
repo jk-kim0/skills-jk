@@ -597,9 +597,36 @@ RESULT=$(bin/debate-review init --repo "$REPO" --pr "$PR_NUMBER" \
 | push 실패 | Phase 2까지 기록된 상태에서 push 재시도 |
 | CLI exit code 1 | JSON 에러 메시지 파싱, 원인 파악 후 조치 |
 
-에러 종료 시 (`DRY_RUN=true`이면 `--no-comment` 추가), 최종 코멘트 후 워크트리도 정리한다:
+에러 종료 시 stale 세션이 resume되지 않도록 먼저 state file을 terminal failed 상태로 기록한다. `debate-review init`은 `status=in_progress` 세션을 그대로 재개하므로, fatal error 경로에서는 이 단계가 필수다. 현재 CLI에 전용 subcommand가 없으므로 이 경로만 예외적으로 state file을 직접 갱신한 뒤 (`DRY_RUN=true`이면 `--no-comment` 추가) 최종 코멘트를 게시하고 워크트리를 정리한다.
 
 ```bash
+ERROR_MESSAGE=${ERROR_MESSAGE:-"Unknown error"}
+python3 - "$STATE_FILE" "$ERROR_MESSAGE" <<'PY'
+import json
+import os
+import sys
+import tempfile
+from datetime import datetime, timezone
+
+path, error_message = sys.argv[1], sys.argv[2]
+with open(path) as f:
+    state = json.load(f)
+
+state["status"] = "failed"
+state["final_outcome"] = "error"
+state["finished_at"] = datetime.now(timezone.utc).isoformat()
+state["error_message"] = error_message
+state["head"]["terminal_sha"] = state["head"]["last_observed_pr_sha"]
+state["journal"]["state_persisted"] = True
+
+dir_ = os.path.dirname(path)
+with tempfile.NamedTemporaryFile("w", dir=dir_, delete=False, suffix=".tmp") as f:
+    json.dump(state, f, indent=2)
+    f.write("\n")
+    tmp_path = f.name
+os.replace(tmp_path, path)
+PY
+
 if [ "$DRY_RUN" = "true" ]; then
   bin/debate-review post-comment --state-file "$STATE_FILE" --no-comment
 else
