@@ -31,7 +31,12 @@
 
 ## 코드 수정
 
-아래 issue들(합의 상태: accepted, 반영 상태: pending 또는 failed)에 대해 통합 diff 패치를 제공하세요. 동일 저장소 PR에만 해당됩니다. Fork PR이거나 해당 issue가 없으면 빈 배열 `[]`을 출력하세요.
+아래 issue들(합의 상태: accepted, 반영 상태: pending 또는 failed)에 대해 통합 diff 패치를 제공하세요.
+
+참고:
+- 이 프롬프트는 fork PR 여부를 직접 전달받지 않을 수 있습니다.
+- fork PR에서의 실제 적용 여부는 오케스트레이터가 판단하며, 필요 시 `code_fixes`를 무시합니다.
+- `{APPLICABLE_ISSUES}`가 비어 있으면 빈 배열 `[]`을 출력하세요.
 
 반영 대상 issue:
 {APPLICABLE_ISSUES}
@@ -56,7 +61,7 @@
 
 - `rebuttal_decisions`: `{CROSS_REBUTTALS}`의 각 반박에 대해 하나씩. 없으면 빈 배열 `[]`.
 - `cross_finding_evaluations`: `{CROSS_FINDINGS}`의 각 finding에 대해 하나씩. 없으면 빈 배열 `[]`.
-- `code_fixes`: 반영 대상 issue에 대한 통합 diff 패치. 해당 issue가 없거나 fork PR이면 빈 배열 `[]`.
+- `code_fixes`: 반영 대상 issue에 대한 통합 diff 패치. `{APPLICABLE_ISSUES}`가 비어 있으면 빈 배열 `[]`. fork PR에서는 오케스트레이터가 이 값을 무시할 수 있다.
 
 ## 리뷰 기준
 
