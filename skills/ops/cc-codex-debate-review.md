@@ -597,7 +597,7 @@ RESULT=$(bin/debate-review init --repo "$REPO" --pr "$PR_NUMBER" \
 | push 실패 | Phase 2까지 기록된 상태에서 push 재시도 |
 | CLI exit code 1 | JSON 에러 메시지 파싱, 원인 파악 후 조치 |
 
-에러 종료 시 (`DRY_RUN=true`이면 `--no-comment` 추가):
+에러 종료 시 (`DRY_RUN=true`이면 `--no-comment` 추가), 최종 코멘트 후 워크트리도 정리한다:
 
 ```bash
 if [ "$DRY_RUN" = "true" ]; then
@@ -605,9 +605,19 @@ if [ "$DRY_RUN" = "true" ]; then
 else
   bin/debate-review post-comment --state-file "$STATE_FILE"
 fi
+
+if [ -z "${WORKTREE_PATH:-}" ]; then
+  STATE_JSON=$(bin/debate-review show --state-file "$STATE_FILE" --json 2>/dev/null || true)
+  REPO_ROOT=$(printf '%s' "$STATE_JSON" | jq -r '.repo_root // empty')
+  [ -n "$REPO_ROOT" ] && WORKTREE_PATH="$REPO_ROOT/.worktrees/debate-pr-$PR_NUMBER"
+fi
+
+if [ -n "${WORKTREE_PATH:-}" ] && [ -d "$WORKTREE_PATH" ]; then
+  git -C "$REPO_ROOT" worktree remove "$WORKTREE_PATH" --force || true
+fi
 ```
 
-CLI가 에러 템플릿으로 코멘트를 생성한다.
+CLI가 에러 템플릿으로 코멘트를 생성하고, cleanup 가능할 때 stale worktree를 제거한다.
 
 ---
 
