@@ -5,6 +5,7 @@ import shutil
 
 from debate_review.config import load_config
 from debate_review.gh import gh_json
+from debate_review.cross_verification import record_cross_verification, resolve_rebuttals
 from debate_review.issue_ops import upsert_issue
 from debate_review.round_ops import init_round, record_verdict, settle_round
 from debate_review.state import (
@@ -55,6 +56,19 @@ def build_parser() -> argparse.ArgumentParser:
     p_settle = subparsers.add_parser("settle-round")
     p_settle.add_argument("--state-file", required=True)
     p_settle.add_argument("--round", type=int, required=True)
+
+    # record-cross-verification subcommand
+    p_xcv = subparsers.add_parser("record-cross-verification")
+    p_xcv.add_argument("--state-file", required=True)
+    p_xcv.add_argument("--round", type=int, required=True)
+    p_xcv.add_argument("--verifications", required=True)
+
+    # resolve-rebuttals subcommand
+    p_rr = subparsers.add_parser("resolve-rebuttals")
+    p_rr.add_argument("--state-file", required=True)
+    p_rr.add_argument("--round", type=int, required=True)
+    p_rr.add_argument("--step", required=True, choices=["1a", "3"])
+    p_rr.add_argument("--decisions", required=True)
 
     return parser
 
@@ -219,6 +233,28 @@ def cmd_settle_round(args):
     print(json.dumps(result))
 
 
+def cmd_record_cross_verification(args):
+    state = load_state(args.state_file)
+    if state is None:
+        print(json.dumps({"error": f"No state file found at {args.state_file}"}))
+        return
+    verifications = json.loads(args.verifications)
+    result = record_cross_verification(state, round_num=args.round, verifications=verifications)
+    save_state(state, args.state_file)
+    print(json.dumps(result))
+
+
+def cmd_resolve_rebuttals(args):
+    state = load_state(args.state_file)
+    if state is None:
+        print(json.dumps({"error": f"No state file found at {args.state_file}"}))
+        return
+    decisions = json.loads(args.decisions)
+    result = resolve_rebuttals(state, round_num=args.round, step=args.step, decisions=decisions)
+    save_state(state, args.state_file)
+    print(json.dumps(result))
+
+
 def main():
     parser = build_parser()
     args = parser.parse_args()
@@ -229,6 +265,8 @@ def main():
         "upsert-issue": cmd_upsert_issue,
         "record-verdict": cmd_record_verdict,
         "settle-round": cmd_settle_round,
+        "record-cross-verification": cmd_record_cross_verification,
+        "resolve-rebuttals": cmd_resolve_rebuttals,
     }
 
     if args.command in commands:
