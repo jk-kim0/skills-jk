@@ -13,6 +13,7 @@ from debate_review.application import (
 from debate_review.cross_verification import record_cross_verification, resolve_rebuttals
 from debate_review.issue_ops import upsert_issue
 from debate_review.round_ops import init_round, record_verdict, settle_round
+from debate_review.comment import post_comment
 from debate_review.sync import sync_head
 from debate_review.state import (
     create_initial_state,
@@ -79,6 +80,11 @@ def build_parser() -> argparse.ArgumentParser:
     # sync-head subcommand
     p_sync = subparsers.add_parser("sync-head")
     p_sync.add_argument("--state-file", required=True)
+
+    # post-comment subcommand
+    p_comment = subparsers.add_parser("post-comment")
+    p_comment.add_argument("--state-file", required=True)
+    p_comment.add_argument("--no-comment", action="store_true")
 
     # record-application subcommand
     p_app = subparsers.add_parser("record-application")
@@ -292,6 +298,16 @@ def cmd_sync_head(args):
     print(json.dumps(result))
 
 
+def cmd_post_comment(args):
+    state = load_state(args.state_file)
+    if state is None:
+        print(json.dumps({"error": f"No state file found at {args.state_file}"}))
+        return
+    result = post_comment(state, no_comment=args.no_comment)
+    save_state(state, args.state_file)
+    print(json.dumps(result))
+
+
 def cmd_record_application(args):
     state = load_state(args.state_file)
     if state is None:
@@ -335,6 +351,7 @@ def main():
         "resolve-rebuttals": cmd_resolve_rebuttals,
         "record-application": cmd_record_application,
         "sync-head": cmd_sync_head,
+        "post-comment": cmd_post_comment,
     }
 
     if args.command in commands:
