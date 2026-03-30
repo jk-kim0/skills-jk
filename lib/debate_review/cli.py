@@ -5,6 +5,11 @@ import shutil
 
 from debate_review.config import load_config
 from debate_review.gh import gh_json
+from debate_review.application import (
+    record_application_phase1,
+    record_application_phase2,
+    record_application_phase3,
+)
 from debate_review.cross_verification import record_cross_verification, resolve_rebuttals
 from debate_review.issue_ops import upsert_issue
 from debate_review.round_ops import init_round, record_verdict, settle_round
@@ -69,6 +74,15 @@ def build_parser() -> argparse.ArgumentParser:
     p_rr.add_argument("--round", type=int, required=True)
     p_rr.add_argument("--step", required=True, choices=["1a", "3"])
     p_rr.add_argument("--decisions", required=True)
+
+    # record-application subcommand
+    p_app = subparsers.add_parser("record-application")
+    p_app.add_argument("--state-file", required=True)
+    p_app.add_argument("--round", type=int, required=True)
+    p_app.add_argument("--applied-issues", default=None)
+    p_app.add_argument("--failed-issues", default=None)
+    p_app.add_argument("--commit-sha", default=None)
+    p_app.add_argument("--verify-push", action="store_true")
 
     return parser
 
@@ -263,6 +277,35 @@ def cmd_resolve_rebuttals(args):
     print(json.dumps(result))
 
 
+def cmd_record_application(args):
+    state = load_state(args.state_file)
+    if state is None:
+        print(json.dumps({"error": f"No state file found at {args.state_file}"}))
+        return
+
+    if args.verify_push:
+        result = record_application_phase3(state, round_num=args.round)
+    elif args.commit_sha:
+        result = record_application_phase2(state, round_num=args.round, commit_sha=args.commit_sha)
+    elif args.applied_issues is not None:
+        try:
+            applied = json.loads(args.applied_issues)
+            failed = json.loads(args.failed_issues) if args.failed_issues else []
+        except json.JSONDecodeError as e:
+            print(json.dumps({"error": f"Invalid JSON: {e}"}))
+            return
+        result = record_application_phase1(
+            state, round_num=args.round,
+            applied_issue_ids=applied, failed_issue_ids=failed,
+        )
+    else:
+        print(json.dumps({"error": "Must provide --applied-issues, --commit-sha, or --verify-push"}))
+        return
+
+    save_state(state, args.state_file)
+    print(json.dumps(result))
+
+
 def main():
     parser = build_parser()
     args = parser.parse_args()
@@ -275,6 +318,7 @@ def main():
         "settle-round": cmd_settle_round,
         "record-cross-verification": cmd_record_cross_verification,
         "resolve-rebuttals": cmd_resolve_rebuttals,
+        "record-application": cmd_record_application,
     }
 
     if args.command in commands:

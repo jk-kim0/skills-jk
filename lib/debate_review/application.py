@@ -1,0 +1,74 @@
+"""record-application: 3-phase checkpoint for code application."""
+
+from debate_review.round_ops import _find_round
+
+
+def record_application_phase1(state, *, round_num, applied_issue_ids, failed_issue_ids) -> dict:
+    """Phase 1: Record applied/failed issues before commit."""
+    _find_round(state, round_num)
+    journal = state["journal"]
+
+    # Checkpoint 0: initialize
+    journal["step"] = "step3_lead_apply"
+    journal["applied_issue_ids"] = []
+    journal["failed_application_issue_ids"] = []
+    journal["commit_sha"] = None
+    journal["push_verified"] = False
+
+    # Update each issue's application_status
+    for issue_id in applied_issue_ids:
+        if issue_id in state["issues"]:
+            state["issues"][issue_id]["application_status"] = "applied"
+
+    for issue_id in failed_issue_ids:
+        if issue_id in state["issues"]:
+            state["issues"][issue_id]["application_status"] = "failed"
+
+    # Checkpoint 1: record in journal
+    journal["applied_issue_ids"] = list(applied_issue_ids)
+    journal["failed_application_issue_ids"] = list(failed_issue_ids)
+
+    return {
+        "phase": 1,
+        "round": round_num,
+        "applied": len(applied_issue_ids),
+        "failed": len(failed_issue_ids),
+    }
+
+
+def record_application_phase2(state, *, round_num, commit_sha) -> dict:
+    """Phase 2: Record commit SHA."""
+    journal = state["journal"]
+
+    # Checkpoint 2
+    journal["commit_sha"] = commit_sha
+
+    return {"phase": 2, "round": round_num, "commit_sha": commit_sha}
+
+
+def record_application_phase3(state, *, round_num) -> dict:
+    """Phase 3: Verify push and finalize."""
+    round_ = _find_round(state, round_num)
+    journal = state["journal"]
+
+    # Checkpoint 3
+    journal["push_verified"] = True
+
+    # Update issue-level fields
+    lead_agent = round_["lead_agent"]
+    commit_sha = journal["commit_sha"]
+    for issue_id in journal["applied_issue_ids"]:
+        if issue_id in state["issues"]:
+            state["issues"][issue_id]["applied_by"] = lead_agent
+            state["issues"][issue_id]["application_commit_sha"] = commit_sha
+
+    # Record in round step3
+    round_["step3"]["applied_issue_ids"] = list(journal["applied_issue_ids"])
+    round_["step3"]["failed_application_issue_ids"] = list(journal["failed_application_issue_ids"])
+    round_["step3"]["commit_sha"] = commit_sha
+    round_["step3"]["push_verified"] = True
+
+    # Checkpoint 4
+    journal["state_persisted"] = True
+
+    return {"phase": 3, "round": round_num, "push_verified": True}
