@@ -94,6 +94,10 @@ def test_cli_full_round_flow(monkeypatch, capsys, state_path):
     assert result["phase"] == 2
 
     # Phase 3
+    monkeypatch.setattr(
+        "debate_review.application._get_pr_head_sha",
+        lambda repo, pr_number: "deadbeef",
+    )
     _run_cli(monkeypatch, [
         "record-application", "--state-file", state_path,
         "--round", "1", "--verify-push",
@@ -240,6 +244,17 @@ def test_cli_journal_step_progression(monkeypatch, capsys, state_path):
     state = load_state(state_path)
     assert state["journal"]["step"] == "step1_lead_review"
 
+    state = load_state(state_path)
+    report_id = list(state["issues"].values())[0]["reports"][0]["report_id"]
+    verifications = json.dumps([{"report_id": report_id, "decision": "accept", "reason": "Valid"}])
+    _run_cli(monkeypatch, [
+        "record-cross-verification", "--state-file", state_path,
+        "--round", "1", "--verifications", verifications,
+    ])
+    capsys.readouterr()
+    state = load_state(state_path)
+    assert state["journal"]["step"] == "step2_cross_review"
+
     # settle-round sets step4_settle
     _run_cli(monkeypatch, [
         "settle-round", "--state-file", state_path,
@@ -285,3 +300,68 @@ def test_cli_invalid_json_verifications(monkeypatch, capsys, state_path):
     out = capsys.readouterr().out
     result = json.loads(out)
     assert "error" in result
+
+
+def test_cli_record_application_verify_push_mismatch_exits(monkeypatch, capsys, state_path):
+    _run_cli(monkeypatch, [
+        "upsert-issue", "--state-file", state_path,
+        "--agent", "codex", "--round", "1",
+        "--severity", "critical", "--criterion", "1",
+        "--file", "src/a.py", "--line", "10",
+        "--anchor", "validate_input",
+        "--message", "Missing input validation",
+    ])
+    issue_id = json.loads(capsys.readouterr().out)["issue_id"]
+
+    _run_cli(monkeypatch, [
+        "record-application", "--state-file", state_path,
+        "--round", "1",
+        "--applied-issues", json.dumps([issue_id]),
+        "--failed-issues", json.dumps([]),
+    ])
+    capsys.readouterr()
+    _run_cli(monkeypatch, [
+        "record-application", "--state-file", state_path,
+        "--round", "1", "--commit-sha", "deadbeef",
+    ])
+    capsys.readouterr()
+
+    monkeypatch.setattr(
+        "debate_review.application._get_pr_head_sha",
+        lambda repo, pr_number: "different-sha",
+    )
+    monkeypatch.setattr(sys, "argv", [
+        "debate-review",
+        "record-application", "--state-file", state_path,
+        "--round", "1", "--verify-push",
+    ])
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+    assert exc_info.value.code == 1
+    result = json.loads(capsys.readouterr().out)
+    assert "match commit_sha" in result["error"]
+
+
+def test_cli_dry_run_skips_mutating_commands(monkeypatch, capsys, tmp_path):
+    state = create_initial_state(
+        repo="owner/repo", repo_root="/tmp/repo", pr_number=123,
+        is_fork=False, head_sha="abc123", pr_branch_name="feat/test",
+        dry_run=True,
+    )
+    init_round(state, round_num=1, lead_agent="codex", synced_head_sha="abc123")
+    path = str(tmp_path / "dry-run-state.json")
+    save_state(state, path)
+
+    before = load_state(path)
+    _run_cli(monkeypatch, [
+        "upsert-issue", "--state-file", path,
+        "--agent", "codex", "--round", "1",
+        "--severity", "warning", "--criterion", "7",
+        "--file", "src/c.py", "--line", "5",
+        "--anchor", "MAX", "--message", "Hardcoded",
+    ])
+    result = json.loads(capsys.readouterr().out)
+    assert result["action"] == "dry_run"
+
+    after = load_state(path)
+    assert after == before

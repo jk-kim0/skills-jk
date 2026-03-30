@@ -1,6 +1,12 @@
 """record-application: 3-phase checkpoint for code application."""
 
+from debate_review.gh import gh_json
 from debate_review.round_ops import _find_round
+
+
+def _get_pr_head_sha(repo, pr_number):
+    data = gh_json("pr", "view", str(pr_number), "--repo", repo, "--json", "headRefOid")
+    return data["headRefOid"]
 
 
 def record_application_phase1(state, *, round_num, applied_issue_ids, failed_issue_ids) -> dict:
@@ -46,13 +52,20 @@ def record_application_phase2(state, *, round_num, commit_sha) -> dict:
     return {"phase": 2, "round": round_num, "commit_sha": commit_sha}
 
 
-def record_application_phase3(state, *, round_num) -> dict:
+def record_application_phase3(state, *, round_num, _get_head=None) -> dict:
     """Phase 3: Verify push and finalize."""
     round_ = _find_round(state, round_num)
     journal = state["journal"]
 
     if not journal.get("commit_sha"):
         raise ValueError("Phase 3 requires commit_sha from Phase 2 (record-application --commit-sha)")
+
+    get_head = _get_head or _get_pr_head_sha
+    head_sha = get_head(state["repo"], state["pr_number"])
+    if head_sha != journal["commit_sha"]:
+        raise ValueError(
+            f"Phase 3 requires PR HEAD {head_sha} to match commit_sha {journal['commit_sha']}"
+        )
 
     # Checkpoint 3
     journal["push_verified"] = True

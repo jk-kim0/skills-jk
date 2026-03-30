@@ -88,7 +88,7 @@ CC는 이미 Codex를 호출하고, 자체 리뷰를 수행하고, 사용자와 
 bin/debate-review <subcommand> [options]
 ```
 
-모든 subcommand는 `--state-file <path>` 를 공통 옵션으로 받는다. 상태 파일 경로는 `~/.claude/debate-state/<owner>-<repo>-<pr>.json` 규칙을 따른다.
+`init`을 제외한 모든 subcommand는 `--state-file <path>` 를 공통 옵션으로 받는다. 상태 파일 경로는 `~/.claude/debate-state/<owner>-<repo>-<pr>.json` 규칙을 따른다.
 
 ---
 
@@ -156,6 +156,35 @@ bin/debate-review sync-head --state-file <path>
   "post_sync_sha": "def5678",
   "external_change": true,
   "superseded_rounds": [1, 2]
+}
+```
+
+### `init-round`
+
+Step 0 직후, 현재 라운드의 메타데이터를 생성한다.
+
+```bash
+bin/debate-review init-round \
+  --state-file <path> \
+  --round <number> \
+  --lead-agent <cc|codex> \
+  --synced-head-sha <sha>
+```
+
+`init`은 세션 메타데이터만 만들고, 실제 round 엔트리는 `init-round`가 생성한다. 따라서 CC는 새 세션을 시작하거나 supersede 이후 새 라운드로 진입할 때, `sync-head` 직후 현재 round 번호와 lead agent를 기준으로 `init-round`를 호출해야 한다.
+
+**동작:**
+1. `rounds[N]` 엔트리 생성 또는 기존 엔트리 재사용
+2. `lead_agent`, `synced_head_sha`, `status=active` 설정
+3. `journal.round`, `journal.step=step0_sync` 기록
+4. 상태 파일 저장
+
+**stdout:**
+
+```json
+{
+  "round": 1,
+  "lead_agent": "codex"
 }
 ```
 
@@ -405,6 +434,8 @@ STATE_FILE=$(echo "$STATE" | jq -r .state_file)
 
 # Step 0: sync
 bin/debate-review sync-head --state-file "$STATE_FILE"
+bin/debate-review init-round --state-file "$STATE_FILE" \
+  --round 1 --lead-agent codex --synced-head-sha "$(bin/debate-review show --state-file "$STATE_FILE" --json | jq -r '.head.last_observed_pr_sha')"
 
 # Step 1a: 미결 rebuttal 처리 (Round 1에서는 건너뜀)
 # bin/debate-review resolve-rebuttals --state-file "$STATE_FILE" \
@@ -462,7 +493,7 @@ bin/debate-review post-comment --state-file "$STATE_FILE"
 
 | 플래그 | 효과 |
 |--------|------|
-| `--dry-run` | 읽기 작업만 수행. 상태 파일, commit, push, comment 모두 변경 없음 |
+| `--dry-run` | 격리된 상태 파일로 세션을 시작하고, 이후 mutating subcommand는 상태 저장/commit/push/comment 없이 `action=dry_run` 결과만 반환 |
 | `--no-push` | 로컬 commit은 생성하되 원격 push 생략. 상태 파일에는 push_verified=false로 기록 |
 | `--no-comment` | PR comment 게시 생략. 코멘트 본문은 stdout에 출력 |
 
@@ -484,13 +515,14 @@ fork PR에서는 `--no-push`가 자동 적용된다 (is_fork=true이면 push 불
 
 `--no-push`와 `--no-comment`는 해당 subcommand(`record-application`, `post-comment`)에 직접 전달한다.
 
-`--dry-run`은 `init` 시점에 상태 파일의 메타데이터로 기록된다 (`"dry_run": true`). 이후 모든 subcommand는 상태 파일에서 이 플래그를 읽어 mutation을 억제한다. CC가 매 호출마다 `--dry-run`을 반복 전달할 필요가 없다.
+`--dry-run`은 `init` 시점에 상태 파일의 메타데이터로 기록된다 (`"dry_run": true`). 이후 모든 mutating subcommand는 상태 파일에서 이 플래그를 읽어 mutation을 억제한다. `show` 같은 read-only subcommand는 그대로 동작하고, `sync-head`/`post-comment`는 읽기 전용 경로로 축소된다. CC가 매 호출마다 `--dry-run`을 반복 전달할 필요가 없다.
 
 ```bash
 # dry-run 세션 시작
 bin/debate-review init --repo owner/repo --pr 123 --dry-run
 # 이후 subcommand는 상태 파일의 dry_run 플래그를 자동 참조
 bin/debate-review sync-head --state-file "$STATE_FILE"  # 읽기만 수행
+bin/debate-review upsert-issue --state-file "$STATE_FILE" ...  # {"action":"dry_run", ...}
 ```
 
 `--dry-run` 세션에서 `init`은 상태 파일을 임시 경로(`<기본경로>.dry-run.json`)에 저장하여 실제 세션 상태와 충돌하지 않도록 한다.

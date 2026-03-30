@@ -1,4 +1,6 @@
 import pytest
+from debate_review.round_ops import init_round
+from debate_review.state import create_initial_state
 from debate_review.issue_ops import (
     CANONICAL_KINDS,
     generate_issue_key,
@@ -168,3 +170,34 @@ def test_upsert_resets_applied_issue(sample_state):
     assert issue["applied_by"] is None
     assert issue["application_commit_sha"] is None
     assert issue["accepted_by"] == ["codex"]  # reset to reporting agent only
+
+
+def test_upsert_tracks_cross_verifier_reports_in_step2():
+    state = create_initial_state(
+        repo="owner/repo",
+        repo_root="/tmp/repo",
+        pr_number=123,
+        is_fork=False,
+        head_sha="abc1234def5678",
+        pr_branch_name="feat/test",
+        max_rounds=10,
+    )
+    init_round(state, round_num=1, lead_agent="codex", synced_head_sha="abc1234def5678")
+
+    result = upsert_issue(
+        state,
+        agent="cc",
+        round_num=1,
+        severity="warning",
+        criterion=7,
+        file="src/c.py",
+        line=12,
+        anchor="MAX_TIMEOUT",
+        message="hardcoded timeout value",
+    )
+
+    round_ = state["rounds"][0]
+    assert round_["step1"]["report_ids"] == []
+    assert round_["step1"]["issue_ids_touched"] == []
+    assert round_["step2"]["report_ids"] == [result["report_id"]]
+    assert round_["step2"]["issue_ids_touched"] == [result["issue_id"]]

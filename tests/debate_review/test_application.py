@@ -83,7 +83,9 @@ def test_phase3_finalizes():
     state = _state_with_accepted_issues()
     record_application_phase1(state, round_num=1, applied_issue_ids=["isu_001"], failed_issue_ids=["isu_002"])
     record_application_phase2(state, round_num=1, commit_sha="deadbeef123")
-    result = record_application_phase3(state, round_num=1)
+    result = record_application_phase3(
+        state, round_num=1, _get_head=lambda repo, pr: "deadbeef123"
+    )
     assert result["phase"] == 3
     assert result["push_verified"] is True
     # Journal
@@ -106,8 +108,8 @@ def test_phase3_idempotent():
     state = _state_with_accepted_issues()
     record_application_phase1(state, round_num=1, applied_issue_ids=["isu_001"], failed_issue_ids=[])
     record_application_phase2(state, round_num=1, commit_sha="deadbeef123")
-    record_application_phase3(state, round_num=1)
-    record_application_phase3(state, round_num=1)
+    record_application_phase3(state, round_num=1, _get_head=lambda repo, pr: "deadbeef123")
+    record_application_phase3(state, round_num=1, _get_head=lambda repo, pr: "deadbeef123")
     assert state["journal"]["push_verified"] is True
     assert state["issues"]["isu_001"]["applied_by"] == "codex"
 
@@ -128,9 +130,20 @@ def test_full_3phase_flow():
     assert state["journal"]["step"] == "step3_lead_apply"
     record_application_phase2(state, round_num=1, commit_sha="abc123def")
     assert state["journal"]["commit_sha"] == "abc123def"
-    record_application_phase3(state, round_num=1)
+    record_application_phase3(state, round_num=1, _get_head=lambda repo, pr: "abc123def")
     assert state["journal"]["push_verified"] is True
     assert state["journal"]["state_persisted"] is True
     for isu_id in ["isu_001", "isu_002"]:
         assert state["issues"][isu_id]["applied_by"] == "codex"
         assert state["issues"][isu_id]["application_commit_sha"] == "abc123def"
+
+
+def test_phase3_requires_pr_head_to_match_commit_sha():
+    import pytest
+
+    state = _state_with_accepted_issues()
+    record_application_phase1(state, round_num=1, applied_issue_ids=["isu_001"], failed_issue_ids=[])
+    record_application_phase2(state, round_num=1, commit_sha="deadbeef123")
+
+    with pytest.raises(ValueError, match="match commit_sha"):
+        record_application_phase3(state, round_num=1, _get_head=lambda repo, pr: "other-sha")

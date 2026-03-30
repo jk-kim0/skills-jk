@@ -135,8 +135,17 @@ def test_record_cross_verification_populates_step2_tracking():
     verifications = [{"report_id": "rpt_001", "decision": "accept", "reason": "Valid"}]
     record_cross_verification(state, round_num=1, verifications=verifications)
     round_ = state["rounds"][0]
-    assert "rpt_001" in round_["step2"]["report_ids"]
+    assert round_["step2"]["report_ids"] == []
     assert "isu_001" in round_["step2"]["issue_ids_touched"]
+
+
+def test_record_cross_verification_rebut_does_not_touch_issue_ids():
+    state = _state_with_round_and_issues()
+    verifications = [{"report_id": "rpt_002", "decision": "rebut", "reason": "Intentional"}]
+    record_cross_verification(state, round_num=1, verifications=verifications)
+    round_ = state["rounds"][0]
+    assert round_["step2"]["report_ids"] == []
+    assert round_["step2"]["issue_ids_touched"] == []
 
 
 # Test 9: withdraw with remaining open reports — accepted_by recalculated, stays open

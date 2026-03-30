@@ -112,6 +112,12 @@ def _error_exit(message):
     sys.exit(1)
 
 
+def _dry_run_skip(state, *, command, **payload):
+    result = {"action": "dry_run", "command": command, "current_round": state["current_round"]}
+    result.update(payload)
+    return result
+
+
 def _resolve_repo_root(repo, repo_root_arg):
     if repo_root_arg:
         return repo_root_arg
@@ -237,6 +243,9 @@ def cmd_init_round(args):
     state = load_state(args.state_file)
     if state is None:
         _error_exit(f"No state file found at {args.state_file}")
+    if state.get("dry_run"):
+        print(json.dumps(_dry_run_skip(state, command="init-round", round=args.round, lead_agent=args.lead_agent)))
+        return
     init_round(state, round_num=args.round, lead_agent=args.lead_agent, synced_head_sha=args.synced_head_sha)
     state["journal"]["round"] = args.round
     state["journal"]["step"] = "step0_sync"
@@ -248,6 +257,9 @@ def cmd_upsert_issue(args):
     state = load_state(args.state_file)
     if state is None:
         _error_exit(f"No state file found at {args.state_file}")
+    if state.get("dry_run"):
+        print(json.dumps(_dry_run_skip(state, command="upsert-issue", round=args.round, agent=args.agent)))
+        return
     state["journal"]["step"] = "step1_lead_review"
     result = upsert_issue(
         state,
@@ -268,6 +280,9 @@ def cmd_record_verdict(args):
     state = load_state(args.state_file)
     if state is None:
         _error_exit(f"No state file found at {args.state_file}")
+    if state.get("dry_run"):
+        print(json.dumps(_dry_run_skip(state, command="record-verdict", round=args.round, verdict=args.verdict)))
+        return
     state["journal"]["step"] = "step1_lead_review"
     result = record_verdict(state, round_num=args.round, verdict=args.verdict)
     save_state(state, args.state_file)
@@ -278,6 +293,9 @@ def cmd_settle_round(args):
     state = load_state(args.state_file)
     if state is None:
         _error_exit(f"No state file found at {args.state_file}")
+    if state.get("dry_run"):
+        print(json.dumps(_dry_run_skip(state, command="settle-round", round=args.round)))
+        return
     state["journal"]["step"] = "step4_settle"
     result = settle_round(state, round_num=args.round)
     save_state(state, args.state_file)
@@ -292,7 +310,10 @@ def cmd_record_cross_verification(args):
         verifications = json.loads(args.verifications)
     except json.JSONDecodeError as e:
         _error_exit(f"Invalid JSON for --verifications: {e}")
-    state["journal"]["step"] = "step2_cross_verify"
+    if state.get("dry_run"):
+        print(json.dumps(_dry_run_skip(state, command="record-cross-verification", round=args.round)))
+        return
+    state["journal"]["step"] = "step2_cross_review"
     result = record_cross_verification(state, round_num=args.round, verifications=verifications)
     save_state(state, args.state_file)
     print(json.dumps(result))
@@ -306,7 +327,10 @@ def cmd_resolve_rebuttals(args):
         decisions = json.loads(args.decisions)
     except json.JSONDecodeError as e:
         _error_exit(f"Invalid JSON for --decisions: {e}")
-    step_map = {"1a": "step1a_rebuttal_response", "3": "step3_lead_respond"}
+    if state.get("dry_run"):
+        print(json.dumps(_dry_run_skip(state, command="resolve-rebuttals", round=args.round, step=args.step)))
+        return
+    step_map = {"1a": "step1_lead_review", "3": "step3_lead_apply"}
     state["journal"]["step"] = step_map.get(args.step, state["journal"]["step"])
     result = resolve_rebuttals(state, round_num=args.round, step=args.step, decisions=decisions)
     save_state(state, args.state_file)
@@ -319,7 +343,8 @@ def cmd_sync_head(args):
         _error_exit(f"No state file found at {args.state_file}")
     state["journal"]["step"] = "step0_sync"
     result = sync_head(state)
-    save_state(state, args.state_file)
+    if not state.get("dry_run"):
+        save_state(state, args.state_file)
     print(json.dumps(result))
 
 
@@ -328,7 +353,8 @@ def cmd_post_comment(args):
     if state is None:
         _error_exit(f"No state file found at {args.state_file}")
     result = post_comment(state, no_comment=args.no_comment)
-    save_state(state, args.state_file)
+    if not state.get("dry_run"):
+        save_state(state, args.state_file)
     print(json.dumps(result))
 
 
@@ -336,6 +362,9 @@ def cmd_record_application(args):
     state = load_state(args.state_file)
     if state is None:
         _error_exit(f"No state file found at {args.state_file}")
+    if state.get("dry_run"):
+        print(json.dumps(_dry_run_skip(state, command="record-application", round=args.round)))
+        return
 
     if args.verify_push:
         result = record_application_phase3(state, round_num=args.round)
@@ -379,7 +408,7 @@ def main():
     if args.command in commands:
         try:
             commands[args.command](args)
-        except ValueError as e:
+        except (RuntimeError, ValueError) as e:
             _error_exit(str(e))
     else:
         parser.print_help()
