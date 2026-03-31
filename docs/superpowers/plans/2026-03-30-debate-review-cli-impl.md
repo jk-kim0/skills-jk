@@ -237,8 +237,8 @@ import os
 
 def load_config(path: str | None = None) -> dict:
     if path is None:
-        path = os.path.expanduser(
-            "~/workspace/skills-jk/config/cc-codex-debate-review.yml"
+        path = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..", "..", "config.yml")
         )
     if not os.path.exists(path):
         raise FileNotFoundError(f"Config file not found: {path}")

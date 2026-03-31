@@ -82,11 +82,29 @@ def test_state_file_path_dry_run():
     assert path.endswith("owner-repo-42.dry-run.json")
 
 
-def test_load_config_missing_default():
-    """load_config should return {} when default config file doesn't exist."""
+def test_load_config_default_reads_bundled_config():
+    """load_config should read the bundled config from the skill root."""
     from debate_review.config import load_config
-    result = load_config()  # default path likely doesn't exist in test env
-    assert isinstance(result, dict)
+    result = load_config()
+    assert result == {
+        "max_rounds": 10,
+        "codex_sandbox": "read-only",
+    }
+
+
+def test_default_config_path_resolves_from_skill_root():
+    from debate_review import config as config_module
+
+    expected = os.path.abspath(
+        os.path.join(
+            os.path.dirname(config_module.__file__),
+            "..",
+            "..",
+            "config.yml",
+        )
+    )
+
+    assert os.path.abspath(config_module._DEFAULT_CONFIG_PATH) == expected
 
 
 def test_load_config_missing_explicit_raises():
