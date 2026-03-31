@@ -134,7 +134,7 @@ def classify_pages(rows):
     return results
 
 
-def get_month_ranges(months):
+def get_month_ranges(months, include_current=False):
     """최근 N개월의 (start_date, end_date, label) 리스트를 반환합니다."""
     today = datetime.now()
     ranges = []
@@ -152,6 +152,13 @@ def get_month_ranges(months):
             end = start.replace(month=start.month + 1, day=1) - timedelta(days=1)
         label = start.strftime("%Y-%m")
         ranges.append((start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"), label))
+
+    if include_current:
+        start = today.replace(day=1)
+        end = today - timedelta(days=1)
+        if end >= start:
+            label = start.strftime("%Y-%m")
+            ranges.append((start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"), label))
 
     return ranges
 
@@ -188,12 +195,13 @@ def main():
     parser = argparse.ArgumentParser(description='GA4 컨텐츠 분류별 PV 집계')
     parser.add_argument('property_id', help='GA4 Property ID')
     parser.add_argument('--months', type=int, default=6, help='조회 기간 (개월, 기본 6)')
+    parser.add_argument('--include-current', action='store_true', help='현재 월(어제까지) 포함')
     args = parser.parse_args()
 
     creds = get_credentials()
     client = BetaAnalyticsDataClient(credentials=creds)
 
-    month_ranges = get_month_ranges(args.months)
+    month_ranges = get_month_ranges(args.months, include_current=args.include_current)
 
     # 전체 기간 합산용
     total_results = {}
