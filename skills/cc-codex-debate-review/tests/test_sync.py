@@ -69,7 +69,7 @@ def test_sync_external_change_supersede():
     assert issue["application_commit_sha"] is None
 
 
-def test_sync_supersede_clears_debate_ledger():
+def test_sync_supersede_clears_non_withdrawn_ledger():
     state = _make_state_with_round()
     state["rounds"][0]["status"] = "completed"
     state["debate_ledger"] = [
@@ -82,7 +82,37 @@ def test_sync_supersede_clears_debate_ledger():
         _ensure_wt=lambda rr, pn, tr: ("/tmp/wt", "sha_external"),
     )
     assert result["external_change"] is True
+    # Accepted issue gets reset to open → its ledger entry is dropped
     assert state["debate_ledger"] == []
+
+
+def test_sync_supersede_preserves_withdrawn_ledger():
+    state = _make_state_with_round()
+    state["rounds"][0]["status"] = "completed"
+    state["issues"]["isu_002"] = {
+        "issue_id": "isu_002", "issue_key": "k2", "criterion": 1,
+        "file": "b.py", "line": 1, "anchor": "g",
+        "severity": "warning", "consensus_status": "withdrawn",
+        "consensus_reason": "intentional design",
+        "application_status": "pending", "accepted_by": [],
+        "rejected_by": [], "applied_by": None, "application_commit_sha": None,
+        "reports": [], "created_at": "t", "updated_at": "t",
+    }
+    state["debate_ledger"] = [
+        {"issue_id": "isu_001", "status": "accepted", "summary": "fixed", "round": 1},
+        {"issue_id": "isu_002", "status": "withdrawn", "reason": "intentional design", "summary": "dropped", "round": 1},
+    ]
+    result = sync_head(
+        state,
+        _get_head=lambda repo, pr: "sha_external",
+        _fetch=lambda rr, pn, tr: None,
+        _ensure_wt=lambda rr, pn, tr: ("/tmp/wt", "sha_external"),
+    )
+    assert result["external_change"] is True
+    # Withdrawn issue's ledger entry is preserved; accepted one is dropped
+    assert len(state["debate_ledger"]) == 1
+    assert state["debate_ledger"][0]["issue_id"] == "isu_002"
+    assert state["debate_ledger"][0]["status"] == "withdrawn"
 
 
 def test_reset_issues_withdrawn_preserved():

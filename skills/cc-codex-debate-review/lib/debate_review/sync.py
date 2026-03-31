@@ -105,7 +105,16 @@ def sync_head(state, *, _get_head=None, _fetch=None, _ensure_wt=None) -> dict:
                     r["status"] = "superseded"
                     superseded_rounds.append(r["round"])
             _reset_issues_for_supersede(state)
-            state["debate_ledger"] = []
+            # Preserve ledger entries for issues that remain withdrawn
+            # (re-raise rule needs withdraw reasons); drop the rest
+            withdrawn_ids = {
+                iid for iid, issue in state["issues"].items()
+                if issue.get("consensus_status") == "withdrawn"
+            }
+            state["debate_ledger"] = [
+                e for e in state.get("debate_ledger", [])
+                if e["issue_id"] in withdrawn_ids
+            ]
             state["current_round"] += 1
             # Reset journal for the new round
             journal["round"] = state["current_round"]
