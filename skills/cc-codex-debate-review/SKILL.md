@@ -536,6 +536,7 @@ When `init` returns `status: "resumed"`, the `next_step` field indicates where t
 | `step0` | Start from Step 0 (sync-head) |
 | `step1` | Start from Step 1 (lead review) |
 | `step2` | Start from Step 2 (cross-verification) |
+| `step3` | Start from Step 3 (rebuttal response + cross findings eval + code application) |
 | `step3_phase1` | Resume Step 3 Phase 1 (record application) |
 | `step3_phase2` | Resume Step 3 Phase 2 (commit) |
 | `step3_push` | Resume Step 3 push + Phase 3 verification. `resume_context.commit_sha` has the commit to push. |

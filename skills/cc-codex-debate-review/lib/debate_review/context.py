@@ -54,28 +54,31 @@ def build_review_context(state, round_num):
 
         # Step 2
         step2 = r.get("step2", {})
-        if step2.get("accepted_report_ids") or step2.get("rebuttals"):
+        accepted_report_ids = step2.get("accepted_report_ids", [])
+        rebuttals = step2.get("rebuttals", [])
+        new_rids = [
+            rid for rid in step2.get("report_ids", [])
+            if rid not in accepted_report_ids
+        ]
+        if accepted_report_ids or rebuttals:
             lines.append(f"\n**Step 2 ({cross} cross-verification):**")
-            for rid in step2.get("accepted_report_ids", []):
+            for rid in accepted_report_ids:
                 rpt = _resolve_report(state, rid)
                 if rpt:
                     lines.append(f"- {rid} ({rpt['issue_id']}): accepted")
-            for reb in step2.get("rebuttals", []):
+            for reb in rebuttals:
                 lines.append(f"- {reb.get('report_id', '?')} ({reb.get('issue_id', '?')}): rebutted — \"{reb.get('reason', '')}\"")
-            if step2.get("report_ids"):
-                new_rids = [rid for rid in step2["report_ids"]
-                            if rid not in step2.get("accepted_report_ids", [])]
-                if new_rids:
-                    lines.append(f"\n**Step 2 ({cross} new findings):**")
-                    for rid in new_rids:
-                        rpt = _resolve_report(state, rid)
-                        if rpt:
-                            lines.append(f"- {rpt['issue_id']} ({rpt['severity']}) {rpt['file']}:{rpt['line']} — {rpt['message']}")
+        if new_rids:
+            lines.append(f"\n**Step 2 ({cross} new findings):**")
+            for rid in new_rids:
+                rpt = _resolve_report(state, rid)
+                if rpt:
+                    lines.append(f"- {rpt['issue_id']} ({rpt['severity']}) {rpt['file']}:{rpt['line']} — {rpt['message']}")
 
         # Step 3
         step3 = r.get("step3", {})
         has_step3 = (step3.get("withdrawn_report_ids") or step3.get("accepted_report_ids")
-                     or step3.get("applied_issue_ids"))
+                     or step3.get("rebuttals") or step3.get("applied_issue_ids"))
         if has_step3:
             lines.append(f"\n**Step 3 ({lead} response + application):**")
             for rid in step3.get("withdrawn_report_ids", []):
@@ -86,6 +89,9 @@ def build_review_context(state, round_num):
                 rpt = _resolve_report(state, rid)
                 iid = rpt["issue_id"] if rpt else "?"
                 lines.append(f"- {rid}: accepted → {iid} added to consensus")
+            for reb in step3.get("rebuttals", []):
+                rid = reb.get("report_id", "?")
+                lines.append(f"- {rid} rebuttal: maintained — \"{reb.get('reason', '')}\"")
             if step3.get("applied_issue_ids"):
                 lines.append(f"- Applied: {', '.join(step3['applied_issue_ids'])}")
 
