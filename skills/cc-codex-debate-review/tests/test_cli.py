@@ -372,6 +372,20 @@ def test_cli_save_error_log_subcommand_dispatches_with_command_option(monkeypatc
     }]
 
 
+def test_cli_save_error_log_subcommand_oserror_returns_json_error(monkeypatch, capsys):
+    def fake_save_error_log(*, command, error_message, state_file=None):
+        raise OSError("permission denied")
+
+    monkeypatch.setattr("debate_review.cli.save_error_log", fake_save_error_log)
+    _run_cli(monkeypatch, [
+        "save-error-log", "--command", "git push",
+        "--error-message", "push failed", "--state-file", "/tmp/state.json",
+    ])
+    result = json.loads(capsys.readouterr().out)
+    assert result["error"] == "Failed to save error log: permission denied"
+    assert "error_log" not in result
+
+
 # Test 10: Invalid JSON in --verifications
 def test_cli_invalid_json_verifications(monkeypatch, capsys, state_path):
     _run_cli(monkeypatch, [

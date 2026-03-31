@@ -470,11 +470,18 @@ def cmd_mark_failed(args):
 
 
 def cmd_save_error_log(args):
-    log_path = save_error_log(
-        command=args.logged_command,
-        error_message=args.error_message,
-        state_file=args.state_file,
-    )
+    try:
+        log_path = save_error_log(
+            command=args.logged_command,
+            error_message=args.error_message,
+            state_file=args.state_file,
+        )
+    except OSError as e:
+        _error_exit(
+            f"Failed to save error log: {e}",
+            command="save-error-log",
+            state_file=args.state_file,
+        )
     print(json.dumps({"error_log": log_path}))
 
 
