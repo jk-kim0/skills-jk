@@ -652,7 +652,7 @@ On any failure (CLI exit code 1, external command failure, JSON parse failure af
    ```
 2. If `DRY_RUN=false`, create a GitHub Issue:
    ```bash
-   SKILL_REPO=$(git -C "$SKILL_ROOT" remote get-url origin | sed -E 's#(git@github.com:|https://github.com/)##; s#\.git$##')
+   SKILL_REPO=$(git -C "$SKILL_ROOT" remote get-url origin | sed -E 's#(ssh://git@github.com/|git@github.com:|https://github.com/)##; s#\.git$##')
    SHORT_ERROR=$(printf '%s' "$ERROR_MESSAGE" | tr '\n' ' ' | cut -c1-120)
    env -u GITHUB_TOKEN -u GH_TOKEN gh issue create \
      --repo "$SKILL_REPO" \
