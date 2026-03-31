@@ -93,6 +93,7 @@ def upsert_issue(
     line: int,
     anchor: str,
     message: str,
+    confirm_reopen: bool = False,
 ) -> dict:
     issues = state["issues"]
     issue_key = generate_issue_key(criterion=criterion, file=file, anchor=anchor, message=message)
@@ -158,6 +159,18 @@ def upsert_issue(
         issue["accepted_by"] = [agent]
         issue["reopened_in_round"] = round_num
     elif application_status == "applied":
+        if not confirm_reopen:
+            # Return existing reports for the orchestrator to review before reopening
+            existing_messages = [
+                {"agent": r["agent"], "round": r["round"], "message": r["message"]}
+                for r in issue.get("reports", [])
+            ]
+            return {
+                "issue_id": existing_id, "report_id": None,
+                "action": "reopen_requires_review", "issue_key": issue_key,
+                "new_message": message,
+                "existing_reports": existing_messages,
+            }
         issue["consensus_status"] = "open"
         issue["consensus_reason"] = None
         issue["application_status"] = "pending"

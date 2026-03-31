@@ -57,6 +57,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_upsert.add_argument("--line", type=int, required=True)
     p_upsert.add_argument("--anchor", required=True)
     p_upsert.add_argument("--message", required=True)
+    p_upsert.add_argument("--confirm-reopen", action="store_true",
+                          help="Confirm reopening an already-applied issue")
 
     # init-round subcommand
     p_initr = subparsers.add_parser("init-round", help="Initialize a new round")
@@ -317,6 +319,7 @@ def cmd_upsert_issue(args):
         line=args.line,
         anchor=args.anchor,
         message=args.message,
+        confirm_reopen=args.confirm_reopen,
     )
     save_state(state, args.state_file)
     print(json.dumps(result))

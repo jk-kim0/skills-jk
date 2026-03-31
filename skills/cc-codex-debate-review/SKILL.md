@@ -210,6 +210,31 @@ Call `upsert-issue` for each finding from the lead agent:
 
 `anchor` should prefer symbol names, function names, or other identifiers less sensitive to line shifts. Use `line<N>` if none exists.
 
+#### Reopen Review for Applied Issues
+
+If `upsert-issue` returns `action: "reopen_requires_review"`, the issue was previously fixed and applied. The response includes:
+- `new_message`: the agent's new finding
+- `existing_reports`: array of previous reports (`agent`, `round`, `message`)
+
+The orchestrator **must** compare the new message against the existing reports and decide:
+
+- **Same concern re-reported** (describing the fix itself, or repeating the original problem) → **skip** the reopen. Do not call `upsert-issue` again.
+- **Genuinely new concern** about the same location (e.g., the fix introduced a new bug, or a different aspect was missed) → call `upsert-issue` again with `--confirm-reopen`:
+
+```bash
+"$DEBATE_REVIEW_BIN" upsert-issue \
+  --state-file "$STATE_FILE" \
+  --agent "$LEAD_AGENT" \
+  --round "$CURRENT_ROUND" \
+  --confirm-reopen \
+  --severity "warning" \
+  --criterion 2 \
+  --file "src/foo.ts" \
+  --line 42 \
+  --anchor "validate_input" \
+  --message "New concern about this location"
+```
+
 #### Record Verdict
 
 ```bash

@@ -40,6 +40,12 @@ Review the diff according to the criteria below. Identify all issues by severity
 
 If you decided `maintain` on any rebuttal in Step 1a, include that issue in your findings here.
 
+**Before reporting a finding, check the Debate Ledger and Open Issues above:**
+- Do NOT re-report an issue that was already withdrawn — unless you have **new evidence** not covered by the withdrawal reason.
+- Do NOT report code that was added as a fix for a previously accepted issue. Describing a fix is not a finding.
+- Do NOT report something that is working correctly. "X uses correct flag" or "X matches the spec" is not an issue.
+- If unsure whether something is a real issue, err on the side of **not reporting** it. Unnecessary findings waste rounds and block consensus.
+
 ## Verdict
 
 - If findings are **0** and `{OPEN_ISSUES}` is an empty array → set verdict to `no_findings_mergeable`
