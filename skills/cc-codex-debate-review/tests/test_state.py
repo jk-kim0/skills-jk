@@ -169,9 +169,21 @@ def test_next_step_from_step0(sample_state):
     assert determine_next_step(sample_state)["next_step"] == "step1"
 
 
-def test_next_step_from_step1_no_clean_pass(sample_state):
+def test_next_step_from_step1_without_verdict(sample_state):
+    """step1_lead_review with no verdict recorded → resume step1."""
     from debate_review.round_ops import init_round
     init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    sample_state["journal"]["step"] = "step1_lead_review"
+    # No record_verdict called → verdict is None
+    result = determine_next_step(sample_state)
+    assert result["next_step"] == "step1"
+
+
+def test_next_step_from_step1_has_findings(sample_state):
+    """step1_lead_review with verdict recorded → step2."""
+    from debate_review.round_ops import init_round, record_verdict
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    record_verdict(sample_state, round_num=1, verdict="has_findings")
     sample_state["journal"]["step"] = "step1_lead_review"
     result = determine_next_step(sample_state)
     assert result["next_step"] == "step2"
@@ -201,6 +213,13 @@ def test_next_step_from_step3_phase1(sample_state):
 def test_next_step_from_step3_phase2(sample_state):
     sample_state["journal"]["step"] = "step3_lead_apply"
     sample_state["journal"]["applied_issue_ids"] = ["isu_001"]
+    assert determine_next_step(sample_state)["next_step"] == "step3_phase2"
+
+
+def test_next_step_from_step3_phase2_with_only_failed_issues(sample_state):
+    """step3 with only failed_application_issue_ids (no applied) → step3_phase2."""
+    sample_state["journal"]["step"] = "step3_lead_apply"
+    sample_state["journal"]["failed_application_issue_ids"] = ["isu_002"]
     assert determine_next_step(sample_state)["next_step"] == "step3_phase2"
 
 

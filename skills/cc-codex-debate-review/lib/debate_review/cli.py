@@ -271,14 +271,23 @@ def cmd_init_round(args):
         _error_exit(f"No state file found at {args.state_file}")
     lead_agent = args.lead_agent or ("codex" if args.round % 2 == 1 else "cc")
     cross_verifier = "cc" if lead_agent == "codex" else "codex"
+    worktree_path = os.path.join(state["repo_root"], ".worktrees", f"debate-pr-{state['pr_number']}")
     if state.get("dry_run"):
-        print(json.dumps(_dry_run_skip(state, command="init-round", round=args.round, lead_agent=lead_agent)))
+        print(json.dumps(_dry_run_skip(
+            state,
+            command="init-round",
+            round=args.round,
+            lead_agent=lead_agent,
+            cross_verifier=cross_verifier,
+            worktree_path=worktree_path,
+            head_branch=state["head"]["pr_branch_name"],
+            synced_head_sha=args.synced_head_sha,
+        )))
         return
     init_round(state, round_num=args.round, lead_agent=lead_agent, synced_head_sha=args.synced_head_sha)
     state["journal"]["round"] = args.round
     state["journal"]["step"] = "step0_sync"
     save_state(state, args.state_file)
-    worktree_path = os.path.join(state["repo_root"], ".worktrees", f"debate-pr-{state['pr_number']}")
     print(json.dumps({
         "round": args.round,
         "lead_agent": lead_agent,

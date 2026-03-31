@@ -100,7 +100,11 @@ def determine_next_step(state) -> dict:
             if r["round"] == current_round_num:
                 round_data = r
                 break
-        if round_data and round_data.get("clean_pass"):
+        step1 = round_data.get("step1", {}) if round_data else {}
+        verdict = step1.get("verdict")
+        if verdict is None:
+            result["next_step"] = "step1"
+        elif round_data.get("clean_pass"):
             result["next_step"] = "step4"
             result["resume_context"] = {"clean_pass": True}
         else:
@@ -109,12 +113,15 @@ def determine_next_step(state) -> dict:
     elif step == "step2_cross_review":
         result["next_step"] = "step3"
     elif step == "step3_lead_apply":
+        phase1_recorded = bool(
+            journal.get("applied_issue_ids") or journal.get("failed_application_issue_ids")
+        )
         if journal.get("push_verified"):
             result["next_step"] = "step4"
         elif journal.get("commit_sha"):
             result["next_step"] = "step3_push"
             result["resume_context"] = {"commit_sha": journal["commit_sha"]}
-        elif journal.get("applied_issue_ids"):
+        elif phase1_recorded:
             result["next_step"] = "step3_phase2"
         else:
             result["next_step"] = "step3_phase1"

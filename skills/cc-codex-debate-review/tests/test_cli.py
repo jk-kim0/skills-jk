@@ -252,6 +252,29 @@ def test_cli_init_round_auto_lead_agent(monkeypatch, capsys, tmp_path):
     assert result["cross_verifier"] == "codex"
 
 
+def test_cli_init_round_dry_run_includes_round_metadata(monkeypatch, capsys, tmp_path):
+    """init-round in dry-run mode returns full metadata (cross_verifier, worktree_path, etc.)."""
+    state = create_initial_state(
+        repo="owner/repo", repo_root="/tmp/repo", pr_number=99,
+        is_fork=False, head_sha="abc123", pr_branch_name="feat/dry",
+        dry_run=True,
+    )
+    path = str(tmp_path / "dry-run-init-round.json")
+    save_state(state, path)
+
+    _run_cli(monkeypatch, [
+        "init-round", "--state-file", path,
+        "--round", "1", "--synced-head-sha", "abc123",
+    ])
+    result = json.loads(capsys.readouterr().out)
+    assert result["action"] == "dry_run"
+    assert result["lead_agent"] == "codex"
+    assert result["cross_verifier"] == "cc"
+    assert result["worktree_path"] == "/tmp/repo/.worktrees/debate-pr-99"
+    assert result["head_branch"] == "feat/dry"
+    assert result["synced_head_sha"] == "abc123"
+
+
 # Test 8: journal.step updated by subcommands
 def test_cli_journal_step_progression(monkeypatch, capsys, state_path):
     """CLI subcommands should update journal.step as they execute."""
