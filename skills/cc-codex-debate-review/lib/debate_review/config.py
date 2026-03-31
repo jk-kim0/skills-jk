@@ -1,8 +1,8 @@
 import os
 import yaml
 
-_DEFAULT_CONFIG_PATH = os.path.expanduser(
-    "~/workspace/skills-jk/config/cc-codex-debate-review.yml"
+_DEFAULT_CONFIG_PATH = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "config.yml")
 )
 
 
