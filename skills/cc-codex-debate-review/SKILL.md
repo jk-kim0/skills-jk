@@ -355,7 +355,7 @@ rm -f "$PATCH_FILE"
 - **When CC is lead**, CC modifies code directly in `$WORKTREE_PATH`:
   1. For each applicable issue, read the target file, determine the fix, and edit the file
   2. Track modified file paths for staging (same as Codex patch flow)
-  3. If CC cannot determine a fix for a specific issue, record that single issue as `failed-issues` with an explicit reason — do not batch-fail all issues
+  3. If CC cannot determine a fix for a specific issue, record that single issue as `failed-issues` and report the reason to the user — do not batch-fail all issues
   4. Proceed to Phase 1 with the actual `applied-issues` and `failed-issues` lists
 
 #### Code Application (Same-Repo PR, 3-Phase)
