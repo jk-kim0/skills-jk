@@ -52,7 +52,7 @@
 
 ### 판단 절차
 
-1. Task/Project 생성 시 [task-visibility](../skills/ops/task-visibility.md) 체크리스트 확인
+1. Task/Project 생성 시 [task-visibility](../skills/task-visibility/SKILL.md) 체크리스트 확인
 2. 해당 조건이 있으면 `skills-jk-private`에서 작업
 3. Public repo 커밋 시 pre-commit hook이 2차 검증
 
@@ -83,7 +83,7 @@ Hook이 검사하는 항목:
 
 2. **비공개 Task/Project는 별도 repo에서 관리**
    - 위 비공개 기준에 해당하면 `skills-jk-private` 사용
-   - [task-visibility](../skills/ops/task-visibility.md) 스킬 참조
+   - [task-visibility](../skills/task-visibility/SKILL.md) 스킬 참조
 
 3. **GitHub Secrets 활용**
    - 민감한 값은 반드시 Secrets에 저장

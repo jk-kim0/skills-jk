@@ -28,7 +28,7 @@ description: Use when creating project plans, design documents, task lists, repo
 ### skills-jk (공개)
 ```
 skills-jk/
-├── skills/           # 재사용 가능한 스킬 문서
+├── skills/           # 재사용 가능한 스킬 (각 스킬은 <name>/SKILL.md)
 └── docs/             # 일반 기술 문서
 ```
 
@@ -57,4 +57,4 @@ skills-jk-private/
 | "이 기능의 디자인 문서를 작성해줘" | `skills-jk-private/projects/active/` |
 | "querypie-mono에 디자인 문서를 작성해줘" | `querypie-mono/docs/` (명시적 지정) |
 | "분석 결과를 정리해줘" | `skills-jk-private/reports/` |
-| "bash 스크립팅 스킬을 작성해줘" | `skills-jk/skills/` |
+| "bash 스크립팅 스킬을 작성해줘" | `skills-jk/skills/<name>/SKILL.md` |
