@@ -1,5 +1,7 @@
 """record-application: 3-phase checkpoint for code application."""
 
+import sys
+
 from debate_review.gh import gh_json
 from debate_review.round_ops import _find_round
 
@@ -19,6 +21,14 @@ def record_application_phase1(state, *, round_num, applied_issue_ids, failed_iss
     unknown = [iid for iid in all_ids if iid not in state["issues"]]
     if unknown:
         raise ValueError(f"Unknown issue IDs: {unknown}")
+
+    # Warn if no issues were applied but some failed
+    if not applied_issue_ids and failed_issue_ids:
+        print(
+            f"WARNING: applied=0, failed={len(failed_issue_ids)}. "
+            "All applicable issues recorded as failed without any successful application.",
+            file=sys.stderr,
+        )
 
     # Checkpoint 0: initialize
     journal["step"] = "step3_lead_apply"

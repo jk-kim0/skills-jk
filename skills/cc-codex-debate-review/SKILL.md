@@ -284,6 +284,15 @@ The lead agent handles three things:
 2. Evaluate cross-verifier's new findings (accept/maintain)
 3. Apply code fixes for agreed issues (same-repo PRs only)
 
+#### Code Application is Mandatory
+
+When `DRY_RUN=false` and `IS_FORK=false`, the lead agent **MUST** attempt to fix every issue with `consensus_status=accepted` and `application_status=pending|failed`. Skipping code application without attempting is a procedure violation.
+
+- **Codex lead**: CC applies Codex's `code_fixes` patches via `git apply`. If a patch fails `--check`, that specific issue is recorded as `failed-issues` — this is the only legitimate failure path.
+- **CC lead**: CC modifies files directly in the worktree. CC must not record issues as `failed-issues` without actually attempting the fix. If CC cannot determine how to fix an issue, CC must explain the reason in the commit message or escalate to the user — not silently skip.
+
+**Prohibited**: Recording all applicable issues as `failed-issues` without attempting any code modification. This creates an infinite `continue` loop where accepted issues never reach `applied` status.
+
 **When Codex is lead:**
 
 Prompt template: `./codex-lead-response-prompt.md` (`$SKILL_ROOT/codex-lead-response-prompt.md`)
@@ -343,13 +352,24 @@ rm -f "$PATCH_FILE"
 - On `--check` failure, record the issue_id as `failed-issues` and continue to the next item
 - After all applications, reflect in Phase 1's `--applied-issues` and `--failed-issues`
 - Accumulate actual file paths modified by successful patches for dedup staging in Phase 2
-- When CC is lead, CC modifies code directly (code_fixes not needed)
+- **When CC is lead**, CC modifies code directly in `$WORKTREE_PATH`:
+  1. For each applicable issue, read the target file, determine the fix, and edit the file
+  2. Track modified file paths for staging (same as Codex patch flow)
+  3. If CC cannot determine a fix for a specific issue, record that single issue as `failed-issues` with an explicit reason — do not batch-fail all issues
+  4. Proceed to Phase 1 with the actual `applied-issues` and `failed-issues` lists
 
 #### Code Application (Same-Repo PR, 3-Phase)
 
 All issues with `consensus_status=accepted` and `application_status=pending|failed` are fixed by the lead agent.
 
 If `DRY_RUN=true`, skip all 3 phases. In dry-run mode, only verify state without creating commits/pushes.
+
+**Before calling Phase 1**, the lead agent must have performed one of:
+- `git apply` for each Codex `code_fixes` item (Codex lead rounds)
+- Direct file edits in `$WORKTREE_PATH` (CC lead rounds)
+
+If no code modification was attempted at all, do NOT call `record-application`. Instead, escalate to the user:
+> "N accepted issues require code fixes but I cannot determine appropriate changes. Please advise."
 
 **Phase 1: Record Application Results**
 
@@ -431,6 +451,19 @@ If `continue`:
 CURRENT_ROUND=$(echo "$SETTLE_RESULT" | jq -r '.next_round')
 # Return to round loop start (Step 0)
 ```
+
+#### Stall Detection
+
+After `settle-round` returns `continue`, check if progress was made this round:
+- If `settled_issues` is empty AND no code was applied (Phase 1 `applied=0`), this round made no progress.
+- If 2 consecutive rounds make no progress, the debate is stalled. Treat as terminal:
+
+```bash
+"$DEBATE_REVIEW_BIN" mark-failed --state-file "$STATE_FILE" \
+  --error-message "Stalled: 2 consecutive rounds with no progress (no settlements, no code applied)"
+```
+
+Post the final comment and clean up. Do NOT continue looping.
 
 ---
 
@@ -602,6 +635,7 @@ See `REFERENCE.md` for placeholder sources. State-derivable placeholders are ret
 | Worktree | `<repo_root>/.worktrees/debate-pr-<N>` |
 | GitHub CLI | `env -u GITHUB_TOKEN -u GH_TOKEN gh ...` |
 | Output language | Config `language` (default: `en`) |
+| Code application | Mandatory when `DRY_RUN=false` and `IS_FORK=false` |
 
 ## Common Mistakes
 
@@ -612,3 +646,5 @@ See `REFERENCE.md` for placeholder sources. State-derivable placeholders are ret
 - **Using Codex output as-is in comments**: Orchestrator must normalize to standard format
 - **Ignoring phase order**: Strictly follow Phase 1 → commit → Phase 2 → push → Phase 3
 - **Attempting push on fork PR**: Fork PRs skip code application/commit/push entirely
+- **Skipping code application**: When `DRY_RUN=false` and `IS_FORK=false`, code application is mandatory for accepted issues. Recording all issues as `failed-issues` without attempting fixes creates an infinite loop and violates the procedure. CC must either apply fixes or escalate to the user.
+- **Treating debate review as review-only**: The skill is a review + fix system, not a comment-only reviewer. If only review comments are needed, use `DRY_RUN=true` in config.
