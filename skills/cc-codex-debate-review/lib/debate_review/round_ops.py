@@ -162,8 +162,15 @@ def settle_round(state, *, round_num) -> dict:
         cs = issue["consensus_status"]
         if cs in ("withdrawn", "accepted") and iid in touched_ids:
             prev = latest_ledger.get(iid)
-            if prev and prev[0] == cs and prev[1] == round_num:
-                continue
+            if prev and prev[0] == cs:
+                # Same round → idempotency (already counted)
+                # No new report in this round → incidental touch, not a new settlement
+                # (e.g. partial withdraw of multi-report issue that doesn't change consensus)
+                has_new_report = any(
+                    r.get("round") == round_num for r in issue.get("reports", [])
+                )
+                if prev[1] == round_num or not has_new_report:
+                    continue
             settled_issues.append({
                 "issue_id": iid,
                 "consensus_status": cs,

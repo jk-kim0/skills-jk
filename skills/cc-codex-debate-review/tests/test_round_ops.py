@@ -262,6 +262,43 @@ def test_settle_deduplicates_same_round_same_status(sample_state):
     assert len(result["settled_issues"]) == 0
 
 
+def test_settle_skips_partial_withdraw_no_status_change(sample_state):
+    """Partial withdraw of multi-report issue that doesn't change consensus should NOT appear."""
+    from debate_review.issue_ops import upsert_issue
+    from debate_review.cross_verification import record_cross_verification, resolve_rebuttals
+
+    # Round 1: codex reports, cc accepts → accepted
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    r1a = upsert_issue(sample_state, agent="codex", round_num=1, severity="warning",
+                        criterion=3, file="src/foo.ts", line=42, anchor="retry", message="loop")
+    issue_id = r1a["issue_id"]
+    # Also add a second report from codex (same issue)
+    r1b = upsert_issue(sample_state, agent="codex", round_num=1, severity="warning",
+                        criterion=3, file="src/foo.ts", line=42, anchor="retry", message="loop")
+    record_cross_verification(sample_state, round_num=1,
+                              verifications=[
+                                  {"report_id": r1a["report_id"], "decision": "accept", "reason": "ok"},
+                                  {"report_id": r1b["report_id"], "decision": "accept", "reason": "ok"},
+                              ])
+    sample_state["issues"][issue_id]["application_status"] = "applied"
+    record_verdict(sample_state, round_num=1, verdict="no_findings_mergeable")
+    settle_round(sample_state, round_num=1)
+
+    sample_state["debate_ledger"] = [
+        {"issue_id": issue_id, "status": "accepted", "summary": "...", "round": 1}
+    ]
+
+    # Round 2: partial withdraw of first report — issue stays accepted
+    init_round(sample_state, round_num=2, lead_agent="cc", synced_head_sha="abc")
+    resolve_rebuttals(sample_state, round_num=2, step="1a",
+                      decisions=[{"report_id": r1a["report_id"], "decision": "withdraw", "reason": "partial"}])
+    record_verdict(sample_state, round_num=2, verdict="has_findings")
+    result = settle_round(sample_state, round_num=2)
+
+    # Issue was touched but status didn't change and no new report → should NOT appear
+    assert result["settled_issues"] == []
+
+
 def test_settle_allows_re_raised_issue_in_new_round(sample_state):
     """Re-raised issue settled again in a new round should appear in settled_issues."""
     from debate_review.issue_ops import upsert_issue

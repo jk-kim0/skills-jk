@@ -600,7 +600,13 @@ path, ledger_json = sys.argv[1], sys.argv[2]
 with open(path) as f:
     state = json.load(f)
 entries = json.loads(ledger_json)
-state.setdefault("debate_ledger", []).extend(entries)
+ledger = state.setdefault("debate_ledger", [])
+existing = {(e["issue_id"], e["status"], e.get("round")) for e in ledger}
+for entry in entries:
+    key = (entry["issue_id"], entry["status"], entry.get("round"))
+    if key not in existing:
+        ledger.append(entry)
+        existing.add(key)
 import tempfile, os
 dir_ = os.path.dirname(path)
 with tempfile.NamedTemporaryFile("w", dir=dir_, delete=False, suffix=".tmp") as f:
