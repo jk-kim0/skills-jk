@@ -21,7 +21,8 @@ def save_error_log(*, command, error_message, state_file=None):
         "state_file": state_file,
     }
 
-    filename = f"{timestamp}-{command}.json"
+    safe_command = command.replace("/", "_").replace(" ", "_")[:64]
+    filename = f"{timestamp}-{safe_command}.json"
     path = os.path.join(ERROR_LOG_DIR, filename)
     with open(path, "w") as f:
         json.dump(entry, f, indent=2)
