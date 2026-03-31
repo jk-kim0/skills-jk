@@ -365,3 +365,26 @@ def test_cli_dry_run_skips_mutating_commands(monkeypatch, capsys, tmp_path):
 
     after = load_state(path)
     assert after == before
+
+
+def test_cli_init_persists_language_from_config(monkeypatch, capsys, tmp_path):
+    config_path = tmp_path / "config.yml"
+    config_path.write_text("max_rounds: 7\nlanguage: ko\n")
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setattr(
+        "debate_review.cli.gh_json",
+        lambda *args: {
+            "headRefName": "feat/test",
+            "headRefOid": "abc123",
+            "headRepositoryOwner": {"login": "owner"},
+        },
+    )
+
+    _run_cli(monkeypatch, [
+        "init", "--repo", "owner/repo", "--pr", "123",
+        "--config", str(config_path),
+    ])
+    result = json.loads(capsys.readouterr().out)
+    state = load_state(result["state_file"])
+    assert state["language"] == "ko"
+    assert state["max_rounds"] == 7

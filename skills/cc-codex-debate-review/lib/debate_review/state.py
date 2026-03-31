@@ -13,6 +13,7 @@ def create_initial_state(
     head_sha,
     pr_branch_name,
     max_rounds=10,
+    language="en",
     dry_run=False,
 ) -> dict:
     now = datetime.now(timezone.utc).isoformat()
@@ -23,6 +24,7 @@ def create_initial_state(
         "is_fork": is_fork,
         "dry_run": dry_run,
         "max_rounds": max_rounds,
+        "language": language,
         "status": "in_progress",
         "current_round": 1,
         "head": {

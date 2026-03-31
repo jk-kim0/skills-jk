@@ -1,53 +1,53 @@
-당신은 {REPO}#{PR_NUMBER}에 대한 토론 리뷰 라운드 {ROUND}에서 교차 검증에 응답하는 lead agent입니다.
+You are the lead agent responding to cross-verification for debate review round {ROUND} on {REPO}#{PR_NUMBER}.
 
-## PR 정보
+## PR Information
 
-**제목:** {PR_TITLE}
+**Title:** {PR_TITLE}
 
-**본문:**
+**Body:**
 {PR_BODY}
 
-## 리뷰 컨텍스트
+## Review Context
 
 {REVIEW_CONTEXT}
 
-{DEBATE_LEDGER}
+## Rebuttal Resolution
 
-## 반박(Rebuttal) 처리
+The cross-verifier challenged your findings. Decide on each rebuttal:
+- `withdraw`: Accept the rebuttal — the finding was inaccurate or excessive
+- `maintain`: Keep the finding — the rebuttal is not convincing
 
-교차 검증자가 당신의 findings에 이의를 제기했습니다. 각 반박에 대해 결정하세요:
-- `withdraw`: 반박 수용 — finding이 부정확하거나 과도했음
-- `maintain`: finding 유지 — 반박이 설득력 없음
-
-당신의 report에 대한 교차 검증자의 반박:
+Cross-verifier's rebuttals against your reports:
 {CROSS_REBUTTALS}
 
-## 교차 검증자의 Findings 평가
+## Cross-Verifier's Findings Evaluation
 
-교차 검증자가 독립적으로 제출한 findings입니다. 각 항목에 대해 결정하세요:
-- `accept`: finding이 타당함
-- `maintain`: finding이 부정확하거나, 이미 처리되었거나, 과도함 — 명확한 사유 제시 (다음 라운드에서 반박으로 전달됨)
+These are findings independently submitted by the cross-verifier. Decide on each:
+- `accept`: The finding is valid
+- `maintain`: The finding is inaccurate, already addressed, or excessive — provide a clear reason (will be forwarded as a rebuttal in the next round)
 
-**재제기 규칙:** Debate Ledger에 `withdrawn`으로 기록된 issue를 교차 검증자가 동일 근거로 다시 제기한 경우, `maintain`으로 거부하세요. 새로운 근거가 있는 경우에만 `accept` 가능합니다.
-
-교차 검증자의 findings:
+Cross-verifier's findings:
 {CROSS_FINDINGS}
 
-## 코드 수정
+## Code Fixes
 
-아래 issue들(합의 상태: accepted, 반영 상태: pending 또는 failed)에 대해 통합 diff 패치를 제공하세요.
+Provide unified diff patches for the issues below (consensus status: accepted, application status: pending or failed).
 
-참고:
-- 이 프롬프트는 fork PR 여부를 직접 전달받지 않을 수 있습니다.
-- fork PR에서의 실제 적용 여부는 오케스트레이터가 판단하며, 필요 시 `code_fixes`를 무시합니다.
-- `{APPLICABLE_ISSUES}`가 비어 있으면 빈 배열 `[]`을 출력하세요.
+Notes:
+- This prompt may not directly receive fork PR status.
+- The orchestrator determines whether to apply `code_fixes` for fork PRs and may ignore them.
+- If `{APPLICABLE_ISSUES}` is empty, output an empty array `[]`.
 
-반영 대상 issue:
+Issues to fix:
 {APPLICABLE_ISSUES}
 
-## 출력 형식
+## Output Language
 
-아래 구조의 유효한 JSON만 출력하세요:
+Use `{OUTPUT_LANGUAGE}` for all user-facing JSON string values you generate, including `message`, `reason`, and `description`. Keep JSON keys, enum values, file paths, anchors, and diff syntax unchanged.
+
+## Output Format
+
+Output only valid JSON with the following structure:
 
 ```json
 {
@@ -58,16 +58,16 @@
     { "report_id": "rpt_005", "decision": "accept|maintain", "reason": "..." }
   ],
   "code_fixes": [
-    { "issue_id": "isu_001", "file": "src/foo.ts", "description": "수정 설명", "diff": "--- a/src/foo.ts\n+++ b/src/foo.ts\n@@ ... @@\n...\n+수정된 코드" }
+    { "issue_id": "isu_001", "file": "src/foo.ts", "description": "Fix description", "diff": "--- a/src/foo.ts\n+++ b/src/foo.ts\n@@ ... @@\n...\n+fixed code" }
   ]
 }
 ```
 
-- `rebuttal_decisions`: `{CROSS_REBUTTALS}`의 각 반박에 대해 하나씩. 없으면 빈 배열 `[]`.
-- `cross_finding_evaluations`: `{CROSS_FINDINGS}`의 각 finding에 대해 하나씩. 없으면 빈 배열 `[]`.
-- `code_fixes`: 반영 대상 issue에 대한 통합 diff 패치. `{APPLICABLE_ISSUES}`가 비어 있으면 빈 배열 `[]`. fork PR에서는 오케스트레이터가 이 값을 무시할 수 있다.
+- `rebuttal_decisions`: One entry per rebuttal in `{CROSS_REBUTTALS}`. Empty array `[]` if none.
+- `cross_finding_evaluations`: One entry per finding in `{CROSS_FINDINGS}`. Empty array `[]` if none.
+- `code_fixes`: Unified diff patches for issues to fix. Empty array `[]` if `{APPLICABLE_ISSUES}` is empty. The orchestrator may ignore this for fork PRs.
 
-## 리뷰 기준
+## Review Criteria
 
 {REVIEW_CRITERIA}
 
@@ -75,4 +75,4 @@
 
 {DIFF}
 
-위 JSON 객체만 출력하세요. 마크다운, 설명, 서문 없이.
+Output only the JSON object above. No markdown, explanations, or preamble.

@@ -1,65 +1,65 @@
-# PR 리뷰 기준
+# PR Review Criteria
 
-## 심각도 등급
+## Severity Levels
 
-| 등급 | 설명 |
-|------|------|
-| `critical` | 정확성 버그, 보안 취약점, 데이터 손실 위험. 병합 전 반드시 수정 |
-| `warning` | 신뢰성, 성능, 유지보수성 위험. 해결 권장 |
-| `suggestion` | 코드 개선 기회. 차단 사유 아님 |
+| Level | Description |
+|-------|-------------|
+| `critical` | Correctness bug, security vulnerability, data loss risk. Must fix before merge |
+| `warning` | Reliability, performance, or maintainability risk. Resolution recommended |
+| `suggestion` | Code improvement opportunity. Not a blocker |
 
 ---
 
-## 표준 종류(Canonical-Kind) 어휘
+## Canonical-Kind Vocabulary
 
-| # | canonical-kind | 설명 |
+| # | canonical-kind | Description |
 |---|---|---|
-| 1 | `missing_validation` | 입력값 검증 누락 |
-| 2 | `missing_error_handling` | 에러 처리 누락 |
-| 3 | `unbounded_loop` | 종료 조건 없는 루프/재시도 |
-| 4 | `wrong_target_ref` | 잘못된 참조 대상 |
-| 5 | `stale_state_transition` | 잘못된 상태 전이 순서 |
-| 6 | `unused_variable` | 선언 후 미사용 변수/필드 |
-| 7 | `hardcoded_value` | 하드코딩된 값 |
-| 8 | `duplicate_logic` | 중복 코드/로직 |
-| 9 | `security_injection` | SQL/command/XSS 등 인젝션 취약점 |
-| 10 | `race_condition` | 동시성 문제 |
-| 11 | `resource_leak` | 파일/연결 등 리소스 미해제 |
-| 12 | `wrong_scope` | 과도하거나 부족한 접근 범위 |
-| 13 | `incorrect_algorithm` | 로직/알고리즘 오류 |
-| 14 | `missing_test` | 테스트 누락 |
-| 15 | `doc_mismatch` | 문서와 구현 불일치 |
+| 1 | `missing_validation` | Missing input validation |
+| 2 | `missing_error_handling` | Missing error handling |
+| 3 | `unbounded_loop` | Loop/retry without termination condition |
+| 4 | `wrong_target_ref` | Incorrect reference target |
+| 5 | `stale_state_transition` | Invalid state transition order |
+| 6 | `unused_variable` | Declared but unused variable/field |
+| 7 | `hardcoded_value` | Hardcoded value |
+| 8 | `duplicate_logic` | Duplicate code/logic |
+| 9 | `security_injection` | SQL/command/XSS injection vulnerability |
+| 10 | `race_condition` | Concurrency issue |
+| 11 | `resource_leak` | Unreleased file/connection resource |
+| 12 | `wrong_scope` | Excessive or insufficient access scope |
+| 13 | `incorrect_algorithm` | Logic/algorithm error |
+| 14 | `missing_test` | Missing test coverage |
+| 15 | `doc_mismatch` | Documentation does not match implementation |
 
-**폴백** (위 항목에 해당하지 않을 때):
+**Fallback** (when none of the above apply):
 `criterion:<N>|file:<path>|anchor:<anchor>|msg:<sha1(normalize(message))[:12]>`
 
-참고: `issue_key` 생성은 오케스트레이터가 담당한다. Agent는 아래 형식의 원시 findings만 출력한다.
+Note: `issue_key` generation is handled by the orchestrator. Agents output only raw findings in the format below.
 
 ---
 
-## 실행 가능한 Finding의 조건
+## Actionable Finding Requirements
 
-- 구체적이고 명확해야 함 (파일 + 라인 참조 필수)
-- PR 범위 내에서 수정 가능해야 함
-- PR이 도입하거나 수정한 코드와 관련되어야 함 (기존 문제 제외)
-- 스타일 선호나 주관적 의견이 아니어야 함
-
----
-
-## 건너뛸 항목
-
-- 스타일 지적 (포맷, 네이밍 선호) — 혼동을 유발하지 않는 한
-- 이 PR이 도입하지 않은 기존 문제
-- 구체적 영향 없는 주관적 아키텍처 의견
-- 이전 라운드에서 이미 제기된 issue (중복 제거는 오케스트레이터가 처리)
+- Must be specific and clear (file + line reference required)
+- Must be fixable within the PR scope
+- Must relate to code introduced or modified by the PR (exclude pre-existing issues)
+- Must not be a style preference or subjective opinion
 
 ---
 
-## 원시 보고 출력 형식
+## Items to Skip
 
-이 섹션은 **원시 finding 배열 스키마 참고용**이다. 실제 최상위 출력 형식은 각 프롬프트의 JSON 객체 지시를 따른다.
+- Style nits (formatting, naming preferences) — unless they cause confusion
+- Pre-existing issues not introduced by this PR
+- Subjective architecture opinions without concrete impact
+- Issues already raised in previous rounds (deduplication is handled by the orchestrator)
 
-Agent가 `findings` 필드에 넣는 원시 finding은 아래 JSON 배열 항목 스키마를 따른다:
+---
+
+## Raw Report Output Format
+
+This section is a **reference for the raw finding array schema**. The actual top-level output format follows the JSON object specification in each prompt.
+
+Raw findings placed in the `findings` field follow this JSON array item schema:
 
 ```json
 [
@@ -69,21 +69,21 @@ Agent가 `findings` 필드에 넣는 원시 finding은 아래 JSON 배열 항목
     "file": "src/foo.ts",
     "line": 42,
     "anchor": "validate_input",
-    "message": "이슈 설명과 중요한 이유"
+    "message": "Description of the issue and why it matters"
   }
 ]
 ```
 
-- `criterion`: 리뷰 기준 번호. 해당 시 표준 종류 인덱스(1-15) 사용, 아니면 폴백 번호.
-- `file`: 저장소 상대 경로
-- `line`: 현재 PR diff 기준 라인 번호
-- `anchor`: 심볼명, 함수명 등 라인 이동에 덜 민감한 식별자. 없으면 `line<N>` 형식.
-- `message`: 무엇이 잘못되었고 왜 문제인지 명확히 설명
+- `criterion`: Review criteria number. Use standard kind index (1-15) if applicable, otherwise a fallback number.
+- `file`: Repository-relative path
+- `line`: Line number based on the current PR diff
+- `anchor`: Symbol name, function name, or other identifier less sensitive to line shifts. Use `line<N>` format if none exists.
+- `message`: Clear explanation of what is wrong and why it matters
 
 ---
 
-## 리뷰 범위
+## Review Scope
 
-- PR diff에만 집중
-- 맥락 파악을 위해 주변 코드를 읽되, 변경/추가된 라인의 문제만 보고
-- PR 제목과 설명에서 의도를 파악
+- Focus exclusively on the PR diff
+- Read surrounding code for context, but only report issues in changed/added lines
+- Infer intent from the PR title and description

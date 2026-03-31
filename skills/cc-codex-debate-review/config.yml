@@ -2,3 +2,8 @@
 max_rounds: 10
 # Least-privilege default; broader access must be an explicit opt-in.
 codex_sandbox: read-only
+# Language for PR comments and user-facing LLM output.
+# Skill instructions and Codex prompts are always in English.
+# Final CLI comment templates currently localize `en` and `ko`; other codes
+# still flow into LLM prompts and fall back to English for the final comment.
+language: en

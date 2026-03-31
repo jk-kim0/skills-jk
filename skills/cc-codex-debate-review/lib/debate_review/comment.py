@@ -21,12 +21,57 @@ def _first_reporter(issue):
     return "unknown"
 
 
+def _comment_strings(state):
+    language = (state.get("language") or "en").lower().split("-", 1)[0]
+    if language == "ko":
+        return {
+            "consensus_same_repo": "{tag} {round}라운드 만에 합의에 도달했습니다.",
+            "consensus_fork": "{tag} {round}라운드 만에 합의에 도달했습니다. (fork PR — 코드 푸시 불가)",
+            "max_rounds": "{tag} {max_rounds}라운드 후 합의에 도달하지 못했습니다.",
+            "error": "{tag} 오류로 인해 리뷰가 중단되었습니다.",
+            "no_actionable": "조치할 이슈가 없습니다.",
+            "applied_fixes": "## 반영된 수정",
+            "recommended_fixes": "## 권장 수정",
+            "withdrawn_findings": "## 철회된 항목",
+            "unresolved_issues": "## 미해결 이슈",
+            "manual_review": "수동 검토가 필요합니다.",
+            "reported_by": "제기",
+            "applied_by": "반영",
+            "reason": "사유",
+            "round_label": "라운드",
+            "step_label": "단계",
+            "error_label": "오류",
+            "debate_summary": "## 토론 요약",
+        }
+
+    return {
+        "consensus_same_repo": "{tag} Consensus reached after {round} rounds.",
+        "consensus_fork": "{tag} Consensus reached after {round} rounds. (fork PR - code push not allowed)",
+        "max_rounds": "{tag} Consensus was not reached after {max_rounds} rounds.",
+        "error": "{tag} Review stopped due to an error.",
+        "no_actionable": "No actionable issues remain.",
+        "applied_fixes": "## Applied Fixes",
+        "recommended_fixes": "## Recommended Fixes",
+        "withdrawn_findings": "## Withdrawn Findings",
+        "unresolved_issues": "## Unresolved Issues",
+        "manual_review": "Manual review required.",
+        "reported_by": "reported by",
+        "applied_by": "applied by",
+        "reason": "Reason",
+        "round_label": "Round",
+        "step_label": "Step",
+        "error_label": "Error",
+        "debate_summary": "## Debate Summary",
+    }
+
+
 def _build_debate_summary_lines(state):
     """Build Debate Summary section from debate_ledger."""
     ledger = state.get("debate_ledger", [])
     if not ledger:
         return []
-    lines = ["", "## Debate Summary"]
+    strings = _comment_strings(state)
+    lines = ["", strings["debate_summary"]]
     for entry in ledger:
         status = entry.get("status", "unknown")
         summary = entry.get("summary", "")
@@ -37,7 +82,8 @@ def _build_debate_summary_lines(state):
 
 def _build_consensus_same_repo(state, tag):
     """Template 1: consensus, same-repo."""
-    lines = [f"{tag} {state['current_round']}라운드 만에 합의에 도달했습니다."]
+    strings = _comment_strings(state)
+    lines = [strings["consensus_same_repo"].format(tag=tag, round=state["current_round"])]
 
     lines.extend(_build_debate_summary_lines(state))
 
@@ -46,34 +92,37 @@ def _build_consensus_same_repo(state, tag):
 
     if not applied and not withdrawn and not state.get("debate_ledger"):
         lines.append("")
-        lines.append("No actionable issues remain.")
+        lines.append(strings["no_actionable"])
         return "\n".join(lines)
 
     if applied:
         lines.append("")
-        lines.append("## Applied Fixes")
+        lines.append(strings["applied_fixes"])
         for issue in applied:
             reporter = _first_reporter(issue)
             applier = issue.get("applied_by", "unknown")
             msg = _latest_report_message(issue)
-            lines.append(f"- {issue['file']}:{issue['line']} - (reported by {reporter}, applied by {applier}) {msg}")
+            lines.append(
+                f"- {issue['file']}:{issue['line']} - ({strings['reported_by']} {reporter}, {strings['applied_by']} {applier}) {msg}"
+            )
 
     if withdrawn:
         lines.append("")
-        lines.append("## Withdrawn Findings")
+        lines.append(strings["withdrawn_findings"])
         for issue in withdrawn:
             msg = _latest_report_message(issue)
             reason = issue.get("consensus_reason", "")
             lines.append(f"- {issue['file']}:{issue['line']} - {msg}")
             if reason:
-                lines.append(f"  Reason: {reason}")
+                lines.append(f"  {strings['reason']}: {reason}")
 
     return "\n".join(lines)
 
 
 def _build_consensus_fork(state, tag):
     """Template 2: consensus, fork PR."""
-    lines = [f"{tag} {state['current_round']}라운드 만에 합의에 도달했습니다. (fork PR - code push not allowed)"]
+    strings = _comment_strings(state)
+    lines = [strings["consensus_fork"].format(tag=tag, round=state["current_round"])]
 
     lines.extend(_build_debate_summary_lines(state))
 
@@ -82,33 +131,34 @@ def _build_consensus_fork(state, tag):
 
     if not recommended and not withdrawn and not state.get("debate_ledger"):
         lines.append("")
-        lines.append("No actionable issues remain.")
+        lines.append(strings["no_actionable"])
         return "\n".join(lines)
 
     if recommended:
         lines.append("")
-        lines.append("## Recommended Fixes")
+        lines.append(strings["recommended_fixes"])
         for issue in recommended:
             reporter = _first_reporter(issue)
             msg = _latest_report_message(issue)
-            lines.append(f"- {issue['file']}:{issue['line']} - (reported by {reporter}) {msg}")
+            lines.append(f"- {issue['file']}:{issue['line']} - ({strings['reported_by']} {reporter}) {msg}")
 
     if withdrawn:
         lines.append("")
-        lines.append("## Withdrawn Findings")
+        lines.append(strings["withdrawn_findings"])
         for issue in withdrawn:
             msg = _latest_report_message(issue)
             reason = issue.get("consensus_reason", "")
             lines.append(f"- {issue['file']}:{issue['line']} - {msg}")
             if reason:
-                lines.append(f"  Reason: {reason}")
+                lines.append(f"  {strings['reason']}: {reason}")
 
     return "\n".join(lines)
 
 
 def _build_max_rounds(state, tag):
     """Template 3: max rounds exceeded."""
-    lines = [f"{tag} {state['max_rounds']}라운드 후 합의에 도달하지 못했습니다."]
+    strings = _comment_strings(state)
+    lines = [strings["max_rounds"].format(tag=tag, max_rounds=state["max_rounds"])]
 
     lines.extend(_build_debate_summary_lines(state))
 
@@ -118,29 +168,30 @@ def _build_max_rounds(state, tag):
 
     if unresolved:
         lines.append("")
-        lines.append("## Unresolved Issues")
+        lines.append(strings["unresolved_issues"])
         for issue in unresolved:
             msg = _latest_report_message(issue)
             lines.append(f"- {issue['file']}:{issue['line']} - {msg}")
 
     lines.append("")
-    lines.append("Manual review required.")
+    lines.append(strings["manual_review"])
     return "\n".join(lines)
 
 
 def _build_error(state, tag):
     """Template 4: error."""
+    strings = _comment_strings(state)
     journal = state["journal"]
-    lines = [f"{tag} 오류로 인해 리뷰가 중단되었습니다."]
+    lines = [strings["error"].format(tag=tag)]
 
     lines.extend(_build_debate_summary_lines(state))
 
     lines.append("")
-    lines.append(f"Round: {journal.get('round', '?')}")
-    lines.append(f"Step: {journal.get('step', '?')}")
-    lines.append(f"Error: {state.get('error_message', 'Unknown error')}")
+    lines.append(f"{strings['round_label']}: {journal.get('round', '?')}")
+    lines.append(f"{strings['step_label']}: {journal.get('step', '?')}")
+    lines.append(f"{strings['error_label']}: {state.get('error_message', 'Unknown error')}")
     lines.append("")
-    lines.append("Manual review required.")
+    lines.append(strings["manual_review"])
     return "\n".join(lines)
 
 
