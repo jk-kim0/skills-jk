@@ -35,65 +35,43 @@ def _build_debate_summary_lines(state):
     return lines
 
 
-def _build_consensus_same_repo(state, tag):
-    """Template 1: consensus, same-repo."""
-    lines = [f"{tag} Consensus reached after {state['current_round']} rounds."]
+def _build_consensus(state, tag):
+    """Template for consensus (same-repo and fork)."""
+    is_fork = state.get("is_fork", False)
+    header = f"{tag} Consensus reached after {state['current_round']} rounds."
+    if is_fork:
+        header += " (fork PR - code push not allowed)"
+    lines = [header]
 
     lines.extend(_build_debate_summary_lines(state))
 
-    applied = [i for i in state["issues"].values() if i["application_status"] == "applied"]
+    if is_fork:
+        fixes = [i for i in state["issues"].values() if i["application_status"] == "recommended"]
+        fixes_heading = "## Recommended Fixes"
+    else:
+        fixes = [i for i in state["issues"].values() if i["application_status"] == "applied"]
+        fixes_heading = "## Applied Fixes"
+
     withdrawn = [i for i in state["issues"].values() if i["consensus_status"] == "withdrawn"]
 
-    if not applied and not withdrawn and not state.get("debate_ledger"):
+    if not fixes and not withdrawn and not state.get("debate_ledger"):
         lines.append("")
         lines.append("No actionable issues remain.")
         return "\n".join(lines)
 
-    if applied:
+    if fixes:
         lines.append("")
-        lines.append("## Applied Fixes")
-        for issue in applied:
-            reporter = _first_reporter(issue)
-            applier = issue.get("applied_by", "unknown")
-            msg = _latest_report_message(issue)
-            lines.append(
-                f"- {issue['file']}:{issue['line']} - (reported by {reporter}, applied by {applier}) {msg}"
-            )
-
-    if withdrawn:
-        lines.append("")
-        lines.append("## Withdrawn Findings")
-        for issue in withdrawn:
-            msg = _latest_report_message(issue)
-            reason = issue.get("consensus_reason", "")
-            lines.append(f"- {issue['file']}:{issue['line']} - {msg}")
-            if reason:
-                lines.append(f"  Reason: {reason}")
-
-    return "\n".join(lines)
-
-
-def _build_consensus_fork(state, tag):
-    """Template 2: consensus, fork PR."""
-    lines = [f"{tag} Consensus reached after {state['current_round']} rounds. (fork PR - code push not allowed)"]
-
-    lines.extend(_build_debate_summary_lines(state))
-
-    recommended = [i for i in state["issues"].values() if i["application_status"] == "recommended"]
-    withdrawn = [i for i in state["issues"].values() if i["consensus_status"] == "withdrawn"]
-
-    if not recommended and not withdrawn and not state.get("debate_ledger"):
-        lines.append("")
-        lines.append("No actionable issues remain.")
-        return "\n".join(lines)
-
-    if recommended:
-        lines.append("")
-        lines.append("## Recommended Fixes")
-        for issue in recommended:
+        lines.append(fixes_heading)
+        for issue in fixes:
             reporter = _first_reporter(issue)
             msg = _latest_report_message(issue)
-            lines.append(f"- {issue['file']}:{issue['line']} - (reported by {reporter}) {msg}")
+            if is_fork:
+                lines.append(f"- {issue['file']}:{issue['line']} - (reported by {reporter}) {msg}")
+            else:
+                applier = issue.get("applied_by", "unknown")
+                lines.append(
+                    f"- {issue['file']}:{issue['line']} - (reported by {reporter}, applied by {applier}) {msg}"
+                )
 
     if withdrawn:
         lines.append("")
@@ -152,10 +130,7 @@ def build_comment_body(state) -> str:
     outcome = state.get("final_outcome")
 
     if outcome == "consensus":
-        if state.get("is_fork"):
-            return _build_consensus_fork(state, tag)
-        else:
-            return _build_consensus_same_repo(state, tag)
+        return _build_consensus(state, tag)
     elif outcome == "no_consensus":
         return _build_max_rounds(state, tag)
     else:

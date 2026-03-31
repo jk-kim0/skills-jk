@@ -213,11 +213,66 @@ def test_cli_init_round(monkeypatch, capsys, tmp_path):
     result = json.loads(out)
     assert result["round"] == 1
     assert result["lead_agent"] == "codex"
+    assert result["cross_verifier"] == "cc"
+    assert result["worktree_path"] == "/tmp/repo/.worktrees/debate-pr-123"
+    assert result["head_branch"] == "feat/test"
+    assert result["synced_head_sha"] == "abc123"
 
     reloaded = load_state(path)
     assert len(reloaded["rounds"]) == 1
     assert reloaded["rounds"][0]["lead_agent"] == "codex"
     assert reloaded["journal"]["step"] == "step0_sync"
+
+
+def test_cli_init_round_auto_lead_agent(monkeypatch, capsys, tmp_path):
+    """init-round without --lead-agent auto-determines from round number."""
+    state = create_initial_state(
+        repo="owner/repo", repo_root="/tmp/repo", pr_number=42,
+        is_fork=False, head_sha="abc123", pr_branch_name="feat/auto",
+    )
+    path = str(tmp_path / "auto-lead.json")
+    save_state(state, path)
+
+    # Odd round → codex
+    _run_cli(monkeypatch, [
+        "init-round", "--state-file", path,
+        "--round", "1", "--synced-head-sha", "abc123",
+    ])
+    result = json.loads(capsys.readouterr().out)
+    assert result["lead_agent"] == "codex"
+    assert result["cross_verifier"] == "cc"
+
+    # Even round → cc
+    _run_cli(monkeypatch, [
+        "init-round", "--state-file", path,
+        "--round", "2", "--synced-head-sha", "abc123",
+    ])
+    result = json.loads(capsys.readouterr().out)
+    assert result["lead_agent"] == "cc"
+    assert result["cross_verifier"] == "codex"
+
+
+def test_cli_init_round_dry_run_includes_round_metadata(monkeypatch, capsys, tmp_path):
+    """init-round in dry-run mode returns full metadata (cross_verifier, worktree_path, etc.)."""
+    state = create_initial_state(
+        repo="owner/repo", repo_root="/tmp/repo", pr_number=99,
+        is_fork=False, head_sha="abc123", pr_branch_name="feat/dry",
+        dry_run=True,
+    )
+    path = str(tmp_path / "dry-run-init-round.json")
+    save_state(state, path)
+
+    _run_cli(monkeypatch, [
+        "init-round", "--state-file", path,
+        "--round", "1", "--synced-head-sha", "abc123",
+    ])
+    result = json.loads(capsys.readouterr().out)
+    assert result["action"] == "dry_run"
+    assert result["lead_agent"] == "codex"
+    assert result["cross_verifier"] == "cc"
+    assert result["worktree_path"] == "/tmp/repo/.worktrees/debate-pr-99"
+    assert result["head_branch"] == "feat/dry"
+    assert result["synced_head_sha"] == "abc123"
 
 
 # Test 8: journal.step updated by subcommands
@@ -385,6 +440,36 @@ def test_cli_init_persists_language_from_config(monkeypatch, capsys, tmp_path):
         "--config", str(config_path),
     ])
     result = json.loads(capsys.readouterr().out)
+    assert result["language"] == "ko"
+    assert result["codex_sandbox"] == "read-only"
     state = load_state(result["state_file"])
     assert state["language"] == "ko"
     assert state["max_rounds"] == 7
+
+
+def test_cli_mark_failed(monkeypatch, capsys, state_path):
+    _run_cli(monkeypatch, [
+        "mark-failed", "--state-file", state_path,
+        "--error-message", "Codex parse failure",
+    ])
+    result = json.loads(capsys.readouterr().out)
+    assert result["status"] == "failed"
+    state = load_state(state_path)
+    assert state["status"] == "failed"
+    assert state["final_outcome"] == "error"
+    assert state["error_message"] == "Codex parse failure"
+
+
+def test_cli_append_ledger(monkeypatch, capsys, state_path):
+    entries = json.dumps([
+        {"issue_id": "isu_001", "status": "accepted", "summary": "fix applied", "round": 1},
+    ])
+    _run_cli(monkeypatch, [
+        "append-ledger", "--state-file", state_path,
+        "--entries", entries,
+    ])
+    result = json.loads(capsys.readouterr().out)
+    assert result["added"] == 1
+    state = load_state(state_path)
+    assert len(state["debate_ledger"]) == 1
+    assert state["debate_ledger"][0]["issue_id"] == "isu_001"

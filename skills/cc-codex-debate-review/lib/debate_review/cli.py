@@ -5,6 +5,7 @@ import shutil
 import sys
 
 from debate_review.config import load_config
+from debate_review.context import build_context
 from debate_review.gh import gh_json
 from debate_review.application import (
     record_application_phase1,
@@ -17,8 +18,11 @@ from debate_review.round_ops import init_round, record_verdict, settle_round
 from debate_review.comment import post_comment
 from debate_review.sync import sync_head
 from debate_review.state import (
+    append_ledger,
     create_initial_state,
+    determine_next_step,
     load_state,
+    mark_failed,
     save_state,
     state_file_path,
 )
@@ -58,7 +62,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_initr = subparsers.add_parser("init-round", help="Initialize a new round")
     p_initr.add_argument("--state-file", required=True)
     p_initr.add_argument("--round", type=int, required=True)
-    p_initr.add_argument("--lead-agent", required=True, choices=["cc", "codex"])
+    p_initr.add_argument("--lead-agent", choices=["cc", "codex"], default=None)
     p_initr.add_argument("--synced-head-sha", required=True)
 
     # record-verdict subcommand
@@ -93,6 +97,21 @@ def build_parser() -> argparse.ArgumentParser:
     p_comment = subparsers.add_parser("post-comment")
     p_comment.add_argument("--state-file", required=True)
     p_comment.add_argument("--no-comment", action="store_true")
+
+    # mark-failed subcommand
+    p_fail = subparsers.add_parser("mark-failed", help="Mark session as terminal failed")
+    p_fail.add_argument("--state-file", required=True)
+    p_fail.add_argument("--error-message", default="Unknown error")
+
+    # append-ledger subcommand
+    p_ledger = subparsers.add_parser("append-ledger", help="Append entries to debate_ledger")
+    p_ledger.add_argument("--state-file", required=True)
+    p_ledger.add_argument("--entries", required=True, help="JSON array of ledger entries")
+
+    # build-context subcommand
+    p_ctx = subparsers.add_parser("build-context", help="Build review context from state")
+    p_ctx.add_argument("--state-file", required=True)
+    p_ctx.add_argument("--round", type=int, required=True)
 
     # record-application subcommand
     p_app = subparsers.add_parser("record-application")
@@ -151,6 +170,7 @@ def cmd_init(args):
     config = load_config(args.config)
     max_rounds = args.max_rounds if args.max_rounds is not None else config.get("max_rounds", 10)
     language = str(config.get("language", "en"))
+    codex_sandbox = str(config.get("codex_sandbox", "read-only"))
 
     state_path = state_file_path(repo, pr_number, dry_run)
     existing = load_state(state_path)
@@ -203,13 +223,21 @@ def cmd_init(args):
             result_status = "created"
             current_round = state["current_round"]
 
-    print(json.dumps({
+    result = {
         "state_file": state_path,
         "status": result_status,
         "current_round": current_round,
         "is_fork": is_fork,
         "dry_run": dry_run,
-    }))
+        "codex_sandbox": codex_sandbox,
+        "language": existing.get("language", language) if result_status == "resumed" else language,
+    }
+    if result_status == "resumed":
+        resume_info = determine_next_step(existing)
+        result["next_step"] = resume_info["next_step"]
+        if "resume_context" in resume_info:
+            result["resume_context"] = resume_info["resume_context"]
+    print(json.dumps(result))
 
 
 def cmd_show(args):
@@ -241,14 +269,34 @@ def cmd_init_round(args):
     state = load_state(args.state_file)
     if state is None:
         _error_exit(f"No state file found at {args.state_file}")
+    lead_agent = args.lead_agent or ("codex" if args.round % 2 == 1 else "cc")
+    cross_verifier = "cc" if lead_agent == "codex" else "codex"
+    worktree_path = os.path.join(state["repo_root"], ".worktrees", f"debate-pr-{state['pr_number']}")
     if state.get("dry_run"):
-        print(json.dumps(_dry_run_skip(state, command="init-round", round=args.round, lead_agent=args.lead_agent)))
+        print(json.dumps(_dry_run_skip(
+            state,
+            command="init-round",
+            round=args.round,
+            lead_agent=lead_agent,
+            cross_verifier=cross_verifier,
+            worktree_path=worktree_path,
+            head_branch=state["head"]["pr_branch_name"],
+            synced_head_sha=args.synced_head_sha,
+        )))
         return
-    init_round(state, round_num=args.round, lead_agent=args.lead_agent, synced_head_sha=args.synced_head_sha)
+    init_round(state, round_num=args.round, lead_agent=lead_agent, synced_head_sha=args.synced_head_sha)
     state["journal"]["round"] = args.round
     state["journal"]["step"] = "step0_sync"
+    state["journal"]["phase1_completed"] = False
     save_state(state, args.state_file)
-    print(json.dumps({"round": args.round, "lead_agent": args.lead_agent}))
+    print(json.dumps({
+        "round": args.round,
+        "lead_agent": lead_agent,
+        "cross_verifier": cross_verifier,
+        "worktree_path": worktree_path,
+        "head_branch": state["head"]["pr_branch_name"],
+        "synced_head_sha": args.synced_head_sha,
+    }))
 
 
 def cmd_upsert_issue(args):
@@ -385,6 +433,47 @@ def cmd_record_application(args):
     print(json.dumps(result))
 
 
+def cmd_build_context(args):
+    state = load_state(args.state_file)
+    if state is None:
+        _error_exit(f"No state file found at {args.state_file}")
+    result = build_context(state, round_num=args.round)
+    print(json.dumps(result))
+
+
+def cmd_mark_failed(args):
+    state = load_state(args.state_file)
+    if state is None:
+        _error_exit(f"No state file found at {args.state_file}")
+    if state.get("dry_run"):
+        print(json.dumps(_dry_run_skip(state, command="mark-failed", error_message=args.error_message)))
+        return
+    mark_failed(state, error_message=args.error_message)
+    save_state(state, args.state_file)
+    print(json.dumps({"status": "failed", "error_message": args.error_message}))
+
+
+def cmd_append_ledger(args):
+    state = load_state(args.state_file)
+    if state is None:
+        _error_exit(f"No state file found at {args.state_file}")
+    if state.get("dry_run"):
+        print(json.dumps(_dry_run_skip(state, command="append-ledger")))
+        return
+    try:
+        entries = json.loads(args.entries)
+    except json.JSONDecodeError as e:
+        _error_exit(f"Invalid JSON for --entries: {e}")
+    if not isinstance(entries, list):
+        _error_exit("--entries must be a JSON array")
+    try:
+        result = append_ledger(state, entries=entries)
+    except (KeyError, TypeError) as e:
+        _error_exit(f"Malformed ledger entry: {e}")
+    save_state(state, args.state_file)
+    print(json.dumps(result))
+
+
 def main():
     parser = build_parser()
     args = parser.parse_args()
@@ -399,6 +488,9 @@ def main():
         "record-cross-verification": cmd_record_cross_verification,
         "resolve-rebuttals": cmd_resolve_rebuttals,
         "record-application": cmd_record_application,
+        "build-context": cmd_build_context,
+        "mark-failed": cmd_mark_failed,
+        "append-ledger": cmd_append_ledger,
         "sync-head": cmd_sync_head,
         "post-comment": cmd_post_comment,
     }
