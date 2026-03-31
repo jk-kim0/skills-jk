@@ -60,12 +60,29 @@ def test_sync_external_change_supersede():
     assert result["superseded_rounds"] == [1]
     assert state["rounds"][0]["status"] == "superseded"
     assert state["current_round"] == 2
+    assert state["debate_ledger"] == []
     issue = state["issues"]["isu_001"]
     assert issue["consensus_status"] == "open"
     assert issue["accepted_by"] == []
     assert issue["application_status"] == "pending"
     assert issue["applied_by"] is None
     assert issue["application_commit_sha"] is None
+
+
+def test_sync_supersede_clears_debate_ledger():
+    state = _make_state_with_round()
+    state["rounds"][0]["status"] = "completed"
+    state["debate_ledger"] = [
+        {"issue_id": "isu_001", "status": "accepted", "summary": "old", "round": 1},
+    ]
+    result = sync_head(
+        state,
+        _get_head=lambda repo, pr: "sha_external",
+        _fetch=lambda rr, pn, tr: None,
+        _ensure_wt=lambda rr, pn, tr: ("/tmp/wt", "sha_external"),
+    )
+    assert result["external_change"] is True
+    assert state["debate_ledger"] == []
 
 
 def test_reset_issues_withdrawn_preserved():

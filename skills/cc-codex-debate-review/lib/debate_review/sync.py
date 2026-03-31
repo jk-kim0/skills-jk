@@ -105,6 +105,7 @@ def sync_head(state, *, _get_head=None, _fetch=None, _ensure_wt=None) -> dict:
                     r["status"] = "superseded"
                     superseded_rounds.append(r["round"])
             _reset_issues_for_supersede(state)
+            state["debate_ledger"] = []
             state["current_round"] += 1
             # Reset journal for the new round
             journal["round"] = state["current_round"]
