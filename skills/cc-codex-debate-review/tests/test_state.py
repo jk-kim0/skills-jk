@@ -6,6 +6,7 @@ import pytest
 from debate_review.state import (
     append_ledger,
     create_initial_state,
+    determine_next_step,
     load_state,
     mark_failed,
     save_state,
@@ -154,3 +155,69 @@ def test_load_config_missing_explicit_raises():
     from debate_review.config import load_config
     with pytest.raises(FileNotFoundError):
         load_config("/nonexistent/path/config.yml")
+
+
+# determine_next_step tests
+
+def test_next_step_from_init(sample_state):
+    result = determine_next_step(sample_state)
+    assert result["next_step"] == "step0"
+
+
+def test_next_step_from_step0(sample_state):
+    sample_state["journal"]["step"] = "step0_sync"
+    assert determine_next_step(sample_state)["next_step"] == "step1"
+
+
+def test_next_step_from_step1_no_clean_pass(sample_state):
+    from debate_review.round_ops import init_round
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    sample_state["journal"]["step"] = "step1_lead_review"
+    result = determine_next_step(sample_state)
+    assert result["next_step"] == "step2"
+    assert result["resume_context"]["clean_pass"] is False
+
+
+def test_next_step_from_step1_clean_pass(sample_state):
+    from debate_review.round_ops import init_round, record_verdict
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    record_verdict(sample_state, round_num=1, verdict="no_findings_mergeable")
+    sample_state["journal"]["step"] = "step1_lead_review"
+    result = determine_next_step(sample_state)
+    assert result["next_step"] == "step4"
+    assert result["resume_context"]["clean_pass"] is True
+
+
+def test_next_step_from_step2(sample_state):
+    sample_state["journal"]["step"] = "step2_cross_review"
+    assert determine_next_step(sample_state)["next_step"] == "step3"
+
+
+def test_next_step_from_step3_phase1(sample_state):
+    sample_state["journal"]["step"] = "step3_lead_apply"
+    assert determine_next_step(sample_state)["next_step"] == "step3_phase1"
+
+
+def test_next_step_from_step3_phase2(sample_state):
+    sample_state["journal"]["step"] = "step3_lead_apply"
+    sample_state["journal"]["applied_issue_ids"] = ["isu_001"]
+    assert determine_next_step(sample_state)["next_step"] == "step3_phase2"
+
+
+def test_next_step_from_step3_push(sample_state):
+    sample_state["journal"]["step"] = "step3_lead_apply"
+    sample_state["journal"]["commit_sha"] = "deadbeef"
+    result = determine_next_step(sample_state)
+    assert result["next_step"] == "step3_push"
+    assert result["resume_context"]["commit_sha"] == "deadbeef"
+
+
+def test_next_step_from_step3_complete(sample_state):
+    sample_state["journal"]["step"] = "step3_lead_apply"
+    sample_state["journal"]["push_verified"] = True
+    assert determine_next_step(sample_state)["next_step"] == "step4"
+
+
+def test_next_step_from_step4(sample_state):
+    sample_state["journal"]["step"] = "step4_settle"
+    assert determine_next_step(sample_state)["next_step"] == "step0"

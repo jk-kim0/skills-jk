@@ -10,6 +10,14 @@ def test_init_round(sample_state):
     assert r["clean_pass"] is False
 
 
+def test_init_round_auto_lead_agent(sample_state):
+    """lead_agent=None auto-determines from round number."""
+    init_round(sample_state, round_num=1, synced_head_sha="abc")
+    assert sample_state["rounds"][0]["lead_agent"] == "codex"  # odd → codex
+    init_round(sample_state, round_num=2, synced_head_sha="abc")
+    assert sample_state["rounds"][1]["lead_agent"] == "cc"  # even → cc
+
+
 def test_record_verdict_has_findings(sample_state):
     init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
     result = record_verdict(sample_state, round_num=1, verdict="has_findings")

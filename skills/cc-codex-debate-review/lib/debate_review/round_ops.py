@@ -1,7 +1,9 @@
 from datetime import datetime, timezone
 
 
-def init_round(state, *, round_num, lead_agent, synced_head_sha):
+def init_round(state, *, round_num, lead_agent=None, synced_head_sha):
+    if lead_agent is None:
+        lead_agent = "codex" if round_num % 2 == 1 else "cc"
     # Idempotent: skip if round already exists
     for r in state["rounds"]:
         if r["round"] == round_num:

@@ -213,11 +213,43 @@ def test_cli_init_round(monkeypatch, capsys, tmp_path):
     result = json.loads(out)
     assert result["round"] == 1
     assert result["lead_agent"] == "codex"
+    assert result["cross_verifier"] == "cc"
+    assert result["worktree_path"] == "/tmp/repo/.worktrees/debate-pr-123"
+    assert result["head_branch"] == "feat/test"
+    assert result["synced_head_sha"] == "abc123"
 
     reloaded = load_state(path)
     assert len(reloaded["rounds"]) == 1
     assert reloaded["rounds"][0]["lead_agent"] == "codex"
     assert reloaded["journal"]["step"] == "step0_sync"
+
+
+def test_cli_init_round_auto_lead_agent(monkeypatch, capsys, tmp_path):
+    """init-round without --lead-agent auto-determines from round number."""
+    state = create_initial_state(
+        repo="owner/repo", repo_root="/tmp/repo", pr_number=42,
+        is_fork=False, head_sha="abc123", pr_branch_name="feat/auto",
+    )
+    path = str(tmp_path / "auto-lead.json")
+    save_state(state, path)
+
+    # Odd round → codex
+    _run_cli(monkeypatch, [
+        "init-round", "--state-file", path,
+        "--round", "1", "--synced-head-sha", "abc123",
+    ])
+    result = json.loads(capsys.readouterr().out)
+    assert result["lead_agent"] == "codex"
+    assert result["cross_verifier"] == "cc"
+
+    # Even round → cc
+    _run_cli(monkeypatch, [
+        "init-round", "--state-file", path,
+        "--round", "2", "--synced-head-sha", "abc123",
+    ])
+    result = json.loads(capsys.readouterr().out)
+    assert result["lead_agent"] == "cc"
+    assert result["cross_verifier"] == "codex"
 
 
 # Test 8: journal.step updated by subcommands
@@ -385,6 +417,8 @@ def test_cli_init_persists_language_from_config(monkeypatch, capsys, tmp_path):
         "--config", str(config_path),
     ])
     result = json.loads(capsys.readouterr().out)
+    assert result["language"] == "ko"
+    assert result["codex_sandbox"] == "read-only"
     state = load_state(result["state_file"])
     assert state["language"] == "ko"
     assert state["max_rounds"] == 7

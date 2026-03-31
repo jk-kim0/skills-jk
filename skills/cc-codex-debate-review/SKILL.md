@@ -57,7 +57,7 @@ env -u GITHUB_TOKEN -u GH_TOKEN gh <subcommand>
 
 ### 1. Initialization
 
-#### Load Config
+#### Setup + Initialize Session
 
 ```bash
 SKILL_ROOT="<path-to-cc-codex-debate-review>"
@@ -65,44 +65,23 @@ DEBATE_REVIEW_BIN="$SKILL_ROOT/bin/debate-review"
 CONFIG_FILE="$SKILL_ROOT/config.yml"
 ```
 
-Read values from the config file:
-```bash
-MAX_ROUNDS=$(python3 -c "import yaml; print(yaml.safe_load(open('$CONFIG_FILE'))['max_rounds'])")
-CODEX_SANDBOX=$(python3 -c "import yaml; print(yaml.safe_load(open('$CONFIG_FILE')).get('codex_sandbox', 'read-only'))")
-LANGUAGE=$(python3 -c "import yaml; print(yaml.safe_load(open('$CONFIG_FILE')).get('language', 'en'))")
-```
-
-The `LANGUAGE` value is passed to LLM prompts via `{OUTPUT_LANGUAGE}` to control the language of user-facing output (issue messages, reasons, descriptions). CLI-generated comment templates are always in English. Skill instructions and Codex prompts are also always in English.
-
-#### Validate Arguments
-
 `REPO` (e.g., `owner/repo`) and `PR_NUMBER` are required arguments. Abort immediately if either is missing.
-
-#### Initialize Session
 
 ```bash
 RESULT=$("$DEBATE_REVIEW_BIN" init --repo "$REPO" --pr "$PR_NUMBER" \
   --config "$CONFIG_FILE")
-```
-
-Extract from `RESULT` JSON:
-```bash
 STATE_FILE=$(echo "$RESULT" | jq -r '.state_file')
 STATUS=$(echo "$RESULT" | jq -r '.status')           # "created" | "resumed"
 CURRENT_ROUND=$(echo "$RESULT" | jq -r '.current_round')
 IS_FORK=$(echo "$RESULT" | jq -r '.is_fork')
 DRY_RUN=$(echo "$RESULT" | jq -r '.dry_run')
+CODEX_SANDBOX=$(echo "$RESULT" | jq -r '.codex_sandbox')
+LANGUAGE=$(echo "$RESULT" | jq -r '.language')
 ```
 
-If `STATUS` is `resumed` → branch to **Restart Procedure** (see below).
+`LANGUAGE` is passed to LLM prompts via `{OUTPUT_LANGUAGE}` to control user-facing output language. CLI-generated templates, skill instructions, and Codex prompts are always in English.
 
-#### Check State (if needed)
-
-```bash
-"$DEBATE_REVIEW_BIN" show --state-file "$STATE_FILE" --json
-```
-
-Outputs the full state as JSON. Use `journal.step` to determine restart position.
+If `STATUS` is `resumed`, the response also includes `next_step` and optionally `resume_context` — see **Restart Rules** below.
 
 ---
 
@@ -138,33 +117,20 @@ fi
 
 ---
 
-### Lead Agent Determination + Round Initialization
+### Round Initialization
 
-| Round | Lead Agent | Cross-Verifier |
-|-------|-----------|----------------|
-| Odd (1, 3, 5, ...) | Codex | CC |
-| Even (2, 4, 6, ...) | CC | Codex |
+The CLI auto-determines lead agent (odd=Codex, even=CC) and returns all environment variables:
 
 ```bash
-if [ $((CURRENT_ROUND % 2)) -eq 1 ]; then
-  LEAD_AGENT="codex"
-  CROSS_VERIFIER="cc"
-else
-  LEAD_AGENT="cc"
-  CROSS_VERIFIER="codex"
-fi
-
-STATE_JSON=$("$DEBATE_REVIEW_BIN" show --state-file "$STATE_FILE" --json)
-REPO_ROOT=$(echo "$STATE_JSON" | jq -r '.repo_root')
-WORKTREE_PATH="$REPO_ROOT/.worktrees/debate-pr-$PR_NUMBER"
-HEAD_BRANCH=$(echo "$STATE_JSON" | jq -r '.head.pr_branch_name')
 SYNCED_SHA=$(echo "$SYNC_RESULT" | jq -r '.post_sync_sha')
-
-"$DEBATE_REVIEW_BIN" init-round \
+ROUND_RESULT=$("$DEBATE_REVIEW_BIN" init-round \
   --state-file "$STATE_FILE" \
   --round "$CURRENT_ROUND" \
-  --lead-agent "$LEAD_AGENT" \
-  --synced-head-sha "$SYNCED_SHA"
+  --synced-head-sha "$SYNCED_SHA")
+LEAD_AGENT=$(echo "$ROUND_RESULT" | jq -r '.lead_agent')
+CROSS_VERIFIER=$(echo "$ROUND_RESULT" | jq -r '.cross_verifier')
+WORKTREE_PATH=$(echo "$ROUND_RESULT" | jq -r '.worktree_path')
+HEAD_BRANCH=$(echo "$ROUND_RESULT" | jq -r '.head_branch')
 ```
 
 ---
@@ -175,7 +141,7 @@ SYNCED_SHA=$(echo "$SYNC_RESULT" | jq -r '.post_sync_sha')
 
 If rebuttals from the previous round exist, the lead agent decides `withdraw` or `maintain` for each.
 
-Previous round rebuttals are found in the `show --json` output at `rounds[N-1].step3.rebuttals`.
+Previous round rebuttals are available via `build-context` output's `pending_rebuttals` field.
 
 Once the lead agent (CC or Codex) makes decisions:
 
@@ -522,74 +488,34 @@ git -C "$REPO_ROOT" worktree remove "$WORKTREE_PATH" --force
 
 ---
 
-## Review Context Construction
+## Review Context + Placeholder Construction
 
-When requesting reviews in Step 1 and Step 2, pass the results of the last 2 rounds as context.
+Use `build-context` to generate all state-derived placeholder data for agent prompts:
 
-**Scope:** `max(1, current_round - 2)` to `current_round - 1` completed/superseded rounds. For Round 1, pass `(First round — no previous reviews)` in `{REVIEW_CONTEXT}`.
-
-Since the last 2 rounds summary alone may miss older unresolved issues, the Codex lead Step 1 prompt also receives all current unresolved issues separately via `{OPEN_ISSUES}`.
-
-**Components:**
-1. Round metadata: number, lead agent, status, clean_pass
-2. Step 1 results: findings summary (issue ID, severity, file, message)
-3. Step 2 results: accept/rebut decisions + new findings
-4. Step 3 results: rebuttal responses + code application results
-5. Unresolved issue status
-
-**Generation method:** CC constructs this from `rounds[]` and `issues` in the `show --json` output.
-
-**Format:**
-
-```text
-## Review Context (rounds <N-2> to <N-1>)
-
-### Round <N-2> [lead: <agent>, status: <status>, clean_pass: <bool>]
-
-**Step 1 (<agent> review):**
-- isu_001 (warning) src/foo.ts:42 — Infinite retry loop
-
-**Step 2 (<agent> cross-verification):**
-- rpt_001 (isu_001): accepted
-- rpt_002 (isu_002): rebutted — "reason"
-
-**Step 3 (<agent> response + application):**
-- rpt_002 rebuttal: accepted → isu_002 withdrawn
-- Applied: isu_001, isu_003
-
-**Unresolved issues:** (none)
+```bash
+CTX=$("$DEBATE_REVIEW_BIN" build-context --state-file "$STATE_FILE" --round "$CURRENT_ROUND")
 ```
+
+The output JSON includes:
+
+| Field | Placeholder | Description |
+|-------|------------|-------------|
+| `review_context` | `{REVIEW_CONTEXT}` | Last 2 rounds summary (text) |
+| `open_issues` | `{OPEN_ISSUES}` | Unresolved issues (JSON array) |
+| `debate_ledger` | `{DEBATE_LEDGER}` | Cumulative conclusion record (text) |
+| `pending_rebuttals` | `{PENDING_REBUTTALS}` | Previous round rebuttals (JSON array) |
+| `lead_reports` | `{LEAD_REPORTS}` | Current round lead findings (JSON array) |
+| `cross_rebuttals` | `{CROSS_REBUTTALS}` | Current round cross rebuttals (JSON array) |
+| `cross_findings` | `{CROSS_FINDINGS}` | Current round cross new findings (JSON array) |
+| `applicable_issues` | `{APPLICABLE_ISSUES}` | Issues ready for code application (JSON array) |
+
+CC only needs to add external data not in state: `{PR_TITLE}`, `{PR_BODY}`, `{DIFF}`, `{REVIEW_CRITERIA}`, `{REPO}`, `{PR_NUMBER}`, `{ROUND}`, `{OUTPUT_LANGUAGE}`.
 
 ---
 
 ## Debate Ledger Management
 
-Maintains a cumulative record of per-issue conclusions across all rounds so agents can reference prior decisions during longer debates (5+ rounds).
-
-### When to Write Ledger Entries
-
-After Step 4 (`settle-round`), the orchestrator (CC) checks the return value's `settled_issues`. For each settled issue, write a 1-line summary and append it to the state file's `debate_ledger` array.
-
-### Ledger Entry Format
-
-```json
-{
-  "issue_id": "isu_001",
-  "status": "accepted",
-  "reason": null,
-  "summary": "Missing batch exit code — R1 Codex raised, R1 CC accept, R3 applied",
-  "round": 3
-}
-```
-
-- `status`: `accepted` or `withdrawn`
-- `reason`: `consensus_reason` value. Withdrawal reason for withdrawn, `null` for accepted. Used to judge differentiation when re-raising
-- `summary`: 1-line summary of issue content and raise/consensus/withdrawal history (orchestrator writes in natural language)
-- `round`: Round number when the conclusion was finalized
-
-### How to Record Ledger Entries
-
-If `settle-round` returns `settled_issues`, append entries via CLI:
+After Step 4 (`settle-round`), if `settled_issues` is non-empty, the orchestrator writes a 1-line summary for each and appends via CLI:
 
 ```bash
 "$DEBATE_REVIEW_BIN" append-ledger \
@@ -597,59 +523,25 @@ If `settle-round` returns `settled_issues`, append entries via CLI:
   --entries "$LEDGER_JSON"
 ```
 
-The CLI deduplicates by `(issue_id, status, round)`.
-
-### Re-appearance of Issues Already in the Ledger
-
-If a withdrawn issue is re-raised and settled again, append a new entry (previous entries are preserved). History accumulates so agents can trace the full discussion flow for each issue.
-
-### {DEBATE_LEDGER} Placeholder
-
-When passing to prompts, convert the `debate_ledger` array to the following text format:
-
-```text
-## Debate Ledger (full-round conclusion summary)
-
-- isu_001 [accepted] Missing batch exit code — R1 Codex raised, R1 CC accept, R3 applied
-- isu_003 [withdrawn] (reason: Intentional design choice) KeyboardInterrupt handling — R1 Codex raised, R2 CC rebut, R5 Codex withdraw
-
-To re-raise a previously withdrawn issue, you must present new evidence different from the reason above.
-```
-
-If the array is empty, pass `(First round — no previous conclusions)`.
+Each entry: `{"issue_id", "status" (accepted/withdrawn), "reason", "summary", "round"}`. The CLI deduplicates by `(issue_id, status, round)`. If a withdrawn issue is re-raised and settled again, a new entry is appended (history accumulates).
 
 ---
 
 ## Restart Rules
 
-Restart always begins with `init`:
+When `init` returns `status: "resumed"`, the `next_step` field indicates where to resume:
 
-```bash
-RESULT=$("$DEBATE_REVIEW_BIN" init --repo "$REPO" --pr "$PR_NUMBER" \
-  --config "$CONFIG_FILE")
-# STATUS = "resumed"
-```
+| `next_step` | Action |
+|-------------|--------|
+| `step0` | Start from Step 0 (sync-head) |
+| `step1` | Start from Step 1 (lead review) |
+| `step2` | Start from Step 2 (cross-verification) |
+| `step3_phase1` | Resume Step 3 Phase 1 (record application) |
+| `step3_phase2` | Resume Step 3 Phase 2 (commit) |
+| `step3_push` | Resume Step 3 push + Phase 3 verification. `resume_context.commit_sha` has the commit to push. |
+| `step4` | Start from Step 4 (settlement) |
 
-Check `journal.step` via `show --json` to determine resume position:
-
-| journal.step | Next Action |
-|--------------|-------------|
-| `init` | From Step 0 (sync-head) |
-| `step0_sync` | From Step 1 (review) |
-| `step1_lead_review` | If clean_pass=true → Step 4, otherwise Step 2 |
-| `step2_cross_review` | Step 3 |
-| `step3_lead_apply` | Check journal checkpoints, resume from incomplete phase |
-| `step4_settle` | Next round Step 0 |
-
-### Step 3 Restart Details
-
-When `journal.step = step3_lead_apply`, check checkpoints:
-
-1. `journal.push_verified = true` → Step 3 complete, proceed to Step 4
-2. `journal.commit_sha` exists and matches PR HEAD → Treat as push success, re-run Phase 3 (`--verify-push`)
-3. `journal.commit_sha` exists but doesn't match PR HEAD → Push incomplete, CC retries push then Phase 3
-4. `journal.commit_sha = null` → From Phase 2 (regenerate commit)
-5. `journal.applied_issue_ids` is empty → From Phase 1
+The `resume_context` object provides additional details (e.g., `clean_pass`, `commit_sha`).
 
 ---
 
@@ -691,7 +583,7 @@ Invocation pattern:
 
 #### Placeholder Derivation
 
-See `REFERENCE.md` "Placeholder Derivation Table" for the full list of common and step-specific placeholders with their data paths.
+See `REFERENCE.md` for placeholder sources. State-derivable placeholders are returned by `build-context --state-file --round N`.
 
 ---
 

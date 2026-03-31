@@ -83,6 +83,49 @@ def append_ledger(state, *, entries):
     return {"added": added, "total": len(ledger)}
 
 
+def determine_next_step(state) -> dict:
+    """Analyze journal to determine where to resume after restart."""
+    journal = state["journal"]
+    step = journal.get("step", "init")
+    result = {"journal_step": step}
+
+    if step == "init":
+        result["next_step"] = "step0"
+    elif step == "step0_sync":
+        result["next_step"] = "step1"
+    elif step == "step1_lead_review":
+        current_round_num = journal.get("round", state["current_round"])
+        round_data = None
+        for r in state["rounds"]:
+            if r["round"] == current_round_num:
+                round_data = r
+                break
+        if round_data and round_data.get("clean_pass"):
+            result["next_step"] = "step4"
+            result["resume_context"] = {"clean_pass": True}
+        else:
+            result["next_step"] = "step2"
+            result["resume_context"] = {"clean_pass": False}
+    elif step == "step2_cross_review":
+        result["next_step"] = "step3"
+    elif step == "step3_lead_apply":
+        if journal.get("push_verified"):
+            result["next_step"] = "step4"
+        elif journal.get("commit_sha"):
+            result["next_step"] = "step3_push"
+            result["resume_context"] = {"commit_sha": journal["commit_sha"]}
+        elif journal.get("applied_issue_ids"):
+            result["next_step"] = "step3_phase2"
+        else:
+            result["next_step"] = "step3_phase1"
+    elif step == "step4_settle":
+        result["next_step"] = "step0"
+    else:
+        result["next_step"] = "step0"
+
+    return result
+
+
 def state_file_path(repo, pr_number, dry_run=False) -> str:
     owner_repo = repo.replace("/", "-")
     suffix = ".dry-run.json" if dry_run else ".json"
