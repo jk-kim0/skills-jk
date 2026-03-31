@@ -178,6 +178,26 @@ def settle_round(state, *, round_num) -> dict:
     # Check max_rounds
     max_rounds_exceeded = state["current_round"] >= state["max_rounds"]
 
+    # Stall detection: check if this round made progress
+    # Clean pass rounds are not stalls (no unresolved issues to fix)
+    round_applied = len(round_.get("step3", {}).get("applied_issue_ids", []))
+    no_progress = (
+        unresolved_issue_ids
+        and (not settled_issues)
+        and (round_applied == 0)
+    )
+    stall_count = 0
+    if no_progress:
+        stall_count = 1
+        for prev in reversed(completed[:-1]):
+            prev_applied = len(prev.get("step3", {}).get("applied_issue_ids", []))
+            prev_settled = prev.get("step4", {}).get("settled_issues", [])
+            prev_unresolved = prev.get("step4", {}).get("unresolved_issue_ids", [])
+            if prev_unresolved and (not prev_settled) and (prev_applied == 0):
+                stall_count += 1
+            else:
+                break
+
     now = datetime.now(timezone.utc).isoformat()
 
     if consensus_reached:
@@ -189,6 +209,24 @@ def settle_round(state, *, round_num) -> dict:
         return {
             "round": round_num,
             "result": "consensus_reached",
+            "unresolved_issue_ids": unresolved_issue_ids,
+            "recommendation_issue_ids": recommendation_issue_ids,
+            "settled_issues": settled_issues,
+        }
+    elif stall_count >= 2:
+        state["status"] = "stalled"
+        state["final_outcome"] = "stalled"
+        state["error_message"] = (
+            f"Stalled: {stall_count} consecutive rounds with no progress "
+            "(no settlements, no code applied)"
+        )
+        state["finished_at"] = now
+        state["head"]["terminal_sha"] = state["head"]["last_observed_pr_sha"]
+        round_["step4"]["result"] = "stalled"
+        return {
+            "round": round_num,
+            "result": "stalled",
+            "stall_count": stall_count,
             "unresolved_issue_ids": unresolved_issue_ids,
             "recommendation_issue_ids": recommendation_issue_ids,
             "settled_issues": settled_issues,
@@ -207,48 +245,6 @@ def settle_round(state, *, round_num) -> dict:
             "settled_issues": settled_issues,
         }
     else:
-        # Stall detection: check if this round made progress
-        # Clean pass rounds are not stalls (no unresolved issues to fix)
-        round_applied = len(round_.get("step3", {}).get("applied_issue_ids", []))
-        no_progress = (
-            unresolved_issue_ids
-            and (not settled_issues)
-            and (round_applied == 0)
-        )
-
-        # Count consecutive no-progress rounds
-        stall_count = 0
-        if no_progress:
-            stall_count = 1
-            # Check previous completed rounds for consecutive stalls
-            for prev in reversed(completed[:-1]):
-                prev_applied = len(prev.get("step3", {}).get("applied_issue_ids", []))
-                prev_settled = prev.get("step4", {}).get("settled_issues", [])
-                prev_unresolved = prev.get("step4", {}).get("unresolved_issue_ids", [])
-                if prev_unresolved and (not prev_settled) and (prev_applied == 0):
-                    stall_count += 1
-                else:
-                    break
-
-        if stall_count >= 2:
-            state["status"] = "stalled"
-            state["final_outcome"] = "stalled"
-            state["error_message"] = (
-                f"Stalled: {stall_count} consecutive rounds with no progress "
-                "(no settlements, no code applied)"
-            )
-            state["finished_at"] = datetime.now(timezone.utc).isoformat()
-            state["head"]["terminal_sha"] = state["head"]["last_observed_pr_sha"]
-            round_["step4"]["result"] = "stalled"
-            return {
-                "round": round_num,
-                "result": "stalled",
-                "stall_count": stall_count,
-                "unresolved_issue_ids": unresolved_issue_ids,
-                "recommendation_issue_ids": recommendation_issue_ids,
-                "settled_issues": settled_issues,
-            }
-
         state["current_round"] += 1
         state["journal"]["round"] = state["current_round"]
         round_["step4"]["result"] = "continue"
