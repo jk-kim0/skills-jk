@@ -657,6 +657,69 @@ See `REFERENCE.md` for placeholder sources. State-derivable placeholders are ret
 | Output language | Config `language` (default: `en`) |
 | Code application | Mandatory when `DRY_RUN=false` and `IS_FORK=false` |
 
+## Error Handling & Bug Reporting
+
+When a CLI command or external command fails during orchestration, the orchestrator records the failure via `mark-failed`. In normal runs this terminates the session and is followed by a bug report. In `DRY_RUN=true`, `mark-failed` returns a dry-run response and does not mutate state or write an error log.
+
+### Failure → mark-failed → Bug Report
+
+On any failure (CLI exit code 1, external command failure, JSON parse failure after retries), capture the failing command in `COMMAND` and the surfaced error text in `ERROR_MESSAGE`, then:
+
+1. Run `mark-failed`:
+   In normal runs, this terminates the session and saves an error log.
+   In `DRY_RUN=true`, this returns `{"action":"dry_run",...}` and leaves the session unchanged.
+   ```bash
+   RESULT=$("$DEBATE_REVIEW_BIN" mark-failed \
+     --state-file "$STATE_FILE" \
+     --error-message "$ERROR_MESSAGE" \
+     --failed-command "$COMMAND")
+   ERROR_LOG_PATH=$(echo "$RESULT" | jq -r '.error_log // empty')
+   ```
+2. If `DRY_RUN=false`, create a GitHub Issue:
+   ```bash
+   SKILL_REPO=$(git -C "$SKILL_ROOT" remote get-url origin | sed -E 's#(ssh://git@github.com/|git@github.com:|https://github.com/)##; s#\.git$##')
+   SHORT_ERROR=$(printf '%s' "$ERROR_MESSAGE" | tr '\n' ' ' | cut -c1-120)
+   env -u GITHUB_TOKEN -u GH_TOKEN gh issue create \
+     --repo "$SKILL_REPO" \
+     --title "bug(debate-review): $COMMAND failed - $SHORT_ERROR" \
+     --body "$(cat <<EOF
+   ## Error
+
+   - **Command**: \`$COMMAND\`
+   - **PR**: $REPO#$PR_NUMBER (round $CURRENT_ROUND)
+   - **State file**: \`$STATE_FILE\`
+
+   ## Error message
+
+   \`\`\`
+   $ERROR_MESSAGE
+   \`\`\`
+
+   ## Context
+
+   - Lead agent: $LEAD_AGENT
+   - Error log: ${ERROR_LOG_PATH:-not available}
+   EOF
+   )"
+   ```
+
+### Error Log Files
+
+When `DRY_RUN=false`, `mark-failed` automatically saves a structured log to `~/.claude/debate-state/error-logs/`:
+
+```json
+{
+  "timestamp": "2026-03-31T12:00:00+00:00",
+  "command": "sync-head",
+  "error": "git failed: ...",
+  "state_file": "~/.claude/debate-state/owner-repo-123.json"
+}
+```
+
+When `DRY_RUN=false`, the `error_log` field in the `mark-failed` response contains the log file path. If log creation fails (e.g., unwritable directory), the field is omitted, but the session is still terminated and the error message remains in the JSON output.
+
+**Do not silently retry or ignore errors.** Every failure must go through `mark-failed`. When `DRY_RUN=false`, also file the bug report before session termination.
+
 ## Common Mistakes
 
 - **Manipulating state without CLI**: Always use `$DEBATE_REVIEW_BIN` subcommands for state changes
@@ -668,3 +731,4 @@ See `REFERENCE.md` for placeholder sources. State-derivable placeholders are ret
 - **Attempting push on fork PR**: Fork PRs skip code application/commit/push entirely
 - **Skipping code application**: When `DRY_RUN=false` and `IS_FORK=false`, code application is mandatory for accepted issues. Recording all issues as `failed-issues` without attempting fixes creates an infinite loop and violates the procedure. CC must either apply fixes or escalate to the user.
 - **Treating debate review as review-only**: The skill is a review + fix system, not a comment-only reviewer. If only review comments are needed, use `DRY_RUN=true` in config.
+- **Ignoring errors**: Every failure must go through `mark-failed`; when `DRY_RUN=false`, also produce a bug report before session termination

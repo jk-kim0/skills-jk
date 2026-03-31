@@ -17,6 +17,7 @@ from debate_review.issue_ops import upsert_issue
 from debate_review.round_ops import init_round, record_verdict, settle_round
 from debate_review.comment import post_comment
 from debate_review.sync import sync_head
+from debate_review.error_log import save_error_log
 from debate_review.state import (
     append_ledger,
     create_initial_state,
@@ -104,6 +105,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_fail = subparsers.add_parser("mark-failed", help="Mark session as terminal failed")
     p_fail.add_argument("--state-file", required=True)
     p_fail.add_argument("--error-message", default="Unknown error")
+    p_fail.add_argument("--failed-command", default="unknown", help="Command that caused the failure")
 
     # append-ledger subcommand
     p_ledger = subparsers.add_parser("append-ledger", help="Append entries to debate_ledger")
@@ -453,7 +455,18 @@ def cmd_mark_failed(args):
         return
     mark_failed(state, error_message=args.error_message)
     save_state(state, args.state_file)
-    print(json.dumps({"status": "failed", "error_message": args.error_message}))
+    try:
+        log_path = save_error_log(
+            command=args.failed_command,
+            error_message=args.error_message,
+            state_file=args.state_file,
+        )
+    except OSError:
+        log_path = None
+    result = {"status": "failed", "error_message": args.error_message}
+    if log_path:
+        result["error_log"] = log_path
+    print(json.dumps(result))
 
 
 def cmd_append_ledger(args):
