@@ -287,6 +287,7 @@ def cmd_init_round(args):
     init_round(state, round_num=args.round, lead_agent=lead_agent, synced_head_sha=args.synced_head_sha)
     state["journal"]["round"] = args.round
     state["journal"]["step"] = "step0_sync"
+    state["journal"]["phase1_completed"] = False
     save_state(state, args.state_file)
     print(json.dumps({
         "round": args.round,
@@ -463,10 +464,12 @@ def cmd_append_ledger(args):
         entries = json.loads(args.entries)
     except json.JSONDecodeError as e:
         _error_exit(f"Invalid JSON for --entries: {e}")
+    if not isinstance(entries, list):
+        _error_exit("--entries must be a JSON array")
     try:
         result = append_ledger(state, entries=entries)
-    except KeyError as e:
-        _error_exit(f"Malformed ledger entry — missing required field: {e}")
+    except (KeyError, TypeError) as e:
+        _error_exit(f"Malformed ledger entry: {e}")
     save_state(state, args.state_file)
     print(json.dumps(result))
 
