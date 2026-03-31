@@ -321,8 +321,18 @@ def test_cli_journal_step_progression(monkeypatch, capsys, state_path):
 
 
 # Test 9: ValueError from business logic produces JSON error + exit 1
-def test_cli_valueerror_json_exit(monkeypatch, capsys, state_path):
+def test_cli_valueerror_json_exit(monkeypatch, capsys, state_path, tmp_path):
     """Business logic ValueError should produce JSON error, exit 1."""
+    calls = []
+
+    def fake_save_error_log(*, command, error_message, state_file=None):
+        calls.append({
+            "command": command,
+            "error_message": error_message,
+            "state_file": state_file,
+        })
+        return str(tmp_path / "error-log.json")
+
     # record-verdict with no_findings_mergeable but open issues exist
     _run_cli(monkeypatch, [
         "upsert-issue", "--state-file", state_path,
@@ -333,6 +343,7 @@ def test_cli_valueerror_json_exit(monkeypatch, capsys, state_path):
     ])
     capsys.readouterr()
 
+    monkeypatch.setattr("debate_review.cli.save_error_log", fake_save_error_log)
     monkeypatch.setattr(sys, "argv", ["debate-review",
         "record-verdict", "--state-file", state_path,
         "--round", "1", "--verdict", "no_findings_mergeable",
@@ -344,7 +355,12 @@ def test_cli_valueerror_json_exit(monkeypatch, capsys, state_path):
     result = json.loads(out)
     assert "error" in result
     assert "open issue" in result["error"]
-    assert "error_log" in result
+    assert result["error_log"] == str(tmp_path / "error-log.json")
+    assert calls == [{
+        "command": "record-verdict",
+        "error_message": result["error"],
+        "state_file": state_path,
+    }]
 
 
 def test_cli_save_error_log_subcommand_dispatches_with_command_option(monkeypatch, capsys, tmp_path):
