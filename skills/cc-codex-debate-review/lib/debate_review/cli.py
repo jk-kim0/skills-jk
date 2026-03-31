@@ -111,7 +111,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     # save-error-log subcommand
     p_errlog = subparsers.add_parser("save-error-log", help="Save an error log for external command failures")
-    p_errlog.add_argument("--command", required=True)
+    p_errlog.add_argument("--command", dest="logged_command", required=True)
     p_errlog.add_argument("--error-message", required=True)
     p_errlog.add_argument("--state-file", default=None)
 
@@ -471,7 +471,7 @@ def cmd_mark_failed(args):
 
 def cmd_save_error_log(args):
     log_path = save_error_log(
-        command=args.command,
+        command=args.logged_command,
         error_message=args.error_message,
         state_file=args.state_file,
     )

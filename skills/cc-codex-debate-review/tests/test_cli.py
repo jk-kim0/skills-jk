@@ -347,6 +347,31 @@ def test_cli_valueerror_json_exit(monkeypatch, capsys, state_path):
     assert "error_log" in result
 
 
+def test_cli_save_error_log_subcommand_dispatches_with_command_option(monkeypatch, capsys, tmp_path):
+    calls = []
+
+    def fake_save_error_log(*, command, error_message, state_file=None):
+        calls.append({
+            "command": command,
+            "error_message": error_message,
+            "state_file": state_file,
+        })
+        return str(tmp_path / "error-log.json")
+
+    monkeypatch.setattr("debate_review.cli.save_error_log", fake_save_error_log)
+    _run_cli(monkeypatch, [
+        "save-error-log", "--command", "git push",
+        "--error-message", "push failed", "--state-file", "/tmp/state.json",
+    ])
+    result = json.loads(capsys.readouterr().out)
+    assert result["error_log"] == str(tmp_path / "error-log.json")
+    assert calls == [{
+        "command": "git push",
+        "error_message": "push failed",
+        "state_file": "/tmp/state.json",
+    }]
+
+
 # Test 10: Invalid JSON in --verifications
 def test_cli_invalid_json_verifications(monkeypatch, capsys, state_path):
     _run_cli(monkeypatch, [
