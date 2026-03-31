@@ -1,0 +1,4 @@
+# CC-Codex Debate Review configuration
+max_rounds: 10
+# Least-privilege default; broader access must be an explicit opt-in.
+codex_sandbox: read-only
