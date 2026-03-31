@@ -72,7 +72,7 @@ CODEX_SANDBOX=$(python3 -c "import yaml; print(yaml.safe_load(open('$CONFIG_FILE
 LANGUAGE=$(python3 -c "import yaml; print(yaml.safe_load(open('$CONFIG_FILE')).get('language', 'en'))")
 ```
 
-The `LANGUAGE` value controls the language of PR comments and user-facing output. Skill instructions and Codex prompts are always in English. Final CLI comments currently localize `en` and `ko`; other codes are passed through to LLM-generated output and fall back to English in the final comment template.
+The `LANGUAGE` value is passed to LLM prompts via `{OUTPUT_LANGUAGE}` to control the language of user-facing output (issue messages, reasons, descriptions). CLI-generated comment templates are always in English. Skill instructions and Codex prompts are also always in English.
 
 #### Validate Arguments
 

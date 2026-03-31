@@ -2,11 +2,10 @@ from debate_review.state import create_initial_state
 from debate_review.comment import build_comment_body, post_comment, _make_tag
 
 
-def _consensus_state(is_fork=False, language="en"):
+def _consensus_state(is_fork=False):
     state = create_initial_state(
         repo="owner/repo", repo_root="/tmp/repo", pr_number=123,
         is_fork=is_fork, head_sha="abc123", pr_branch_name="feat/test",
-        language=language,
     )
     state["status"] = "consensus_reached"
     state["final_outcome"] = "consensus"
@@ -170,19 +169,6 @@ def test_build_comment_no_issues():
     assert "No actionable issues remain." in body
 
 
-def test_build_comment_korean_language():
-    state = _consensus_state(language="ko")
-    body = build_comment_body(state)
-    assert "3라운드 만에 합의에 도달했습니다." in body
-    assert "## 반영된 수정" in body
-    assert "## 철회된 항목" in body
-
-
-def test_build_comment_unknown_language_falls_back_to_english():
-    state = _consensus_state(language="ja")
-    body = build_comment_body(state)
-    assert "Consensus reached after 3 rounds." in body
-
 
 # Test: Debate Summary from ledger
 def test_build_comment_includes_debate_summary():
@@ -240,11 +226,3 @@ def test_build_comment_error_includes_debate_summary():
     assert "Codex parse failure" in body
 
 
-def test_build_comment_korean_debate_summary():
-    state = _consensus_state(language="ko")
-    state["debate_ledger"] = [
-        {"issue_id": "isu_001", "status": "accepted", "summary": "batch exit code", "round": 1},
-    ]
-    body = build_comment_body(state)
-    assert "## 토론 요약" in body
-    assert "isu_001 [accepted]" in body
