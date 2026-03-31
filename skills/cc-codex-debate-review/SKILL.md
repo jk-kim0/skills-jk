@@ -696,16 +696,25 @@ Report a bug when **any** of these occur:
    ```
 4. Run `mark-failed` to terminate the session:
    ```bash
-   "$DEBATE_REVIEW_BIN" mark-failed --state-file "$STATE_FILE" --error "$ERROR_MESSAGE"
+   "$DEBATE_REVIEW_BIN" mark-failed --state-file "$STATE_FILE" --error-message "$ERROR_MESSAGE"
    ```
 
 ### External Command Failures in SKILL.md Steps
 
-For shell commands invoked directly by the orchestrator (not via CLI subcommands):
+For shell commands invoked directly by the orchestrator (not via CLI subcommands), the CLI `error_log` field is **not available**. The orchestrator must create the error log via the CLI wrapper:
 
-- **git apply / git commit / git push**: If the command fails, capture stderr, follow the bug report procedure above, then `mark-failed`
-- **codex exec**: If JSON parsing fails after 3 retries, report as "codex output parse failure"
-- **mktemp / env / other shell utilities**: If the command fails, capture the error and report
+```bash
+ERROR_LOG_PATH=$("$DEBATE_REVIEW_BIN" save-error-log \
+  --command "$COMMAND" \
+  --error-message "$STDERR_OUTPUT" \
+  --state-file "$STATE_FILE" | jq -r '.error_log')
+```
+
+Then follow the Bug Report Procedure above (step 3 onward) using `$ERROR_LOG_PATH`.
+
+- **git apply / git commit / git push**: Capture stderr, create error log, file bug report, then `mark-failed`
+- **codex exec**: If JSON parsing fails after 3 retries, create error log with "codex output parse failure", file bug report
+- **mktemp / env / other shell utilities**: Capture the error, create error log, file bug report
 
 **Do not silently retry or ignore errors.** Every failure must produce a bug report before session termination.
 
