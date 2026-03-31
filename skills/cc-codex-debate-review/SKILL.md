@@ -176,7 +176,7 @@ Skip if no previous round exists or no rebuttals are pending.
    ```bash
    cd "$WORKTREE_PATH"
    # Save prompt to temp file and pass via stdin (avoid ARG_MAX overflow)
-   PROMPT_FILE=$(mktemp /tmp/debate-prompt-XXXXXX.txt)
+   PROMPT_FILE=$(mktemp /tmp/debate-prompt-XXXXXX)
    printf '%s' "$FILLED_PROMPT" > "$PROMPT_FILE"
    codex exec -s "$CODEX_SANDBOX" - < "$PROMPT_FILE"
    rm -f "$PROMPT_FILE"
