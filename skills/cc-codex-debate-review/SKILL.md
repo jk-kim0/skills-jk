@@ -29,8 +29,8 @@ CC (오케스트레이터)
 
 | 입력 | 경로 |
 |------|------|
-| CLI | `~/workspace/skills-jk/bin/debate-review` |
-| 설정 파일 | `~/workspace/skills-jk/config/cc-codex-debate-review.yml` |
+| CLI | `~/workspace/skills-jk/skills/cc-codex-debate-review/bin/debate-review` |
+| 설정 파일 | `~/workspace/skills-jk/skills/cc-codex-debate-review/config.yml` |
 | 리뷰 기준 | `~/workspace/skills-jk/skills/cc-codex-debate-review/review-criteria.md` |
 | Codex 프롬프트 | `~/workspace/skills-jk/skills/cc-codex-debate-review/codex-*.md` |
 
@@ -58,7 +58,7 @@ env -u GITHUB_TOKEN -u GH_TOKEN gh <subcommand>
 #### 설정 로드
 
 ```bash
-CONFIG_FILE="$HOME/workspace/skills-jk/config/cc-codex-debate-review.yml"
+CONFIG_FILE="$HOME/workspace/skills-jk/skills/cc-codex-debate-review/config.yml"
 ```
 
 설정 파일에서 값을 읽는다:
