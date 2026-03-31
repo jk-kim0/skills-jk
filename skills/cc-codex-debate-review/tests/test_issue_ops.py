@@ -154,6 +154,7 @@ def test_upsert_resets_applied_issue(sample_state):
     sample_state["issues"][issue_id]["applied_by"] = "codex"
     sample_state["issues"][issue_id]["application_commit_sha"] = "deadbeef"
 
+    # Without confirm_reopen → returns reopen_requires_review with existing reports
     result = upsert_issue(
         sample_state,
         agent="codex",
@@ -165,13 +166,53 @@ def test_upsert_resets_applied_issue(sample_state):
         anchor="L99",
         message="unused variable x",
     )
+    assert result["action"] == "reopen_requires_review"
+    assert result["report_id"] is None
+    assert result["existing_reports"][0]["message"] == "unused variable x"
+    assert result["new_message"] == "unused variable x"
+    # Issue stays applied — not modified
+    issue = sample_state["issues"][issue_id]
+    assert issue["consensus_status"] == "accepted"
+    assert issue["application_status"] == "applied"
+
+
+def test_upsert_reopens_applied_issue_with_confirm(sample_state):
+    upsert_issue(
+        sample_state,
+        agent="cc",
+        round_num=1,
+        severity="suggestion",
+        criterion=6,
+        file="src/baz.py",
+        line=99,
+        anchor="L99",
+        message="unused variable x",
+    )
+    issue_id = list(sample_state["issues"].keys())[0]
+    sample_state["issues"][issue_id]["consensus_status"] = "accepted"
+    sample_state["issues"][issue_id]["application_status"] = "applied"
+    sample_state["issues"][issue_id]["applied_by"] = "codex"
+    sample_state["issues"][issue_id]["application_commit_sha"] = "deadbeef"
+
+    # With confirm_reopen=True → reopen proceeds
+    result = upsert_issue(
+        sample_state,
+        agent="codex",
+        round_num=2,
+        severity="suggestion",
+        criterion=6,
+        file="src/baz.py",
+        line=99,
+        anchor="L99",
+        message="variable x is assigned but the new assignment shadows the outer scope",
+        confirm_reopen=True,
+    )
     assert result["action"] == "appended"
     issue = sample_state["issues"][issue_id]
     assert issue["consensus_status"] == "open"
     assert issue["application_status"] == "pending"
     assert issue["applied_by"] is None
-    assert issue["application_commit_sha"] is None
-    assert issue["accepted_by"] == ["codex"]  # reset to reporting agent only
+    assert issue["accepted_by"] == ["codex"]
 
 
 def test_upsert_tracks_cross_verifier_reports_in_step2():

@@ -29,6 +29,11 @@ Review the diff independently according to the criteria below. Report any additi
 
 **Re-raise rule:** To re-raise an issue recorded as `withdrawn` in the Debate Ledger, you must provide **new evidence different from** the original withdrawal reason in your `message`. Repeating the same rationale is not allowed.
 
+**Before reporting a finding, check the Debate Ledger above:**
+- Do NOT report code that was added as a fix for a previously accepted issue. Describing a fix is not a finding.
+- Do NOT report something that is working correctly. "X uses correct flag" or "X matches the spec" is not an issue.
+- If unsure whether something is a real issue, err on the side of **not reporting** it. Unnecessary findings waste rounds and block consensus.
+
 ## Output Language
 
 Use `{OUTPUT_LANGUAGE}` for all user-facing JSON string values you generate, including `message`, `reason`, and `description`. Keep JSON keys, enum values, file paths, anchors, and diff syntax unchanged.
