@@ -223,7 +223,7 @@ Skip if no previous round exists or no rebuttals are pending.
 
 **When CC is lead (even rounds):**
 
-CC directly reads the diff, review context, and review criteria to perform the review. Output format is the same JSON structure as Codex.
+CC directly reads the diff, review context, and review criteria to perform the review. Output format is the same JSON structure as Codex. CC must use `state["language"]` for all user-facing output (findings messages, reasons, descriptions), matching the same language constraint applied to Codex via `{OUTPUT_LANGUAGE}`.
 
 #### Record Findings
 
@@ -274,7 +274,7 @@ Placeholders: `{LEAD_AGENT_ID}`, `{LEAD_REPORTS}` plus common ones.
 
 **When CC is cross-verifier (odd rounds):**
 
-CC directly evaluates the lead's reports and generates its own findings.
+CC directly evaluates the lead's reports and generates its own findings. CC must use `state["language"]` for all user-facing output, matching the same language constraint applied to Codex via `{OUTPUT_LANGUAGE}`.
 
 #### Record Cross-Verification Results
 
@@ -325,7 +325,7 @@ Placeholders: `{CROSS_REBUTTALS}`, `{CROSS_FINDINGS}`, `{APPLICABLE_ISSUES}` plu
 
 **When CC is lead:**
 
-CC directly handles rebuttal resolution, cross findings evaluation, and code modifications.
+CC directly handles rebuttal resolution, cross findings evaluation, and code modifications. CC must use `state["language"]` for all user-facing output, matching the same language constraint applied to Codex via `{OUTPUT_LANGUAGE}`.
 
 #### Record Rebuttal Responses + Cross Findings Evaluation
 
