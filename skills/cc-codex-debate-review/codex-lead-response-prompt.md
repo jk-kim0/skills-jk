@@ -11,6 +11,8 @@ You are the lead agent responding to cross-verification for debate review round 
 
 {REVIEW_CONTEXT}
 
+{DEBATE_LEDGER}
+
 ## Rebuttal Resolution
 
 The cross-verifier challenged your findings. Decide on each rebuttal:

@@ -11,6 +11,8 @@ You are the cross-verifier for debate review round {ROUND} on {REPO}#{PR_NUMBER}
 
 {REVIEW_CONTEXT}
 
+{DEBATE_LEDGER}
+
 ## Lead Agent's Findings
 
 Findings submitted by the lead reviewer (agent: {LEAD_AGENT_ID}):
@@ -24,6 +26,8 @@ Decide on each report:
 ## Own Findings
 
 Review the diff independently according to the criteria below. Report any additional issues the lead missed. Do not duplicate issues already included in the lead's findings.
+
+**Re-raise rule:** To re-raise an issue recorded as `withdrawn` in the Debate Ledger, you must provide **new evidence different from** the original withdrawal reason in your `message`. Repeating the same rationale is not allowed.
 
 ## Output Language
 
