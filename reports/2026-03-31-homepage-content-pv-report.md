@@ -21,6 +21,38 @@
 
 > locale prefix (`/ko`, `/ja`, `/en`)는 자동 제거 후 매칭
 
+## 차트
+
+### 대분류별 비중 (전체 6개월)
+
+```mermaid
+pie title Demo vs Documentation (Total PV: 6,853)
+    "Documentation (73.4%)" : 5028
+    "Demo (26.6%)" : 1825
+```
+
+### 소분류별 PV (전체 6개월)
+
+```mermaid
+xychart-beta
+    title "소분류별 Page Views (2025-11 ~ 2026-02)"
+    x-axis ["White Papers", "Blogs", "Use Cases", "Webinars", "ACP Features", "Manuals", "Intro Decks", "Glossary", "AIP Features"]
+    y-axis "Page Views" 0 --> 2600
+    bar [2498, 1889, 625, 613, 566, 408, 184, 49, 21]
+```
+
+### 월별 추이
+
+```mermaid
+xychart-beta
+    title "월별 Page Views 추이"
+    x-axis ["2025-11", "2025-12", "2026-01", "2026-02"]
+    y-axis "Page Views" 0 --> 2500
+    bar [580, 475, 504, 266]
+    bar [1713, 1292, 1125, 898]
+    line [2293, 1767, 1629, 1164]
+```
+
 ## 전체 6개월 합산
 
 | 대분류 | 소분류 | Page Views | 비중 |
