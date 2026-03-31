@@ -1,51 +1,51 @@
 ---
 name: cc-codex-debate-review
-description: CC와 Codex가 교대 lead agent로 반복 리뷰하며 토론 합의에 도달하는 PR 리뷰 오케스트레이션
+description: Debate-driven PR review orchestration where CC and Codex alternate as lead agent until consensus is reached
 ---
 
 # CC-Codex Debate Review
 
-## 개요
+## Overview
 
-Open PR에 대해 Claude Code(CC)와 Codex 두 AI Agent가 반복적으로 리뷰, 반박, 수정을 수행하고, 두 Agent가 모든 issue에 대해 동일한 결론에 도달할 때까지 토론을 반복하는 시스템.
+A system where Claude Code (CC) and Codex repeatedly review, rebut, and fix an open PR until both agents reach the same conclusion on all issues.
 
-CC는 오케스트레이터이자 짝수 라운드 lead agent. Codex는 `codex exec`로 호출되는 서브프로세스이자 홀수 라운드 lead agent.
+CC is both the orchestrator and the even-round lead agent. Codex is a subprocess invoked via `codex exec` and the odd-round lead agent.
 
-**상태 관리는 CLI가 담당한다.** CC는 `$DEBATE_REVIEW_BIN` subcommand를 호출하여 상태를 조작하고, 리뷰 자체(finding 생성, rebuttal 판단)만 직접 수행한다.
+**State management is handled by the CLI.** CC calls `$DEBATE_REVIEW_BIN` subcommands to manipulate state and only performs the review itself (generating findings, making rebuttal decisions).
 
 ```
-CC (오케스트레이터)
-  ├─ $DEBATE_REVIEW_BIN <subcommand> → 상태 관리 (CLI)
-  ├─ codex exec ...                  → Codex 호출 (홀수 lead, 짝수 cross)
-  └─ CC 자체 리뷰                     → 짝수 lead, 홀수 cross
+CC (orchestrator)
+  ├─ $DEBATE_REVIEW_BIN <subcommand> → state management (CLI)
+  ├─ codex exec ...                  → Codex invocation (odd lead, even cross)
+  └─ CC self-review                  → even lead, odd cross
 ```
 
-## 사용 시점
+## When to Use
 
-- PR에 대해 두 Agent의 합의 기반 리뷰가 필요할 때
-- 호출 예시: `debate-review를 실행해줘 (repo=owner/repo, pr=123)`
+- When consensus-based review by two agents is needed for a PR
+- Example invocation: `run debate-review (repo=owner/repo, pr=123)`
 
-## 입력
+## Inputs
 
-아래 경로는 모두 `cc-codex-debate-review/` 디렉토리 기준이다.
+All paths below are relative to the `cc-codex-debate-review/` directory.
 
-| 입력 | 경로 |
-|------|------|
+| Input | Path |
+|-------|------|
 | CLI | `./bin/debate-review` |
-| 설정 파일 | `./config.yml` |
-| 리뷰 기준 | `./review-criteria.md` |
-| Codex 프롬프트 | `./codex-*.md` |
+| Config file | `./config.yml` |
+| Review criteria | `./review-criteria.md` |
+| Codex prompts | `./codex-*.md` |
 
-### 사전조건
+### Prerequisites
 
-- 대상 repo의 로컬 클론 필수
-- `gh auth` 인증 완료
-- `codex` CLI 사용 가능
-- `$DEBATE_REVIEW_BIN` 실행 가능
+- Local clone of the target repo required
+- `gh auth` authentication complete
+- `codex` CLI available
+- `$DEBATE_REVIEW_BIN` executable
 
-## GitHub CLI 규칙
+## GitHub CLI Rules
 
-CLI 내부의 모든 `gh` 호출은 주입된 토큰 변수를 제거하고 keyring 인증을 사용한다. CC가 직접 `gh`를 호출할 때도 동일 규칙:
+All `gh` calls inside the CLI strip injected token variables and use keyring authentication. CC must follow the same rule when calling `gh` directly:
 
 ```bash
 env -u GITHUB_TOKEN -u GH_TOKEN gh <subcommand>
@@ -53,11 +53,11 @@ env -u GITHUB_TOKEN -u GH_TOKEN gh <subcommand>
 
 ---
 
-## 절차
+## Procedure
 
-### 1. 초기화
+### 1. Initialization
 
-#### 설정 로드
+#### Load Config
 
 ```bash
 SKILL_ROOT="<path-to-cc-codex-debate-review>"
@@ -65,24 +65,27 @@ DEBATE_REVIEW_BIN="$SKILL_ROOT/bin/debate-review"
 CONFIG_FILE="$SKILL_ROOT/config.yml"
 ```
 
-설정 파일에서 값을 읽는다:
+Read values from the config file:
 ```bash
 MAX_ROUNDS=$(python3 -c "import yaml; print(yaml.safe_load(open('$CONFIG_FILE'))['max_rounds'])")
 CODEX_SANDBOX=$(python3 -c "import yaml; print(yaml.safe_load(open('$CONFIG_FILE')).get('codex_sandbox', 'read-only'))")
+LANGUAGE=$(python3 -c "import yaml; print(yaml.safe_load(open('$CONFIG_FILE')).get('language', 'en'))")
 ```
 
-#### 인자 확인
+The `LANGUAGE` value is passed to LLM prompts via `{OUTPUT_LANGUAGE}` to control the language of user-facing output (issue messages, reasons, descriptions). CLI-generated comment templates are always in English. Skill instructions and Codex prompts are also always in English.
 
-호출 시 `REPO` (예: `owner/repo`)와 `PR_NUMBER`를 인자로 받는다. 둘 중 하나라도 없으면 즉시 중단.
+#### Validate Arguments
 
-#### 세션 초기화
+`REPO` (e.g., `owner/repo`) and `PR_NUMBER` are required arguments. Abort immediately if either is missing.
+
+#### Initialize Session
 
 ```bash
 RESULT=$("$DEBATE_REVIEW_BIN" init --repo "$REPO" --pr "$PR_NUMBER" \
   --config "$CONFIG_FILE")
 ```
 
-`RESULT` JSON에서 추출:
+Extract from `RESULT` JSON:
 ```bash
 STATE_FILE=$(echo "$RESULT" | jq -r '.state_file')
 STATUS=$(echo "$RESULT" | jq -r '.status')           # "created" | "resumed"
@@ -91,40 +94,40 @@ IS_FORK=$(echo "$RESULT" | jq -r '.is_fork')
 DRY_RUN=$(echo "$RESULT" | jq -r '.dry_run')
 ```
 
-`STATUS`가 `resumed`이면 → **재시작 절차** (아래 참조)로 분기.
+If `STATUS` is `resumed` → branch to **Restart Procedure** (see below).
 
-#### 상태 확인 (필요 시)
+#### Check State (if needed)
 
 ```bash
 "$DEBATE_REVIEW_BIN" show --state-file "$STATE_FILE" --json
 ```
 
-현재 상태 전체를 JSON으로 출력. `journal.step`으로 재시작 위치를 파악할 때 사용.
+Outputs the full state as JSON. Use `journal.step` to determine restart position.
 
 ---
 
-### 2. 라운드 루프
+### 2. Round Loop
 
-초기화 완료 후 `CURRENT_ROUND`부터 루프 시작. 각 라운드:
+After initialization, start loop from `CURRENT_ROUND`. Each round:
 
-1. Step 0: PR HEAD 동기화
-2. Lead agent 결정 + 라운드 초기화
-3. Step 1: Lead agent 리뷰 (1a: 미결 rebuttal 처리 → 1b: 새 리뷰 + verdict)
-4. Step 2: Cross-verifier 교차 검증 (clean pass 시 생략)
-5. Step 3: Lead agent 응답 + 코드 반영 (clean pass 시 생략)
-6. Step 4: 정산
+1. Step 0: Sync PR HEAD
+2. Determine lead agent + initialize round
+3. Step 1: Lead agent review (1a: resolve pending rebuttals → 1b: new review + verdict)
+4. Step 2: Cross-verifier cross-verification (skipped on clean pass)
+5. Step 3: Lead agent response + code application (skipped on clean pass)
+6. Step 4: Settlement
 
 ---
 
-### Step 0: PR HEAD 동기화
+### Step 0: Sync PR HEAD
 
 ```bash
 SYNC_RESULT=$("$DEBATE_REVIEW_BIN" sync-head --state-file "$STATE_FILE")
 ```
 
-CLI가 git fetch, worktree 관리, supersede 감지를 모두 처리한다.
+The CLI handles git fetch, worktree management, and supersede detection.
 
-`SYNC_RESULT`에서 `external_change: true`이면 supersede 발생. CLI가 이미 issue 상태 재설정과 `current_round` 증가를 처리했으므로, CC는 `show --json`으로 최신 상태를 다시 읽고 `CURRENT_ROUND`를 갱신한 뒤 새 라운드로 진행한다.
+If `SYNC_RESULT` contains `external_change: true`, a supersede occurred. The CLI has already reset issue states and incremented `current_round`, so CC reads the latest state via `show --json`, updates `CURRENT_ROUND`, and proceeds with the new round.
 
 ```bash
 if [ "$(echo "$SYNC_RESULT" | jq -r '.external_change')" = "true" ]; then
@@ -135,12 +138,12 @@ fi
 
 ---
 
-### Lead Agent 결정 + 라운드 초기화
+### Lead Agent Determination + Round Initialization
 
-| 라운드 | Lead Agent | Cross-Verifier |
-|--------|-----------|----------------|
-| 홀수 (1, 3, 5, ...) | Codex | CC |
-| 짝수 (2, 4, 6, ...) | CC | Codex |
+| Round | Lead Agent | Cross-Verifier |
+|-------|-----------|----------------|
+| Odd (1, 3, 5, ...) | Codex | CC |
+| Even (2, 4, 6, ...) | CC | Codex |
 
 ```bash
 if [ $((CURRENT_ROUND % 2)) -eq 1 ]; then
@@ -166,65 +169,65 @@ SYNCED_SHA=$(echo "$SYNC_RESULT" | jq -r '.post_sync_sha')
 
 ---
 
-### Step 1: Lead Agent 리뷰
+### Step 1: Lead Agent Review
 
-#### Step 1a: 미결 rebuttal 처리
+#### Step 1a: Resolve Pending Rebuttals
 
-이전 라운드에서 상대 agent가 보낸 rebuttal이 있으면, lead agent가 각각에 대해 `withdraw` 또는 `maintain`을 결정한다.
+If rebuttals from the previous round exist, the lead agent decides `withdraw` or `maintain` for each.
 
-이전 라운드의 rebuttal은 `show --json` 출력의 `rounds[N-1].step3.rebuttals`에서 확인.
+Previous round rebuttals are found in the `show --json` output at `rounds[N-1].step3.rebuttals`.
 
-Lead agent (CC 또는 Codex)가 결정을 내리면:
+Once the lead agent (CC or Codex) makes decisions:
 
 ```bash
 "$DEBATE_REVIEW_BIN" resolve-rebuttals \
   --state-file "$STATE_FILE" \
   --round "$CURRENT_ROUND" \
   --step "1a" \
-  --decisions '[{"report_id": "rpt_003", "decision": "withdraw", "reason": "반박 수용"}]'
+  --decisions '[{"report_id": "rpt_003", "decision": "withdraw", "reason": "Rebuttal accepted"}]'
 ```
 
-`maintain`으로 결정한 finding은 Step 1b에서 반드시 재보고해야 한다.
+Findings decided as `maintain` must be re-reported in Step 1b.
 
-CLI 응답의 `re_report_ids` 배열에 `maintain`으로 결정된 report ID들이 포함된다. 이 ID들에 해당하는 issue를 Step 1b findings에 포함시켜야 한다.
+The CLI response includes a `re_report_ids` array with report IDs decided as `maintain`. These issues must be included in Step 1b findings.
 
-이전 라운드가 없거나 rebuttal이 없으면 건너뛴다.
+Skip if no previous round exists or no rebuttals are pending.
 
-#### Step 1b: 새 리뷰
+#### Step 1b: New Review
 
-**Codex가 lead일 때 (홀수 라운드):**
+**When Codex is lead (odd rounds):**
 
-> **중요:** `codex-lead-review-prompt.md`는 Step 1a(rebuttal 처리)와 Step 1b(새 리뷰)를 **하나의 호출**로 처리한다. Codex 응답에서 `rebuttal_responses`는 `resolve-rebuttals --step "1a"`로, `findings`는 `upsert-issue`로, `verdict`는 `record-verdict`로 각각 전달한다.
+> **Important:** `codex-lead-review-prompt.md` handles Step 1a (rebuttal resolution) and Step 1b (new review) in **a single invocation**. From the Codex response, route `rebuttal_responses` to `resolve-rebuttals --step "1a"`, `findings` to `upsert-issue`, and `verdict` to `record-verdict`.
 
-1. 리뷰 컨텍스트 구성 (CC가 상태 데이터로 생성)
-2. 프롬프트 템플릿 읽기: `./codex-lead-review-prompt.md` (`$SKILL_ROOT/codex-lead-review-prompt.md`)
-3. 플레이스홀더 치환: `{REPO}`, `{PR_NUMBER}`, `{PR_TITLE}`, `{PR_BODY}`, `{ROUND}`, `{REVIEW_CONTEXT}`, `{DEBATE_LEDGER}`, `{OPEN_ISSUES}`, `{PENDING_REBUTTALS}`, `{REVIEW_CRITERIA}`, `{DIFF}`
-4. PR diff 획득:
+1. Build review context (CC generates from state data)
+2. Read prompt template: `./codex-lead-review-prompt.md` (`$SKILL_ROOT/codex-lead-review-prompt.md`)
+3. Substitute placeholders: `{REPO}`, `{PR_NUMBER}`, `{PR_TITLE}`, `{PR_BODY}`, `{ROUND}`, `{REVIEW_CONTEXT}`, `{DEBATE_LEDGER}`, `{OPEN_ISSUES}`, `{PENDING_REBUTTALS}`, `{OUTPUT_LANGUAGE}`, `{REVIEW_CRITERIA}`, `{DIFF}`
+4. Obtain PR diff:
    ```bash
    DIFF=$(env -u GITHUB_TOKEN -u GH_TOKEN gh pr diff "$PR_NUMBER" --repo "$REPO")
    ```
-5. Codex 실행:
+5. Execute Codex:
    ```bash
    cd "$WORKTREE_PATH"
-   # 프롬프트를 임시 파일로 저장하고 stdin으로 전달 (ARG_MAX 초과 방지)
+   # Save prompt to temp file and pass via stdin (avoid ARG_MAX overflow)
    PROMPT_FILE=$(mktemp /tmp/debate-prompt-XXXXXX.txt)
    printf '%s' "$FILLED_PROMPT" > "$PROMPT_FILE"
    codex exec -s "$CODEX_SANDBOX" - < "$PROMPT_FILE"
    rm -f "$PROMPT_FILE"
    ```
-6. JSON 응답 파싱 (실패 시 최대 3회 재시도)
-7. 응답 분배:
-   - `rebuttal_responses` → `resolve-rebuttals --step "1a"` (비어 있지 않으면)
-   - `findings` → 각 항목을 `upsert-issue`로 기록
-   - `verdict` → `record-verdict`로 기록
+6. Parse JSON response (retry up to 3 times on failure)
+7. Route response:
+   - `rebuttal_responses` → `resolve-rebuttals --step "1a"` (if non-empty)
+   - `findings` → record each via `upsert-issue`
+   - `verdict` → `record-verdict`
 
-**CC가 lead일 때 (짝수 라운드):**
+**When CC is lead (even rounds):**
 
-CC가 직접 diff, 리뷰 컨텍스트, 리뷰 기준을 읽고 리뷰를 수행. 출력 형식은 Codex와 동일한 JSON 구조.
+CC directly reads the diff, review context, and review criteria to perform the review. Output format is the same JSON structure as Codex. CC must use `state["language"]` for all user-facing output (findings messages, reasons, descriptions), matching the same language constraint applied to Codex via `{OUTPUT_LANGUAGE}`.
 
-#### Finding을 상태에 기록
+#### Record Findings
 
-Lead agent의 각 finding에 대해 `upsert-issue` 호출:
+Call `upsert-issue` for each finding from the lead agent:
 
 ```bash
 "$DEBATE_REVIEW_BIN" upsert-issue \
@@ -236,12 +239,12 @@ Lead agent의 각 finding에 대해 `upsert-issue` 호출:
   --file "src/foo.ts" \
   --line 42 \
   --anchor "validate_input" \
-  --message "입력값 검증 누락"
+  --message "Missing input validation"
 ```
 
-`anchor`는 심볼명, 함수명 등 라인 이동에 덜 민감한 식별자를 우선 사용. 없으면 `line<N>`.
+`anchor` should prefer symbol names, function names, or other identifiers less sensitive to line shifts. Use `line<N>` if none exists.
 
-#### Verdict 기록
+#### Record Verdict
 
 ```bash
 "$DEBATE_REVIEW_BIN" record-verdict \
@@ -250,44 +253,44 @@ Lead agent의 각 finding에 대해 `upsert-issue` 호출:
   --verdict "has_findings"
 ```
 
-**Clean pass 판정:** finding이 0건이고, 모든 기존 issue가 해결되었으면:
+**Clean pass determination:** If findings are 0 and all existing issues are resolved:
 - `--verdict "no_findings_mergeable"`
-- Step 2, 3을 건너뛰고 Step 4로 진행
+- Skip Steps 2, 3 and proceed to Step 4
 
 ---
 
-### Step 2: Cross-Verifier 교차 검증
+### Step 2: Cross-Verifier Cross-Verification
 
-**전제:** clean pass가 아닌 경우에만 실행.
+**Precondition:** Only execute when not a clean pass.
 
-Cross-verifier가 두 가지를 수행:
-1. Lead의 각 report에 대해 `accept` 또는 `rebut`
-2. 자체 새 findings 보고
+The cross-verifier performs two tasks:
+1. `accept` or `rebut` each of the lead's reports
+2. Report its own new findings
 
-**Codex가 cross-verifier일 때 (짝수 라운드):**
+**When Codex is cross-verifier (even rounds):**
 
-프롬프트 템플릿: `./codex-cross-verify-prompt.md` (`$SKILL_ROOT/codex-cross-verify-prompt.md`)
-플레이스홀더: `{LEAD_AGENT_ID}`, `{LEAD_REPORTS}` 외 동일.
+Prompt template: `./codex-cross-verify-prompt.md` (`$SKILL_ROOT/codex-cross-verify-prompt.md`)
+Placeholders: `{LEAD_AGENT_ID}`, `{LEAD_REPORTS}` plus common ones.
 
-**CC가 cross-verifier일 때 (홀수 라운드):**
+**When CC is cross-verifier (odd rounds):**
 
-CC가 직접 lead의 report를 평가하고 자체 findings 생성.
+CC directly evaluates the lead's reports and generates its own findings. CC must use `state["language"]` for all user-facing output, matching the same language constraint applied to Codex via `{OUTPUT_LANGUAGE}`.
 
-#### 교차 검증 결과 기록
+#### Record Cross-Verification Results
 
 ```bash
 "$DEBATE_REVIEW_BIN" record-cross-verification \
   --state-file "$STATE_FILE" \
   --round "$CURRENT_ROUND" \
   --verifications '[
-    {"report_id": "rpt_001", "decision": "accept", "reason": "타당한 finding"},
-    {"report_id": "rpt_002", "decision": "rebut", "reason": "의도적 중복"}
+    {"report_id": "rpt_001", "decision": "accept", "reason": "Valid finding"},
+    {"report_id": "rpt_002", "decision": "rebut", "reason": "Intentional duplication"}
   ]'
 ```
 
-#### Cross-verifier의 새 findings 기록
+#### Record Cross-Verifier's New Findings
 
-Cross-verifier의 각 새 finding도 `upsert-issue`로 기록:
+Each new finding from the cross-verifier is also recorded via `upsert-issue`:
 
 ```bash
 "$DEBATE_REVIEW_BIN" upsert-issue \
@@ -299,38 +302,38 @@ Cross-verifier의 각 새 finding도 `upsert-issue`로 기록:
   --file "src/config.ts" \
   --line 15 \
   --anchor "TIMEOUT" \
-  --message "하드코딩된 타임아웃 값"
+  --message "Hardcoded timeout value"
 ```
 
-CLI가 agent role에 따라 step1/step2 tracking을 자동 라우팅한다.
+The CLI automatically routes step1/step2 tracking based on the agent role.
 
 ---
 
-### Step 3: Lead Agent 응답 + 코드 반영
+### Step 3: Lead Agent Response + Code Application
 
-**전제:** clean pass가 아닌 경우에만 실행.
+**Precondition:** Only execute when not a clean pass.
 
-Lead agent가 세 가지를 처리:
-1. Cross-verifier의 rebuttal에 대한 응답 (withdraw/maintain)
-2. Cross-verifier의 새 findings 평가 (accept/maintain)
-3. 합의된 issue에 대한 코드 반영 (동일 저장소 PR만)
+The lead agent handles three things:
+1. Respond to cross-verifier's rebuttals (withdraw/maintain)
+2. Evaluate cross-verifier's new findings (accept/maintain)
+3. Apply code fixes for agreed issues (same-repo PRs only)
 
-**Codex가 lead일 때:**
+**When Codex is lead:**
 
-프롬프트 템플릿: `./codex-lead-response-prompt.md` (`$SKILL_ROOT/codex-lead-response-prompt.md`)
-플레이스홀더: `{CROSS_REBUTTALS}`, `{CROSS_FINDINGS}`, `{APPLICABLE_ISSUES}` 외 동일.
+Prompt template: `./codex-lead-response-prompt.md` (`$SKILL_ROOT/codex-lead-response-prompt.md`)
+Placeholders: `{CROSS_REBUTTALS}`, `{CROSS_FINDINGS}`, `{APPLICABLE_ISSUES}` plus common ones.
 
-**CC가 lead일 때:**
+**When CC is lead:**
 
-CC가 직접 rebuttal 처리, cross findings 평가, 코드 수정 수행.
+CC directly handles rebuttal resolution, cross findings evaluation, and code modifications. CC must use `state["language"]` for all user-facing output, matching the same language constraint applied to Codex via `{OUTPUT_LANGUAGE}`.
 
-#### Rebuttal 응답 + Cross Findings 평가 기록
+#### Record Rebuttal Responses + Cross Findings Evaluation
 
-Lead agent가 두 가지를 처리:
-1. Cross-verifier의 rebuttal에 대한 응답: `withdraw` (수용) 또는 `maintain` (거부, 다음 라운드 반박으로 전달)
-2. Cross-verifier의 새 findings 평가: `accept` (수락) 또는 `maintain` (거부, 다음 라운드 반박으로 전달)
+The lead agent handles two tasks:
+1. Respond to cross-verifier's rebuttals: `withdraw` (accept) or `maintain` (reject, forwarded as rebuttal in the next round)
+2. Evaluate cross-verifier's new findings: `accept` (add to consensus) or `maintain` (reject, forwarded as rebuttal in the next round)
 
-모든 결정을 하나의 `resolve-rebuttals --step "3"` 호출로 기록:
+Record all decisions in a single `resolve-rebuttals --step "3"` call:
 
 ```bash
 "$DEBATE_REVIEW_BIN" resolve-rebuttals \
@@ -338,51 +341,51 @@ Lead agent가 두 가지를 처리:
   --round "$CURRENT_ROUND" \
   --step "3" \
   --decisions '[
-    {"report_id": "rpt_002", "decision": "withdraw", "reason": "반박 수용"},
-    {"report_id": "rpt_005", "decision": "accept", "reason": "타당한 지적"},
-    {"report_id": "rpt_006", "decision": "maintain", "reason": "이미 처리된 사항"}
+    {"report_id": "rpt_002", "decision": "withdraw", "reason": "Rebuttal accepted"},
+    {"report_id": "rpt_005", "decision": "accept", "reason": "Valid point"},
+    {"report_id": "rpt_006", "decision": "maintain", "reason": "Already addressed"}
   ]'
 ```
 
-`--step "3"` 결정 값:
-- `withdraw`: lead 자신의 finding 철회 (rebuttal 수용)
-- `maintain`: 거부 — 다음 라운드에서 상대 agent의 rebuttal로 전달됨
-- `accept`: cross-verifier의 finding 수락 (합의에 추가)
+`--step "3"` decision values:
+- `withdraw`: Lead withdraws own finding (rebuttal accepted)
+- `maintain`: Rejected — forwarded as rebuttal to the opposing agent in the next round
+- `accept`: Accept cross-verifier's finding (added to consensus)
 
-#### Codex code_fixes 적용
+#### Apply Codex code_fixes
 
-Codex가 lead이고 `code_fixes` 배열이 비어 있지 않으면, CC가 각 diff를 워크트리에 적용한다.
+If Codex is lead and the `code_fixes` array is non-empty, CC applies each diff to the worktree.
 
-**Fork PR에서는 code_fixes 적용을 건너뛴다.** push가 불가능하므로 워크트리에 패치를 적용해도 의미가 없다. `IS_FORK`가 `true`이면 이 섹션 전체를 생략.
+**Skip code_fixes application for fork PRs.** Push is not possible, so applying patches to the worktree is meaningless. Skip this entire section if `IS_FORK` is `true`.
 
-**`DRY_RUN=true`이면 실제 워크트리 변경도 금지한다.** 검토용 시뮬레이션이므로 `git apply`, `git commit`, `git push`는 실행하지 않고, agent가 제안한 `code_fixes`와 적용 대상 issue만 기록한 뒤 정산 단계로 진행한다.
+**If `DRY_RUN=true`, also prohibit actual worktree changes.** This is a review-only simulation, so do not execute `git apply`, `git commit`, or `git push`. Only record the agent's proposed `code_fixes` and applicable issues, then proceed to the settlement step.
 
-각 `code_fixes` 항목의 `diff` 값을 파일에 저장하고 `git apply`로 적용:
+Save each `code_fixes` item's `diff` value to a file and apply with `git apply`:
 
 ```bash
 STAGED_FILES=$(mktemp)
 
-# 각 code_fix 항목에 대해 반복
+# Iterate over each code_fix item
 PATCH_FILE=$(mktemp /tmp/debate-patch-XXXXXX.patch)
 printf '%s\n' "$DIFF_CONTENT" > "$PATCH_FILE"
-git -C "$WORKTREE_PATH" apply --check "$PATCH_FILE"  # 검증
-git -C "$WORKTREE_PATH" apply "$PATCH_FILE"           # 적용
+git -C "$WORKTREE_PATH" apply --check "$PATCH_FILE"  # Verify
+git -C "$WORKTREE_PATH" apply "$PATCH_FILE"           # Apply
 git -C "$WORKTREE_PATH" apply --numstat "$PATCH_FILE" | awk '{print $3}' >> "$STAGED_FILES"
 rm -f "$PATCH_FILE"
 ```
 
-- `--check` 실패 시 해당 issue_id를 `failed-issues`로 기록하고 다음 항목으로 진행
-- 모든 적용이 끝난 후 Phase 1의 `--applied-issues`와 `--failed-issues`에 반영
-- 성공한 patch가 실제로 수정한 파일 경로를 누적해 두고, Phase 2에서 중복 제거 후 스테이징한다
-- CC가 lead일 때는 CC가 직접 코드를 수정한다 (code_fixes 불필요)
+- On `--check` failure, record the issue_id as `failed-issues` and continue to the next item
+- After all applications, reflect in Phase 1's `--applied-issues` and `--failed-issues`
+- Accumulate actual file paths modified by successful patches for dedup staging in Phase 2
+- When CC is lead, CC modifies code directly (code_fixes not needed)
 
-#### 코드 반영 (동일 저장소 PR, 3-phase)
+#### Code Application (Same-Repo PR, 3-Phase)
 
-`consensus_status=accepted`이고 `application_status=pending|failed`인 모든 issue를 lead agent가 수정.
+All issues with `consensus_status=accepted` and `application_status=pending|failed` are fixed by the lead agent.
 
-`DRY_RUN=true`이면 아래 3개 phase를 모두 생략한다. dry-run에서는 상태 검증만 수행하고 commit/push를 만들지 않는다.
+If `DRY_RUN=true`, skip all 3 phases. In dry-run mode, only verify state without creating commits/pushes.
 
-**Phase 1: 반영 결과 기록**
+**Phase 1: Record Application Results**
 
 ```bash
 "$DEBATE_REVIEW_BIN" record-application \
@@ -392,16 +395,16 @@ rm -f "$PATCH_FILE"
   --failed-issues '["isu_002"]'
 ```
 
-**Phase 2: commit SHA 기록**
+**Phase 2: Record Commit SHA**
 
-코드 수정 후 commit (수정된 파일만 스테이징). 성공한 patch가 없으면 commit을 건너뛴다:
+After code changes, commit (staging only modified files). Skip commit if no successful patches:
 ```bash
 sort -u "$STAGED_FILES" | while IFS= read -r path; do
   [ -n "$path" ] && git -C "$WORKTREE_PATH" add -- "$path"
 done
 rm -f "$STAGED_FILES"
 if git -C "$WORKTREE_PATH" diff --cached --quiet; then
-  # 실제 반영된 변경사항 없음 → commit/push 건너뜀
+  # No actual changes staged → skip commit/push
   COMMIT_SHA=""
 else
   git -C "$WORKTREE_PATH" commit -m "fix: apply debate review findings (round $CURRENT_ROUND)"
@@ -409,9 +412,9 @@ else
 fi
 ```
 
-스테이징 대상은 각 성공한 patch의 diff에서 추출한 실제 변경 파일 경로(중복 제거 후) 또는 CC가 직접 수정한 파일 경로다. `code_fixes`의 `file` 필드는 대표 경로 힌트로만 취급하고, `git add -A`는 사용하지 않는다.
+Staging targets are the actual changed file paths extracted from each successful patch's diff (deduplicated) or files directly modified by CC. The `file` field in `code_fixes` is treated only as a hint; `git add -A` must not be used.
 
-`COMMIT_SHA`가 비어 있으면 (`applied-issues`가 없거나 모든 patch가 실패한 경우) `--commit-sha`와 Phase 3를 건너뛴다.
+If `COMMIT_SHA` is empty (no applied-issues or all patches failed), skip `--commit-sha` and Phase 3.
 
 ```bash
 [ -n "$COMMIT_SHA" ] && "$DEBATE_REVIEW_BIN" record-application \
@@ -420,9 +423,9 @@ fi
   --commit-sha "$COMMIT_SHA"
 ```
 
-**Phase 3: push 검증**
+**Phase 3: Push Verification**
 
-`DRY_RUN=true`이면 이 단계도 실행하지 않는다. `COMMIT_SHA`가 비어 있으면 push 및 검증을 건너뛴다.
+Skip this step if `DRY_RUN=true`. Skip push and verification if `COMMIT_SHA` is empty.
 
 ```bash
 [ -n "$COMMIT_SHA" ] && git -C "$WORKTREE_PATH" push origin "HEAD:$HEAD_BRANCH"
@@ -435,13 +438,13 @@ fi
   --verify-push
 ```
 
-CLI가 실제 PR HEAD를 조회하여 commit SHA와 일치하는지 검증한다.
+The CLI queries the actual PR HEAD and verifies it matches the commit SHA.
 
-**Fork PR에서는 3-phase를 모두 건너뛴다.** (push 불가, `application_status=recommended`로 설정됨)
+**Skip all 3 phases for fork PRs.** (Push not possible, `application_status=recommended`)
 
 ---
 
-### Step 4: 정산
+### Step 4: Settlement
 
 ```bash
 SETTLE_RESULT=$("$DEBATE_REVIEW_BIN" settle-round \
@@ -449,70 +452,69 @@ SETTLE_RESULT=$("$DEBATE_REVIEW_BIN" settle-round \
   --round "$CURRENT_ROUND")
 ```
 
-`SETTLE_RESULT.result` 값에 따른 분기:
+Branch based on `SETTLE_RESULT.result`:
 
-| 결과 | 의미 | 다음 행동 |
-|------|------|----------|
-| `continue` | 합의 미달 | `next_round`로 라운드 루프 반복 |
-| `consensus_reached` | 합의 도달 | Terminal 처리 → 코멘트 게시 |
-| `max_rounds_exceeded` | 최대 라운드 초과 | Terminal 처리 → 코멘트 게시 |
+| Result | Meaning | Next Action |
+|--------|---------|-------------|
+| `continue` | No consensus | Repeat round loop with `next_round` |
+| `consensus_reached` | Consensus reached | Terminal processing → post comment |
+| `max_rounds_exceeded` | Max rounds exceeded | Terminal processing → post comment |
 
-`continue`면:
+If `continue`:
 ```
 CURRENT_ROUND=$(echo "$SETTLE_RESULT" | jq -r '.next_round')
-# 라운드 루프 처음(Step 0)으로
+# Return to round loop start (Step 0)
 ```
 
 ---
 
-### Terminal 처리 + 최종 코멘트
+### Terminal Processing + Final Comment
 
-`consensus_reached` 또는 `max_rounds_exceeded` 도달 시:
+When `consensus_reached` or `max_rounds_exceeded`:
 
 ```bash
 "$DEBATE_REVIEW_BIN" post-comment --state-file "$STATE_FILE"
 ```
 
-CLI가 상태에 따라 적절한 템플릿으로 코멘트를 생성하고 PR에 게시한다. 중복 게시 방지도 CLI가 처리.
+The CLI generates a comment using the appropriate template based on state and posts it to the PR. Duplicate prevention is handled by the CLI.
 
-dry-run 모드이거나 코멘트 게시를 생략하려면:
+To skip comment posting (dry-run mode or manual override):
 
 ```bash
 "$DEBATE_REVIEW_BIN" post-comment --state-file "$STATE_FILE" --no-comment
 ```
 
-코멘트 본문이 stdout에 출력되고 실제 게시는 생략.
+Comment body is output to stdout without actual posting.
 
-#### PR Title / Description 업데이트
+#### PR Title / Description Update
 
-코드 수정이 반영된 경우, PR title과 description이 최종 변경 내역을 정확히 반영하도록 업데이트한다.
+If code fixes were applied, update the PR title and description to accurately reflect the final changes.
 
-1. 현재 PR title/body 확인:
+1. Check current PR title/body:
    ```bash
    env -u GITHUB_TOKEN -u GH_TOKEN gh pr view "$PR_NUMBER" --repo "$REPO" --json title,body
    ```
-2. 최종 diff 기준으로 변경 내역 재분석:
+2. Re-analyze changes based on the final diff:
    ```bash
    env -u GITHUB_TOKEN -u GH_TOKEN gh pr diff "$PR_NUMBER" --repo "$REPO"
    ```
-3. PR title/body가 최신 코드와 불일치하면 업데이트 (`DRY_RUN=true`이면 이 단계를 건너뛴다):
+3. Update PR title/body if they don't match the latest code (skip if `DRY_RUN=true`):
    ```bash
    env -u GITHUB_TOKEN -u GH_TOKEN gh pr edit "$PR_NUMBER" --repo "$REPO" \
      --title "$UPDATED_TITLE" \
      --body "$UPDATED_BODY"
    ```
 
-**업데이트 기준:**
-- Debate review에서 적용된 수정사항이 반영되었는지
-- 파일 줄 수, 구조, 설정 항목 등 구체적 수치가 정확한지
-- 코드 예시(명령어, 변수명 등)가 실제 코드와 일치하는지
-- `debate_ledger`가 비어 있지 않으면, `## Debate Review Summary` 섹션을 PR description 하단에 추가하여 주요 토론 결과를 기록
+**Update criteria:**
+- Whether fixes applied during debate review are reflected
+- Whether specific numbers (line counts, structure, config items) are accurate
+- Whether code examples (commands, variable names) match actual code
 
-코드 수정이 없었으면 (모든 라운드가 clean pass였으면) 이 단계를 건너뛴다.
+Skip this step if no code changes were made (all rounds were clean passes).
 
-#### 워크트리 정리
+#### Worktree Cleanup
 
-Terminal 상태 후:
+After terminal state:
 
 ```bash
 git -C "$REPO_ROOT" worktree remove "$WORKTREE_PATH" --force
@@ -520,80 +522,80 @@ git -C "$REPO_ROOT" worktree remove "$WORKTREE_PATH" --force
 
 ---
 
-## 리뷰 컨텍스트 구성
+## Review Context Construction
 
-Step 1과 Step 2에서 agent에게 리뷰를 요청할 때, 직전 2개 라운드의 경과를 컨텍스트로 전달한다.
+When requesting reviews in Step 1 and Step 2, pass the results of the last 2 rounds as context.
 
-**범위:** `max(1, current_round - 2)` ~ `current_round - 1`의 completed/superseded 라운드. Round 1에서는 `{REVIEW_CONTEXT}`에 `(첫 라운드 — 이전 리뷰 없음)`을 전달한다.
+**Scope:** `max(1, current_round - 2)` to `current_round - 1` completed/superseded rounds. For Round 1, pass `(First round — no previous reviews)` in `{REVIEW_CONTEXT}`.
 
-직전 2개 라운드 요약만으로는 더 오래된 미해결 issue가 빠질 수 있으므로, Codex lead Step 1 프롬프트에는 현재 unresolved issue 전체를 `{OPEN_ISSUES}`로 별도 전달한다.
+Since the last 2 rounds summary alone may miss older unresolved issues, the Codex lead Step 1 prompt also receives all current unresolved issues separately via `{OPEN_ISSUES}`.
 
-**구성 항목:**
-1. 라운드 메타데이터: 번호, lead agent, status, clean_pass
-2. Step 1 결과: findings 요약 (issue ID, severity, file, message)
-3. Step 2 결과: accept/rebut 판정 + 새 findings
-4. Step 3 결과: rebuttal 응답 + 코드 반영 결과
-5. 미해결 issue 현황
+**Components:**
+1. Round metadata: number, lead agent, status, clean_pass
+2. Step 1 results: findings summary (issue ID, severity, file, message)
+3. Step 2 results: accept/rebut decisions + new findings
+4. Step 3 results: rebuttal responses + code application results
+5. Unresolved issue status
 
-**생성 방법:** `show --json` 출력의 `rounds[]`와 `issues`로부터 CC가 구성한다.
+**Generation method:** CC constructs this from `rounds[]` and `issues` in the `show --json` output.
 
-**형식:**
+**Format:**
 
 ```text
-## 리뷰 컨텍스트 (라운드 <N-2> ~ <N-1>)
+## Review Context (rounds <N-2> to <N-1>)
 
-### 라운드 <N-2> [lead: <agent>, status: <status>, clean_pass: <bool>]
+### Round <N-2> [lead: <agent>, status: <status>, clean_pass: <bool>]
 
-**Step 1 (<agent> 리뷰):**
-- isu_001 (warning) src/foo.ts:42 — 무한 재시도 루프
+**Step 1 (<agent> review):**
+- isu_001 (warning) src/foo.ts:42 — Infinite retry loop
 
-**Step 2 (<agent> 교차 검증):**
+**Step 2 (<agent> cross-verification):**
 - rpt_001 (isu_001): accepted
-- rpt_002 (isu_002): rebutted — "사유"
+- rpt_002 (isu_002): rebutted — "reason"
 
-**Step 3 (<agent> 응답 + 반영):**
+**Step 3 (<agent> response + application):**
 - rpt_002 rebuttal: accepted → isu_002 withdrawn
-- 반영 완료: isu_001, isu_003
+- Applied: isu_001, isu_003
 
-**미해결 issue:** (없음)
+**Unresolved issues:** (none)
 ```
 
 ---
 
-## Debate Ledger 관리
+## Debate Ledger Management
 
-토론이 길어질 때(5+ 라운드) agent가 이전 라운드의 결정을 참조할 수 있도록, 전 라운드에 걸친 issue별 결론을 누적 기록한다.
+Maintains a cumulative record of per-issue conclusions across all rounds so agents can reference prior decisions during longer debates (5+ rounds).
 
-### Ledger 작성 시점
+### When to Write Ledger Entries
 
-Step 4 (`settle-round`) 실행 후, 오케스트레이터(CC)가 반환값의 `settled_issues`를 확인한다. 각 settled issue에 대해 1줄 요약을 작성하여 state file의 `debate_ledger` 배열에 append한다.
+After Step 4 (`settle-round`), the orchestrator (CC) checks the return value's `settled_issues`. For each settled issue, write a 1-line summary and append it to the state file's `debate_ledger` array.
 
-### Ledger 항목 형식
+### Ledger Entry Format
 
 ```json
 {
   "issue_id": "isu_001",
   "status": "accepted",
   "reason": null,
-  "summary": "batch exit code 누락 — R1 Codex 제기, R1 CC accept, R3 반영",
+  "summary": "Missing batch exit code — R1 Codex raised, R1 CC accept, R3 applied",
   "round": 3
 }
 ```
 
-- `status`: `accepted` 또는 `withdrawn`
-- `reason`: `consensus_reason` 값. withdrawn 시 철회 사유, accepted 시 `null`. 재제기 시 이전 사유와의 차별점 판단에 사용
-- `summary`: issue 내용, 제기/합의/철회 경과를 1줄로 요약 (오케스트레이터가 자연어로 작성)
-- `round`: 해당 결론이 확정된 라운드 번호
+- `status`: `accepted` or `withdrawn`
+- `reason`: `consensus_reason` value. Withdrawal reason for withdrawn, `null` for accepted. Used to judge differentiation when re-raising
+- `summary`: 1-line summary of issue content and raise/consensus/withdrawal history (orchestrator writes in natural language)
+- `round`: Round number when the conclusion was finalized
 
-### Ledger 기록 방법
+### How to Record Ledger Entries
 
-`settle-round` 결과에 `settled_issues`가 있으면, 오케스트레이터가 state file을 읽어 `debate_ledger` 배열에 항목을 추가하고 저장한다:
+If `settle-round` returns `settled_issues`, the orchestrator reads the state file, appends entries to the `debate_ledger` array, and saves:
 
 ```bash
-# settle-round 후, settled_issues가 있으면:
+# After settle-round, if settled_issues exist:
 STATE_JSON=$("$DEBATE_REVIEW_BIN" show --state-file "$STATE_FILE" --json)
-# CC가 settled_issues 각 항목에 대해 summary를 작성
-# state file의 debate_ledger에 append 후 저장
+# CC writes a summary for each settled_issues entry
+# Append to state file's debate_ledger and save
 python3 - "$STATE_FILE" "$LEDGER_JSON" <<'PY'
 import json, sys
 path, ledger_json = sys.argv[1], sys.argv[2]
@@ -616,30 +618,30 @@ os.replace(tmp, path)
 PY
 ```
 
-### 이미 ledger에 있는 issue의 재등장
+### Re-appearance of Issues Already in the Ledger
 
-withdrawn 후 재제기되어 다시 settled되면, 새 항목을 append한다 (이전 항목은 유지). 이력이 누적되므로 agent가 해당 issue의 전체 논의 흐름을 파악할 수 있다.
+If a withdrawn issue is re-raised and settled again, append a new entry (previous entries are preserved). History accumulates so agents can trace the full discussion flow for each issue.
 
-### {DEBATE_LEDGER} placeholder
+### {DEBATE_LEDGER} Placeholder
 
-프롬프트에 전달할 때, `debate_ledger` 배열을 아래 텍스트 형식으로 변환한다:
+When passing to prompts, convert the `debate_ledger` array to the following text format:
 
 ```text
-## Debate Ledger (전체 라운드 결론 요약)
+## Debate Ledger (full-round conclusion summary)
 
-- isu_001 [accepted] batch exit code 누락 — R1 Codex 제기, R1 CC accept, R3 반영
-- isu_003 [withdrawn] (reason: 의도적 설계 선택) KeyboardInterrupt 처리 — R1 Codex 제기, R2 CC rebut, R5 Codex withdraw
+- isu_001 [accepted] Missing batch exit code — R1 Codex raised, R1 CC accept, R3 applied
+- isu_003 [withdrawn] (reason: Intentional design choice) KeyboardInterrupt handling — R1 Codex raised, R2 CC rebut, R5 Codex withdraw
 
-이전에 withdrawn된 issue를 재제기하려면, 위 기록의 reason과 다른 새로운 근거를 제시해야 합니다.
+To re-raise a previously withdrawn issue, you must present new evidence different from the reason above.
 ```
 
-배열이 비어 있으면 `(첫 라운드 — 이전 결론 없음)`을 전달한다.
+If the array is empty, pass `(First round — no previous conclusions)`.
 
 ---
 
-## 재시작 규칙
+## Restart Rules
 
-재시작은 항상 `init`부터:
+Restart always begins with `init`:
 
 ```bash
 RESULT=$("$DEBATE_REVIEW_BIN" init --repo "$REPO" --pr "$PR_NUMBER" \
@@ -647,41 +649,41 @@ RESULT=$("$DEBATE_REVIEW_BIN" init --repo "$REPO" --pr "$PR_NUMBER" \
 # STATUS = "resumed"
 ```
 
-`show --json`으로 `journal.step`을 확인하여 재개 위치 결정:
+Check `journal.step` via `show --json` to determine resume position:
 
-| journal.step | 다음 행동 |
-|--------------|----------|
-| `init` | Step 0 (sync-head)부터 |
-| `step0_sync` | Step 1 (리뷰)부터 |
-| `step1_lead_review` | clean_pass=true면 Step 4, 아니면 Step 2 |
+| journal.step | Next Action |
+|--------------|-------------|
+| `init` | From Step 0 (sync-head) |
+| `step0_sync` | From Step 1 (review) |
+| `step1_lead_review` | If clean_pass=true → Step 4, otherwise Step 2 |
 | `step2_cross_review` | Step 3 |
-| `step3_lead_apply` | journal 체크포인트 확인 후 미완료 phase부터 |
-| `step4_settle` | 다음 라운드 Step 0 |
+| `step3_lead_apply` | Check journal checkpoints, resume from incomplete phase |
+| `step4_settle` | Next round Step 0 |
 
-### Step 3 재시작 상세
+### Step 3 Restart Details
 
-`journal.step = step3_lead_apply`일 때 체크포인트 확인:
+When `journal.step = step3_lead_apply`, check checkpoints:
 
-1. `journal.push_verified = true` → Step 3 완료, Step 4로
-2. `journal.commit_sha`가 있고 PR HEAD와 일치 → push 성공으로 간주, Phase 3 재실행 (`--verify-push`)
-3. `journal.commit_sha`가 있고 PR HEAD와 불일치 → push 미완, CC가 push 재시도 후 Phase 3
-4. `journal.commit_sha = null` → Phase 2부터 (commit 재생성)
-5. `journal.applied_issue_ids`가 비어 있음 → Phase 1부터
+1. `journal.push_verified = true` → Step 3 complete, proceed to Step 4
+2. `journal.commit_sha` exists and matches PR HEAD → Treat as push success, re-run Phase 3 (`--verify-push`)
+3. `journal.commit_sha` exists but doesn't match PR HEAD → Push incomplete, CC retries push then Phase 3
+4. `journal.commit_sha = null` → From Phase 2 (regenerate commit)
+5. `journal.applied_issue_ids` is empty → From Phase 1
 
 ---
 
-## 실패 처리
+## Failure Handling
 
-| 실패 유형 | 처리 방식 |
-|-----------|----------|
-| sync 실패 | 즉시 중단, 다음 실행 시 sync부터 재시도 |
-| 리뷰 분석 실패 | 해당 step 재시도 |
-| Codex JSON 파싱 실패 | 동일 step 최대 3회 재시도, 초과 시 에러 종료 |
-| commit 실패 | Phase 1까지 기록된 상태에서 재시도 |
-| push 실패 | Phase 2까지 기록된 상태에서 push 재시도 |
-| CLI exit code 1 | JSON 에러 메시지 파싱, 원인 파악 후 조치 |
+| Failure Type | Handling |
+|-------------|----------|
+| Sync failure | Abort immediately, retry from sync on next run |
+| Review analysis failure | Retry the step |
+| Codex JSON parse failure | Retry same step up to 3 times, error exit on exceed |
+| Commit failure | Retry from state recorded through Phase 1 |
+| Push failure | Retry push from state recorded through Phase 2 |
+| CLI exit code 1 | Parse JSON error message, diagnose and act |
 
-에러 종료 시 stale 세션이 resume되지 않도록 먼저 state file을 terminal failed 상태로 기록한다. `debate-review init`은 `status=in_progress` 세션을 그대로 재개하므로, fatal error 경로에서는 이 단계가 필수다. 현재 CLI에 전용 subcommand가 없으므로 이 경로만 예외적으로 state file을 직접 갱신한 뒤 (`DRY_RUN=true`이면 `--no-comment` 추가) 최종 코멘트를 게시하고 워크트리를 정리한다.
+On error exit, mark the state file as terminal failed first to prevent stale sessions from being resumed. Since `debate-review init` resumes `status=in_progress` sessions as-is, this step is mandatory on fatal error paths. As the CLI currently lacks a dedicated subcommand, this path exceptionally updates the state file directly, then posts the final comment (add `--no-comment` if `DRY_RUN=true`) and cleans up the worktree.
 
 ```bash
 ERROR_MESSAGE=${ERROR_MESSAGE:-"Unknown error"}
@@ -728,68 +730,70 @@ if [ -n "${WORKTREE_PATH:-}" ] && [ -d "$WORKTREE_PATH" ]; then
 fi
 ```
 
-CLI가 에러 템플릿으로 코멘트를 생성하고, cleanup 가능할 때 stale worktree를 제거한다.
+The CLI generates a comment using the error template and removes the stale worktree when cleanup is possible.
 
 ---
 
-## Codex 호출 참고
+## Codex Invocation Reference
 
-| Step | 템플릿 | 용도 |
-|------|--------|------|
-| Step 1 (Codex lead) | `codex-lead-review-prompt.md` | 리뷰 + rebuttal 처리 |
-| Step 2 (Codex cross) | `codex-cross-verify-prompt.md` | 교차 검증 + 자체 findings |
-| Step 3 (Codex lead) | `codex-lead-response-prompt.md` | 응답 + 코드 수정 |
+| Step | Template | Purpose |
+|------|----------|---------|
+| Step 1 (Codex lead) | `codex-lead-review-prompt.md` | Review + rebuttal resolution |
+| Step 2 (Codex cross) | `codex-cross-verify-prompt.md` | Cross-verification + own findings |
+| Step 3 (Codex lead) | `codex-lead-response-prompt.md` | Response + code fixes |
 
-호출 패턴:
-1. 프롬프트 템플릿 읽기
-2. 플레이스홀더 치환 (아래 도출 방법 참조)
-3. 프롬프트 파일을 stdin으로 전달하며 `codex exec -s "$CODEX_SANDBOX" - < "$PROMPT_FILE"` 실행
-4. JSON 출력 파싱 (실패 시 최대 3회 재시도)
+Invocation pattern:
+1. Read prompt template
+2. Substitute placeholders (see derivation methods below)
+3. Pass prompt file via stdin: `codex exec -s "$CODEX_SANDBOX" - < "$PROMPT_FILE"`
+4. Parse JSON output (retry up to 3 times on failure)
 
-#### 플레이스홀더 도출 방법
+#### Placeholder Derivation
 
-공통 플레이스홀더:
-- `{REPO}`, `{PR_NUMBER}`, `{ROUND}`: 오케스트레이터 변수에서 직접
-- `{PR_TITLE}`, `{PR_BODY}`: `gh pr view --json title,body`에서 추출
+Common placeholders:
+- `{REPO}`, `{PR_NUMBER}`, `{ROUND}`: Directly from orchestrator variables
+- `{PR_TITLE}`, `{PR_BODY}`: Extracted from `gh pr view --json title,body`
 - `{DIFF}`: `gh pr diff "$PR_NUMBER" --repo "$REPO"`
-- `{REVIEW_CRITERIA}`: `./review-criteria.md` (`$SKILL_ROOT/review-criteria.md`) 파일 내용
-- `{REVIEW_CONTEXT}`: "리뷰 컨텍스트 구성" 섹션의 형식으로 CC가 생성
-- `{DEBATE_LEDGER}`: "Debate Ledger 관리" 섹션의 형식으로 CC가 `state.debate_ledger`에서 생성
+- `{REVIEW_CRITERIA}`: Contents of `./review-criteria.md` (`$SKILL_ROOT/review-criteria.md`)
+- `{REVIEW_CONTEXT}`: Generated by CC in the format described in "Review Context Construction"
+- `{DEBATE_LEDGER}`: Generated by CC from `state.debate_ledger` in the format described in the "Debate Ledger Management" section
+- `{OUTPUT_LANGUAGE}`: `state["language"]` (initially sourced from `config.yml` at session creation; on resume, always use the value persisted in state). Used for user-facing JSON string values while keeping JSON keys and enums in English
 
-Step별 플레이스홀더 (`show --json` 출력에서 도출):
+Step-specific placeholders (derived from `show --json` output):
 
-| 플레이스홀더 | 데이터 경로 | 설명 |
+| Placeholder | Data Path | Description |
 |---|---|---|
-| `{OPEN_ISSUES}` | `issues` 중 현재 unresolved 상태인 항목 | 현재 라운드 시작 시점의 open issue 전체 목록. 직전 2개 라운드 컨텍스트 밖의 오래된 issue도 포함한다. same-repo는 `consensus_status=open` 또는 `consensus_status=accepted`이고 `application_status!=applied`, fork는 `consensus_status=open` 또는 `consensus_status=accepted`이고 `application_status!=recommended`인 항목을 포함한다. `issue_id`, `consensus_status`, `application_status`, `severity`, `file`, `line`, `anchor`, `message`를 조합한 JSON 배열로 전달 |
-| `{PENDING_REBUTTALS}` | `rounds[N-1].step3.rebuttals` + `issues[*].reports[*]` | 이전 라운드 step3의 rebuttals에 원 finding의 `issue_id`, `severity`, `file`, `line`, `anchor`, `message`를 조합한 JSON 배열. Lead agent가 반박 사유와 원문 맥락을 함께 보고 판단할 수 있게 전달 |
-| `{LEAD_AGENT_ID}` | `rounds[N].lead_agent` | 현재 라운드의 lead agent ID |
-| `{LEAD_REPORTS}` | `rounds[N].step1.report_ids` → `issues[*].reports[*]` | report_id로 issues에서 `report_id`, `severity`, `file`, `line`, `anchor`, `message`를 조합. `report_id`를 반드시 포함하여 JSON 배열로 전달 (cross-verifier가 결정을 report_id로 반환해야 하므로) |
-| `{CROSS_REBUTTALS}` | `rounds[N].step2.rebuttals` + `issues[*].reports[*]` | 현재 라운드 step2의 rebuttals에 원 finding의 `report_id`, `issue_id`, `severity`, `file`, `line`, `anchor`, `message`를 조합한 JSON 배열. Lead agent가 어떤 finding에 대한 반박인지 파악할 수 있게 전달 |
-| `{CROSS_FINDINGS}` | `rounds[N].step2.report_ids` → `issues[*].reports[*]` | cross-verifier의 report_id들로 issues에서 `report_id`, `severity`, `file`, `line`, `anchor`, `message`를 조합. `report_id`를 포함하여 JSON 배열로 전달 |
-| `{APPLICABLE_ISSUES}` | `issues` 중 `consensus_status=accepted` AND `application_status=pending\|failed` | 반영 대상 issue 목록. issue_id, file, line, message 포함 JSON 배열로 전달 |
+| `{OPEN_ISSUES}` | Currently unresolved items in `issues` | Full list of open issues at current round start. Includes older issues outside the last 2 rounds context. For same-repo: items with `consensus_status=open` or `consensus_status=accepted` and `application_status!=applied`. For fork: items with `consensus_status=open` or `consensus_status=accepted` and `application_status!=recommended`. Pass as JSON array combining `issue_id`, `consensus_status`, `application_status`, `severity`, `file`, `line`, `anchor`, `message` |
+| `{PENDING_REBUTTALS}` | `rounds[N-1].step3.rebuttals` + `issues[*].reports[*]` | JSON array combining rebuttals from previous round step3 with the original finding's `issue_id`, `severity`, `file`, `line`, `anchor`, `message`. Enables the lead agent to see rebuttal reasons alongside original context |
+| `{LEAD_AGENT_ID}` | `rounds[N].lead_agent` | Current round's lead agent ID |
+| `{LEAD_REPORTS}` | `rounds[N].step1.report_ids` → `issues[*].reports[*]` | Combine `report_id`, `severity`, `file`, `line`, `anchor`, `message` from issues via report_id. Must include `report_id` in JSON array (cross-verifier needs it to return decisions by report_id) |
+| `{CROSS_REBUTTALS}` | `rounds[N].step2.rebuttals` + `issues[*].reports[*]` | JSON array combining current round step2 rebuttals with the original finding's `report_id`, `issue_id`, `severity`, `file`, `line`, `anchor`, `message`. Enables the lead agent to identify which finding is being challenged |
+| `{CROSS_FINDINGS}` | `rounds[N].step2.report_ids` → `issues[*].reports[*]` | Combine `report_id`, `severity`, `file`, `line`, `anchor`, `message` from issues via cross-verifier's report_ids. Include `report_id` in JSON array |
+| `{APPLICABLE_ISSUES}` | Items in `issues` with `consensus_status=accepted` AND `application_status=pending\|failed` | List of issues to apply. JSON array including issue_id, file, line, message |
 
 ---
 
-## 빠른 참조
+## Quick Reference
 
-| 항목 | 규칙 |
+| Item | Rule |
 |------|------|
-| Lead agent | 홀수 라운드=Codex, 짝수=CC |
-| 합의 조건 | 연속 2개 clean pass (서로 다른 lead agent) |
-| 상태 파일 | `~/.claude/debate-state/<owner>-<repo>-<pr>.json` |
+| Lead agent | Odd rounds = Codex, Even = CC |
+| Consensus condition | 2 consecutive clean passes (from different lead agents) |
+| State file | `~/.claude/debate-state/<owner>-<repo>-<pr>.json` |
 | CLI | `$DEBATE_REVIEW_BIN <subcommand>` |
-| 코멘트 태그 | `[debate-review][sha:<initial_sha>]` |
-| 최대 라운드 | 10 (설정 `max_rounds`) |
-| Codex 샌드박스 | `read-only` (필요 시 `danger-full-access` 명시 opt-in) |
-| 워크트리 | `<repo_root>/.worktrees/debate-pr-<N>` |
+| Comment tag | `[debate-review][sha:<initial_sha>]` |
+| Max rounds | 10 (config `max_rounds`) |
+| Codex sandbox | `read-only` (explicit opt-in for `danger-full-access`) |
+| Worktree | `<repo_root>/.worktrees/debate-pr-<N>` |
 | GitHub CLI | `env -u GITHUB_TOKEN -u GH_TOKEN gh ...` |
+| Output language | Config `language` (default: `en`) |
 
-## 흔한 실수
+## Common Mistakes
 
-- **CLI 없이 상태 직접 조작**: 반드시 `$DEBATE_REVIEW_BIN` subcommand를 통해 상태 변경
-- **Step 0 건너뛰기**: 재시작 시에도 반드시 `sync-head` 실행
-- **코멘트 태그에 `post_sync_head_sha` 사용**: `initial_sha`를 써야 Step 3 commit 이후에도 안정
-- **`opened_by` 기반 변경**: lead agent가 모든 합의된 issue를 수정 (opened_by 무관)
-- **Codex 출력을 그대로 코멘트에 사용**: 오케스트레이터가 정규화된 형식으로 변환 필수
-- **Phase 순서 무시**: Phase 1 → commit → Phase 2 → push → Phase 3 순서 엄수
-- **Fork PR에서 push 시도**: fork PR은 코드 반영/commit/push 모두 건너뜀
+- **Manipulating state without CLI**: Always use `$DEBATE_REVIEW_BIN` subcommands for state changes
+- **Skipping Step 0**: Always run `sync-head` even on restart
+- **Using `post_sync_head_sha` in comment tag**: Use `initial_sha` for stability after Step 3 commits
+- **Filtering by `opened_by`**: Lead agent fixes all agreed issues regardless of who opened them
+- **Using Codex output as-is in comments**: Orchestrator must normalize to standard format
+- **Ignoring phase order**: Strictly follow Phase 1 → commit → Phase 2 → push → Phase 3
+- **Attempting push on fork PR**: Fork PRs skip code application/commit/push entirely

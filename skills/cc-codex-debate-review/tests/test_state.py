@@ -14,7 +14,7 @@ from debate_review.state import (
 def test_create_initial_state_has_required_fields(sample_state):
     required_top_level = [
         "repo", "repo_root", "pr_number", "is_fork", "dry_run",
-        "max_rounds", "status", "current_round", "head", "journal",
+        "max_rounds", "language", "status", "current_round", "head", "journal",
         "issues", "rounds", "final_comment_tag", "final_comment_id",
         "started_at", "finished_at", "final_outcome",
     ]
@@ -46,6 +46,7 @@ def test_create_initial_state_values(sample_state):
     assert sample_state["is_fork"] is False
     assert sample_state["dry_run"] is False
     assert sample_state["max_rounds"] == 10
+    assert sample_state["language"] == "en"
     assert sample_state["status"] == "in_progress"
     assert sample_state["current_round"] == 1
     assert sample_state["head"]["initial_sha"] == "abc1234def5678"
@@ -89,6 +90,7 @@ def test_load_config_default_reads_bundled_config():
     assert result == {
         "max_rounds": 10,
         "codex_sandbox": "read-only",
+        "language": "en",
     }
 
 

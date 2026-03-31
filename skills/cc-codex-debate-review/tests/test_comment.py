@@ -39,7 +39,7 @@ def test_build_comment_consensus_same_repo():
     state = _consensus_state(is_fork=False)
     body = build_comment_body(state)
     assert body.startswith("[debate-review][sha:abc123]")
-    assert "3라운드 만에 합의에 도달했습니다." in body
+    assert "Consensus reached after 3 rounds." in body
     assert "## Applied Fixes" in body
     assert "src/foo.ts:42" in body
     assert "reported by codex" in body
@@ -75,7 +75,7 @@ def test_build_comment_max_rounds():
         "reports": [{"report_id": "rpt_001", "agent": "codex", "round": 1, "severity": "critical", "message": "Bug", "reported_at": "t"}],
     }
     body = build_comment_body(state)
-    assert "10라운드 후 합의에 도달하지 못했습니다" in body
+    assert "Consensus was not reached after 10 rounds." in body
     assert "## Unresolved Issues" in body
     assert "Manual review required." in body
 
@@ -92,7 +92,7 @@ def test_build_comment_error():
     state["journal"]["round"] = 2
     state["journal"]["step"] = "step2_cross_review"
     body = build_comment_body(state)
-    assert "오류로 인해 리뷰가 중단되었습니다" in body
+    assert "Review stopped due to an error." in body
     assert "Round: 2" in body
     assert "Step: step2_cross_review" in body
     assert "Error: Codex parse failure" in body
@@ -169,12 +169,13 @@ def test_build_comment_no_issues():
     assert "No actionable issues remain." in body
 
 
+
 # Test: Debate Summary from ledger
 def test_build_comment_includes_debate_summary():
     state = _consensus_state(is_fork=False)
     state["debate_ledger"] = [
-        {"issue_id": "isu_001", "status": "accepted", "summary": "batch exit code — R1 제기, R1 합의", "round": 1},
-        {"issue_id": "isu_003", "status": "withdrawn", "summary": "KeyboardInterrupt — R1 제기, R5 withdraw", "round": 5},
+        {"issue_id": "isu_001", "status": "accepted", "summary": "batch exit code — R1 raised, R1 consensus", "round": 1},
+        {"issue_id": "isu_003", "status": "withdrawn", "summary": "KeyboardInterrupt — R1 raised, R5 withdraw", "round": 5},
     ]
     body = build_comment_body(state)
     assert "## Debate Summary" in body
@@ -223,3 +224,5 @@ def test_build_comment_error_includes_debate_summary():
     assert "## Debate Summary" in body
     assert "isu_001 [accepted]" in body
     assert "Codex parse failure" in body
+
+

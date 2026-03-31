@@ -147,9 +147,10 @@ def cmd_init(args):
 
     repo_root = _resolve_repo_root(repo, args.repo_root)
 
-    # Load config for max_rounds
+    # Load config-driven session defaults
     config = load_config(args.config)
     max_rounds = args.max_rounds if args.max_rounds is not None else config.get("max_rounds", 10)
+    language = str(config.get("language", "en"))
 
     state_path = state_file_path(repo, pr_number, dry_run)
     existing = load_state(state_path)
@@ -163,6 +164,7 @@ def cmd_init(args):
             head_sha=head_sha,
             pr_branch_name=head_ref_name,
             max_rounds=max_rounds,
+            language=language,
             dry_run=dry_run,
         )
         save_state(state, state_path)
@@ -173,6 +175,9 @@ def cmd_init(args):
         current_round = existing["current_round"]
         is_fork = existing["is_fork"]
         dry_run = existing["dry_run"]
+        if "language" not in existing:
+            existing["language"] = language
+            save_state(existing, state_path)
     else:
         # Terminal state — use terminal_sha for session identity
         existing_sha = existing["head"].get("terminal_sha") or existing["head"]["last_observed_pr_sha"]
@@ -191,6 +196,7 @@ def cmd_init(args):
                 head_sha=head_sha,
                 pr_branch_name=head_ref_name,
                 max_rounds=max_rounds,
+                language=language,
                 dry_run=dry_run,
             )
             save_state(state, state_path)

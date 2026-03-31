@@ -37,7 +37,7 @@ def _build_debate_summary_lines(state):
 
 def _build_consensus_same_repo(state, tag):
     """Template 1: consensus, same-repo."""
-    lines = [f"{tag} {state['current_round']}라운드 만에 합의에 도달했습니다."]
+    lines = [f"{tag} Consensus reached after {state['current_round']} rounds."]
 
     lines.extend(_build_debate_summary_lines(state))
 
@@ -56,7 +56,9 @@ def _build_consensus_same_repo(state, tag):
             reporter = _first_reporter(issue)
             applier = issue.get("applied_by", "unknown")
             msg = _latest_report_message(issue)
-            lines.append(f"- {issue['file']}:{issue['line']} - (reported by {reporter}, applied by {applier}) {msg}")
+            lines.append(
+                f"- {issue['file']}:{issue['line']} - (reported by {reporter}, applied by {applier}) {msg}"
+            )
 
     if withdrawn:
         lines.append("")
@@ -73,7 +75,7 @@ def _build_consensus_same_repo(state, tag):
 
 def _build_consensus_fork(state, tag):
     """Template 2: consensus, fork PR."""
-    lines = [f"{tag} {state['current_round']}라운드 만에 합의에 도달했습니다. (fork PR - code push not allowed)"]
+    lines = [f"{tag} Consensus reached after {state['current_round']} rounds. (fork PR - code push not allowed)"]
 
     lines.extend(_build_debate_summary_lines(state))
 
@@ -108,7 +110,7 @@ def _build_consensus_fork(state, tag):
 
 def _build_max_rounds(state, tag):
     """Template 3: max rounds exceeded."""
-    lines = [f"{tag} {state['max_rounds']}라운드 후 합의에 도달하지 못했습니다."]
+    lines = [f"{tag} Consensus was not reached after {state['max_rounds']} rounds."]
 
     lines.extend(_build_debate_summary_lines(state))
 
@@ -131,7 +133,7 @@ def _build_max_rounds(state, tag):
 def _build_error(state, tag):
     """Template 4: error."""
     journal = state["journal"]
-    lines = [f"{tag} 오류로 인해 리뷰가 중단되었습니다."]
+    lines = [f"{tag} Review stopped due to an error."]
 
     lines.extend(_build_debate_summary_lines(state))
 
