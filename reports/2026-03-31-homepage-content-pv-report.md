@@ -1,7 +1,7 @@
 # QueryPie Homepage 컨텐츠 분류별 Page View 리포트
 
 - **Property:** QueryPie Homepage (451239708)
-- **기간:** 2025-09-01 ~ 2026-02-28 (6개월)
+- **기간:** 2025-11-01 ~ 2026-03-30 (5개월)
 - **생성일:** 2026-03-31
 - **도구:** `bin/ga-content-report`
 
@@ -23,22 +23,22 @@
 
 ## 차트
 
-### 대분류별 비중 (전체 6개월)
+### 대분류별 비중 (전체)
 
 ```mermaid
-pie title Demo vs Documentation (Total PV: 6,853)
-    "Documentation (73.4%)" : 5028
-    "Demo (26.6%)" : 1825
+pie title Demo vs Documentation (Total PV: 7,777)
+    "Documentation (73.5%)" : 5718
+    "Demo (26.5%)" : 2059
 ```
 
-### 소분류별 PV (전체 6개월)
+### 소분류별 PV (전체)
 
 ```mermaid
 xychart-beta
-    title "소분류별 Page Views (2025-11 ~ 2026-02)"
+    title "소분류별 Page Views (2025-11 ~ 2026-03)"
     x-axis ["White Papers", "Blogs", "Use Cases", "Webinars", "ACP Features", "Manuals", "Intro Decks", "Glossary", "AIP Features"]
-    y-axis "Page Views" 0 --> 2600
-    bar [2498, 1889, 625, 613, 566, 408, 184, 49, 21]
+    y-axis "Page Views" 0 --> 3000
+    bar [2870, 2114, 701, 693, 641, 457, 223, 54, 24]
 ```
 
 ### 월별 추이
@@ -46,29 +46,29 @@ xychart-beta
 ```mermaid
 xychart-beta
     title "월별 Page Views 추이"
-    x-axis ["2025-11", "2025-12", "2026-01", "2026-02"]
+    x-axis ["2025-11", "2025-12", "2026-01", "2026-02", "2026-03"]
     y-axis "Page Views" 0 --> 2500
-    bar [580, 475, 504, 266]
-    bar [1713, 1292, 1125, 898]
-    line [2293, 1767, 1629, 1164]
+    bar [580, 475, 504, 266, 234]
+    bar [1713, 1292, 1125, 898, 690]
+    line [2293, 1767, 1629, 1164, 924]
 ```
 
-## 전체 6개월 합산
+## 전체 합산
 
 | 대분류 | 소분류 | Page Views | 비중 |
 |--------|--------|----------:|-----:|
-| **Demo** | Use Cases | 625 | 9.1% |
-| | AIP Features | 21 | 0.3% |
-| | ACP Features | 566 | 8.3% |
-| | Webinars | 613 | 8.9% |
-| | **소계** | **1,825** | **26.6%** |
-| **Documentation** | Introduction Decks | 184 | 2.7% |
-| | Glossary | 49 | 0.7% |
-| | Manuals | 408 | 6.0% |
-| | White Papers | 2,498 | 36.5% |
-| | Blogs | 1,889 | 27.6% |
-| | **소계** | **5,028** | **73.4%** |
-| | **합계** | **6,853** | |
+| **Demo** | Use Cases | 701 | 9.0% |
+| | AIP Features | 24 | 0.3% |
+| | ACP Features | 641 | 8.2% |
+| | Webinars | 693 | 8.9% |
+| | **소계** | **2,059** | **26.5%** |
+| **Documentation** | Introduction Decks | 223 | 2.9% |
+| | Glossary | 54 | 0.7% |
+| | Manuals | 457 | 5.9% |
+| | White Papers | 2,870 | 36.9% |
+| | Blogs | 2,114 | 27.2% |
+| | **소계** | **5,718** | **73.5%** |
+| | **합계** | **7,777** | |
 
 ## 월별 집계
 
@@ -140,6 +140,23 @@ xychart-beta
 | | **소계** | **898** |
 | | **합계** | **1,164** |
 
+### 2026-03 (3/1 ~ 3/30)
+
+| 대분류 | 소분류 | Page Views |
+|--------|--------|----------:|
+| **Demo** | Use Cases | 76 |
+| | AIP Features | 3 |
+| | ACP Features | 75 |
+| | Webinars | 80 |
+| | **소계** | **234** |
+| **Documentation** | Introduction Decks | 39 |
+| | Glossary | 5 |
+| | Manuals | 49 |
+| | White Papers | 372 |
+| | Blogs | 225 |
+| | **소계** | **690** |
+| | **합계** | **924** |
+
 ## 월별 추이 요약
 
 | 월 | Demo | Documentation | 합계 | 전월 대비 |
@@ -148,10 +165,12 @@ xychart-beta
 | 2025-12 | 475 | 1,292 | 1,767 | -22.9% |
 | 2026-01 | 504 | 1,125 | 1,629 | -7.8% |
 | 2026-02 | 266 | 898 | 1,164 | -28.5% |
+| 2026-03 | 234 | 690 | 924 | -20.6% |
 
 ## 참고
 
-- 2025-09, 2025-10은 해당 컨텐츠가 론칭 전이므로 PV 0 (리포트에서 제외)
-- AIP Features는 전 기간 합산 21 PV로 거의 트래픽 없음
-- Documentation이 전체의 73%를 차지하며, 그중 White Papers(36.5%)와 Blogs(27.6%)가 핵심
-- 론칭 이후 매월 감소 추세 (2025-11 대비 2026-02는 -49.2%)
+- 2025-11 이전은 컨텐츠 론칭 전이므로 제외
+- 2026-03은 3/30까지의 데이터 (부분 월)
+- AIP Features는 전 기간 합산 24 PV로 거의 트래픽 없음
+- Documentation이 전체의 73.5%를 차지하며, White Papers(36.9%)와 Blogs(27.2%)가 핵심
+- 론칭 이후 매월 감소 추세 (2025-11 대비 2026-03은 -59.7%)
