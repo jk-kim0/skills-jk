@@ -1,0 +1,228 @@
+#!/usr/bin/env python3
+"""
+GA4 컨텐츠 분류별 Page View 집계 리포트
+
+카테고리:
+  Demo: Use Cases, AIP Features, ACP Features, Webinars
+  Documentation: Introduction Decks, Glossary, Manuals, White Papers, Blogs
+
+사용법:
+    ga-content-report <property_id> [--months 6]
+"""
+
+import argparse
+import os
+import pickle
+import re
+import sys
+from datetime import datetime, timedelta
+from pathlib import Path
+
+try:
+    from google.auth.transport.requests import Request
+    from google.oauth2.credentials import Credentials
+    from google_auth_oauthlib.flow import InstalledAppFlow
+    from google.analytics.data_v1beta import BetaAnalyticsDataClient
+    from google.analytics.data_v1beta.types import (
+        RunReportRequest,
+        DateRange,
+        Dimension,
+        Metric,
+        FilterExpression,
+        Filter,
+    )
+except ImportError:
+    print("필수 패키지가 설치되어 있지 않습니다.")
+    print("  pip install google-auth google-auth-oauthlib google-analytics-data")
+    sys.exit(1)
+
+SCOPES = ['https://www.googleapis.com/auth/analytics.readonly']
+CLIENT_SECRET_FILE = os.environ.get(
+    'GOOGLE_CLIENT_SECRET',
+    os.path.expanduser('~/.config/google/client_secret.json'),
+)
+TOKEN_FILE = os.path.expanduser('~/.config/ga/token.pickle')
+
+# 컨텐츠 분류 정의 — (label, URL match pattern)
+# pagePath에 대해 regex match 수행
+CATEGORIES = {
+    "Demo": [
+        ("Use Cases",    r"/features/demo/use-cases/"),
+        ("AIP Features", r"/features/demo/aip-features/"),
+        ("ACP Features", r"/features/demo/acp-features/"),
+        ("Webinars",     r"/features/demo/webinars/"),
+    ],
+    "Documentation": [
+        ("Introduction Decks", r"/features/documentation/[^/]*-introduction-download"),
+        ("Glossary",           r"/features/documentation/glossary-items"),
+        ("Manuals",            r"/features/documentation/querypie-install-guide"),
+        ("White Papers",       r"/features/documentation/white-paper/"),
+        ("Blogs",              r"/features/documentation/blog/"),
+    ],
+}
+
+
+def get_credentials():
+    creds = None
+    token_path = Path(TOKEN_FILE)
+    if not os.path.exists(CLIENT_SECRET_FILE):
+        print(f"오류: 클라이언트 시크릿 파일을 찾을 수 없습니다: {CLIENT_SECRET_FILE}")
+        sys.exit(1)
+    if token_path.exists():
+        with open(token_path, 'rb') as f:
+            creds = pickle.load(f)
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRET_FILE, SCOPES)
+            creds = flow.run_local_server(port=0)
+        token_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(token_path, 'wb') as f:
+            pickle.dump(creds, f)
+    return creds
+
+
+def fetch_pages(client, property_id, start_date, end_date):
+    """주어진 기간의 모든 페이지별 PV를 가져옵니다."""
+    all_rows = []
+    offset = 0
+    limit = 10000
+
+    while True:
+        request = RunReportRequest(
+            property=f"properties/{property_id}",
+            date_ranges=[DateRange(
+                start_date=start_date,
+                end_date=end_date,
+            )],
+            dimensions=[Dimension(name="pagePath")],
+            metrics=[Metric(name="screenPageViews")],
+            limit=limit,
+            offset=offset,
+        )
+        response = client.run_report(request)
+        all_rows.extend(response.rows)
+        if len(response.rows) < limit:
+            break
+        offset += limit
+
+    return all_rows
+
+
+def classify_pages(rows):
+    """페이지 데이터를 카테고리별로 집계합니다."""
+    # locale prefix를 제거하여 매칭 (e.g. /ko/features/... -> /features/...)
+    locale_re = re.compile(r"^/(ko|ja|en)")
+
+    results = {}
+    for group, cats in CATEGORIES.items():
+        results[group] = {label: 0 for label, _ in cats}
+
+    for row in rows:
+        path = row.dimension_values[0].value
+        pv = int(row.metric_values[0].value)
+        # locale prefix 제거
+        normalized = locale_re.sub("", path)
+
+        for group, cats in CATEGORIES.items():
+            for label, pattern in cats:
+                if re.search(pattern, normalized):
+                    results[group][label] += pv
+                    break
+
+    return results
+
+
+def get_month_ranges(months):
+    """최근 N개월의 (start_date, end_date, label) 리스트를 반환합니다."""
+    today = datetime.now()
+    ranges = []
+
+    for i in range(months, 0, -1):
+        # i개월 전의 1일
+        d = today.replace(day=1)
+        for _ in range(i):
+            d = (d - timedelta(days=1)).replace(day=1)
+        start = d
+        # 해당 월의 마지막 날
+        if start.month == 12:
+            end = start.replace(year=start.year + 1, month=1, day=1) - timedelta(days=1)
+        else:
+            end = start.replace(month=start.month + 1, day=1) - timedelta(days=1)
+        label = start.strftime("%Y-%m")
+        ranges.append((start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"), label))
+
+    return ranges
+
+
+def print_table(title, period, results):
+    """카테고리별 집계 테이블을 출력합니다."""
+    w = 72
+    print(f"\n{'=' * w}")
+    print(f"  {title}")
+    print(f"  기간: {period}")
+    print(f"{'=' * w}\n")
+
+    print(f"  {'카테고리':<24} {'분류':<24} {'Page Views':>12}")
+    print(f"  {'-' * 66}")
+
+    grand_total = 0
+    for group, cats in CATEGORIES.items():
+        group_total = 0
+        first = True
+        for label, _ in cats:
+            pv = results[group][label]
+            group_total += pv
+            group_col = group if first else ""
+            print(f"  {group_col:<24} {label:<24} {pv:>12,}")
+            first = False
+        print(f"  {'':<24} {'소계':<24} {group_total:>12,}")
+        print(f"  {'-' * 66}")
+        grand_total += group_total
+
+    print(f"  {'':<24} {'합계':<24} {grand_total:>12,}")
+
+
+def main():
+    parser = argparse.ArgumentParser(description='GA4 컨텐츠 분류별 PV 집계')
+    parser.add_argument('property_id', help='GA4 Property ID')
+    parser.add_argument('--months', type=int, default=6, help='조회 기간 (개월, 기본 6)')
+    args = parser.parse_args()
+
+    creds = get_credentials()
+    client = BetaAnalyticsDataClient(credentials=creds)
+
+    month_ranges = get_month_ranges(args.months)
+
+    # 전체 기간 합산용
+    total_results = {}
+    for group, cats in CATEGORIES.items():
+        total_results[group] = {label: 0 for label, _ in cats}
+
+    # 월별 집계
+    for start_date, end_date, label in month_ranges:
+        print(f"\n  [{label}] 데이터 조회 중...", end="", flush=True)
+        rows = fetch_pages(client, args.property_id, start_date, end_date)
+        results = classify_pages(rows)
+        print(f" {len(rows)}개 페이지 로드 완료")
+
+        print_table(f"월간 컨텐츠별 Page Views — {label}", f"{start_date} ~ {end_date}", results)
+
+        # 합산
+        for group in results:
+            for cat in results[group]:
+                total_results[group][cat] += results[group][cat]
+
+    # 전체 기간 집계
+    overall_start = month_ranges[0][0]
+    overall_end = month_ranges[-1][1]
+    print_table(
+        f"전체 컨텐츠별 Page Views — 최근 {args.months}개월 합산",
+        f"{overall_start} ~ {overall_end}",
+        total_results,
+    )
+
+
+if __name__ == '__main__':
+    main()
