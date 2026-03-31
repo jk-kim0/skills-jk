@@ -113,7 +113,7 @@ def sync_head(state, *, _get_head=None, _fetch=None, _ensure_wt=None) -> dict:
             }
             state["debate_ledger"] = [
                 e for e in state.get("debate_ledger", [])
-                if e["issue_id"] in withdrawn_ids
+                if e["issue_id"] in withdrawn_ids and e.get("status") == "withdrawn"
             ]
             state["current_round"] += 1
             # Reset journal for the new round
