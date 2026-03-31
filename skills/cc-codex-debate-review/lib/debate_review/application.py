@@ -43,6 +43,7 @@ def record_application_phase1(state, *, round_num, applied_issue_ids, failed_iss
     # Checkpoint 1: record in journal
     journal["applied_issue_ids"] = list(applied_issue_ids)
     journal["failed_application_issue_ids"] = list(failed_issue_ids)
+    journal["phase1_completed"] = True
 
     return {
         "phase": 1,

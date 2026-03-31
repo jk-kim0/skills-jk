@@ -113,9 +113,7 @@ def determine_next_step(state) -> dict:
     elif step == "step2_cross_review":
         result["next_step"] = "step3"
     elif step == "step3_lead_apply":
-        phase1_recorded = bool(
-            journal.get("applied_issue_ids") or journal.get("failed_application_issue_ids")
-        )
+        phase1_recorded = journal.get("phase1_completed", False)
         if journal.get("push_verified"):
             result["next_step"] = "step4"
         elif journal.get("commit_sha"):

@@ -212,6 +212,7 @@ def test_next_step_from_step3_phase1(sample_state):
 
 def test_next_step_from_step3_phase2(sample_state):
     sample_state["journal"]["step"] = "step3_lead_apply"
+    sample_state["journal"]["phase1_completed"] = True
     sample_state["journal"]["applied_issue_ids"] = ["isu_001"]
     assert determine_next_step(sample_state)["next_step"] == "step3_phase2"
 
@@ -219,7 +220,15 @@ def test_next_step_from_step3_phase2(sample_state):
 def test_next_step_from_step3_phase2_with_only_failed_issues(sample_state):
     """step3 with only failed_application_issue_ids (no applied) → step3_phase2."""
     sample_state["journal"]["step"] = "step3_lead_apply"
+    sample_state["journal"]["phase1_completed"] = True
     sample_state["journal"]["failed_application_issue_ids"] = ["isu_002"]
+    assert determine_next_step(sample_state)["next_step"] == "step3_phase2"
+
+
+def test_next_step_from_step3_phase2_with_empty_lists(sample_state):
+    """step3 with phase1_completed=True but empty applied/failed → step3_phase2."""
+    sample_state["journal"]["step"] = "step3_lead_apply"
+    sample_state["journal"]["phase1_completed"] = True
     assert determine_next_step(sample_state)["next_step"] == "step3_phase2"
 
 
