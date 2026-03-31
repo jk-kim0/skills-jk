@@ -176,6 +176,7 @@ def upsert_issue(
         issue["consensus_reason"] = None
         issue["application_status"] = "pending"
         issue["accepted_by"] = [agent]
+        issue["reopened_in_round"] = round_num
     elif application_status == "applied":
         issue["consensus_status"] = "open"
         issue["consensus_reason"] = None
@@ -183,6 +184,7 @@ def upsert_issue(
         issue["applied_by"] = None
         issue["application_commit_sha"] = None
         issue["accepted_by"] = [agent]
+        issue["reopened_in_round"] = round_num
     else:
         if agent not in issue["accepted_by"]:
             issue["accepted_by"].append(agent)
