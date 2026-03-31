@@ -341,7 +341,7 @@ Save each `code_fixes` item's `diff` value to a file and apply with `git apply`:
 STAGED_FILES=$(mktemp)
 
 # Iterate over each code_fix item
-PATCH_FILE=$(mktemp /tmp/debate-patch-XXXXXX.patch)
+PATCH_FILE=$(mktemp /tmp/debate-patch-XXXXXX)
 printf '%s\n' "$DIFF_CONTENT" > "$PATCH_FILE"
 git -C "$WORKTREE_PATH" apply --check "$PATCH_FILE"  # Verify
 git -C "$WORKTREE_PATH" apply "$PATCH_FILE"           # Apply

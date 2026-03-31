@@ -405,38 +405,39 @@ def test_settle_stall_resets_after_progress(sample_state):
     from debate_review.issue_ops import upsert_issue
     from debate_review.cross_verification import record_cross_verification
 
-    # Round 1: no progress (has unresolved issue)
+    # Round 1: create open issue (not accepted), no code applied → no progress
     init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
     r1 = upsert_issue(sample_state, agent="codex", round_num=1, severity="warning",
                        criterion=3, file="src/foo.ts", line=42, anchor="retry", message="loop")
     issue_id = r1["issue_id"]
-    record_cross_verification(sample_state, round_num=1,
-                              verifications=[{"report_id": r1["report_id"], "decision": "accept", "reason": "ok"}])
+    # Do NOT accept — leave issue open so settled_issues is empty
     record_verdict(sample_state, round_num=1, verdict="has_findings")
-    settle_round(sample_state, round_num=1)
+    r1_result = settle_round(sample_state, round_num=1)
+    assert r1_result["result"] == "continue"
+    assert r1_result.get("stall_count") == 1  # first no-progress round
 
-    # Round 2: progress — code applied
+    # Round 2: accept issue + apply code → progress
     init_round(sample_state, round_num=2, lead_agent="cc", synced_head_sha="abc")
+    record_cross_verification(sample_state, round_num=2,
+                              verifications=[{"report_id": r1["report_id"], "decision": "accept", "reason": "ok"}])
     sample_state["rounds"][1]["step3"]["applied_issue_ids"] = [issue_id]
     sample_state["issues"][issue_id]["application_status"] = "applied"
     record_verdict(sample_state, round_num=2, verdict="has_findings")
     r2 = settle_round(sample_state, round_num=2)
     assert r2["result"] == "continue"
-    assert "stall_count" not in r2  # progress was made
+    assert "stall_count" not in r2  # progress was made (applied code)
 
-    # Add ledger entry so settled_issues won't re-count
+    # Add ledger entry so settled_issues won't re-count in round 3
     sample_state["debate_ledger"].append(
-        {"issue_id": issue_id, "status": "accepted", "summary": "...", "round": 1}
+        {"issue_id": issue_id, "status": "accepted", "summary": "...", "round": 2}
     )
 
-    # Round 3: add a new accepted issue to create unresolved state, then check stall
+    # Round 3: new open issue, no code applied → no progress, but stall_count resets to 1
     init_round(sample_state, round_num=3, lead_agent="codex", synced_head_sha="abc")
-    r3 = upsert_issue(sample_state, agent="codex", round_num=3, severity="warning",
-                       criterion=5, file="src/bar.ts", line=10, anchor="timeout", message="hardcoded")
-    record_cross_verification(sample_state, round_num=3,
-                              verifications=[{"report_id": r3["report_id"], "decision": "accept", "reason": "ok"}])
+    upsert_issue(sample_state, agent="codex", round_num=3, severity="warning",
+                 criterion=5, file="src/bar.ts", line=10, anchor="timeout", message="hardcoded")
     record_verdict(sample_state, round_num=3, verdict="has_findings")
     r3_result = settle_round(sample_state, round_num=3)
-    # Round 3 has settled_issues (new issue accepted) → progress was made
     assert r3_result["result"] == "continue"
-    assert "stall_count" not in r3_result
+    # stall_count is 1, NOT 2 — the progress in round 2 reset the streak
+    assert r3_result.get("stall_count") == 1
