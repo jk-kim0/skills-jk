@@ -11,6 +11,10 @@
 
 {REVIEW_CONTEXT}
 
+## Debate Ledger
+
+{DEBATE_LEDGER}
+
 ## 현재 Open Issue 현황
 
 아래 목록은 직전 2개 라운드 요약과 별개로, 현재 unresolved 상태인 issue 전체입니다. 오래된 미해결 issue도 모두 포함됩니다.
@@ -35,6 +39,8 @@
 아래 기준에 따라 diff를 리뷰합니다. 심각도별로 모든 issue를 식별하세요: `critical`, `warning`, `suggestion`.
 
 Step 1a에서 `maintain`으로 결정한 반박이 있으면, 해당 issue를 여기 findings에 포함하세요.
+
+**재제기 규칙:** Debate Ledger에 `withdrawn`으로 기록된 issue를 다시 제기하려면, ledger의 withdraw 사유와 **다른 새로운 근거**를 message에 명시해야 합니다. 동일 근거의 반복 제기는 금지합니다.
 
 ## 판정(Verdict)
 

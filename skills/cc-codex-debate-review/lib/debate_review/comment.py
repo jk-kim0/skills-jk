@@ -21,14 +21,30 @@ def _first_reporter(issue):
     return "unknown"
 
 
+def _build_debate_summary_lines(state):
+    """Build Debate Summary section from debate_ledger."""
+    ledger = state.get("debate_ledger", [])
+    if not ledger:
+        return []
+    lines = ["", "## Debate Summary"]
+    for entry in ledger:
+        status = entry.get("status", "unknown")
+        summary = entry.get("summary", "")
+        issue_id = entry.get("issue_id", "")
+        lines.append(f"- {issue_id} [{status}] {summary}")
+    return lines
+
+
 def _build_consensus_same_repo(state, tag):
     """Template 1: consensus, same-repo."""
     lines = [f"{tag} {state['current_round']}라운드 만에 합의에 도달했습니다."]
 
+    lines.extend(_build_debate_summary_lines(state))
+
     applied = [i for i in state["issues"].values() if i["application_status"] == "applied"]
     withdrawn = [i for i in state["issues"].values() if i["consensus_status"] == "withdrawn"]
 
-    if not applied and not withdrawn:
+    if not applied and not withdrawn and not state.get("debate_ledger"):
         lines.append("")
         lines.append("No actionable issues remain.")
         return "\n".join(lines)
@@ -59,10 +75,12 @@ def _build_consensus_fork(state, tag):
     """Template 2: consensus, fork PR."""
     lines = [f"{tag} {state['current_round']}라운드 만에 합의에 도달했습니다. (fork PR - code push not allowed)"]
 
+    lines.extend(_build_debate_summary_lines(state))
+
     recommended = [i for i in state["issues"].values() if i["application_status"] == "recommended"]
     withdrawn = [i for i in state["issues"].values() if i["consensus_status"] == "withdrawn"]
 
-    if not recommended and not withdrawn:
+    if not recommended and not withdrawn and not state.get("debate_ledger"):
         lines.append("")
         lines.append("No actionable issues remain.")
         return "\n".join(lines)
@@ -92,6 +110,8 @@ def _build_max_rounds(state, tag):
     """Template 3: max rounds exceeded."""
     lines = [f"{tag} {state['max_rounds']}라운드 후 합의에 도달하지 못했습니다."]
 
+    lines.extend(_build_debate_summary_lines(state))
+
     unresolved = [i for i in state["issues"].values()
                   if i["consensus_status"] == "open"
                   or (i["consensus_status"] == "accepted" and i["application_status"] not in ("applied", "recommended"))]
@@ -112,6 +132,9 @@ def _build_error(state, tag):
     """Template 4: error."""
     journal = state["journal"]
     lines = [f"{tag} 오류로 인해 리뷰가 중단되었습니다."]
+
+    lines.extend(_build_debate_summary_lines(state))
+
     lines.append("")
     lines.append(f"Round: {journal.get('round', '?')}")
     lines.append(f"Step: {journal.get('step', '?')}")

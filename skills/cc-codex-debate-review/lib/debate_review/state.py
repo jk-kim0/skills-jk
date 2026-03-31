@@ -46,6 +46,7 @@ def create_initial_state(
             "state_persisted": True,
         },
         "issues": {},
+        "debate_ledger": [],
         "rounds": [],
         "final_comment_tag": None,
         "final_comment_id": None,
