@@ -28,6 +28,7 @@ def init_round(state, *, round_num, lead_agent, synced_head_sha):
             "withdrawn_report_ids": [],
             "accepted_report_ids": [],
             "rebuttals": [],
+            "issue_ids_touched": [],
             "applied_issue_ids": [],
             "failed_application_issue_ids": [],
             "commit_sha": None,
@@ -90,31 +91,11 @@ def record_verdict(state, *, round_num, verdict) -> dict:
     return {"round": round_num, "verdict": verdict, "clean_pass": clean_pass}
 
 
-def _collect_touched_issue_ids(round_, issues):
+def _collect_touched_issue_ids(round_):
     """Collect all issue IDs touched in any step of the round."""
     touched = set()
-    # step1 & step2 explicit tracking
-    touched.update(round_.get("step1", {}).get("issue_ids_touched", []))
-    touched.update(round_.get("step2", {}).get("issue_ids_touched", []))
-    # step3 rebuttals have issue_id directly
-    for r in round_.get("step3", {}).get("rebuttals", []):
-        if "issue_id" in r:
-            touched.add(r["issue_id"])
-    # report_id → issue_id lookup for rebuttal responses and step3 decisions
-    report_to_issue = {}
-    for iid, issue in issues.items():
-        for report in issue.get("reports", []):
-            report_to_issue[report["report_id"]] = iid
-    for resp in round_.get("step1", {}).get("rebuttal_responses", []):
-        rid = resp.get("report_id")
-        if rid in report_to_issue:
-            touched.add(report_to_issue[rid])
-    for rid in round_.get("step3", {}).get("withdrawn_report_ids", []):
-        if rid in report_to_issue:
-            touched.add(report_to_issue[rid])
-    for rid in round_.get("step3", {}).get("accepted_report_ids", []):
-        if rid in report_to_issue:
-            touched.add(report_to_issue[rid])
+    for step_key in ("step1", "step2", "step3"):
+        touched.update(round_.get(step_key, {}).get("issue_ids_touched", []))
     return touched
 
 
@@ -156,7 +137,7 @@ def settle_round(state, *, round_num) -> dict:
     for entry in state.get("debate_ledger", []):
         latest_ledger[entry["issue_id"]] = (entry["status"], entry.get("round"))
 
-    touched_ids = _collect_touched_issue_ids(round_, issues)
+    touched_ids = _collect_touched_issue_ids(round_)
     settled_issues = []
     for iid, issue in issues.items():
         cs = issue["consensus_status"]

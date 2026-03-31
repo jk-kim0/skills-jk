@@ -69,36 +69,16 @@ def _all_report_ids(issues: dict) -> set:
     return ids
 
 
-def _update_round_step1_tracking(state, round_num, report_id, issue_id):
-    """Update the active round's step1 tracking arrays."""
-    for r in state.get("rounds", []):
-        if r["round"] == round_num and r["status"] == "active":
-            if report_id not in r["step1"]["report_ids"]:
-                r["step1"]["report_ids"].append(report_id)
-            if issue_id not in r["step1"]["issue_ids_touched"]:
-                r["step1"]["issue_ids_touched"].append(issue_id)
-            break
-
-
-def _update_round_step2_tracking(state, round_num, report_id, issue_id):
-    """Update the active round's step2 tracking arrays."""
-    for r in state.get("rounds", []):
-        if r["round"] == round_num and r["status"] == "active":
-            if report_id not in r["step2"]["report_ids"]:
-                r["step2"]["report_ids"].append(report_id)
-            if issue_id not in r["step2"]["issue_ids_touched"]:
-                r["step2"]["issue_ids_touched"].append(issue_id)
-            break
-
-
 def _track_report_for_round(state, round_num, agent, report_id, issue_id):
     """Route report bookkeeping to step1 or step2 based on the reporting agent."""
     for r in state.get("rounds", []):
         if r["round"] == round_num and r["status"] == "active":
-            if agent == r["lead_agent"]:
-                _update_round_step1_tracking(state, round_num, report_id, issue_id)
-            else:
-                _update_round_step2_tracking(state, round_num, report_id, issue_id)
+            step_key = "step1" if agent == r["lead_agent"] else "step2"
+            step = r[step_key]
+            if report_id not in step["report_ids"]:
+                step["report_ids"].append(report_id)
+            if issue_id not in step["issue_ids_touched"]:
+                step["issue_ids_touched"].append(issue_id)
             break
 
 

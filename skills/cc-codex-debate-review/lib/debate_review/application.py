@@ -11,7 +11,7 @@ def _get_pr_head_sha(repo, pr_number):
 
 def record_application_phase1(state, *, round_num, applied_issue_ids, failed_issue_ids) -> dict:
     """Phase 1: Record applied/failed issues before commit."""
-    _find_round(state, round_num)
+    round_ = _find_round(state, round_num)
     journal = state["journal"]
 
     # Validate all issue IDs exist
@@ -33,6 +33,12 @@ def record_application_phase1(state, *, round_num, applied_issue_ids, failed_iss
 
     for issue_id in failed_issue_ids:
         state["issues"][issue_id]["application_status"] = "failed"
+
+    # Track touched issues in step3
+    step3_touched = round_["step3"].setdefault("issue_ids_touched", [])
+    for issue_id in all_ids:
+        if issue_id not in step3_touched:
+            step3_touched.append(issue_id)
 
     # Checkpoint 1: record in journal
     journal["applied_issue_ids"] = list(applied_issue_ids)

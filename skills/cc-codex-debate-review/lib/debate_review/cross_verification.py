@@ -95,12 +95,16 @@ def resolve_rebuttals(state, *, round_num, step, decisions) -> dict:
                 "decision": decision,
                 "reason": reason,
             })
+            if issue_id not in round_["step1"]["issue_ids_touched"]:
+                round_["step1"]["issue_ids_touched"].append(issue_id)
             if decision == "withdraw":
                 _apply_withdraw(issue, report, reason, round_num=round_num)
             elif decision == "maintain":
                 re_report_ids.append(report_id)
 
         elif step == "3":
+            if issue_id not in round_["step3"]["issue_ids_touched"]:
+                round_["step3"]["issue_ids_touched"].append(issue_id)
             if decision == "withdraw":
                 _apply_withdraw(issue, report, reason, round_num=round_num)
                 if report_id not in round_["step3"]["withdrawn_report_ids"]:
