@@ -150,17 +150,19 @@ def settle_round(state, *, round_num) -> dict:
     round_["step4"]["recommendation_issue_ids"] = recommendation_issue_ids
 
     # Collect issues that were settled (withdrawn/accepted) during this round
-    # Skip issues already in debate_ledger with the same status (avoid duplicates)
-    existing_ledger = {}
+    # Skip if the latest ledger entry for this issue has same status AND same round
+    # (prevents double-counting within same round, but allows re-raised issues to append)
+    latest_ledger = {}
     for entry in state.get("debate_ledger", []):
-        existing_ledger[entry["issue_id"]] = entry["status"]
+        latest_ledger[entry["issue_id"]] = (entry["status"], entry.get("round"))
 
     touched_ids = _collect_touched_issue_ids(round_, issues)
     settled_issues = []
     for iid, issue in issues.items():
         cs = issue["consensus_status"]
         if cs in ("withdrawn", "accepted") and iid in touched_ids:
-            if existing_ledger.get(iid) == cs:
+            prev = latest_ledger.get(iid)
+            if prev and prev[0] == cs and prev[1] == round_num:
                 continue
             settled_issues.append({
                 "issue_id": iid,

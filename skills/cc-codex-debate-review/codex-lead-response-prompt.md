@@ -11,6 +11,10 @@
 
 {REVIEW_CONTEXT}
 
+## Debate Ledger
+
+{DEBATE_LEDGER}
+
 ## 반박(Rebuttal) 처리
 
 교차 검증자가 당신의 findings에 이의를 제기했습니다. 각 반박에 대해 결정하세요:
