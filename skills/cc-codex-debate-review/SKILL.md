@@ -634,13 +634,15 @@ See `REFERENCE.md` for placeholder sources. State-derivable placeholders are ret
 
 ## Error Handling & Bug Reporting
 
-When a CLI command or external command fails during orchestration, the orchestrator terminates the session via `mark-failed` and files a bug report.
+When a CLI command or external command fails during orchestration, the orchestrator records the failure via `mark-failed`. In normal runs this terminates the session and is followed by a bug report. In `DRY_RUN=true`, `mark-failed` returns a dry-run response and does not mutate state or write an error log.
 
 ### Failure → mark-failed → Bug Report
 
 On any failure (CLI exit code 1, external command failure, JSON parse failure after retries):
 
-1. Run `mark-failed` to terminate the session and save an error log:
+1. Run `mark-failed`:
+   In normal runs, this terminates the session and saves an error log.
+   In `DRY_RUN=true`, this returns `{"action":"dry_run",...}` and leaves the session unchanged.
    ```bash
    RESULT=$("$DEBATE_REVIEW_BIN" mark-failed \
      --state-file "$STATE_FILE" \
@@ -648,7 +650,7 @@ On any failure (CLI exit code 1, external command failure, JSON parse failure af
      --failed-command "$COMMAND")
    ERROR_LOG_PATH=$(echo "$RESULT" | jq -r '.error_log // empty')
    ```
-2. Create a GitHub Issue:
+2. If `DRY_RUN=false`, create a GitHub Issue:
    ```bash
    env -u GITHUB_TOKEN -u GH_TOKEN gh issue create \
      --repo "$SKILL_REPO" \
@@ -676,7 +678,7 @@ On any failure (CLI exit code 1, external command failure, JSON parse failure af
 
 ### Error Log Files
 
-`mark-failed` automatically saves a structured log to `~/.claude/debate-state/error-logs/`:
+When `DRY_RUN=false`, `mark-failed` automatically saves a structured log to `~/.claude/debate-state/error-logs/`:
 
 ```json
 {
@@ -687,9 +689,9 @@ On any failure (CLI exit code 1, external command failure, JSON parse failure af
 }
 ```
 
-The `error_log` field in the `mark-failed` response contains the log file path. If log creation fails (e.g., unwritable directory), the field is omitted — the session is still terminated and the error message is still available in the JSON output.
+When `DRY_RUN=false`, the `error_log` field in the `mark-failed` response contains the log file path. If log creation fails (e.g., unwritable directory), the field is omitted, but the session is still terminated and the error message remains in the JSON output.
 
-**Do not silently retry or ignore errors.** Every failure must go through `mark-failed` before session termination.
+**Do not silently retry or ignore errors.** Every failure must go through `mark-failed`. When `DRY_RUN=false`, also file the bug report before session termination.
 
 ## Common Mistakes
 
@@ -702,4 +704,4 @@ The `error_log` field in the `mark-failed` response contains the log file path. 
 - **Attempting push on fork PR**: Fork PRs skip code application/commit/push entirely
 - **Skipping code application**: When `DRY_RUN=false` and `IS_FORK=false`, code application is mandatory for accepted issues. Recording all issues as `failed-issues` without attempting fixes creates an infinite loop and violates the procedure. CC must either apply fixes or escalate to the user.
 - **Treating debate review as review-only**: The skill is a review + fix system, not a comment-only reviewer. If only review comments are needed, use `DRY_RUN=true` in config.
-- **Ignoring errors**: Every failure must go through `mark-failed` and produce a bug report before session termination
+- **Ignoring errors**: Every failure must go through `mark-failed`; when `DRY_RUN=false`, also produce a bug report before session termination
