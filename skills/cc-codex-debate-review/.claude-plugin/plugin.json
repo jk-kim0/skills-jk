@@ -1,0 +1,12 @@
+{
+  "name": "cc-codex-debate-review",
+  "version": "0.1.0",
+  "description": "Debate-driven PR review orchestration between Claude Code and Codex",
+  "author": {
+    "name": "JK",
+    "url": "https://github.com/jk-kim0"
+  },
+  "repository": "https://github.com/jk-kim0/skills-jk",
+  "license": "CC0-1.0",
+  "keywords": ["code-review", "debate", "pr-review", "codex", "ai-review"]
+}
