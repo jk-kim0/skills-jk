@@ -11,8 +11,6 @@
 
 {REVIEW_CONTEXT}
 
-## Debate Ledger
-
 {DEBATE_LEDGER}
 
 ## Lead Agent의 Findings

@@ -167,9 +167,9 @@ def settle_round(state, *, round_num) -> dict:
                     # Same status + same round → already counted (idempotency)
                     continue
                 # Different round with same status — only include if genuinely re-settled:
-                # issue must have been reopened (withdrawn→open or applied→open) in this round
-                was_reopened = issue.get("reopened_in_round") == round_num
-                if not was_reopened:
+                # issue must have been reopened AFTER the last ledger entry
+                reopened = issue.get("reopened_in_round")
+                if not (reopened is not None and reopened > (prev[1] or 0)):
                     continue
             settled_issues.append({
                 "issue_id": iid,

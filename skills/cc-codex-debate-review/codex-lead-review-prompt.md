@@ -11,8 +11,6 @@
 
 {REVIEW_CONTEXT}
 
-## Debate Ledger
-
 {DEBATE_LEDGER}
 
 ## 현재 Open Issue 현황

@@ -11,8 +11,6 @@
 
 {REVIEW_CONTEXT}
 
-## Debate Ledger
-
 {DEBATE_LEDGER}
 
 ## 반박(Rebuttal) 처리
