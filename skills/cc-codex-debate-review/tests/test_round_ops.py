@@ -342,3 +342,102 @@ def test_settle_allows_re_raised_issue_in_new_round(sample_state):
     # Different round → should appear (re-raised then re-withdrawn)
     assert len(result["settled_issues"]) == 1
     assert result["settled_issues"][0]["issue_id"] == issue_id
+
+
+def test_settle_stall_detection_after_2_no_progress_rounds(sample_state):
+    """2 consecutive rounds with no settlements and no applied code → stalled."""
+    from debate_review.issue_ops import upsert_issue
+    from debate_review.cross_verification import record_cross_verification
+
+    # Round 1: create an accepted issue (this round has settled_issues → progress)
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    r1 = upsert_issue(sample_state, agent="codex", round_num=1, severity="warning",
+                       criterion=3, file="src/foo.ts", line=42, anchor="retry", message="loop")
+    issue_id = r1["issue_id"]
+    record_cross_verification(sample_state, round_num=1,
+                              verifications=[{"report_id": r1["report_id"], "decision": "accept", "reason": "ok"}])
+    record_verdict(sample_state, round_num=1, verdict="has_findings")
+    r1_result = settle_round(sample_state, round_num=1)
+    assert r1_result["result"] == "continue"
+    # Round 1 has settled_issues (accepted issue), so it's NOT stalled
+    assert "stall_count" not in r1_result
+
+    # Add ledger entry so round 2 won't re-count the same settled issue
+    sample_state["debate_ledger"] = [
+        {"issue_id": issue_id, "status": "accepted", "summary": "...", "round": 1}
+    ]
+
+    # Round 2: no new settlements, no code applied, but has unresolved issue
+    init_round(sample_state, round_num=2, lead_agent="cc", synced_head_sha="abc")
+    record_verdict(sample_state, round_num=2, verdict="has_findings")
+    r2_result = settle_round(sample_state, round_num=2)
+    assert r2_result["result"] == "continue"
+    assert r2_result.get("stall_count") == 1
+
+    # Round 3: still no progress
+    init_round(sample_state, round_num=3, lead_agent="codex", synced_head_sha="abc")
+    record_verdict(sample_state, round_num=3, verdict="has_findings")
+    r3_result = settle_round(sample_state, round_num=3)
+    assert r3_result["result"] == "stalled"
+    assert r3_result["stall_count"] == 2
+    assert sample_state["status"] == "stalled"
+    assert sample_state["final_outcome"] == "stalled"
+    assert "error_message" in sample_state
+    assert "2 consecutive rounds" in sample_state["error_message"]
+
+
+def test_settle_no_stall_when_clean_pass(sample_state):
+    """Clean pass rounds (no unresolved issues) should NOT trigger stall detection."""
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    record_verdict(sample_state, round_num=1, verdict="no_findings_mergeable")
+    r1 = settle_round(sample_state, round_num=1)
+    assert r1["result"] == "continue"
+    assert "stall_count" not in r1
+
+    init_round(sample_state, round_num=2, lead_agent="codex", synced_head_sha="abc")
+    record_verdict(sample_state, round_num=2, verdict="no_findings_mergeable")
+    r2 = settle_round(sample_state, round_num=2)
+    assert r2["result"] == "continue"  # not stalled, just no consensus (same agent)
+
+
+def test_settle_stall_resets_after_progress(sample_state):
+    """Progress in a round should reset the stall counter."""
+    from debate_review.issue_ops import upsert_issue
+    from debate_review.cross_verification import record_cross_verification
+
+    # Round 1: create open issue (not accepted), no code applied → no progress
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    r1 = upsert_issue(sample_state, agent="codex", round_num=1, severity="warning",
+                       criterion=3, file="src/foo.ts", line=42, anchor="retry", message="loop")
+    issue_id = r1["issue_id"]
+    # Do NOT accept — leave issue open so settled_issues is empty
+    record_verdict(sample_state, round_num=1, verdict="has_findings")
+    r1_result = settle_round(sample_state, round_num=1)
+    assert r1_result["result"] == "continue"
+    assert r1_result.get("stall_count") == 1  # first no-progress round
+
+    # Round 2: accept issue + apply code → progress
+    init_round(sample_state, round_num=2, lead_agent="cc", synced_head_sha="abc")
+    record_cross_verification(sample_state, round_num=2,
+                              verifications=[{"report_id": r1["report_id"], "decision": "accept", "reason": "ok"}])
+    sample_state["rounds"][1]["step3"]["applied_issue_ids"] = [issue_id]
+    sample_state["issues"][issue_id]["application_status"] = "applied"
+    record_verdict(sample_state, round_num=2, verdict="has_findings")
+    r2 = settle_round(sample_state, round_num=2)
+    assert r2["result"] == "continue"
+    assert "stall_count" not in r2  # progress was made (applied code)
+
+    # Add ledger entry so settled_issues won't re-count in round 3
+    sample_state["debate_ledger"].append(
+        {"issue_id": issue_id, "status": "accepted", "summary": "...", "round": 2}
+    )
+
+    # Round 3: new open issue, no code applied → no progress, but stall_count resets to 1
+    init_round(sample_state, round_num=3, lead_agent="codex", synced_head_sha="abc")
+    upsert_issue(sample_state, agent="codex", round_num=3, severity="warning",
+                 criterion=5, file="src/bar.ts", line=10, anchor="timeout", message="hardcoded")
+    record_verdict(sample_state, round_num=3, verdict="has_findings")
+    r3_result = settle_round(sample_state, round_num=3)
+    assert r3_result["result"] == "continue"
+    # stall_count is 1, NOT 2 — the progress in round 2 reset the streak
+    assert r3_result.get("stall_count") == 1

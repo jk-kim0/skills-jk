@@ -176,7 +176,7 @@ Skip if no previous round exists or no rebuttals are pending.
    ```bash
    cd "$WORKTREE_PATH"
    # Save prompt to temp file and pass via stdin (avoid ARG_MAX overflow)
-   PROMPT_FILE=$(mktemp /tmp/debate-prompt-XXXXXX.txt)
+   PROMPT_FILE=$(mktemp /tmp/debate-prompt-XXXXXX)
    printf '%s' "$FILLED_PROMPT" > "$PROMPT_FILE"
    codex exec -s "$CODEX_SANDBOX" - < "$PROMPT_FILE"
    rm -f "$PROMPT_FILE"
@@ -284,6 +284,15 @@ The lead agent handles three things:
 2. Evaluate cross-verifier's new findings (accept/maintain)
 3. Apply code fixes for agreed issues (same-repo PRs only)
 
+#### Code Application is Mandatory
+
+When `DRY_RUN=false` and `IS_FORK=false`, the lead agent **MUST** attempt to fix every issue with `consensus_status=accepted` and `application_status=pending|failed`. Skipping code application without attempting is a procedure violation.
+
+- **Codex lead**: CC applies Codex's `code_fixes` patches via `git apply`. If a patch fails `--check`, that specific issue is recorded as `failed-issues` — this is the only legitimate failure path.
+- **CC lead**: CC modifies files directly in the worktree. CC must not record issues as `failed-issues` without actually attempting the fix. If CC cannot determine how to fix an issue, CC must explain the reason in the commit message or escalate to the user — not silently skip.
+
+**Prohibited**: Recording all applicable issues as `failed-issues` without attempting any code modification. This creates an infinite `continue` loop where accepted issues never reach `applied` status.
+
 **When Codex is lead:**
 
 Prompt template: `./codex-lead-response-prompt.md` (`$SKILL_ROOT/codex-lead-response-prompt.md`)
@@ -332,7 +341,7 @@ Save each `code_fixes` item's `diff` value to a file and apply with `git apply`:
 STAGED_FILES=$(mktemp)
 
 # Iterate over each code_fix item
-PATCH_FILE=$(mktemp /tmp/debate-patch-XXXXXX.patch)
+PATCH_FILE=$(mktemp /tmp/debate-patch-XXXXXX)
 printf '%s\n' "$DIFF_CONTENT" > "$PATCH_FILE"
 git -C "$WORKTREE_PATH" apply --check "$PATCH_FILE"  # Verify
 git -C "$WORKTREE_PATH" apply "$PATCH_FILE"           # Apply
@@ -343,13 +352,24 @@ rm -f "$PATCH_FILE"
 - On `--check` failure, record the issue_id as `failed-issues` and continue to the next item
 - After all applications, reflect in Phase 1's `--applied-issues` and `--failed-issues`
 - Accumulate actual file paths modified by successful patches for dedup staging in Phase 2
-- When CC is lead, CC modifies code directly (code_fixes not needed)
+- **When CC is lead**, CC modifies code directly in `$WORKTREE_PATH`:
+  1. For each applicable issue, read the target file, determine the fix, and edit the file
+  2. Track modified file paths for staging (same as Codex patch flow)
+  3. If CC cannot determine a fix for a specific issue, record that single issue as `failed-issues` and report the reason to the user — do not batch-fail all issues
+  4. Proceed to Phase 1 with the actual `applied-issues` and `failed-issues` lists
 
 #### Code Application (Same-Repo PR, 3-Phase)
 
 All issues with `consensus_status=accepted` and `application_status=pending|failed` are fixed by the lead agent.
 
 If `DRY_RUN=true`, skip all 3 phases. In dry-run mode, only verify state without creating commits/pushes.
+
+**Before calling Phase 1**, the lead agent must have performed one of:
+- `git apply` for each Codex `code_fixes` item (Codex lead rounds)
+- Direct file edits in `$WORKTREE_PATH` (CC lead rounds)
+
+If no code modification was attempted at all, do NOT call `record-application`. Instead, escalate to the user:
+> "N accepted issues require code fixes but I cannot determine appropriate changes. Please advise."
 
 **Phase 1: Record Application Results**
 
@@ -423,6 +443,7 @@ Branch based on `SETTLE_RESULT.result`:
 | Result | Meaning | Next Action |
 |--------|---------|-------------|
 | `continue` | No consensus | Repeat round loop with `next_round` |
+| `stalled` | 2+ consecutive no-progress rounds | Terminal processing → post comment |
 | `consensus_reached` | Consensus reached | Terminal processing → post comment |
 | `max_rounds_exceeded` | Max rounds exceeded | Terminal processing → post comment |
 
@@ -431,6 +452,13 @@ If `continue`:
 CURRENT_ROUND=$(echo "$SETTLE_RESULT" | jq -r '.next_round')
 # Return to round loop start (Step 0)
 ```
+
+#### Stall Detection
+
+The CLI detects stalls automatically inside `settle-round`. A round has "no progress" when:
+- `settled_issues` is empty AND no code was applied (Phase 1 `applied=0`) AND unresolved issues exist
+
+If 2 consecutive rounds make no progress, `settle-round` returns `result="stalled"` (a terminal state). The CLI sets `final_outcome="stalled"` and `error_message` automatically. Treat `stalled` the same as other terminal results: post the final comment and clean up.
 
 ---
 
@@ -602,6 +630,7 @@ See `REFERENCE.md` for placeholder sources. State-derivable placeholders are ret
 | Worktree | `<repo_root>/.worktrees/debate-pr-<N>` |
 | GitHub CLI | `env -u GITHUB_TOKEN -u GH_TOKEN gh ...` |
 | Output language | Config `language` (default: `en`) |
+| Code application | Mandatory when `DRY_RUN=false` and `IS_FORK=false` |
 
 ## Common Mistakes
 
@@ -612,3 +641,5 @@ See `REFERENCE.md` for placeholder sources. State-derivable placeholders are ret
 - **Using Codex output as-is in comments**: Orchestrator must normalize to standard format
 - **Ignoring phase order**: Strictly follow Phase 1 → commit → Phase 2 → push → Phase 3
 - **Attempting push on fork PR**: Fork PRs skip code application/commit/push entirely
+- **Skipping code application**: When `DRY_RUN=false` and `IS_FORK=false`, code application is mandatory for accepted issues. Recording all issues as `failed-issues` without attempting fixes creates an infinite loop and violates the procedure. CC must either apply fixes or escalate to the user.
+- **Treating debate review as review-only**: The skill is a review + fix system, not a comment-only reviewer. If only review comments are needed, use `DRY_RUN=true` in config.

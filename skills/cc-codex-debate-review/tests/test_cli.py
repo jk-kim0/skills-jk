@@ -473,3 +473,30 @@ def test_cli_append_ledger(monkeypatch, capsys, state_path):
     state = load_state(state_path)
     assert len(state["debate_ledger"]) == 1
     assert state["debate_ledger"][0]["issue_id"] == "isu_001"
+
+
+def test_cli_record_application_warns_all_failed(monkeypatch, capsys, state_path):
+    """record-application with applied=[] and failed=[...] should emit stderr warning."""
+    _run_cli(monkeypatch, [
+        "upsert-issue", "--state-file", state_path,
+        "--agent", "codex", "--round", "1",
+        "--severity", "critical", "--criterion", "1",
+        "--file", "src/a.py", "--line", "10",
+        "--anchor", "validate_input",
+        "--message", "Missing input validation",
+    ])
+    issue_id = json.loads(capsys.readouterr().out)["issue_id"]
+
+    _run_cli(monkeypatch, [
+        "record-application", "--state-file", state_path,
+        "--round", "1",
+        "--applied-issues", json.dumps([]),
+        "--failed-issues", json.dumps([issue_id]),
+    ])
+    captured = capsys.readouterr()
+    result = json.loads(captured.out)
+    assert result["phase"] == 1
+    assert result["applied"] == 0
+    assert result["failed"] == 1
+    assert "WARNING" in captured.err
+    assert "applied=0" in captured.err
