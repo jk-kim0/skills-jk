@@ -344,6 +344,7 @@ def test_cli_valueerror_json_exit(monkeypatch, capsys, state_path):
     result = json.loads(out)
     assert "error" in result
     assert "open issue" in result["error"]
+    assert "error_log" in result
 
 
 # Test 10: Invalid JSON in --verifications
