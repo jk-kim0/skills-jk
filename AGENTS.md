@@ -10,7 +10,7 @@ At the start of every user turn:
 1. Check whether `cwd` is inside this repository.
 2. Discover available skills from these sources (in order):
    - Session-provided skill list (if present)
-   - `skills/` directory in this repository
+   - `skills/` directory in this repository (each skill is `skills/<name>/SKILL.md`)
    - `$CODEX_HOME/skills/.system/` for built-in system skills
 3. Build a short in-memory registry for this turn:
    - `name`

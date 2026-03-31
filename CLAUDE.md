@@ -7,7 +7,7 @@
 1. `git checkout main && git pull origin main`
 2. `git checkout -b <prefix>/<descriptive-name>`
 
-자세한 절차: `skills/ops/session-startup.md`
+자세한 절차: `skills/session-startup/SKILL.md`
 
 ## Branch Naming
 
@@ -20,7 +20,7 @@
 
 ## Related Skills
 
-- [session-startup](skills/ops/session-startup.md): 세션 시작 시 브랜치 관리
-- [branch-workflow](skills/ops/branch-workflow.md): 브랜치 관리 전체 워크플로우
-- [commit](skills/ops/commit.md): 커밋 메시지 규칙
-- [update-project-doc](skills/ops/update-project-doc.md): PR/마일스톤 후 프로젝트 문서 갱신
+- [session-startup](skills/session-startup/SKILL.md): 세션 시작 시 브랜치 관리
+- [branch-workflow](skills/branch-workflow/SKILL.md): 브랜치 관리 전체 워크플로우
+- [commit](skills/commit/SKILL.md): 커밋 메시지 규칙
+- [update-project-doc](skills/update-project-doc/SKILL.md): PR/마일스톤 후 프로젝트 문서 갱신
