@@ -444,6 +444,9 @@ def cmd_mark_failed(args):
     state = load_state(args.state_file)
     if state is None:
         _error_exit(f"No state file found at {args.state_file}")
+    if state.get("dry_run"):
+        print(json.dumps(_dry_run_skip(state, command="mark-failed", error_message=args.error_message)))
+        return
     mark_failed(state, error_message=args.error_message)
     save_state(state, args.state_file)
     print(json.dumps({"status": "failed", "error_message": args.error_message}))
@@ -453,11 +456,17 @@ def cmd_append_ledger(args):
     state = load_state(args.state_file)
     if state is None:
         _error_exit(f"No state file found at {args.state_file}")
+    if state.get("dry_run"):
+        print(json.dumps(_dry_run_skip(state, command="append-ledger")))
+        return
     try:
         entries = json.loads(args.entries)
     except json.JSONDecodeError as e:
         _error_exit(f"Invalid JSON for --entries: {e}")
-    result = append_ledger(state, entries=entries)
+    try:
+        result = append_ledger(state, entries=entries)
+    except KeyError as e:
+        _error_exit(f"Malformed ledger entry — missing required field: {e}")
     save_state(state, args.state_file)
     print(json.dumps(result))
 
