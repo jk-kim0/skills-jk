@@ -321,18 +321,8 @@ def test_cli_journal_step_progression(monkeypatch, capsys, state_path):
 
 
 # Test 9: ValueError from business logic produces JSON error + exit 1
-def test_cli_valueerror_json_exit(monkeypatch, capsys, state_path, tmp_path):
+def test_cli_valueerror_json_exit(monkeypatch, capsys, state_path):
     """Business logic ValueError should produce JSON error, exit 1."""
-    calls = []
-
-    def fake_save_error_log(*, command, error_message, state_file=None):
-        calls.append({
-            "command": command,
-            "error_message": error_message,
-            "state_file": state_file,
-        })
-        return str(tmp_path / "error-log.json")
-
     # record-verdict with no_findings_mergeable but open issues exist
     _run_cli(monkeypatch, [
         "upsert-issue", "--state-file", state_path,
@@ -343,7 +333,6 @@ def test_cli_valueerror_json_exit(monkeypatch, capsys, state_path, tmp_path):
     ])
     capsys.readouterr()
 
-    monkeypatch.setattr("debate_review.cli.save_error_log", fake_save_error_log)
     monkeypatch.setattr(sys, "argv", ["debate-review",
         "record-verdict", "--state-file", state_path,
         "--round", "1", "--verdict", "no_findings_mergeable",
@@ -355,15 +344,11 @@ def test_cli_valueerror_json_exit(monkeypatch, capsys, state_path, tmp_path):
     result = json.loads(out)
     assert "error" in result
     assert "open issue" in result["error"]
-    assert result["error_log"] == str(tmp_path / "error-log.json")
-    assert calls == [{
-        "command": "record-verdict",
-        "error_message": result["error"],
-        "state_file": state_path,
-    }]
+    assert "error_log" not in result
 
 
-def test_cli_save_error_log_subcommand_dispatches_with_command_option(monkeypatch, capsys, tmp_path):
+def test_cli_mark_failed_saves_error_log(monkeypatch, capsys, state_path, tmp_path):
+    """mark-failed should save an error log and return error_log path."""
     calls = []
 
     def fake_save_error_log(*, command, error_message, state_file=None):
@@ -376,30 +361,38 @@ def test_cli_save_error_log_subcommand_dispatches_with_command_option(monkeypatc
 
     monkeypatch.setattr("debate_review.cli.save_error_log", fake_save_error_log)
     _run_cli(monkeypatch, [
-        "save-error-log", "--command", "git push",
-        "--error-message", "push failed", "--state-file", "/tmp/state.json",
+        "mark-failed", "--state-file", state_path,
+        "--error-message", "git push failed",
+        "--failed-command", "git push",
     ])
     result = json.loads(capsys.readouterr().out)
+    assert result["status"] == "failed"
+    assert result["error_message"] == "git push failed"
     assert result["error_log"] == str(tmp_path / "error-log.json")
     assert calls == [{
         "command": "git push",
-        "error_message": "push failed",
-        "state_file": "/tmp/state.json",
+        "error_message": "git push failed",
+        "state_file": state_path,
     }]
 
 
-def test_cli_save_error_log_subcommand_oserror_returns_json_error(monkeypatch, capsys):
+def test_cli_mark_failed_without_failed_command(monkeypatch, capsys, state_path, tmp_path):
+    """mark-failed without --failed-command defaults to 'unknown'."""
+    calls = []
+
     def fake_save_error_log(*, command, error_message, state_file=None):
-        raise OSError("permission denied")
+        calls.append(command)
+        return str(tmp_path / "error-log.json")
 
     monkeypatch.setattr("debate_review.cli.save_error_log", fake_save_error_log)
     _run_cli(monkeypatch, [
-        "save-error-log", "--command", "git push",
-        "--error-message", "push failed", "--state-file", "/tmp/state.json",
+        "mark-failed", "--state-file", state_path,
+        "--error-message", "something broke",
     ])
     result = json.loads(capsys.readouterr().out)
-    assert result["error"] == "Failed to save error log: permission denied"
-    assert "error_log" not in result
+    assert result["status"] == "failed"
+    assert "error_log" in result
+    assert calls == ["unknown"]
 
 
 # Test 10: Invalid JSON in --verifications

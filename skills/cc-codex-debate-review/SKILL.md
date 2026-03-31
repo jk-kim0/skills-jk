@@ -634,40 +634,21 @@ See `REFERENCE.md` for placeholder sources. State-derivable placeholders are ret
 
 ## Error Handling & Bug Reporting
 
-When a CLI command or external command fails during orchestration, the orchestrator **must** file a bug report.
+When a CLI command or external command fails during orchestration, the orchestrator terminates the session via `mark-failed` and files a bug report.
 
-### Error Log Files
+### Failure → mark-failed → Bug Report
 
-CLI errors automatically save structured logs to `~/.claude/debate-state/error-logs/`. Each log file contains:
+On any failure (CLI exit code 1, external command failure, JSON parse failure after retries):
 
-```json
-{
-  "timestamp": "2026-03-31T12:00:00+00:00",
-  "command": "sync-head",
-  "error": "git failed: ...",
-  "state_file": "~/.claude/debate-state/owner-repo-123.json"
-}
-```
-
-### When to Report
-
-Report a bug when **any** of these occur:
-
-| Failure Type | Example |
-|-------------|---------|
-| CLI command exit code 1 | `$DEBATE_REVIEW_BIN sync-head` returns `{"error": "..."}` |
-| External command failure | `gh pr view`, `git push`, `codex exec` returns non-zero exit |
-| Shell command failure | `mktemp`, `git apply`, `git commit` fails |
-| JSON parse failure | Codex output is not valid JSON after 3 retries |
-
-### Bug Report Procedure
-
-1. Read the error log file path from CLI output (`error_log` field)
-2. Read the error log content:
+1. Run `mark-failed` to terminate the session and save an error log:
    ```bash
-   cat "$ERROR_LOG_PATH"
+   RESULT=$("$DEBATE_REVIEW_BIN" mark-failed \
+     --state-file "$STATE_FILE" \
+     --error-message "$ERROR_MESSAGE" \
+     --failed-command "$COMMAND")
+   ERROR_LOG_PATH=$(echo "$RESULT" | jq -r '.error_log // empty')
    ```
-3. Create a GitHub Issue:
+2. Create a GitHub Issue:
    ```bash
    env -u GITHUB_TOKEN -u GH_TOKEN gh issue create \
      --repo "$SKILL_REPO" \
@@ -677,7 +658,6 @@ Report a bug when **any** of these occur:
 
    - **Command**: \`$COMMAND\`
    - **PR**: $REPO#$PR_NUMBER (round $CURRENT_ROUND)
-   - **Timestamp**: $TIMESTAMP
    - **State file**: \`$STATE_FILE\`
 
    ## Error message
@@ -690,33 +670,26 @@ Report a bug when **any** of these occur:
 
    - Lead agent: $LEAD_AGENT
    - Step: $CURRENT_STEP
-   - Error log: \`$ERROR_LOG_PATH\`
    EOF
    )"
    ```
-4. Run `mark-failed` to terminate the session:
-   ```bash
-   "$DEBATE_REVIEW_BIN" mark-failed --state-file "$STATE_FILE" --error-message "$ERROR_MESSAGE"
-   ```
 
-### External Command Failures in SKILL.md Steps
+### Error Log Files
 
-For shell commands invoked directly by the orchestrator (not via CLI subcommands), the CLI `error_log` field is **not available**. The orchestrator must create the error log via the CLI wrapper:
+`mark-failed` automatically saves a structured log to `~/.claude/debate-state/error-logs/`:
 
-```bash
-ERROR_LOG_PATH=$("$DEBATE_REVIEW_BIN" save-error-log \
-  --command "$COMMAND" \
-  --error-message "$STDERR_OUTPUT" \
-  --state-file "$STATE_FILE" | jq -r '.error_log')
+```json
+{
+  "timestamp": "2026-03-31T12:00:00+00:00",
+  "command": "sync-head",
+  "error": "git failed: ...",
+  "state_file": "~/.claude/debate-state/owner-repo-123.json"
+}
 ```
 
-Then follow the Bug Report Procedure above (step 3 onward) using `$ERROR_LOG_PATH`.
+The `error_log` field in the `mark-failed` response contains the log file path. If log creation fails (e.g., unwritable directory), the field is omitted — the session is still terminated and the error message is still available in the JSON output.
 
-- **git apply / git commit / git push**: Capture stderr, create error log, file bug report, then `mark-failed`
-- **codex exec**: If JSON parsing fails after 3 retries, create error log with "codex output parse failure", file bug report
-- **mktemp / env / other shell utilities**: Capture the error, create error log, file bug report
-
-**Do not silently retry or ignore errors.** Every failure must produce a bug report before session termination.
+**Do not silently retry or ignore errors.** Every failure must go through `mark-failed` before session termination.
 
 ## Common Mistakes
 
@@ -729,4 +702,4 @@ Then follow the Bug Report Procedure above (step 3 onward) using `$ERROR_LOG_PAT
 - **Attempting push on fork PR**: Fork PRs skip code application/commit/push entirely
 - **Skipping code application**: When `DRY_RUN=false` and `IS_FORK=false`, code application is mandatory for accepted issues. Recording all issues as `failed-issues` without attempting fixes creates an infinite loop and violates the procedure. CC must either apply fixes or escalate to the user.
 - **Treating debate review as review-only**: The skill is a review + fix system, not a comment-only reviewer. If only review comments are needed, use `DRY_RUN=true` in config.
-- **Ignoring CLI/command errors**: Every failure must produce a bug report before session termination
+- **Ignoring errors**: Every failure must go through `mark-failed` and produce a bug report before session termination

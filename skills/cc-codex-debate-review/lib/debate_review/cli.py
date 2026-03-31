@@ -103,17 +103,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_fail = subparsers.add_parser("mark-failed", help="Mark session as terminal failed")
     p_fail.add_argument("--state-file", required=True)
     p_fail.add_argument("--error-message", default="Unknown error")
+    p_fail.add_argument("--failed-command", default="unknown", help="Command that caused the failure")
 
     # append-ledger subcommand
     p_ledger = subparsers.add_parser("append-ledger", help="Append entries to debate_ledger")
     p_ledger.add_argument("--state-file", required=True)
     p_ledger.add_argument("--entries", required=True, help="JSON array of ledger entries")
-
-    # save-error-log subcommand
-    p_errlog = subparsers.add_parser("save-error-log", help="Save an error log for external command failures")
-    p_errlog.add_argument("--command", dest="logged_command", required=True)
-    p_errlog.add_argument("--error-message", required=True)
-    p_errlog.add_argument("--state-file", default=None)
 
     # build-context subcommand
     p_ctx = subparsers.add_parser("build-context", help="Build review context from state")
@@ -132,18 +127,9 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _error_exit(message, *, command=None, state_file=None):
-    """Print JSON error, save error log, and exit with code 1."""
-    if command is None:
-        command = sys.argv[1] if len(sys.argv) > 1 else "unknown"
-    try:
-        log_path = save_error_log(command=command, error_message=message, state_file=state_file)
-    except OSError:
-        log_path = None
-    result = {"error": message}
-    if log_path:
-        result["error_log"] = log_path
-    print(json.dumps(result))
+def _error_exit(message):
+    """Print JSON error and exit with code 1."""
+    print(json.dumps({"error": message}))
     sys.exit(1)
 
 
@@ -466,23 +452,18 @@ def cmd_mark_failed(args):
         return
     mark_failed(state, error_message=args.error_message)
     save_state(state, args.state_file)
-    print(json.dumps({"status": "failed", "error_message": args.error_message}))
-
-
-def cmd_save_error_log(args):
     try:
         log_path = save_error_log(
-            command=args.logged_command,
+            command=args.failed_command,
             error_message=args.error_message,
             state_file=args.state_file,
         )
-    except OSError as e:
-        _error_exit(
-            f"Failed to save error log: {e}",
-            command="save-error-log",
-            state_file=args.state_file,
-        )
-    print(json.dumps({"error_log": log_path}))
+    except OSError:
+        log_path = None
+    result = {"status": "failed", "error_message": args.error_message}
+    if log_path:
+        result["error_log"] = log_path
+    print(json.dumps(result))
 
 
 def cmd_append_ledger(args):
@@ -522,7 +503,6 @@ def main():
         "record-application": cmd_record_application,
         "build-context": cmd_build_context,
         "mark-failed": cmd_mark_failed,
-        "save-error-log": cmd_save_error_log,
         "append-ledger": cmd_append_ledger,
         "sync-head": cmd_sync_head,
         "post-comment": cmd_post_comment,
@@ -532,7 +512,6 @@ def main():
         try:
             commands[args.command](args)
         except (RuntimeError, ValueError) as e:
-            state_file = getattr(args, "state_file", None)
-            _error_exit(str(e), command=args.command, state_file=state_file)
+            _error_exit(str(e))
     else:
         parser.print_help()
