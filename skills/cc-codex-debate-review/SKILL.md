@@ -589,7 +589,15 @@ After Step 4 (`settle-round`), the orchestrator (CC) checks the return value's `
 
 ### How to Record Ledger Entries
 
-If `settle-round` returns `settled_issues`, the orchestrator reads the state file, appends entries to the `debate_ledger` array, and saves. See `REFERENCE.md` "Debate Ledger Append Script" for the implementation.
+If `settle-round` returns `settled_issues`, append entries via CLI:
+
+```bash
+"$DEBATE_REVIEW_BIN" append-ledger \
+  --state-file "$STATE_FILE" \
+  --entries "$LEDGER_JSON"
+```
+
+The CLI deduplicates by `(issue_id, status, round)`.
 
 ### Re-appearance of Issues Already in the Ledger
 
@@ -656,7 +664,14 @@ When `journal.step = step3_lead_apply`, check checkpoints:
 | Push failure | Retry push from state recorded through Phase 2 |
 | CLI exit code 1 | Parse JSON error message, diagnose and act |
 
-On error exit, mark the state file as terminal failed first to prevent stale sessions from being resumed. Since `debate-review init` resumes `status=in_progress` sessions as-is, this step is mandatory on fatal error paths. See `REFERENCE.md` "Error Handling: Mark Failed Script" for the implementation. After marking failed, post the final comment (add `--no-comment` if `DRY_RUN=true`) and clean up the worktree.
+On error exit, mark the state file as terminal failed first to prevent stale sessions from being resumed. Since `debate-review init` resumes `status=in_progress` sessions as-is, this step is mandatory on fatal error paths:
+
+```bash
+"$DEBATE_REVIEW_BIN" mark-failed --state-file "$STATE_FILE" \
+  --error-message "$ERROR_MESSAGE"
+```
+
+After marking failed, post the final comment (add `--no-comment` if `DRY_RUN=true`) and clean up the worktree.
 
 ---
 

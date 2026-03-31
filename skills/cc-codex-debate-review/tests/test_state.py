@@ -4,8 +4,10 @@ import os
 import pytest
 
 from debate_review.state import (
+    append_ledger,
     create_initial_state,
     load_state,
+    mark_failed,
     save_state,
     state_file_path,
 )
@@ -81,6 +83,44 @@ def test_state_file_path_normal():
 def test_state_file_path_dry_run():
     path = state_file_path("owner/repo", 42, dry_run=True)
     assert path.endswith("owner-repo-42.dry-run.json")
+
+
+def test_mark_failed(sample_state):
+    mark_failed(sample_state, error_message="Something broke")
+    assert sample_state["status"] == "failed"
+    assert sample_state["final_outcome"] == "error"
+    assert sample_state["error_message"] == "Something broke"
+    assert sample_state["finished_at"] is not None
+    assert sample_state["head"]["terminal_sha"] == sample_state["head"]["last_observed_pr_sha"]
+    assert sample_state["journal"]["state_persisted"] is True
+
+
+def test_append_ledger_adds_entries(sample_state):
+    entries = [
+        {"issue_id": "isu_001", "status": "accepted", "summary": "fix applied", "round": 1},
+        {"issue_id": "isu_002", "status": "withdrawn", "reason": "intentional", "summary": "dropped", "round": 1},
+    ]
+    result = append_ledger(sample_state, entries=entries)
+    assert result["added"] == 2
+    assert result["total"] == 2
+    assert len(sample_state["debate_ledger"]) == 2
+
+
+def test_append_ledger_deduplicates(sample_state):
+    entry = {"issue_id": "isu_001", "status": "accepted", "summary": "fix", "round": 1}
+    append_ledger(sample_state, entries=[entry])
+    result = append_ledger(sample_state, entries=[entry])
+    assert result["added"] == 0
+    assert result["total"] == 1
+
+
+def test_append_ledger_allows_same_issue_different_round(sample_state):
+    e1 = {"issue_id": "isu_001", "status": "withdrawn", "reason": "old", "summary": "v1", "round": 1}
+    e2 = {"issue_id": "isu_001", "status": "accepted", "summary": "v2", "round": 3}
+    append_ledger(sample_state, entries=[e1])
+    result = append_ledger(sample_state, entries=[e2])
+    assert result["added"] == 1
+    assert result["total"] == 2
 
 
 def test_load_config_default_reads_bundled_config():

@@ -58,6 +58,31 @@ def create_initial_state(
     }
 
 
+def mark_failed(state, *, error_message="Unknown error"):
+    """Mark state as terminal failed."""
+    now = datetime.now(timezone.utc).isoformat()
+    state["status"] = "failed"
+    state["final_outcome"] = "error"
+    state["finished_at"] = now
+    state["error_message"] = error_message
+    state["head"]["terminal_sha"] = state["head"]["last_observed_pr_sha"]
+    state["journal"]["state_persisted"] = True
+
+
+def append_ledger(state, *, entries):
+    """Append settled issue entries to debate_ledger, deduplicating by (issue_id, status, round)."""
+    ledger = state.setdefault("debate_ledger", [])
+    existing = {(e["issue_id"], e["status"], e.get("round")) for e in ledger}
+    added = 0
+    for entry in entries:
+        key = (entry["issue_id"], entry["status"], entry.get("round"))
+        if key not in existing:
+            ledger.append(entry)
+            existing.add(key)
+            added += 1
+    return {"added": added, "total": len(ledger)}
+
+
 def state_file_path(repo, pr_number, dry_run=False) -> str:
     owner_repo = repo.replace("/", "-")
     suffix = ".dry-run.json" if dry_run else ".json"

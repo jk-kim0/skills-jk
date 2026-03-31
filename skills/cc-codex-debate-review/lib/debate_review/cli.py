@@ -17,8 +17,10 @@ from debate_review.round_ops import init_round, record_verdict, settle_round
 from debate_review.comment import post_comment
 from debate_review.sync import sync_head
 from debate_review.state import (
+    append_ledger,
     create_initial_state,
     load_state,
+    mark_failed,
     save_state,
     state_file_path,
 )
@@ -93,6 +95,16 @@ def build_parser() -> argparse.ArgumentParser:
     p_comment = subparsers.add_parser("post-comment")
     p_comment.add_argument("--state-file", required=True)
     p_comment.add_argument("--no-comment", action="store_true")
+
+    # mark-failed subcommand
+    p_fail = subparsers.add_parser("mark-failed", help="Mark session as terminal failed")
+    p_fail.add_argument("--state-file", required=True)
+    p_fail.add_argument("--error-message", default="Unknown error")
+
+    # append-ledger subcommand
+    p_ledger = subparsers.add_parser("append-ledger", help="Append entries to debate_ledger")
+    p_ledger.add_argument("--state-file", required=True)
+    p_ledger.add_argument("--entries", required=True, help="JSON array of ledger entries")
 
     # record-application subcommand
     p_app = subparsers.add_parser("record-application")
@@ -385,6 +397,28 @@ def cmd_record_application(args):
     print(json.dumps(result))
 
 
+def cmd_mark_failed(args):
+    state = load_state(args.state_file)
+    if state is None:
+        _error_exit(f"No state file found at {args.state_file}")
+    mark_failed(state, error_message=args.error_message)
+    save_state(state, args.state_file)
+    print(json.dumps({"status": "failed", "error_message": args.error_message}))
+
+
+def cmd_append_ledger(args):
+    state = load_state(args.state_file)
+    if state is None:
+        _error_exit(f"No state file found at {args.state_file}")
+    try:
+        entries = json.loads(args.entries)
+    except json.JSONDecodeError as e:
+        _error_exit(f"Invalid JSON for --entries: {e}")
+    result = append_ledger(state, entries=entries)
+    save_state(state, args.state_file)
+    print(json.dumps(result))
+
+
 def main():
     parser = build_parser()
     args = parser.parse_args()
@@ -399,6 +433,8 @@ def main():
         "record-cross-verification": cmd_record_cross_verification,
         "resolve-rebuttals": cmd_resolve_rebuttals,
         "record-application": cmd_record_application,
+        "mark-failed": cmd_mark_failed,
+        "append-ledger": cmd_append_ledger,
         "sync-head": cmd_sync_head,
         "post-comment": cmd_post_comment,
     }

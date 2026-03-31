@@ -388,3 +388,31 @@ def test_cli_init_persists_language_from_config(monkeypatch, capsys, tmp_path):
     state = load_state(result["state_file"])
     assert state["language"] == "ko"
     assert state["max_rounds"] == 7
+
+
+def test_cli_mark_failed(monkeypatch, capsys, state_path):
+    _run_cli(monkeypatch, [
+        "mark-failed", "--state-file", state_path,
+        "--error-message", "Codex parse failure",
+    ])
+    result = json.loads(capsys.readouterr().out)
+    assert result["status"] == "failed"
+    state = load_state(state_path)
+    assert state["status"] == "failed"
+    assert state["final_outcome"] == "error"
+    assert state["error_message"] == "Codex parse failure"
+
+
+def test_cli_append_ledger(monkeypatch, capsys, state_path):
+    entries = json.dumps([
+        {"issue_id": "isu_001", "status": "accepted", "summary": "fix applied", "round": 1},
+    ])
+    _run_cli(monkeypatch, [
+        "append-ledger", "--state-file", state_path,
+        "--entries", entries,
+    ])
+    result = json.loads(capsys.readouterr().out)
+    assert result["added"] == 1
+    state = load_state(state_path)
+    assert len(state["debate_ledger"]) == 1
+    assert state["debate_ledger"][0]["issue_id"] == "isu_001"
