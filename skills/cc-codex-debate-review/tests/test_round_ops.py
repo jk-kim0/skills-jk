@@ -382,6 +382,8 @@ def test_settle_stall_detection_after_2_no_progress_rounds(sample_state):
     assert r3_result["stall_count"] == 2
     assert sample_state["status"] == "stalled"
     assert sample_state["final_outcome"] == "stalled"
+    assert "error_message" in sample_state
+    assert "2 consecutive rounds" in sample_state["error_message"]
 
 
 def test_settle_no_stall_when_clean_pass(sample_state):

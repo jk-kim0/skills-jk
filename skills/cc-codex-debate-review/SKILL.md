@@ -443,6 +443,7 @@ Branch based on `SETTLE_RESULT.result`:
 | Result | Meaning | Next Action |
 |--------|---------|-------------|
 | `continue` | No consensus | Repeat round loop with `next_round` |
+| `stalled` | 2+ consecutive no-progress rounds | Terminal processing → post comment |
 | `consensus_reached` | Consensus reached | Terminal processing → post comment |
 | `max_rounds_exceeded` | Max rounds exceeded | Terminal processing → post comment |
 
@@ -454,16 +455,10 @@ CURRENT_ROUND=$(echo "$SETTLE_RESULT" | jq -r '.next_round')
 
 #### Stall Detection
 
-After `settle-round` returns `continue`, check if progress was made this round:
-- If `settled_issues` is empty AND no code was applied (Phase 1 `applied=0`), this round made no progress.
-- If 2 consecutive rounds make no progress, the debate is stalled. Treat as terminal:
+The CLI detects stalls automatically inside `settle-round`. A round has "no progress" when:
+- `settled_issues` is empty AND no code was applied (Phase 1 `applied=0`) AND unresolved issues exist
 
-```bash
-"$DEBATE_REVIEW_BIN" mark-failed --state-file "$STATE_FILE" \
-  --error-message "Stalled: 2 consecutive rounds with no progress (no settlements, no code applied)"
-```
-
-Post the final comment and clean up. Do NOT continue looping.
+If 2 consecutive rounds make no progress, `settle-round` returns `result="stalled"` (a terminal state). The CLI sets `final_outcome="stalled"` and `error_message` automatically. Treat `stalled` the same as other terminal results: post the final comment and clean up.
 
 ---
 

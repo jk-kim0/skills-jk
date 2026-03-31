@@ -233,6 +233,10 @@ def settle_round(state, *, round_num) -> dict:
         if stall_count >= 2:
             state["status"] = "stalled"
             state["final_outcome"] = "stalled"
+            state["error_message"] = (
+                f"Stalled: {stall_count} consecutive rounds with no progress "
+                "(no settlements, no code applied)"
+            )
             state["finished_at"] = datetime.now(timezone.utc).isoformat()
             state["head"]["terminal_sha"] = state["head"]["last_observed_pr_sha"]
             round_["step4"]["result"] = "stalled"
