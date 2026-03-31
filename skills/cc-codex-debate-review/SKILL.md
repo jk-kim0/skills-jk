@@ -638,7 +638,7 @@ When a CLI command or external command fails during orchestration, the orchestra
 
 ### Failure → mark-failed → Bug Report
 
-On any failure (CLI exit code 1, external command failure, JSON parse failure after retries):
+On any failure (CLI exit code 1, external command failure, JSON parse failure after retries), capture the failing command in `COMMAND` and the surfaced error text in `ERROR_MESSAGE`, then:
 
 1. Run `mark-failed`:
    In normal runs, this terminates the session and saves an error log.
@@ -652,9 +652,11 @@ On any failure (CLI exit code 1, external command failure, JSON parse failure af
    ```
 2. If `DRY_RUN=false`, create a GitHub Issue:
    ```bash
+   SKILL_REPO=$(git -C "$SKILL_ROOT" remote get-url origin | sed -E 's#(git@github.com:|https://github.com/)##; s#\.git$##')
+   SHORT_ERROR=$(printf '%s' "$ERROR_MESSAGE" | tr '\n' ' ' | cut -c1-120)
    env -u GITHUB_TOKEN -u GH_TOKEN gh issue create \
      --repo "$SKILL_REPO" \
-     --title "bug(debate-review): $COMMAND failed — $SHORT_ERROR" \
+     --title "bug(debate-review): $COMMAND failed - $SHORT_ERROR" \
      --body "$(cat <<EOF
    ## Error
 
@@ -671,7 +673,7 @@ On any failure (CLI exit code 1, external command failure, JSON parse failure af
    ## Context
 
    - Lead agent: $LEAD_AGENT
-   - Step: $CURRENT_STEP
+   - Error log: ${ERROR_LOG_PATH:-not available}
    EOF
    )"
    ```
