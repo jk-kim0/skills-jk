@@ -11,6 +11,8 @@
 
 {REVIEW_CONTEXT}
 
+{DEBATE_LEDGER}
+
 ## Lead Agent의 Findings
 
 Lead 리뷰어 (agent: {LEAD_AGENT_ID})가 제출한 findings:
@@ -24,6 +26,8 @@ Lead 리뷰어 (agent: {LEAD_AGENT_ID})가 제출한 findings:
 ## 자체 Findings
 
 아래 기준에 따라 독립적으로 diff를 리뷰하세요. Lead가 놓친 추가 issue를 보고합니다. Lead의 findings에 이미 포함된 issue를 중복 보고하지 마세요.
+
+**재제기 규칙:** Debate Ledger에 `withdrawn`으로 기록된 issue를 다시 제기하려면, ledger의 withdraw 사유와 **다른 새로운 근거**를 message에 명시해야 합니다. 동일 근거의 반복 제기는 금지합니다.
 
 ## 출력 형식
 

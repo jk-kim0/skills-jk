@@ -167,3 +167,59 @@ def test_build_comment_no_issues():
     state["current_round"] = 2
     body = build_comment_body(state)
     assert "No actionable issues remain." in body
+
+
+# Test: Debate Summary from ledger
+def test_build_comment_includes_debate_summary():
+    state = _consensus_state(is_fork=False)
+    state["debate_ledger"] = [
+        {"issue_id": "isu_001", "status": "accepted", "summary": "batch exit code — R1 제기, R1 합의", "round": 1},
+        {"issue_id": "isu_003", "status": "withdrawn", "summary": "KeyboardInterrupt — R1 제기, R5 withdraw", "round": 5},
+    ]
+    body = build_comment_body(state)
+    assert "## Debate Summary" in body
+    assert "isu_001 [accepted]" in body
+    assert "isu_003 [withdrawn]" in body
+    assert "batch exit code" in body
+
+
+def test_build_comment_no_debate_summary_when_empty_ledger():
+    state = _consensus_state(is_fork=False)
+    state["debate_ledger"] = []
+    body = build_comment_body(state)
+    assert "## Debate Summary" not in body
+
+
+def test_build_comment_max_rounds_includes_debate_summary():
+    state = create_initial_state(
+        repo="owner/repo", repo_root="/tmp/repo", pr_number=123,
+        is_fork=False, head_sha="abc123", pr_branch_name="feat/test",
+    )
+    state["status"] = "max_rounds_exceeded"
+    state["final_outcome"] = "no_consensus"
+    state["max_rounds"] = 10
+    state["debate_ledger"] = [
+        {"issue_id": "isu_001", "status": "accepted", "summary": "fixed in R3", "round": 3},
+    ]
+    body = build_comment_body(state)
+    assert "## Debate Summary" in body
+    assert "isu_001 [accepted]" in body
+
+
+def test_build_comment_error_includes_debate_summary():
+    state = create_initial_state(
+        repo="owner/repo", repo_root="/tmp/repo", pr_number=123,
+        is_fork=False, head_sha="abc123", pr_branch_name="feat/test",
+    )
+    state["status"] = "failed"
+    state["final_outcome"] = "error"
+    state["error_message"] = "Codex parse failure"
+    state["journal"]["round"] = 3
+    state["journal"]["step"] = "step2_cross_review"
+    state["debate_ledger"] = [
+        {"issue_id": "isu_001", "status": "accepted", "summary": "fixed in R2", "round": 2},
+    ]
+    body = build_comment_body(state)
+    assert "## Debate Summary" in body
+    assert "isu_001 [accepted]" in body
+    assert "Codex parse failure" in body

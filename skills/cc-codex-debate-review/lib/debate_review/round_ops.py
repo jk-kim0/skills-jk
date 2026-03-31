@@ -36,6 +36,7 @@ def init_round(state, *, round_num, lead_agent, synced_head_sha):
         "step4": {
             "unresolved_issue_ids": [],
             "recommendation_issue_ids": [],
+            "settled_issues": [],
             "result": None,
         },
     })
@@ -89,6 +90,34 @@ def record_verdict(state, *, round_num, verdict) -> dict:
     return {"round": round_num, "verdict": verdict, "clean_pass": clean_pass}
 
 
+def _collect_touched_issue_ids(round_, issues):
+    """Collect all issue IDs touched in any step of the round."""
+    touched = set()
+    # step1 & step2 explicit tracking
+    touched.update(round_.get("step1", {}).get("issue_ids_touched", []))
+    touched.update(round_.get("step2", {}).get("issue_ids_touched", []))
+    # step3 rebuttals have issue_id directly
+    for r in round_.get("step3", {}).get("rebuttals", []):
+        if "issue_id" in r:
+            touched.add(r["issue_id"])
+    # report_id → issue_id lookup for rebuttal responses and step3 decisions
+    report_to_issue = {}
+    for iid, issue in issues.items():
+        for report in issue.get("reports", []):
+            report_to_issue[report["report_id"]] = iid
+    for resp in round_.get("step1", {}).get("rebuttal_responses", []):
+        rid = resp.get("report_id")
+        if rid in report_to_issue:
+            touched.add(report_to_issue[rid])
+    for rid in round_.get("step3", {}).get("withdrawn_report_ids", []):
+        if rid in report_to_issue:
+            touched.add(report_to_issue[rid])
+    for rid in round_.get("step3", {}).get("accepted_report_ids", []):
+        if rid in report_to_issue:
+            touched.add(report_to_issue[rid])
+    return touched
+
+
 def settle_round(state, *, round_num) -> dict:
     round_ = _find_round(state, round_num)
     if round_["status"] != "active":
@@ -120,6 +149,38 @@ def settle_round(state, *, round_num) -> dict:
     round_["step4"]["unresolved_issue_ids"] = unresolved_issue_ids
     round_["step4"]["recommendation_issue_ids"] = recommendation_issue_ids
 
+    # Collect issues that were settled (withdrawn/accepted) during this round
+    # Skip if the latest ledger entry for this issue has same status AND same round
+    # (prevents double-counting within same round, but allows re-raised issues to append)
+    latest_ledger = {}
+    for entry in state.get("debate_ledger", []):
+        latest_ledger[entry["issue_id"]] = (entry["status"], entry.get("round"))
+
+    touched_ids = _collect_touched_issue_ids(round_, issues)
+    settled_issues = []
+    for iid, issue in issues.items():
+        cs = issue["consensus_status"]
+        if cs in ("withdrawn", "accepted") and iid in touched_ids:
+            prev = latest_ledger.get(iid)
+            if prev and prev[0] == cs:
+                if prev[1] == round_num:
+                    # Same status + same round → already counted (idempotency)
+                    continue
+                # Different round with same status — only include if genuinely re-settled:
+                # issue must have been reopened AFTER the last ledger entry
+                reopened = issue.get("reopened_in_round")
+                if not (reopened is not None and reopened > (prev[1] or 0)):
+                    continue
+            settled_issues.append({
+                "issue_id": iid,
+                "consensus_status": cs,
+                "consensus_reason": issue.get("consensus_reason"),
+                "file": issue.get("file"),
+                "anchor": issue.get("anchor"),
+            })
+
+    round_["step4"]["settled_issues"] = settled_issues
+
     # Check consensus: last 2 completed rounds both have clean_pass==True
     # AND different lead agents (spec requirement)
     completed = [r for r in state["rounds"] if r["status"] == "completed"]
@@ -147,6 +208,7 @@ def settle_round(state, *, round_num) -> dict:
             "result": "consensus_reached",
             "unresolved_issue_ids": unresolved_issue_ids,
             "recommendation_issue_ids": recommendation_issue_ids,
+            "settled_issues": settled_issues,
         }
     elif max_rounds_exceeded:
         state["status"] = "max_rounds_exceeded"
@@ -159,6 +221,7 @@ def settle_round(state, *, round_num) -> dict:
             "result": "max_rounds_exceeded",
             "unresolved_issue_ids": unresolved_issue_ids,
             "recommendation_issue_ids": recommendation_issue_ids,
+            "settled_issues": settled_issues,
         }
     else:
         state["current_round"] += 1
@@ -170,4 +233,5 @@ def settle_round(state, *, round_num) -> dict:
             "next_round": state["current_round"],
             "unresolved_issue_ids": unresolved_issue_ids,
             "recommendation_issue_ids": recommendation_issue_ids,
+            "settled_issues": settled_issues,
         }

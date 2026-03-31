@@ -131,3 +131,206 @@ def test_upsert_populates_step1_tracking(sample_state):
     r = sample_state["rounds"][0]
     assert result["report_id"] in r["step1"]["report_ids"]
     assert result["issue_id"] in r["step1"]["issue_ids_touched"]
+
+
+def test_settle_returns_settled_issues(sample_state):
+    """settle_round should return settled_issues for issues resolved in this round."""
+    from debate_review.issue_ops import upsert_issue
+    from debate_review.cross_verification import record_cross_verification
+
+    # Round 1: codex finds issue, cc accepts → consensus_status=accepted
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    upsert_result = upsert_issue(
+        sample_state, agent="codex", round_num=1, severity="warning",
+        criterion=3, file="src/foo.ts", line=42, anchor="retry",
+        message="unbounded loop",
+    )
+    report_id = upsert_result["report_id"]
+    record_cross_verification(
+        sample_state, round_num=1,
+        verifications=[{"report_id": report_id, "decision": "accept", "reason": "agree"}],
+    )
+    # Mark as applied so verdict can be clean
+    issue_id = upsert_result["issue_id"]
+    sample_state["issues"][issue_id]["application_status"] = "applied"
+    sample_state["issues"][issue_id]["applied_by"] = "codex"
+    record_verdict(sample_state, round_num=1, verdict="no_findings_mergeable")
+    result = settle_round(sample_state, round_num=1)
+
+    assert "settled_issues" in result
+    assert len(result["settled_issues"]) == 1
+    settled = result["settled_issues"][0]
+    assert settled["issue_id"] == issue_id
+    assert settled["consensus_status"] == "accepted"
+
+
+def test_settle_returns_empty_settled_issues_when_none(sample_state):
+    """settle_round should return empty settled_issues when no issues were settled."""
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    record_verdict(sample_state, round_num=1, verdict="has_findings")
+    result = settle_round(sample_state, round_num=1)
+    assert result["settled_issues"] == []
+
+
+def test_settle_detects_issues_settled_via_resolve_rebuttals(sample_state):
+    """settled_issues should include issues withdrawn via resolve_rebuttals step 3."""
+    from debate_review.issue_ops import upsert_issue
+    from debate_review.cross_verification import record_cross_verification, resolve_rebuttals
+
+    # Round 1: codex finds issue, cc rebuts
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    upsert_result = upsert_issue(
+        sample_state, agent="codex", round_num=1, severity="warning",
+        criterion=3, file="src/foo.ts", line=42, anchor="retry",
+        message="unbounded loop",
+    )
+    report_id = upsert_result["report_id"]
+    issue_id = upsert_result["issue_id"]
+    record_cross_verification(
+        sample_state, round_num=1,
+        verifications=[{"report_id": report_id, "decision": "rebut", "reason": "intentional"}],
+    )
+    # Lead (codex) withdraws via resolve_rebuttals step 3
+    resolve_rebuttals(
+        sample_state, round_num=1, step="3",
+        decisions=[{"report_id": report_id, "decision": "withdraw", "reason": "rebuttal accepted"}],
+    )
+    record_verdict(sample_state, round_num=1, verdict="has_findings")
+    result = settle_round(sample_state, round_num=1)
+
+    # Issue was withdrawn via step3, not step1/step2 — must still appear in settled_issues
+    assert len(result["settled_issues"]) == 1
+    assert result["settled_issues"][0]["issue_id"] == issue_id
+    assert result["settled_issues"][0]["consensus_status"] == "withdrawn"
+
+
+def test_settle_no_duplicate_settled_from_application(sample_state):
+    """Issues only applied (not settled) in this round should not appear in settled_issues."""
+    from debate_review.issue_ops import upsert_issue
+    from debate_review.cross_verification import record_cross_verification
+
+    # Round 1: issue accepted
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    upsert_result = upsert_issue(
+        sample_state, agent="codex", round_num=1, severity="warning",
+        criterion=3, file="src/foo.ts", line=42, anchor="retry",
+        message="unbounded loop",
+    )
+    report_id = upsert_result["report_id"]
+    issue_id = upsert_result["issue_id"]
+    record_cross_verification(
+        sample_state, round_num=1,
+        verifications=[{"report_id": report_id, "decision": "accept", "reason": "agree"}],
+    )
+    record_verdict(sample_state, round_num=1, verdict="has_findings")
+    r1 = settle_round(sample_state, round_num=1)
+    # Issue was settled (accepted) in round 1
+    assert len(r1["settled_issues"]) == 1
+
+    # Round 2: issue gets applied but no new settlement decision
+    init_round(sample_state, round_num=2, lead_agent="cc", synced_head_sha="abc")
+    sample_state["rounds"][1]["step3"]["applied_issue_ids"].append(issue_id)
+    sample_state["issues"][issue_id]["application_status"] = "applied"
+    record_verdict(sample_state, round_num=2, verdict="no_findings_mergeable")
+    r2 = settle_round(sample_state, round_num=2)
+    # Issue should NOT appear again — it was only applied, not re-settled
+    assert len(r2["settled_issues"]) == 0
+
+
+def test_settle_deduplicates_same_round_same_status(sample_state):
+    """settled_issues should skip issues already in ledger with same status AND same round."""
+    from debate_review.issue_ops import upsert_issue
+    from debate_review.cross_verification import record_cross_verification
+
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    r1 = upsert_issue(sample_state, agent="codex", round_num=1, severity="warning",
+                       criterion=3, file="src/foo.ts", line=42, anchor="retry", message="loop")
+    issue_id = r1["issue_id"]
+    record_cross_verification(sample_state, round_num=1,
+                              verifications=[{"report_id": r1["report_id"], "decision": "accept", "reason": "ok"}])
+    sample_state["issues"][issue_id]["application_status"] = "applied"
+
+    # Ledger already has this issue settled in round 1
+    sample_state["debate_ledger"] = [
+        {"issue_id": issue_id, "status": "accepted", "summary": "...", "round": 1}
+    ]
+
+    record_verdict(sample_state, round_num=1, verdict="no_findings_mergeable")
+    result = settle_round(sample_state, round_num=1)
+
+    # Same round + same status → skip
+    assert len(result["settled_issues"]) == 0
+
+
+def test_settle_skips_partial_withdraw_no_status_change(sample_state):
+    """Partial withdraw of multi-report issue that doesn't change consensus should NOT appear."""
+    from debate_review.issue_ops import upsert_issue
+    from debate_review.cross_verification import record_cross_verification, resolve_rebuttals
+
+    # Round 1: codex reports, cc accepts → accepted
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    r1a = upsert_issue(sample_state, agent="codex", round_num=1, severity="warning",
+                        criterion=3, file="src/foo.ts", line=42, anchor="retry", message="loop")
+    issue_id = r1a["issue_id"]
+    # Also add a second report from codex (same issue)
+    r1b = upsert_issue(sample_state, agent="codex", round_num=1, severity="warning",
+                        criterion=3, file="src/foo.ts", line=42, anchor="retry", message="loop")
+    record_cross_verification(sample_state, round_num=1,
+                              verifications=[
+                                  {"report_id": r1a["report_id"], "decision": "accept", "reason": "ok"},
+                                  {"report_id": r1b["report_id"], "decision": "accept", "reason": "ok"},
+                              ])
+    sample_state["issues"][issue_id]["application_status"] = "applied"
+    record_verdict(sample_state, round_num=1, verdict="no_findings_mergeable")
+    settle_round(sample_state, round_num=1)
+
+    sample_state["debate_ledger"] = [
+        {"issue_id": issue_id, "status": "accepted", "summary": "...", "round": 1}
+    ]
+
+    # Round 2: partial withdraw of first report — issue stays accepted
+    init_round(sample_state, round_num=2, lead_agent="cc", synced_head_sha="abc")
+    resolve_rebuttals(sample_state, round_num=2, step="1a",
+                      decisions=[{"report_id": r1a["report_id"], "decision": "withdraw", "reason": "partial"}])
+    record_verdict(sample_state, round_num=2, verdict="has_findings")
+    result = settle_round(sample_state, round_num=2)
+
+    # Issue was touched but status didn't change and no new report → should NOT appear
+    assert result["settled_issues"] == []
+
+
+def test_settle_allows_re_raised_issue_in_new_round(sample_state):
+    """Re-raised issue settled again in a new round should appear in settled_issues."""
+    from debate_review.issue_ops import upsert_issue
+    from debate_review.cross_verification import record_cross_verification, resolve_rebuttals
+
+    # Round 1: issue withdrawn
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    r1 = upsert_issue(sample_state, agent="codex", round_num=1, severity="warning",
+                       criterion=3, file="src/foo.ts", line=42, anchor="retry", message="loop")
+    issue_id = r1["issue_id"]
+    record_cross_verification(sample_state, round_num=1,
+                              verifications=[{"report_id": r1["report_id"], "decision": "rebut", "reason": "scope"}])
+    resolve_rebuttals(sample_state, round_num=1, step="3",
+                      decisions=[{"report_id": r1["report_id"], "decision": "withdraw", "reason": "scope"}])
+    record_verdict(sample_state, round_num=1, verdict="has_findings")
+    settle_round(sample_state, round_num=1)
+
+    sample_state["debate_ledger"] = [
+        {"issue_id": issue_id, "status": "withdrawn", "summary": "...", "round": 1, "reason": "scope"}
+    ]
+
+    # Round 2: re-raise same issue, then withdraw again
+    init_round(sample_state, round_num=2, lead_agent="cc", synced_head_sha="abc")
+    r2 = upsert_issue(sample_state, agent="cc", round_num=2, severity="warning",
+                       criterion=3, file="src/foo.ts", line=42, anchor="retry", message="loop again")
+    record_cross_verification(sample_state, round_num=2,
+                              verifications=[{"report_id": r2["report_id"], "decision": "rebut", "reason": "still scope"}])
+    resolve_rebuttals(sample_state, round_num=2, step="3",
+                      decisions=[{"report_id": r2["report_id"], "decision": "withdraw", "reason": "still scope"}])
+    record_verdict(sample_state, round_num=2, verdict="has_findings")
+    result = settle_round(sample_state, round_num=2)
+
+    # Different round → should appear (re-raised then re-withdrawn)
+    assert len(result["settled_issues"]) == 1
+    assert result["settled_issues"][0]["issue_id"] == issue_id

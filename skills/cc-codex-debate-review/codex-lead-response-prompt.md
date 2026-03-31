@@ -11,6 +11,8 @@
 
 {REVIEW_CONTEXT}
 
+{DEBATE_LEDGER}
+
 ## 반박(Rebuttal) 처리
 
 교차 검증자가 당신의 findings에 이의를 제기했습니다. 각 반박에 대해 결정하세요:
@@ -25,6 +27,8 @@
 교차 검증자가 독립적으로 제출한 findings입니다. 각 항목에 대해 결정하세요:
 - `accept`: finding이 타당함
 - `maintain`: finding이 부정확하거나, 이미 처리되었거나, 과도함 — 명확한 사유 제시 (다음 라운드에서 반박으로 전달됨)
+
+**재제기 규칙:** Debate Ledger에 `withdrawn`으로 기록된 issue를 교차 검증자가 동일 근거로 다시 제기한 경우, `maintain`으로 거부하세요. 새로운 근거가 있는 경우에만 `accept` 가능합니다.
 
 교차 검증자의 findings:
 {CROSS_FINDINGS}
