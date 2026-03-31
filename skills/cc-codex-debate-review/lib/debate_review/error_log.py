@@ -12,7 +12,7 @@ def save_error_log(*, command, error_message, state_file=None):
     """Save a structured error log to disk. Returns the log file path."""
     os.makedirs(ERROR_LOG_DIR, exist_ok=True)
     now = datetime.now(timezone.utc)
-    timestamp = now.strftime("%Y%m%dT%H%M%SZ")
+    timestamp = now.strftime("%Y%m%dT%H%M%S") + f".{now.microsecond:06d}Z"
 
     entry = {
         "timestamp": now.isoformat(),
