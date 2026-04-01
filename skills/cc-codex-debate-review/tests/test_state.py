@@ -124,16 +124,28 @@ def test_append_ledger_allows_same_issue_different_round(sample_state):
     assert result["total"] == 2
 
 
-def test_load_config_default_reads_bundled_config():
+def test_load_config_default_reads_bundled_config(monkeypatch):
     """load_config should read the bundled config from the skill root."""
-    from debate_review.config import load_config
-    result = load_config()
+    from debate_review import config as config_module
+    monkeypatch.setattr(config_module, "_USER_OVERRIDE_PATH", "/nonexistent/path.yml")
+    result = config_module.load_config()
     assert result == {
         "max_rounds": 10,
         "codex_sandbox": "read-only",
         "codex_apply_sandbox": "danger-full-access",
         "language": "en",
     }
+
+
+def test_load_config_user_override(monkeypatch, tmp_path):
+    """User override file should merge over defaults."""
+    from debate_review import config as config_module
+    override_file = tmp_path / "override.yml"
+    override_file.write_text("language: ko\n")
+    monkeypatch.setattr(config_module, "_USER_OVERRIDE_PATH", str(override_file))
+    result = config_module.load_config()
+    assert result["language"] == "ko"
+    assert result["max_rounds"] == 10  # default preserved
 
 
 def test_default_config_path_resolves_from_skill_root():
@@ -156,6 +168,28 @@ def test_load_config_missing_explicit_raises():
     from debate_review.config import load_config
     with pytest.raises(FileNotFoundError):
         load_config("/nonexistent/path/config.yml")
+
+
+def test_load_config_malformed_yaml_override(monkeypatch, tmp_path):
+    """Malformed YAML in override file should fall back to defaults."""
+    from debate_review import config as config_module
+    override_file = tmp_path / "bad.yml"
+    override_file.write_text(": :\n  - :\n bad: [")
+    monkeypatch.setattr(config_module, "_USER_OVERRIDE_PATH", str(override_file))
+    result = config_module.load_config()
+    assert result["max_rounds"] == 10
+    assert result["language"] == "en"
+
+
+def test_load_config_non_dict_yaml_override(monkeypatch, tmp_path):
+    """Non-dict YAML in override file should fall back to defaults."""
+    from debate_review import config as config_module
+    override_file = tmp_path / "list.yml"
+    override_file.write_text("- ko\n- en\n")
+    monkeypatch.setattr(config_module, "_USER_OVERRIDE_PATH", str(override_file))
+    result = config_module.load_config()
+    assert result["max_rounds"] == 10
+    assert result["language"] == "en"
 
 
 # determine_next_step tests
