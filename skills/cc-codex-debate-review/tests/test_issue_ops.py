@@ -213,6 +213,13 @@ def test_upsert_reopens_applied_issue_with_confirm(sample_state):
     assert issue["application_status"] == "pending"
     assert issue["applied_by"] is None
     assert issue["accepted_by"] == ["codex"]
+    # pre_reopen_state should be saved for rollback on withdraw
+    assert "pre_reopen_state" in issue
+    assert issue["pre_reopen_state"]["consensus_status"] == "accepted"
+    assert issue["pre_reopen_state"]["application_status"] == "applied"
+    assert issue["pre_reopen_state"]["applied_by"] == "codex"
+    assert issue["pre_reopen_state"]["application_commit_sha"] == "deadbeef"
+    assert issue["pre_reopen_state"]["accepted_by"] == ["cc"]
 
 
 def test_upsert_tracks_cross_verifier_reports_in_step2():

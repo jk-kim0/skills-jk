@@ -178,6 +178,13 @@ def upsert_issue(
                 "new_message": message,
                 "existing_reports": existing_messages,
             }
+        issue["pre_reopen_state"] = {
+            "consensus_status": issue.get("consensus_status"),
+            "application_status": issue.get("application_status"),
+            "applied_by": issue.get("applied_by"),
+            "application_commit_sha": issue.get("application_commit_sha"),
+            "accepted_by": list(issue.get("accepted_by", [])),
+        }
         issue["consensus_status"] = "open"
         issue["consensus_reason"] = None
         issue["application_status"] = "pending"

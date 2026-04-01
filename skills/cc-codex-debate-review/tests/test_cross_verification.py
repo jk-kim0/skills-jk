@@ -179,3 +179,49 @@ def test_consensus_reason_cleared_on_accept():
     issue = state["issues"]["isu_001"]
     assert issue["consensus_status"] == "accepted"
     assert issue["consensus_reason"] is None  # stale reason cleared
+
+
+# Test: withdraw after confirm-reopen restores pre-reopen state
+def test_withdraw_after_reopen_restores_previous_state():
+    """When a reopened (previously applied) issue is withdrawn, restore pre-reopen state."""
+    state = _state_with_round_and_issues()
+    issue = state["issues"]["isu_002"]
+
+    # Simulate: issue was accepted and applied in round 1
+    issue["consensus_status"] = "accepted"
+    issue["application_status"] = "applied"
+    issue["applied_by"] = "codex"
+    issue["application_commit_sha"] = "deadbeef"
+    issue["accepted_by"] = ["codex", "cc"]
+
+    # Round 2: lead agent reopens with confirm-reopen, adding a new report
+    init_round(state, round_num=2, lead_agent="codex", synced_head_sha="abc123")
+    issue["pre_reopen_state"] = {
+        "consensus_status": "accepted",
+        "application_status": "applied",
+        "applied_by": "codex",
+        "application_commit_sha": "deadbeef",
+        "accepted_by": ["codex", "cc"],
+    }
+    issue["consensus_status"] = "open"
+    issue["application_status"] = "pending"
+    issue["applied_by"] = None
+    issue["application_commit_sha"] = None
+    issue["accepted_by"] = ["codex"]
+    issue["reopened_in_round"] = 2
+    issue["reports"].append({
+        "report_id": "rpt_reopen", "agent": "codex", "round": 2,
+        "severity": "warning", "message": "New concern on same location",
+        "reported_at": "2026-03-30T01:00:00+00:00", "status": "open",
+    })
+
+    # Round 2 step 3: the reopened concern is withdrawn
+    decisions = [{"report_id": "rpt_reopen", "decision": "withdraw", "reason": "Rebuttal accepted"}]
+    resolve_rebuttals(state, round_num=2, step="3", decisions=decisions)
+
+    # Should restore to pre-reopen state
+    assert issue["consensus_status"] == "accepted"
+    assert issue["application_status"] == "applied"
+    assert issue["applied_by"] == "codex"
+    assert issue["application_commit_sha"] == "deadbeef"
+    assert "pre_reopen_state" not in issue  # cleaned up after restore

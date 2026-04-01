@@ -20,13 +20,33 @@ def _recalculate_accepted_by(issue):
     issue["accepted_by"] = seen
 
 
+def _should_restore_pre_reopen(issue):
+    """Check if all reports added after reopen are withdrawn, so we can restore."""
+    pre = issue.get("pre_reopen_state")
+    if not pre:
+        return False
+    reopen_round = issue.get("reopened_in_round")
+    if reopen_round is None:
+        return False
+    for r in issue["reports"]:
+        if r["round"] >= reopen_round and r.get("status", "open") != "withdrawn":
+            return False
+    return True
+
+
 def _apply_withdraw(issue, report, reason="", *, round_num=None):
     """Mark report as withdrawn and recalculate issue consensus state."""
     prev_status = issue.get("consensus_status")
     report["status"] = "withdrawn"
     _recalculate_accepted_by(issue)
     accepted_by = issue["accepted_by"]
-    if not accepted_by:
+    if _should_restore_pre_reopen(issue):
+        pre = issue.pop("pre_reopen_state")
+        for key, val in pre.items():
+            issue[key] = val
+        issue["consensus_reason"] = None
+    elif not accepted_by:
+        issue.pop("pre_reopen_state", None)
         issue["consensus_status"] = "withdrawn"
         issue["consensus_reason"] = reason
         issue["application_status"] = "not_applicable"
