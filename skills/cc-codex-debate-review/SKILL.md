@@ -78,7 +78,6 @@ CURRENT_ROUND=$(echo "$RESULT" | jq -r '.current_round')
 IS_FORK=$(echo "$RESULT" | jq -r '.is_fork')
 DRY_RUN=$(echo "$RESULT" | jq -r '.dry_run')
 CODEX_SANDBOX=$(echo "$RESULT" | jq -r '.codex_sandbox')
-CODEX_APPLY_SANDBOX=$(echo "$RESULT" | jq -r '.codex_apply_sandbox')
 LANGUAGE=$(echo "$RESULT" | jq -r '.language')
 ```
 
@@ -591,9 +590,7 @@ Both CC and Codex use the same prompt templates. The orchestrator selects the ru
 cd "$WORKTREE_PATH"
 PROMPT_FILE=$(mktemp /tmp/debate-prompt-XXXXXX)
 printf '%s' "$FILLED_PROMPT" > "$PROMPT_FILE"
-SANDBOX="$CODEX_SANDBOX"
-[ "$STEP" = "3" ] && SANDBOX="$CODEX_APPLY_SANDBOX"
-codex exec -s "$SANDBOX" - < "$PROMPT_FILE"
+codex exec -s "$CODEX_SANDBOX" - < "$PROMPT_FILE"
 rm -f "$PROMPT_FILE"
 ```
 
@@ -620,7 +617,7 @@ State-derivable placeholders are returned by `build-context --state-file --round
 | CLI | `$DEBATE_REVIEW_BIN <subcommand>` |
 | Comment tag | `[debate-review][sha:<initial_sha>]` |
 | Max rounds | 10 (config `max_rounds`) |
-| Codex sandbox | Steps 1-2: `read-only`; Step 3: `danger-full-access` (configurable via `codex_sandbox` / `codex_apply_sandbox`) |
+| Codex sandbox | `danger-full-access` for all steps (configurable via `codex_sandbox`) |
 | Worktree | `<repo_root>/.worktrees/debate-pr-<N>` |
 | GitHub CLI | `env -u GITHUB_TOKEN -u GH_TOKEN gh ...` |
 | Output language | Config `language` (default: `en`) |

@@ -131,8 +131,7 @@ def test_load_config_default_reads_bundled_config(monkeypatch):
     result = config_module.load_config()
     assert result == {
         "max_rounds": 10,
-        "codex_sandbox": "read-only",
-        "codex_apply_sandbox": "danger-full-access",
+        "codex_sandbox": "danger-full-access",
         "language": "en",
     }
 

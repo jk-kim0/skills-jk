@@ -209,8 +209,7 @@ def cmd_init(args):
     config = load_config(args.config)
     max_rounds = args.max_rounds if args.max_rounds is not None else config.get("max_rounds", 10)
     language = str(config.get("language", "en"))
-    codex_sandbox = str(config.get("codex_sandbox", "read-only"))
-    codex_apply_sandbox = str(config.get("codex_apply_sandbox", "danger-full-access"))
+    codex_sandbox = str(config.get("codex_sandbox", "danger-full-access"))
 
     state_path = state_file_path(repo, pr_number, dry_run)
     existing = load_state(state_path)
@@ -270,7 +269,6 @@ def cmd_init(args):
         "is_fork": is_fork,
         "dry_run": dry_run,
         "codex_sandbox": codex_sandbox,
-        "codex_apply_sandbox": codex_apply_sandbox,
         "language": existing.get("language", language) if result_status == "resumed" else language,
     }
     if result_status == "resumed":
