@@ -121,3 +121,42 @@ def record_application_phase3(state, *, round_num, _get_head=None) -> dict:
     journal["state_persisted"] = True
 
     return {"phase": 3, "round": round_num, "push_verified": True}
+
+
+def _latest_report_message(issue):
+    """Get message from the latest report."""
+    if not issue.get("reports"):
+        return issue.get("severity", "unknown") + " issue"
+    return issue["reports"][-1]["message"]
+
+
+def build_commit_message(state, *, round_num) -> str:
+    """Build a commit message from applied issues in the current round.
+
+    Reads journal.applied_issue_ids and generates a structured message
+    with issue summaries. Respects state["language"] for the subject line.
+    """
+    journal = state["journal"]
+    applied_ids = journal.get("applied_issue_ids", [])
+    language = state.get("language", "en")
+
+    # Subject line
+    if language == "ko":
+        subject = f"fix: 토론 리뷰 결과 반영 (라운드 {round_num})"
+    else:
+        subject = f"fix: apply debate review findings (round {round_num})"
+
+    if not applied_ids:
+        return subject
+
+    # Body: list each applied issue with its message
+    lines = [subject, ""]
+    for issue_id in applied_ids:
+        issue = state.get("issues", {}).get(issue_id)
+        if not issue:
+            continue
+        msg = _latest_report_message(issue)
+        loc = f"{issue.get('file', '?')}:{issue.get('line', '?')}"
+        lines.append(f"- {issue_id} ({loc}): {msg}")
+
+    return "\n".join(lines)

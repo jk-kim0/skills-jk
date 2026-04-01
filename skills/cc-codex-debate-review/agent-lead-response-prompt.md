@@ -44,8 +44,9 @@ Cross-verifier's findings:
 Fix the issues listed below by editing files directly in the worktree. After all fixes are applied:
 
 1. Stage only the files you modified: `git add <file1> <file2> ...`
-2. Commit: `git commit -m "fix: apply debate review findings (round {ROUND})"`
-3. Push: `git push origin HEAD:{HEAD_BRANCH}`
+2. Generate commit message: `COMMIT_MSG=$("{DEBATE_REVIEW_BIN}" build-commit-message --state-file "{STATE_FILE}" --round {ROUND})`
+3. Commit: `git commit -m "$COMMIT_MSG"`
+4. Push: `git push origin HEAD:{HEAD_BRANCH}`
 
 **Rules:**
 - You MUST attempt to fix every issue listed. Do not skip without trying.

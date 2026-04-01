@@ -8,6 +8,7 @@ from debate_review.config import load_config
 from debate_review.context import build_context
 from debate_review.gh import gh_json
 from debate_review.application import (
+    build_commit_message,
     record_application_phase1,
     record_application_phase2,
     record_application_phase3,
@@ -120,6 +121,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_ctx = subparsers.add_parser("build-context", help="Build review context from state")
     p_ctx.add_argument("--state-file", required=True)
     p_ctx.add_argument("--round", type=int, required=True)
+
+    # build-commit-message subcommand
+    p_bcm = subparsers.add_parser("build-commit-message", help="Build commit message from applied issues")
+    p_bcm.add_argument("--state-file", required=True)
+    p_bcm.add_argument("--round", type=int, required=True)
 
     # record-application subcommand
     p_app = subparsers.add_parser("record-application")
@@ -463,6 +469,14 @@ def cmd_record_application(args):
     print(json.dumps(result))
 
 
+def cmd_build_commit_message(args):
+    state = load_state(args.state_file)
+    if state is None:
+        _error_exit(f"No state file found at {args.state_file}")
+    msg = build_commit_message(state, round_num=args.round)
+    print(msg)
+
+
 def cmd_build_context(args):
     state = load_state(args.state_file)
     if state is None:
@@ -533,6 +547,7 @@ def main():
         "record-cross-verification": cmd_record_cross_verification,
         "resolve-rebuttals": cmd_resolve_rebuttals,
         "record-application": cmd_record_application,
+        "build-commit-message": cmd_build_commit_message,
         "build-context": cmd_build_context,
         "test-error": cmd_test_error,
         "mark-failed": cmd_mark_failed,
