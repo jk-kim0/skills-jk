@@ -219,12 +219,14 @@ def cmd_init(args):
     max_rounds = args.max_rounds if args.max_rounds is not None else config.get("max_rounds", 10)
     language = str(config.get("language", "en"))
     codex_sandbox = str(config.get("codex_sandbox", "danger-full-access"))
-    agent_mode = _validate_agent_mode(str(config.get("agent_mode", "legacy")))
+    config_agent_mode = str(config.get("agent_mode", "legacy"))
+    agent_mode = None
 
     state_path = state_file_path(repo, pr_number, dry_run)
     existing = load_state(state_path)
 
     if existing is None:
+        agent_mode = _validate_agent_mode(config_agent_mode)
         state = create_initial_state(
             repo=repo,
             repo_root=repo_root,
@@ -250,7 +252,7 @@ def cmd_init(args):
             existing["language"] = language
             needs_save = True
         if "agent_mode" not in existing:
-            existing["agent_mode"] = agent_mode
+            existing["agent_mode"] = _validate_agent_mode(config_agent_mode)
             needs_save = True
         else:
             existing["agent_mode"] = _validate_agent_mode(str(existing["agent_mode"]))
@@ -266,6 +268,7 @@ def cmd_init(args):
             archive_sha = existing_sha[:8]
             archive_path = f"{state_path}.{archive_sha}.archived"
             shutil.copy2(state_path, archive_path)
+            agent_mode = _validate_agent_mode(config_agent_mode)
             state = create_initial_state(
                 repo=repo,
                 repo_root=repo_root,
@@ -290,7 +293,7 @@ def cmd_init(args):
         "dry_run": dry_run,
         "codex_sandbox": codex_sandbox,
         "language": existing.get("language", language) if result_status == "resumed" else language,
-        "agent_mode": existing.get("agent_mode", agent_mode) if result_status == "resumed" else agent_mode,
+        "agent_mode": existing["agent_mode"] if result_status == "resumed" else agent_mode,
     }
     if result_status == "resumed":
         resume_info = determine_next_step(existing)

@@ -621,6 +621,41 @@ def test_cli_init_resumed_session_preserves_state_agent_mode(monkeypatch, capsys
     assert load_state(str(path))["agent_mode"] == "persistent"
 
 
+def test_cli_init_resumed_session_ignores_invalid_config_agent_mode(monkeypatch, capsys, tmp_path):
+    config_path = tmp_path / "config.yml"
+    config_path.write_text("agent_mode: invalid\n")
+    state = create_initial_state(
+        repo="owner/repo",
+        repo_root="/tmp/repo",
+        pr_number=790,
+        is_fork=False,
+        head_sha="abc123",
+        pr_branch_name="feat/test",
+        agent_mode="persistent",
+    )
+    path = tmp_path / "existing-state.json"
+    save_state(state, str(path))
+
+    monkeypatch.setattr("debate_review.cli.state_file_path", lambda *args: str(path))
+    monkeypatch.setattr(
+        "debate_review.cli.gh_json",
+        lambda *args: {
+            "headRefName": "feat/test",
+            "headRefOid": "abc123",
+            "headRepositoryOwner": {"login": "owner"},
+        },
+    )
+
+    _run_cli(monkeypatch, [
+        "init", "--repo", "owner/repo", "--pr", "790",
+        "--config", str(config_path),
+    ])
+    result = json.loads(capsys.readouterr().out)
+    assert result["status"] == "resumed"
+    assert result["agent_mode"] == "persistent"
+    assert load_state(str(path))["agent_mode"] == "persistent"
+
+
 def test_cli_mark_failed(monkeypatch, capsys, state_path):
     _run_cli(monkeypatch, [
         "mark-failed", "--state-file", state_path,
