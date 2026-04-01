@@ -4,37 +4,42 @@
 
 [2026-04-01-debate-review-persistent-agent-design.md](./2026-04-01-debate-review-persistent-agent-design.md)
 
-## 핵심 제약: 증분 배포
+## 핵심 제약: 증분 배포 + 병행 운영
 
 **각 PR이 병합될 때마다 debate-review가 정상 작동해야 한다.**
 
-현재 시스템은 `build-context` → 프롬프트 템플릿 치환 → 독립 agent 호출 흐름으로 동작한다. 새 시스템(persistent agent + append-only prompt)으로 전환할 때, 기존 코드를 먼저 삭제하면 시스템이 깨진다.
+기존 방식(독립 agent 호출)과 새 방식(persistent agent)을 **동시에 사용할 수 있는 상태**를 유지한다. `config.yml`의 `agent_mode` 값으로 모드를 선택한다.
 
-안전한 전환 순서:
+```yaml
+# config.yml
+agent_mode: legacy      # legacy | persistent
+```
+
+### 전환 흐름
 
 ```
-[현재] build-context + 3 templates + SKILL.md(old)
-  ↓ PR 1: 새 파일 추가 (기존 파일 유지)
-[중간] build-context + 3 templates + agent-initial-prompt + SKILL.md(old)
-  ↓ PR 2: SKILL.md 재작성 (새 흐름으로 전환)
-[중간] build-context + 3 templates + agent-initial-prompt + SKILL.md(new)
-  ↓ PR 3: 미사용 코드 삭제
-[중간] agent-initial-prompt + SKILL.md(new)
-  ↓ PR 4: REFERENCE.md + 테스트 정리
-[완료] agent-initial-prompt + SKILL.md(new) + REFERENCE.md(new)
+[현재] legacy만 존재
+  ↓ PR 1: 새 파일 추가 + agent_mode 플래그 도입
+[병행] legacy(기본) + persistent 선택 가능
+  ↓ PR 2: SKILL.md에 persistent 절차 추가 (legacy 절차 유지)
+[병행] legacy / persistent 모두 사용 가능
+  ↓ PR 3: 기본값을 persistent로 변경
+[병행] persistent(기본) + legacy 선택 가능 (롤백 가능)
+  ↓ PR 4: legacy 코드 삭제 + 문서/테스트 정리
+[완료] persistent만 존재
 ```
 
 각 단계 후 debate-review 실행 가능 여부:
-- PR 1 후: ✅ 기존 흐름 그대로 동작. 새 파일은 미사용 상태로 존재
-- PR 2 후: ✅ 새 흐름으로 동작. 기존 파일은 미사용 상태로 존재
-- PR 3 후: ✅ 미사용 코드 제거. 새 흐름 동작
-- PR 4 후: ✅ 문서 + 테스트 정리 완료
+- PR 1 후: ✅ `agent_mode: legacy` (기본값) — 기존과 동일하게 동작
+- PR 2 후: ✅ `legacy` / `persistent` 모두 선택 가능
+- PR 3 후: ✅ `persistent` 기본, 문제 시 `legacy`로 롤백
+- PR 4 후: ✅ `persistent`만 동작 (legacy 코드 완전 제거)
 
 ---
 
 ## 선행 검증 (PR 작업 전)
 
-PR 1 착수 전에 runtime 요구사항을 검증한다. 검증 실패 시 Fallback 전략(설계 문서 "Fallback: Fresh Agent + Transcript" 참조)으로 전환한다.
+PR 1 착수 전에 runtime 요구사항을 검증한다.
 
 | 검증 항목 | 방법 | 통과 기준 |
 |-----------|------|----------|
@@ -47,84 +52,162 @@ PR 1 착수 전에 runtime 요구사항을 검증한다. 검증 실패 시 Fallb
 - **CC만 통과**: CC는 SendMessage, Codex는 매 step fresh agent + transcript fallback
 - **모두 실패**: 양쪽 모두 transcript fallback 방식
 
+검증 실패해도 PR 1~2는 진행 가능 (기본값이 legacy이므로 기존 동작에 영향 없음).
+
 ---
 
-## PR 1: agent-initial-prompt.md 추가
+## PR 1: agent-initial-prompt.md 추가 + agent_mode 플래그 도입
 
 ### 목적
 
-Persistent agent 생성 시 사용할 initial prompt 파일을 추가한다. 기존 시스템에는 영향 없음.
+Persistent agent에 필요한 파일을 추가하고, 모드 선택 플래그를 도입한다. 기본값은 `legacy`이므로 기존 동작에 영향 없음.
 
 ### 변경 파일
 
 | 파일 | 작업 |
 |------|------|
 | `agent-initial-prompt.md` (~40줄) | **신규** — 설계 문서 Task 2의 initial prompt |
+| `config.yml` | `agent_mode: legacy` 추가 |
+| `lib/debate_review/config.py` | `agent_mode` 필드 파싱 추가 |
+| `cli.py` | `init` 출력에 `agent_mode` 포함 |
 
-### 내용
+### agent-initial-prompt.md
 
 설계 문서의 `agent-initial-prompt.md` 섹션 그대로 작성:
 - `{REPO}`, `{PR_NUMBER}`, `{WORKTREE_PATH}`, `{OUTPUT_LANGUAGE}`, `{REVIEW_CRITERIA}` placeholder
 - agent 역할 설명, 탐색 방법, 출력 규칙
 
+### config.yml 변경
+
+```yaml
+# 추가
+agent_mode: legacy      # legacy | persistent
+```
+
+### cli.py init 출력 변경
+
+```json
+{
+  "agent_mode": "legacy",
+  ...
+}
+```
+
+Orchestrator는 `AGENT_MODE` 변수를 저장하고, 이후 절차 분기에 사용한다.
+
 ### 검증
 
-- [ ] 파일 문법 오류 없음 (placeholder 형식 일관성)
-- [ ] 기존 debate-review 실행 시 영향 없음 (이 파일을 참조하는 코드 없음)
+- [ ] `agent_mode: legacy`일 때 기존 debate-review 정상 동작
+- [ ] `agent-initial-prompt.md` placeholder 형식이 일관적
+- [ ] `init` 출력에 `agent_mode` 포함
 
-### debate-review 동작 영향: 없음
+### debate-review 동작 영향: 없음 (기본값 legacy)
 
 ---
 
-## PR 2: SKILL.md 재작성 — persistent agent 전환
+## PR 2: SKILL.md에 persistent agent 절차 추가
 
 ### 목적
 
-Orchestrator 절차를 persistent agent 방식으로 전환한다. 이 PR이 핵심 변경이며, 병합 후 debate-review는 새 흐름으로 동작한다.
+SKILL.md에 persistent agent 절차를 **추가**한다. 기존 legacy 절차는 그대로 유지한다. Orchestrator는 `AGENT_MODE`에 따라 분기한다.
 
 ### 전제 조건
 
-- PR 1 병합 완료 (`agent-initial-prompt.md` 존재)
-- 선행 검증 완료 (runtime 요구사항 확인)
+- PR 1 병합 완료 (`agent-initial-prompt.md` 존재, `agent_mode` 플래그 존재)
 
 ### 변경 파일
 
 | 파일 | 작업 |
 |------|------|
-| `SKILL.md` | 재작성 — 설계 문서 Task 3 전체 |
+| `SKILL.md` | persistent agent 절차 추가 (legacy 절차 유지) |
 
-### 섹션별 변경 (설계 문서 Task 3 참조)
+### SKILL.md 구조
 
-| 섹션 | 변경 |
+```markdown
+## Agent Mode
+
+init에서 받은 `AGENT_MODE` 값에 따라 절차를 분기한다.
+
+| Mode | Agent 생성 | Step 실행 | 파일 참조 |
+|------|-----------|----------|----------|
+| `legacy` | 매 step 새 agent | build-context → template 치환 → agent 호출 | agent-*-prompt.md 3개 |
+| `persistent` | 세션 시작 시 1회 | SendMessage / codex resume | agent-initial-prompt.md 1개 |
+
+### legacy 모드
+
+(기존 절차 — 변경 없음)
+
+### persistent 모드
+
+(설계 문서 Task 3의 전체 내용)
+```
+
+### persistent 모드 절차 (설계 문서 Task 3 참조)
+
+| 섹션 | 내용 |
 |------|------|
-| Agent Invocation | 전면 재작성 → Agent Lifecycle (Create + Resume) |
-| Review Context + Placeholder Construction | **제거** → Step Message Construction으로 교체 |
-| Step 1/2/3 절차 | placeholder 참조 제거 → SendMessage/resume 방식 |
-| Step Message Format | **추가** — 각 step의 message format 명시 |
-| Step Message 데이터 소스 | **추가** — 각 데이터의 출처 명시 |
-| Restart Rules | 수정 → agent 생존/사망 분기 |
-| Supersede Handling | 수정 → agent에게 메시지 전달 |
+| Agent Lifecycle | Create (세션 시작 1회) + Resume (SendMessage / codex resume) |
+| Step Message Format | Step 1 (Lead Review), Step 2 (Cross-Verify), Step 3 (Lead Response + Code Apply) |
+| Step Message 데이터 소스 | 직전 agent output + `show --json` 결과로 구성 (build-context 미사용) |
+| Restart Rules | agent 생존 → SendMessage 재개, agent 사망 → recovery prompt로 새 agent 생성 |
+| Supersede Handling | agent에게 external push 메시지 전달 |
+
+### 모드 분기 위치
+
+Orchestrator가 분기하는 지점은 3곳:
+
+1. **Initialization 직후**: persistent면 CC/Codex agent 생성
+2. **각 Step 실행**: persistent면 SendMessage/resume, legacy면 build-context → template
+3. **Restart**: persistent면 agent 생존 확인 후 분기
+
+나머지 절차(Step 0 sync-head, Step 4 settle, Terminal processing, CLI 호출)는 모드와 무관하게 동일.
 
 ### 검증
 
-- [ ] SKILL.md가 `build-context`를 호출하지 않음
-- [ ] SKILL.md가 `agent-lead-review-prompt.md`, `agent-cross-verify-prompt.md`, `agent-lead-response-prompt.md`를 참조하지 않음
-- [ ] SKILL.md가 `agent-initial-prompt.md`를 참조함
-- [ ] 실제 PR에서 debate-review 실행하여 전체 라운드 동작 확인
+- [ ] `agent_mode: legacy` — 기존과 동일하게 동작 (회귀 없음)
+- [ ] `agent_mode: persistent` — persistent agent 흐름으로 동작
+- [ ] 실제 PR에서 양쪽 모드 각각 debate-review 실행
 
-### debate-review 동작 영향: 전환 — 기존 흐름 → 새 흐름
+### debate-review 동작 영향: legacy 무영향, persistent 추가
 
 ---
 
-## PR 3: 미사용 코드 삭제
+## PR 3: 기본값을 persistent로 변경
 
 ### 목적
 
-PR 2에서 더 이상 참조하지 않는 파일과 코드를 삭제한다.
+충분한 검증 후, `agent_mode` 기본값을 `persistent`로 변경한다. 문제 발생 시 `legacy`로 즉시 롤백 가능.
 
 ### 전제 조건
 
-- PR 2 병합 완료 (SKILL.md가 더 이상 이 파일들을 참조하지 않음)
+- PR 2 병합 완료
+- persistent 모드로 **최소 3회 이상** 실제 PR debate-review 성공
+
+### 변경 파일
+
+| 파일 | 작업 |
+|------|------|
+| `config.yml` | `agent_mode: persistent` (기본값 변경) |
+
+### 검증
+
+- [ ] 기본값 persistent로 debate-review 정상 동작
+- [ ] `agent_mode: legacy`로 변경 시 롤백 정상
+
+### debate-review 동작 영향: 기본 모드 변경 (롤백 가능)
+
+---
+
+## PR 4: legacy 코드 삭제 + 문서/테스트 정리
+
+### 목적
+
+Legacy 모드 코드를 제거하고 문서/테스트를 정리한다. 이 PR 이후 persistent 모드만 남는다.
+
+### 전제 조건
+
+- PR 3 병합 후 persistent 기본값으로 **충분한 기간** 운영 완료
+- Legacy로 롤백할 필요가 없다고 판단
 
 ### 변경 파일
 
@@ -135,69 +218,48 @@ PR 2에서 더 이상 참조하지 않는 파일과 코드를 삭제한다.
 | `agent-lead-review-prompt.md` (89줄) | **삭제** |
 | `agent-cross-verify-prompt.md` (71줄) | **삭제** |
 | `agent-lead-response-prompt.md` (95줄) | **삭제** |
-| `cli.py` | `build-context` subcommand 제거 (import, parser, handler, commands entry) |
+| `cli.py` | `build-context` subcommand 제거 |
 | `tests/test_cli.py` | `build-context` 관련 테스트 제거 |
-
-### cli.py 구체적 변경
-
-설계 문서 Task 1의 "cli.py 구체적 변경" 섹션 참조:
-- `from debate_review.context import build_context` 제거
-- `build-context` parser 등록 제거
-- `cmd_build_context` 함수 제거
-- commands dict entry 제거
+| `SKILL.md` | legacy 모드 절차 제거, 모드 분기 제거 |
+| `REFERENCE.md` | 재작성 — 설계 문서 Task 4 |
+| `tests/test_prompt_docs.py` | 3개 템플릿 → `agent-initial-prompt.md` 존재 검증 |
+| `config.yml` | `agent_mode` 필드 제거 (persistent만 남으므로 불필요) |
+| `lib/debate_review/config.py` | `agent_mode` 필드 파싱 제거 |
 
 ### 검증
 
-- [ ] `grep -r "build.context" skills/cc-codex-debate-review/` — SKILL.md, cli.py, tests에 참조 없음
+- [ ] `grep -r "build.context" skills/cc-codex-debate-review/` — 참조 없음
 - [ ] `grep -r "agent-lead-review-prompt\|agent-cross-verify-prompt\|agent-lead-response-prompt" skills/cc-codex-debate-review/` — 참조 없음
+- [ ] `grep -r "agent_mode\|legacy" skills/cc-codex-debate-review/` — 참조 없음
 - [ ] `python -m pytest tests/` 전체 통과
 - [ ] debate-review 실행 정상
 
-### debate-review 동작 영향: 없음 (미사용 코드 삭제)
-
----
-
-## PR 4: REFERENCE.md 재작성 + 테스트 정리
-
-### 목적
-
-문서와 테스트를 새 아키텍처에 맞게 정리한다.
-
-### 전제 조건
-
-- PR 3 병합 완료
-
-### 변경 파일
-
-| 파일 | 작업 |
-|------|------|
-| `REFERENCE.md` | 재작성 — 설계 문서 Task 4 |
-| `tests/test_prompt_docs.py` | 3개 템플릿 검증 → `agent-initial-prompt.md` 존재 검증 |
-
-### 검증
-
-- [ ] REFERENCE.md가 새 아키텍처(initial prompt, step message data sources, agent invocation)를 반영
-- [ ] `python -m pytest tests/test_prompt_docs.py` 통과
-- [ ] debate-review 실행 정상
-
-### debate-review 동작 영향: 없음 (문서 + 테스트만 변경)
+### debate-review 동작 영향: legacy 제거 (롤백 불가)
 
 ---
 
 ## 요약
 
-| PR | 내용 | 줄 변화 | 위험도 |
-|----|------|---------|--------|
-| 1 | `agent-initial-prompt.md` 추가 | +40 | 낮음 (기존 시스템 무영향) |
-| 2 | SKILL.md 재작성 | -200 / +180 | **높음** (핵심 전환) |
-| 3 | 미사용 코드 삭제 | -793 | 낮음 (dead code 제거) |
-| 4 | REFERENCE.md + 테스트 정리 | -15 / +30 | 낮음 (문서 + 테스트) |
-| **합계** | | **~538줄 감소** | |
+| PR | 내용 | 위험도 | 롤백 |
+|----|------|--------|------|
+| 1 | `agent-initial-prompt.md` + `agent_mode` 플래그 | 낮음 | 불필요 (기본 legacy) |
+| 2 | SKILL.md에 persistent 절차 추가 | **중간** | `agent_mode: legacy`로 즉시 롤백 |
+| 3 | 기본값 `persistent`로 변경 | 낮음 | `agent_mode: legacy`로 즉시 롤백 |
+| 4 | legacy 코드 삭제 + 문서 정리 | 낮음 | git revert |
 
 ### 의존 관계
 
 ```
-선행 검증 ─→ PR 1 ─→ PR 2 ─→ PR 3 ─→ PR 4
+선행 검증 ─→ PR 1 ─→ PR 2 ──→ PR 3 ──→ PR 4
+                       │         │
+                       │         └─ persistent 충분히 검증 후
+                       └─ 양쪽 모드 실행 검증 후
 ```
 
-각 PR은 직전 PR 병합 후에만 착수한다. 모든 PR 병합 후 debate-review는 persistent agent 방식으로 동작한다.
+### 병행 운영 기간
+
+PR 2 병합 ~ PR 4 병합 사이에 양쪽 모드를 모두 사용할 수 있다.
+
+- 평상시: `agent_mode: persistent` (PR 3 이후)
+- 문제 발생 시: `agent_mode: legacy`로 config 변경 → 즉시 기존 방식으로 동작
+- Legacy가 더 이상 불필요: PR 4 병합으로 코드 제거
