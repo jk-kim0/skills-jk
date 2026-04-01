@@ -178,7 +178,7 @@ def cmd_init(args):
     config = load_config(args.config)
     max_rounds = args.max_rounds if args.max_rounds is not None else config.get("max_rounds", 10)
     language = str(config.get("language", "en"))
-    codex_sandbox = str(config.get("codex_sandbox", "read-only"))
+    codex_sandbox = str(config.get("codex_sandbox", "danger-full-access"))
 
     state_path = state_file_path(repo, pr_number, dry_run)
     existing = load_state(state_path)

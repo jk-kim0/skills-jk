@@ -130,7 +130,7 @@ def test_load_config_default_reads_bundled_config():
     result = load_config()
     assert result == {
         "max_rounds": 10,
-        "codex_sandbox": "read-only",
+        "codex_sandbox": "danger-full-access",
         "language": "en",
     }
 

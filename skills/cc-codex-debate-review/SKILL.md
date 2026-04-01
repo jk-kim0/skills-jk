@@ -7,17 +7,19 @@ description: Debate-driven PR review orchestration where CC and Codex alternate 
 
 ## Overview
 
-A system where Claude Code (CC) and Codex repeatedly review, rebut, and fix an open PR until both agents reach the same conclusion on all issues.
+A system where two agents (CC and Codex) repeatedly review, rebut, and fix an open PR until both reach consensus on all issues.
 
-CC is both the orchestrator and the even-round lead agent. Codex is a subprocess invoked via `codex exec` and the odd-round lead agent.
+CC is the orchestrator. Both CC and Codex are invoked as sub-agents using the same prompt templates. The orchestrator fills a prompt template, dispatches it to the assigned agent, and routes the JSON response to CLI subcommands.
 
-**State management is handled by the CLI.** CC calls `$DEBATE_REVIEW_BIN` subcommands to manipulate state and only performs the review itself (generating findings, making rebuttal decisions).
+**State management is handled by the CLI.** The orchestrator calls `$DEBATE_REVIEW_BIN` subcommands for state changes and delegates all review work to sub-agents.
+
+**Agents explore the repo directly.** Prompts contain only high-level instructions and debate state. Agents read the PR diff, files, and CI status themselves via `gh` and `git` commands in the worktree.
 
 ```
 CC (orchestrator)
-  ├─ $DEBATE_REVIEW_BIN <subcommand> → state management (CLI)
-  ├─ codex exec ...                  → Codex invocation (odd lead, even cross)
-  └─ CC self-review                  → even lead, odd cross
+  ├─ $DEBATE_REVIEW_BIN <subcommand>  → state management (CLI)
+  ├─ codex exec < agent-*.md          → Codex sub-agent (odd lead, even cross)
+  └─ CC Agent(prompt=agent-*.md)      → CC sub-agent (even lead, odd cross)
 ```
 
 ## When to Use
@@ -34,7 +36,7 @@ All paths below are relative to the `cc-codex-debate-review/` directory.
 | CLI | `./bin/debate-review` |
 | Config file | `./config.yml` |
 | Review criteria | `./review-criteria.md` |
-| Codex prompts | `./codex-*.md` |
+| Agent prompts | `./agent-*.md` |
 
 ### Prerequisites
 
@@ -161,35 +163,17 @@ Skip if no previous round exists or no rebuttals are pending.
 
 #### Step 1b: New Review
 
-**When Codex is lead (odd rounds):**
+> **Important:** `agent-lead-review-prompt.md` handles Step 1a (rebuttal resolution) and Step 1b (new review) in **a single invocation**. From the response, route `rebuttal_responses` to `resolve-rebuttals --step "1a"`, `findings` to `upsert-issue`, and `verdict` to `record-verdict`.
 
-> **Important:** `codex-lead-review-prompt.md` handles Step 1a (rebuttal resolution) and Step 1b (new review) in **a single invocation**. From the Codex response, route `rebuttal_responses` to `resolve-rebuttals --step "1a"`, `findings` to `upsert-issue`, and `verdict` to `record-verdict`.
-
-1. Build review context (CC generates from state data)
-2. Read prompt template: `./codex-lead-review-prompt.md` (`$SKILL_ROOT/codex-lead-review-prompt.md`)
-3. Substitute placeholders: `{REPO}`, `{PR_NUMBER}`, `{PR_TITLE}`, `{PR_BODY}`, `{ROUND}`, `{REVIEW_CONTEXT}`, `{DEBATE_LEDGER}`, `{OPEN_ISSUES}`, `{PENDING_REBUTTALS}`, `{OUTPUT_LANGUAGE}`, `{REVIEW_CRITERIA}`, `{DIFF}`
-4. Obtain PR diff:
-   ```bash
-   DIFF=$(env -u GITHUB_TOKEN -u GH_TOKEN gh pr diff "$PR_NUMBER" --repo "$REPO")
-   ```
-5. Execute Codex:
-   ```bash
-   cd "$WORKTREE_PATH"
-   # Save prompt to temp file and pass via stdin (avoid ARG_MAX overflow)
-   PROMPT_FILE=$(mktemp /tmp/debate-prompt-XXXXXX)
-   printf '%s' "$FILLED_PROMPT" > "$PROMPT_FILE"
-   codex exec -s "$CODEX_SANDBOX" - < "$PROMPT_FILE"
-   rm -f "$PROMPT_FILE"
-   ```
-6. Parse JSON response (retry up to 3 times on failure)
-7. Route response:
+1. Build review context via `build-context`
+2. Read prompt template: `./agent-lead-review-prompt.md` (`$SKILL_ROOT/agent-lead-review-prompt.md`)
+3. Substitute placeholders: `{REPO}`, `{PR_NUMBER}`, `{ROUND}`, `{WORKTREE_PATH}`, `{DEBATE_LEDGER}`, `{OPEN_ISSUES}`, `{PENDING_REBUTTALS}`, `{OUTPUT_LANGUAGE}`, `{REVIEW_CRITERIA}`
+4. Invoke sub-agent (see **Agent Invocation**)
+5. Parse JSON response (retry up to 3 times on failure)
+6. Route response:
    - `rebuttal_responses` → `resolve-rebuttals --step "1a"` (if non-empty)
    - `findings` → record each via `upsert-issue`
    - `verdict` → `record-verdict`
-
-**When CC is lead (even rounds):**
-
-CC directly reads the diff, review context, and review criteria to perform the review. Output format is the same JSON structure as Codex. CC must use `state["language"]` for all user-facing output (findings messages, reasons, descriptions), matching the same language constraint applied to Codex via `{OUTPUT_LANGUAGE}`.
 
 #### Record Findings
 
@@ -258,14 +242,10 @@ The cross-verifier performs two tasks:
 1. `accept` or `rebut` each of the lead's reports
 2. Report its own new findings
 
-**When Codex is cross-verifier (even rounds):**
-
-Prompt template: `./codex-cross-verify-prompt.md` (`$SKILL_ROOT/codex-cross-verify-prompt.md`)
-Placeholders: `{LEAD_AGENT_ID}`, `{LEAD_REPORTS}` plus common ones.
-
-**When CC is cross-verifier (odd rounds):**
-
-CC directly evaluates the lead's reports and generates its own findings. CC must use `state["language"]` for all user-facing output, matching the same language constraint applied to Codex via `{OUTPUT_LANGUAGE}`.
+1. Read prompt template: `./agent-cross-verify-prompt.md` (`$SKILL_ROOT/agent-cross-verify-prompt.md`)
+2. Substitute placeholders: `{REPO}`, `{PR_NUMBER}`, `{ROUND}`, `{WORKTREE_PATH}`, `{DEBATE_LEDGER}`, `{LEAD_AGENT_ID}`, `{LEAD_REPORTS}`, `{OUTPUT_LANGUAGE}`, `{REVIEW_CRITERIA}`
+3. Invoke sub-agent (see **Agent Invocation**)
+4. Parse JSON response (retry up to 3 times on failure)
 
 #### Record Cross-Verification Results
 
@@ -311,21 +291,18 @@ The lead agent handles three things:
 
 #### Code Application is Mandatory
 
-When `DRY_RUN=false` and `IS_FORK=false`, the lead agent **MUST** attempt to fix every issue with `consensus_status=accepted` and `application_status=pending|failed`. Skipping code application without attempting is a procedure violation.
+When `DRY_RUN=false` and `IS_FORK=false`, the lead agent **MUST** attempt to fix every issue with `consensus_status=accepted` and `application_status=pending|failed`. Skipping without attempting is a procedure violation.
 
-- **Codex lead**: CC applies Codex's `code_fixes` patches via `git apply`. If a patch fails `--check`, that specific issue is recorded as `failed-issues` — this is the only legitimate failure path.
-- **CC lead**: CC modifies files directly in the worktree. CC must not record issues as `failed-issues` without actually attempting the fix. If CC cannot determine how to fix an issue, CC must explain the reason in the commit message or escalate to the user — not silently skip.
+The lead agent edits files directly in the worktree, commits, and pushes. There is no patch-based workflow.
 
 **Prohibited**: Recording all applicable issues as `failed-issues` without attempting any code modification. This creates an infinite `continue` loop where accepted issues never reach `applied` status.
 
-**When Codex is lead:**
+#### Invoke Lead Response Agent
 
-Prompt template: `./codex-lead-response-prompt.md` (`$SKILL_ROOT/codex-lead-response-prompt.md`)
-Placeholders: `{CROSS_REBUTTALS}`, `{CROSS_FINDINGS}`, `{APPLICABLE_ISSUES}` plus common ones.
-
-**When CC is lead:**
-
-CC directly handles rebuttal resolution, cross findings evaluation, and code modifications. CC must use `state["language"]` for all user-facing output, matching the same language constraint applied to Codex via `{OUTPUT_LANGUAGE}`.
+1. Read prompt template: `./agent-lead-response-prompt.md` (`$SKILL_ROOT/agent-lead-response-prompt.md`)
+2. Substitute placeholders: `{REPO}`, `{PR_NUMBER}`, `{ROUND}`, `{WORKTREE_PATH}`, `{HEAD_BRANCH}`, `{DEBATE_LEDGER}`, `{CROSS_REBUTTALS}`, `{CROSS_FINDINGS}`, `{APPLICABLE_ISSUES}`, `{OUTPUT_LANGUAGE}`, `{REVIEW_CRITERIA}`
+3. Invoke sub-agent (see **Agent Invocation**)
+4. Parse JSON response (retry up to 3 times on failure)
 
 #### Record Rebuttal Responses + Cross Findings Evaluation
 
@@ -352,49 +329,21 @@ Record all decisions in a single `resolve-rebuttals --step "3"` call:
 - `maintain`: Rejected — forwarded as rebuttal to the opposing agent in the next round
 - `accept`: Accept cross-verifier's finding (added to consensus)
 
-#### Apply Codex code_fixes
+#### Route Response
 
-If Codex is lead and the `code_fixes` array is non-empty, CC applies each diff to the worktree.
-
-**Skip code_fixes application for fork PRs.** Push is not possible, so applying patches to the worktree is meaningless. Skip this entire section if `IS_FORK` is `true`.
-
-**If `DRY_RUN=true`, also prohibit actual worktree changes.** This is a review-only simulation, so do not execute `git apply`, `git commit`, or `git push`. Only record the agent's proposed `code_fixes` and applicable issues, then proceed to the settlement step.
-
-Save each `code_fixes` item's `diff` value to a file and apply with `git apply`:
-
-```bash
-STAGED_FILES=$(mktemp)
-
-# Iterate over each code_fix item
-PATCH_FILE=$(mktemp /tmp/debate-patch-XXXXXX)
-printf '%s\n' "$DIFF_CONTENT" > "$PATCH_FILE"
-git -C "$WORKTREE_PATH" apply --check "$PATCH_FILE"  # Verify
-git -C "$WORKTREE_PATH" apply "$PATCH_FILE"           # Apply
-git -C "$WORKTREE_PATH" apply --numstat "$PATCH_FILE" | awk '{print $3}' >> "$STAGED_FILES"
-rm -f "$PATCH_FILE"
-```
-
-- On `--check` failure, record the issue_id as `failed-issues` and continue to the next item
-- After all applications, reflect in Phase 1's `--applied-issues` and `--failed-issues`
-- Accumulate actual file paths modified by successful patches for dedup staging in Phase 2
-- **When CC is lead**, CC modifies code directly in `$WORKTREE_PATH`:
-  1. For each applicable issue, read the target file, determine the fix, and edit the file
-  2. Track modified file paths for staging (same as Codex patch flow)
-  3. If CC cannot determine a fix for a specific issue, record that single issue as `failed-issues` and report the reason to the user — do not batch-fail all issues
-  4. Proceed to Phase 1 with the actual `applied-issues` and `failed-issues` lists
+From the agent's JSON response:
+- `rebuttal_decisions` → `resolve-rebuttals --step "3"`
+- `cross_finding_evaluations` → `resolve-rebuttals --step "3"`
+- `application_result` → record via 3-phase process below
 
 #### Code Application (Same-Repo PR, 3-Phase)
 
-All issues with `consensus_status=accepted` and `application_status=pending|failed` are fixed by the lead agent.
+The sub-agent edits files, commits, and pushes directly in `$WORKTREE_PATH`. The orchestrator verifies the result and records it via CLI.
 
-If `DRY_RUN=true`, skip all 3 phases. In dry-run mode, only verify state without creating commits/pushes.
+**Skip all 3 phases for fork PRs.** (Push not possible, `application_status=recommended`)
+**Skip all 3 phases if `DRY_RUN=true`.** (Review-only simulation)
 
-**Before calling Phase 1**, the lead agent must have performed one of:
-- `git apply` for each Codex `code_fixes` item (Codex lead rounds)
-- Direct file edits in `$WORKTREE_PATH` (CC lead rounds)
-
-If no code modification was attempted at all, do NOT call `record-application`. Instead, escalate to the user:
-> "N accepted issues require code fixes but I cannot determine appropriate changes. Please advise."
+The agent's `application_result` contains `applied_issues`, `failed_issues`, and `commit_sha`.
 
 **Phase 1: Record Application Results**
 
@@ -402,33 +351,16 @@ If no code modification was attempted at all, do NOT call `record-application`. 
 "$DEBATE_REVIEW_BIN" record-application \
   --state-file "$STATE_FILE" \
   --round "$CURRENT_ROUND" \
-  --applied-issues '["isu_001", "isu_003"]' \
-  --failed-issues '["isu_002"]'
+  --applied-issues "$APPLIED_ISSUES_JSON" \
+  --failed-issues "$FAILED_ISSUES_JSON"
 ```
 
 **Phase 2: Record Commit SHA**
 
-After code changes, commit (staging only modified files). Skip commit if no successful patches:
-```bash
-sort -u "$STAGED_FILES" | while IFS= read -r path; do
-  [ -n "$path" ] && git -C "$WORKTREE_PATH" add -- "$path"
-done
-rm -f "$STAGED_FILES"
-if git -C "$WORKTREE_PATH" diff --cached --quiet; then
-  # No actual changes staged → skip commit/push
-  COMMIT_SHA=""
-else
-  git -C "$WORKTREE_PATH" commit -m "fix: apply debate review findings (round $CURRENT_ROUND)"
-  COMMIT_SHA=$(git -C "$WORKTREE_PATH" rev-parse HEAD)
-fi
-```
-
-Staging targets are the actual changed file paths extracted from each successful patch's diff (deduplicated) or files directly modified by CC. The `file` field in `code_fixes` is treated only as a hint; `git add -A` must not be used.
-
-If `COMMIT_SHA` is empty (no applied-issues or all patches failed), skip `--commit-sha` and Phase 3.
+If the agent returned a `commit_sha`:
 
 ```bash
-[ -n "$COMMIT_SHA" ] && "$DEBATE_REVIEW_BIN" record-application \
+"$DEBATE_REVIEW_BIN" record-application \
   --state-file "$STATE_FILE" \
   --round "$CURRENT_ROUND" \
   --commit-sha "$COMMIT_SHA"
@@ -436,14 +368,10 @@ If `COMMIT_SHA` is empty (no applied-issues or all patches failed), skip `--comm
 
 **Phase 3: Push Verification**
 
-Skip this step if `DRY_RUN=true`. Skip push and verification if `COMMIT_SHA` is empty.
+The agent already pushed in its response. The orchestrator verifies:
 
 ```bash
-[ -n "$COMMIT_SHA" ] && git -C "$WORKTREE_PATH" push origin "HEAD:$HEAD_BRANCH"
-```
-
-```bash
-[ -n "$COMMIT_SHA" ] && "$DEBATE_REVIEW_BIN" record-application \
+"$DEBATE_REVIEW_BIN" record-application \
   --state-file "$STATE_FILE" \
   --round "$CURRENT_ROUND" \
   --verify-push
@@ -451,7 +379,11 @@ Skip this step if `DRY_RUN=true`. Skip push and verification if `COMMIT_SHA` is 
 
 The CLI queries the actual PR HEAD and verifies it matches the commit SHA.
 
-**Skip all 3 phases for fork PRs.** (Push not possible, `application_status=recommended`)
+If push verification fails, the orchestrator retries the push:
+
+```bash
+git -C "$WORKTREE_PATH" push origin "HEAD:$HEAD_BRANCH"
+```
 
 ---
 
@@ -562,7 +494,7 @@ The output JSON includes:
 | `cross_findings` | `{CROSS_FINDINGS}` | Current round cross new findings (JSON array) |
 | `applicable_issues` | `{APPLICABLE_ISSUES}` | Issues ready for code application (JSON array) |
 
-CC only needs to add external data not in state: `{PR_TITLE}`, `{PR_BODY}`, `{DIFF}`, `{REVIEW_CRITERIA}`, `{REPO}`, `{PR_NUMBER}`, `{ROUND}`, `{OUTPUT_LANGUAGE}`.
+The orchestrator adds non-state data: `{REVIEW_CRITERIA}`, `{REPO}`, `{PR_NUMBER}`, `{ROUND}`, `{WORKTREE_PATH}`, `{HEAD_BRANCH}`, `{OUTPUT_LANGUAGE}`. Agents obtain PR metadata and diff directly from the repo.
 
 ---
 
@@ -621,23 +553,37 @@ After marking failed, post the final comment (add `--no-comment` if `DRY_RUN=tru
 
 ---
 
-## Codex Invocation Reference
+## Agent Invocation
+
+Both CC and Codex use the same prompt templates. The orchestrator selects the runtime based on the assigned agent.
 
 | Step | Template | Purpose |
 |------|----------|---------|
-| Step 1 (Codex lead) | `codex-lead-review-prompt.md` | Review + rebuttal resolution |
-| Step 2 (Codex cross) | `codex-cross-verify-prompt.md` | Cross-verification + own findings |
-| Step 3 (Codex lead) | `codex-lead-response-prompt.md` | Response + code fixes |
+| Step 1 (lead) | `agent-lead-review-prompt.md` | Review + rebuttal resolution |
+| Step 2 (cross) | `agent-cross-verify-prompt.md` | Cross-verification + own findings |
+| Step 3 (lead) | `agent-lead-response-prompt.md` | Response + direct code application |
 
-Invocation pattern:
-1. Read prompt template
-2. Substitute placeholders (see derivation methods below)
-3. Pass prompt file via stdin: `codex exec -s "$CODEX_SANDBOX" - < "$PROMPT_FILE"`
-4. Parse JSON output (retry up to 3 times on failure)
+### Invocation by Runtime
 
-#### Placeholder Derivation
+**Codex:**
+```bash
+cd "$WORKTREE_PATH"
+PROMPT_FILE=$(mktemp /tmp/debate-prompt-XXXXXX)
+printf '%s' "$FILLED_PROMPT" > "$PROMPT_FILE"
+codex exec -s "$CODEX_SANDBOX" - < "$PROMPT_FILE"
+rm -f "$PROMPT_FILE"
+```
 
-See `REFERENCE.md` for placeholder sources. State-derivable placeholders are returned by `build-context --state-file --round N`.
+**CC sub-agent:**
+```
+Agent(prompt="$FILLED_PROMPT", description="debate-review step N")
+```
+
+The orchestrator does NOT use `isolation: "worktree"` — both agents work in the existing CLI-managed worktree at `$WORKTREE_PATH`.
+
+### Placeholder Derivation
+
+State-derivable placeholders are returned by `build-context --state-file --round N`. See `REFERENCE.md` for full placeholder sources.
 
 ---
 
@@ -651,7 +597,7 @@ See `REFERENCE.md` for placeholder sources. State-derivable placeholders are ret
 | CLI | `$DEBATE_REVIEW_BIN <subcommand>` |
 | Comment tag | `[debate-review][sha:<initial_sha>]` |
 | Max rounds | 10 (config `max_rounds`) |
-| Codex sandbox | `read-only` (explicit opt-in for `danger-full-access`) |
+| Codex sandbox | `danger-full-access` (agents edit files, run tests, git push directly) |
 | Worktree | `<repo_root>/.worktrees/debate-pr-<N>` |
 | GitHub CLI | `env -u GITHUB_TOKEN -u GH_TOKEN gh ...` |
 | Output language | Config `language` (default: `en`) |
@@ -738,9 +684,9 @@ The orchestrator must handle this failure exactly like a real error — capture 
 - **Skipping Step 0**: Always run `sync-head` even on restart
 - **Using `post_sync_head_sha` in comment tag**: Use `initial_sha` for stability after Step 3 commits
 - **Filtering by `opened_by`**: Lead agent fixes all agreed issues regardless of who opened them
-- **Using Codex output as-is in comments**: Orchestrator must normalize to standard format
-- **Ignoring phase order**: Strictly follow Phase 1 → commit → Phase 2 → push → Phase 3
+- **Using agent output as-is in comments**: Orchestrator must normalize to standard format
+- **Ignoring phase order**: Strictly follow Phase 1 → Phase 2 → Phase 3 (record → commit → verify push)
 - **Attempting push on fork PR**: Fork PRs skip code application/commit/push entirely
-- **Skipping code application**: When `DRY_RUN=false` and `IS_FORK=false`, code application is mandatory for accepted issues. Recording all issues as `failed-issues` without attempting fixes creates an infinite loop and violates the procedure. CC must either apply fixes or escalate to the user.
+- **Skipping code application**: When `DRY_RUN=false` and `IS_FORK=false`, code application is mandatory for accepted issues. Recording all issues as `failed-issues` without attempting fixes creates an infinite loop. The agent must either apply fixes or escalate to the user.
 - **Treating debate review as review-only**: The skill is a review + fix system, not a comment-only reviewer. If only review comments are needed, use `DRY_RUN=true` in config.
 - **Ignoring errors**: Every failure must go through `mark-failed`; when `DRY_RUN=false`, also produce a bug report before session termination
