@@ -3,12 +3,19 @@
 import sys
 
 from debate_review.gh import gh_json
+from debate_review.issue_ops import latest_report_message
 from debate_review.round_ops import _find_round
 
 
 def _get_pr_head_sha(repo, pr_number):
     data = gh_json("pr", "view", str(pr_number), "--repo", repo, "--json", "headRefOid")
     return data["headRefOid"]
+
+
+def _validate_issue_ids_exist(state, issue_ids):
+    unknown = [issue_id for issue_id in issue_ids if issue_id not in state["issues"]]
+    if unknown:
+        raise ValueError(f"Unknown issue IDs: {unknown}")
 
 
 def record_application_phase1(state, *, round_num, applied_issue_ids, failed_issue_ids) -> dict:
@@ -18,9 +25,7 @@ def record_application_phase1(state, *, round_num, applied_issue_ids, failed_iss
 
     # Validate all issue IDs exist
     all_ids = list(applied_issue_ids) + list(failed_issue_ids)
-    unknown = [iid for iid in all_ids if iid not in state["issues"]]
-    if unknown:
-        raise ValueError(f"Unknown issue IDs: {unknown}")
+    _validate_issue_ids_exist(state, all_ids)
 
     # Warn if no issues were applied but some failed
     if not applied_issue_ids and failed_issue_ids:
@@ -121,3 +126,46 @@ def record_application_phase3(state, *, round_num, _get_head=None) -> dict:
     journal["state_persisted"] = True
 
     return {"phase": 3, "round": round_num, "push_verified": True}
+
+
+def _build_commit_subject(state, *, round_num, applied_ids) -> str:
+    """Build a localized commit subject for the current round."""
+    language = state.get("language", "en")
+    if language == "ko":
+        return f"fix: 토론 리뷰 결과 반영 (라운드 {round_num})"
+    if language == "en":
+        return f"fix: apply debate review findings (round {round_num})"
+
+    for issue_id in applied_ids:
+        issue = state.get("issues", {}).get(issue_id)
+        if issue:
+            return f"fix: {latest_report_message(issue)}"
+
+    return f"fix: debate-review r{round_num}"
+
+
+def build_commit_message(state, *, round_num, applied_issue_ids=None) -> str:
+    """Build a commit message from applied issues in the current round.
+
+    Uses explicit applied_issue_ids when provided, otherwise falls back to
+    journal.applied_issue_ids. Respects state["language"] for the subject line.
+    """
+    journal = state["journal"]
+    applied_ids = applied_issue_ids if applied_issue_ids is not None else journal.get("applied_issue_ids", [])
+    _validate_issue_ids_exist(state, applied_ids)
+    subject = _build_commit_subject(state, round_num=round_num, applied_ids=applied_ids)
+
+    if not applied_ids:
+        return subject
+
+    # Body: list each applied issue with its message
+    lines = [subject, ""]
+    for issue_id in applied_ids:
+        issue = state.get("issues", {}).get(issue_id)
+        if not issue:
+            continue
+        msg = latest_report_message(issue)
+        loc = f"{issue.get('file', '?')}:{issue.get('line', '?')}"
+        lines.append(f"- {issue_id} ({loc}): {msg}")
+
+    return "\n".join(lines)

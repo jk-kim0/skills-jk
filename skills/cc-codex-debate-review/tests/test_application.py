@@ -1,6 +1,7 @@
 from debate_review.state import create_initial_state
 from debate_review.round_ops import init_round
 from debate_review.application import (
+    build_commit_message,
     record_application_phase1,
     record_application_phase2,
     record_application_phase3,
@@ -177,3 +178,87 @@ def test_phase2_rejects_different_sha_overwrite():
     record_application_phase2(state, round_num=1, commit_sha="sha_first")
     with pytest.raises(ValueError, match="already recorded"):
         record_application_phase2(state, round_num=1, commit_sha="sha_different")
+
+
+# --- build_commit_message tests ---
+
+
+def test_build_commit_message_with_applied_issues():
+    """Commit message includes applied issue summaries."""
+    state = _state_with_accepted_issues()
+    record_application_phase1(
+        state, round_num=1,
+        applied_issue_ids=["isu_001", "isu_002"], failed_issue_ids=[],
+    )
+    msg = build_commit_message(state, round_num=1)
+    lines = msg.split("\n")
+    assert lines[0] == "fix: apply debate review findings (round 1)"
+    assert lines[1] == ""
+    assert "isu_001" in lines[2]
+    assert "Missing validation" in lines[2]
+    assert "src/a.py:10" in lines[2]
+    assert "isu_002" in lines[3]
+    assert "Duplicate logic" in lines[3]
+
+
+def test_build_commit_message_korean():
+    """Commit message subject uses Korean when language=ko."""
+    state = _state_with_accepted_issues()
+    state["language"] = "ko"
+    record_application_phase1(
+        state, round_num=1,
+        applied_issue_ids=["isu_001"], failed_issue_ids=["isu_002"],
+    )
+    msg = build_commit_message(state, round_num=1)
+    lines = msg.split("\n")
+    assert "라운드 1" in lines[0]
+    assert "isu_001" in lines[2]
+    assert "Missing validation" in lines[2]
+
+
+def test_build_commit_message_no_applied_issues():
+    """Commit message is subject-only when no issues applied."""
+    state = _state_with_accepted_issues()
+    record_application_phase1(
+        state, round_num=1,
+        applied_issue_ids=[], failed_issue_ids=["isu_001"],
+    )
+    msg = build_commit_message(state, round_num=1)
+    assert "\n" not in msg
+    assert "round 1" in msg
+
+
+def test_build_commit_message_with_explicit_applied_issues_before_phase1():
+    """Explicit applied issues should allow structured commit messages before phase 1 persists state."""
+    state = _state_with_accepted_issues()
+    msg = build_commit_message(state, round_num=1, applied_issue_ids=["isu_001"])
+    lines = msg.split("\n")
+    assert lines[0] == "fix: apply debate review findings (round 1)"
+    assert lines[1] == ""
+    assert "isu_001" in lines[2]
+    assert "Missing validation" in lines[2]
+
+
+def test_build_commit_message_uses_localized_issue_message_for_other_languages():
+    """Non-English/Korean languages should not fall back to an English subject."""
+    state = _state_with_accepted_issues()
+    state["language"] = "fr"
+    state["issues"]["isu_001"]["reports"][-1]["message"] = "Validation d'entree manquante"
+    record_application_phase1(
+        state, round_num=1,
+        applied_issue_ids=["isu_001"], failed_issue_ids=[],
+    )
+    msg = build_commit_message(state, round_num=1)
+    lines = msg.split("\n")
+    assert lines[0] == "fix: Validation d'entree manquante"
+    assert lines[2].endswith("Validation d'entree manquante")
+
+
+def test_build_commit_message_rejects_unknown_issue_ids():
+    """Commit message generation should fail fast on unknown applied issue IDs."""
+    import pytest
+
+    state = _state_with_accepted_issues()
+
+    with pytest.raises(ValueError, match="Unknown issue IDs"):
+        build_commit_message(state, round_num=1, applied_issue_ids=["isu_missing"])

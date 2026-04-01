@@ -134,6 +134,47 @@ def test_cli_show_text(monkeypatch, capsys, state_path):
     assert "#123" in out
 
 
+def test_cli_build_commit_message_with_explicit_applied_issues(monkeypatch, capsys, state_path):
+    _run_cli(monkeypatch, [
+        "upsert-issue", "--state-file", state_path,
+        "--agent", "codex", "--round", "1",
+        "--severity", "critical", "--criterion", "1",
+        "--file", "src/a.py", "--line", "10",
+        "--anchor", "validate_input",
+        "--message", "Missing input validation",
+    ])
+    out = capsys.readouterr().out
+    issue_id = json.loads(out)["issue_id"]
+
+    _run_cli(monkeypatch, [
+        "build-commit-message", "--state-file", state_path,
+        "--round", "1",
+        "--applied-issues", json.dumps([issue_id]),
+    ])
+    out = capsys.readouterr().out
+    assert "fix: apply debate review findings (round 1)" in out
+    assert issue_id in out
+    assert "Missing input validation" in out
+
+
+def test_cli_build_commit_message_rejects_unknown_issue_ids(monkeypatch, capsys, state_path):
+    monkeypatch.setattr(sys, "argv", [
+        "debate-review",
+        "build-commit-message",
+        "--state-file", state_path,
+        "--round", "1",
+        "--applied-issues", json.dumps(["isu_missing"]),
+    ])
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == 1
+    out = capsys.readouterr().out
+    result = json.loads(out)
+    assert result["error"] == "Unknown issue IDs: ['isu_missing']"
+
+
 # Test 4: post-comment --no-comment outputs body without posting
 def test_cli_post_comment_no_comment(monkeypatch, capsys, state_path):
     # Set up terminal state

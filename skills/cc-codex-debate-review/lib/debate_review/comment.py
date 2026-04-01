@@ -1,17 +1,11 @@
 """post-comment: Generate and post final PR comment."""
 
 from debate_review.gh import gh, gh_json
+from debate_review.issue_ops import latest_report_message
 
 
 def _make_tag(state):
     return f"[debate-review][sha:{state['head']['initial_sha']}]"
-
-
-def _latest_report_message(issue):
-    """Get message from the latest report."""
-    if not issue.get("reports"):
-        return issue.get("severity", "unknown") + " issue"
-    return issue["reports"][-1]["message"]
 
 
 def _first_reporter(issue):
@@ -64,7 +58,7 @@ def _build_consensus(state, tag):
         lines.append(fixes_heading)
         for issue in fixes:
             reporter = _first_reporter(issue)
-            msg = _latest_report_message(issue)
+            msg = latest_report_message(issue)
             if is_fork:
                 lines.append(f"- {issue['file']}:{issue['line']} - (reported by {reporter}) {msg}")
             else:
@@ -77,7 +71,7 @@ def _build_consensus(state, tag):
         lines.append("")
         lines.append("## Withdrawn Findings")
         for issue in withdrawn:
-            msg = _latest_report_message(issue)
+            msg = latest_report_message(issue)
             reason = issue.get("consensus_reason", "")
             lines.append(f"- {issue['file']}:{issue['line']} - {msg}")
             if reason:
@@ -100,7 +94,7 @@ def _build_max_rounds(state, tag):
         lines.append("")
         lines.append("## Unresolved Issues")
         for issue in unresolved:
-            msg = _latest_report_message(issue)
+            msg = latest_report_message(issue)
             lines.append(f"- {issue['file']}:{issue['line']} - {msg}")
 
     lines.append("")
