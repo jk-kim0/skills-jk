@@ -29,6 +29,8 @@ from debate_review.state import (
     state_file_path,
 )
 
+_ALLOWED_AGENT_MODES = ("legacy", "persistent")
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="debate-review")
@@ -146,6 +148,13 @@ def _error_exit(message):
     sys.exit(1)
 
 
+def _validate_agent_mode(agent_mode):
+    if agent_mode not in _ALLOWED_AGENT_MODES:
+        allowed = ", ".join(_ALLOWED_AGENT_MODES)
+        _error_exit(f"Invalid agent_mode: {agent_mode}. Expected one of: {allowed}")
+    return agent_mode
+
+
 def _dry_run_skip(state, *, command, **payload):
     result = {"action": "dry_run", "command": command, "current_round": state["current_round"]}
     result.update(payload)
@@ -210,7 +219,7 @@ def cmd_init(args):
     max_rounds = args.max_rounds if args.max_rounds is not None else config.get("max_rounds", 10)
     language = str(config.get("language", "en"))
     codex_sandbox = str(config.get("codex_sandbox", "danger-full-access"))
-    agent_mode = str(config.get("agent_mode", "legacy"))
+    agent_mode = _validate_agent_mode(str(config.get("agent_mode", "legacy")))
 
     state_path = state_file_path(repo, pr_number, dry_run)
     existing = load_state(state_path)
@@ -243,6 +252,8 @@ def cmd_init(args):
         if "agent_mode" not in existing:
             existing["agent_mode"] = agent_mode
             needs_save = True
+        else:
+            existing["agent_mode"] = _validate_agent_mode(str(existing["agent_mode"]))
         if needs_save:
             save_state(existing, state_path)
     else:

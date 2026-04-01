@@ -23,3 +23,20 @@ def test_skill_doc_defers_persistent_agent_creation_until_worktree_exists():
 
     assert "after the first `init-round` provides `WORKTREE_PATH`" in skill
     assert "before the round loop" not in skill
+
+
+def test_skill_doc_uses_codex_resume_subcommand_for_persistent_dispatch():
+    skill_path = Path(__file__).resolve().parents[1] / "SKILL.md"
+    skill = skill_path.read_text()
+
+    assert 'codex exec resume "$CODEX_SESSION_ID" - < "$STEP_FILE"' in skill
+    assert 'codex exec --resume "$CODEX_SESSION_ID" -s "$CODEX_SANDBOX" - < "$STEP_FILE"' not in skill
+
+
+def test_skill_doc_explains_how_to_capture_codex_session_id():
+    skill_path = Path(__file__).resolve().parents[1] / "SKILL.md"
+    skill = skill_path.read_text()
+
+    assert 'codex exec --json -s "$CODEX_SANDBOX" - < "$PROMPT_FILE"' in skill
+    assert 'select(.type == "thread.started") | .thread_id' in skill
+    assert "CODEX_SESSION_ID=<parse session ID from CODEX_OUTPUT>" not in skill

@@ -128,11 +128,19 @@ Agent(prompt="$FILLED_INITIAL_PROMPT", description="debate-review CC agent")
 **Codex Agent:**
 ```bash
 PROMPT_FILE=$(mktemp /tmp/debate-initial-XXXXXX)
+CODEX_INIT_LOG=$(mktemp /tmp/debate-codex-init-XXXXXX.jsonl)
 printf '%s' "$FILLED_INITIAL_PROMPT" > "$PROMPT_FILE"
-CODEX_OUTPUT=$(cd "$WORKTREE_PATH" && codex exec -s "$CODEX_SANDBOX" - < "$PROMPT_FILE")
-CODEX_SESSION_ID=<parse session ID from CODEX_OUTPUT>
-rm -f "$PROMPT_FILE"
+cd "$WORKTREE_PATH"
+codex exec --json -s "$CODEX_SANDBOX" - < "$PROMPT_FILE" | tee "$CODEX_INIT_LOG"
+CODEX_SESSION_ID=$(jq -r 'select(.type == "thread.started") | .thread_id' "$CODEX_INIT_LOG" | tail -n 1)
+if [ -z "$CODEX_SESSION_ID" ]; then
+  echo "Failed to capture CODEX_SESSION_ID from Codex JSON output" >&2
+  exit 1
+fi
+rm -f "$PROMPT_FILE" "$CODEX_INIT_LOG"
 ```
+
+The `thread.started` event is emitted at the start of `codex exec --json`; use its `thread_id` as `CODEX_SESSION_ID` for later `resume` calls.
 
 Skip agent creation if `AGENT_MODE=legacy`.
 
@@ -229,7 +237,7 @@ Skip if no previous round exists or no rebuttals are pending.
 1. Compose step message (see **Step 1 Message Format** below)
 2. Dispatch to lead agent:
    - CC: `SendMessage(to=CC_AGENT_ID, message=step_message)`
-   - Codex: `codex exec --resume "$CODEX_SESSION_ID" -s "$CODEX_SANDBOX" - <<< "$step_message"`
+   - Codex: `cd "$WORKTREE_PATH" && codex exec resume "$CODEX_SESSION_ID" - <<< "$step_message"`
 3. Parse JSON response (retry up to 3 times on failure)
 
 **Both modes — route response:**
@@ -715,9 +723,12 @@ Requires: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`
 ```bash
 STEP_FILE=$(mktemp /tmp/debate-step-XXXXXX)
 printf '%s' "$step_message" > "$STEP_FILE"
-codex exec --resume "$CODEX_SESSION_ID" -s "$CODEX_SANDBOX" - < "$STEP_FILE"
+cd "$WORKTREE_PATH"
+codex exec resume "$CODEX_SESSION_ID" - < "$STEP_FILE"
 rm -f "$STEP_FILE"
 ```
+
+`codex exec resume` reuses the existing session configuration, so do not pass `-s` again on resumed turns.
 
 ### Common Rules (Both Modes)
 

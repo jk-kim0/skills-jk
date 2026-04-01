@@ -559,6 +559,33 @@ def test_cli_init_agent_mode_from_config(monkeypatch, capsys, tmp_path):
     assert result["agent_mode"] == "persistent"
 
 
+def test_cli_init_rejects_invalid_agent_mode(monkeypatch, capsys, tmp_path):
+    config_path = tmp_path / "config.yml"
+    config_path.write_text("agent_mode: invalid\n")
+    monkeypatch.setattr(
+        "debate_review.cli.gh_json",
+        lambda *args: {
+            "headRefName": "feat/test",
+            "headRefOid": "abc123",
+            "headRepositoryOwner": {"login": "owner"},
+        },
+    )
+    monkeypatch.setattr(sys, "argv", [
+        "debate-review",
+        "init",
+        "--repo", "owner/repo",
+        "--pr", "456",
+        "--config", str(config_path),
+    ])
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == 1
+    result = json.loads(capsys.readouterr().out)
+    assert result["error"] == "Invalid agent_mode: invalid. Expected one of: legacy, persistent"
+
+
 def test_cli_init_resumed_session_preserves_state_agent_mode(monkeypatch, capsys, tmp_path):
     config_path = tmp_path / "config.yml"
     config_path.write_text("agent_mode: legacy\n")
