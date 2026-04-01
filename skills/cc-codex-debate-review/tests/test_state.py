@@ -133,6 +133,7 @@ def test_load_config_default_reads_bundled_config(monkeypatch):
         "max_rounds": 10,
         "codex_sandbox": "danger-full-access",
         "language": "en",
+        "agent_mode": "legacy",
     }
 
 

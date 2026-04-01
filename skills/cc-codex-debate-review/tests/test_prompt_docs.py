@@ -7,3 +7,11 @@ def test_agent_lead_response_prompt_passes_applied_issues_to_build_commit_messag
 
     assert "build-commit-message" in prompt
     assert "--applied-issues" in prompt
+
+
+def test_agent_initial_prompt_exists_and_has_required_placeholders():
+    prompt_path = Path(__file__).resolve().parents[1] / "agent-initial-prompt.md"
+    prompt = prompt_path.read_text()
+
+    for placeholder in ["{REPO}", "{PR_NUMBER}", "{WORKTREE_PATH}", "{OUTPUT_LANGUAGE}", "{REVIEW_CRITERIA}"]:
+        assert placeholder in prompt, f"Missing placeholder {placeholder}"
