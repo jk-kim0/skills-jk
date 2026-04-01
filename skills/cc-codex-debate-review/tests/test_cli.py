@@ -549,3 +549,28 @@ def test_cli_record_application_warns_all_failed(monkeypatch, capsys, state_path
     assert result["failed"] == 1
     assert "WARNING" in captured.err
     assert "applied=0" in captured.err
+
+
+def test_cli_test_error_exits_with_json_error(monkeypatch, capsys):
+    """test-error should raise RuntimeError → _error_exit → JSON error + exit 1."""
+    monkeypatch.setattr(sys, "argv", ["debate-review", "test-error"])
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+    assert exc_info.value.code == 1
+    out = capsys.readouterr().out
+    result = json.loads(out)
+    assert "error" in result
+    assert "Intentional test error" in result["error"]
+
+
+def test_cli_test_error_custom_message(monkeypatch, capsys):
+    """test-error --message should use the custom message."""
+    monkeypatch.setattr(sys, "argv", [
+        "debate-review", "test-error", "--message", "custom failure"
+    ])
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+    assert exc_info.value.code == 1
+    out = capsys.readouterr().out
+    result = json.loads(out)
+    assert result["error"] == "custom failure"

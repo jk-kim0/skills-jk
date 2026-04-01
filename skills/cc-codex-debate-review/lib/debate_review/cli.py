@@ -112,6 +112,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_ledger.add_argument("--state-file", required=True)
     p_ledger.add_argument("--entries", required=True, help="JSON array of ledger entries")
 
+    # test-error subcommand
+    p_test = subparsers.add_parser("test-error", help="Trigger an intentional error for pipeline verification")
+    p_test.add_argument("--message", default="Intentional test error for pipeline verification")
+
     # build-context subcommand
     p_ctx = subparsers.add_parser("build-context", help="Build review context from state")
     p_ctx.add_argument("--state-file", required=True)
@@ -469,6 +473,10 @@ def cmd_mark_failed(args):
     print(json.dumps(result))
 
 
+def cmd_test_error(args):
+    raise RuntimeError(args.message)
+
+
 def cmd_append_ledger(args):
     state = load_state(args.state_file)
     if state is None:
@@ -505,6 +513,7 @@ def main():
         "resolve-rebuttals": cmd_resolve_rebuttals,
         "record-application": cmd_record_application,
         "build-context": cmd_build_context,
+        "test-error": cmd_test_error,
         "mark-failed": cmd_mark_failed,
         "append-ledger": cmd_append_ledger,
         "sync-head": cmd_sync_head,
