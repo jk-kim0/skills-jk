@@ -720,6 +720,18 @@ When `DRY_RUN=false`, the `error_log` field in the `mark-failed` response contai
 
 **Do not silently retry or ignore errors.** Every failure must go through `mark-failed`. When `DRY_RUN=false`, also file the bug report before session termination.
 
+### Testing the Error Reporting Pipeline
+
+Use the `test-error` subcommand to verify the error reporting pipeline works end-to-end. This command intentionally raises a RuntimeError, simulating a real CLI failure.
+
+To test, replace any CLI call in the orchestration flow with `test-error`:
+
+```bash
+RESULT=$("$DEBATE_REVIEW_BIN" test-error --message "simulated sync-head failure") || true
+```
+
+The orchestrator must handle this failure exactly like a real error — capture the error, call `mark-failed`, save the error log, and create a GitHub Issue. No special handling for `test-error`; it goes through the standard failure path.
+
 ## Common Mistakes
 
 - **Manipulating state without CLI**: Always use `$DEBATE_REVIEW_BIN` subcommands for state changes
