@@ -225,6 +225,7 @@ def cmd_init(args):
             pr_branch_name=head_ref_name,
             max_rounds=max_rounds,
             language=language,
+            agent_mode=agent_mode,
             dry_run=dry_run,
         )
         save_state(state, state_path)
@@ -237,6 +238,9 @@ def cmd_init(args):
         dry_run = existing["dry_run"]
         if "language" not in existing:
             existing["language"] = language
+        if "agent_mode" not in existing:
+            existing["agent_mode"] = agent_mode
+        if "language" not in existing or "agent_mode" not in existing:
             save_state(existing, state_path)
     else:
         # Terminal state — use terminal_sha for session identity
@@ -257,6 +261,7 @@ def cmd_init(args):
                 pr_branch_name=head_ref_name,
                 max_rounds=max_rounds,
                 language=language,
+                agent_mode=agent_mode,
                 dry_run=dry_run,
             )
             save_state(state, state_path)
@@ -271,7 +276,7 @@ def cmd_init(args):
         "dry_run": dry_run,
         "codex_sandbox": codex_sandbox,
         "language": existing.get("language", language) if result_status == "resumed" else language,
-        "agent_mode": agent_mode,
+        "agent_mode": existing.get("agent_mode", agent_mode) if result_status == "resumed" else agent_mode,
     }
     if result_status == "resumed":
         resume_info = determine_next_step(existing)

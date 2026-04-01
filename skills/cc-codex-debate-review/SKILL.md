@@ -110,7 +110,7 @@ If `STATUS` is `resumed`, the response also includes `next_step` and optionally 
 
 #### Persistent Mode: Agent Creation
 
-When `AGENT_MODE=persistent`, create both agents **once** after initialization (before the round loop). Each agent receives `agent-initial-prompt.md` with placeholders substituted.
+When `AGENT_MODE=persistent`, create both agents **once** after the first `init-round` provides `WORKTREE_PATH`, immediately before Step 1 of round 1. Step 0 `sync-head` and the first round initialization still happen first. Each agent receives `agent-initial-prompt.md` with placeholders substituted.
 
 Read and substitute `$SKILL_ROOT/agent-initial-prompt.md`:
 - `{REPO}` → `$REPO`
