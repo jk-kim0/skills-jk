@@ -226,3 +226,18 @@ def test_build_commit_message_no_applied_issues():
     msg = build_commit_message(state, round_num=1)
     assert "\n" not in msg
     assert "round 1" in msg
+
+
+def test_build_commit_message_uses_localized_issue_message_for_other_languages():
+    """Non-English/Korean languages should not fall back to an English subject."""
+    state = _state_with_accepted_issues()
+    state["language"] = "fr"
+    state["issues"]["isu_001"]["reports"][-1]["message"] = "Validation d'entree manquante"
+    record_application_phase1(
+        state, round_num=1,
+        applied_issue_ids=["isu_001"], failed_issue_ids=[],
+    )
+    msg = build_commit_message(state, round_num=1)
+    lines = msg.split("\n")
+    assert lines[0] == "fix: Validation d'entree manquante"
+    assert lines[2].endswith("Validation d'entree manquante")

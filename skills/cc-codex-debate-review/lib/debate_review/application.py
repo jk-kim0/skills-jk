@@ -130,6 +130,22 @@ def _latest_report_message(issue):
     return issue["reports"][-1]["message"]
 
 
+def _build_commit_subject(state, *, round_num, applied_ids) -> str:
+    """Build a localized commit subject for the current round."""
+    language = state.get("language", "en")
+    if language == "ko":
+        return f"fix: 토론 리뷰 결과 반영 (라운드 {round_num})"
+    if language == "en":
+        return f"fix: apply debate review findings (round {round_num})"
+
+    for issue_id in applied_ids:
+        issue = state.get("issues", {}).get(issue_id)
+        if issue:
+            return f"fix: {_latest_report_message(issue)}"
+
+    return f"fix: debate-review r{round_num}"
+
+
 def build_commit_message(state, *, round_num) -> str:
     """Build a commit message from applied issues in the current round.
 
@@ -138,13 +154,7 @@ def build_commit_message(state, *, round_num) -> str:
     """
     journal = state["journal"]
     applied_ids = journal.get("applied_issue_ids", [])
-    language = state.get("language", "en")
-
-    # Subject line
-    if language == "ko":
-        subject = f"fix: 토론 리뷰 결과 반영 (라운드 {round_num})"
-    else:
-        subject = f"fix: apply debate review findings (round {round_num})"
+    subject = _build_commit_subject(state, round_num=round_num, applied_ids=applied_ids)
 
     if not applied_ids:
         return subject
