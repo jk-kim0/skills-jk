@@ -51,6 +51,7 @@ Fix the issues listed below by editing files directly in the worktree. After all
 - You MUST attempt to fix every issue listed. Do not skip without trying.
 - If you cannot determine the correct fix for a specific issue, mark it in `failed_issues` with a reason.
 - Do NOT use `git add -A` or `git add .` — stage only files you actually changed.
+- If `{APPLICABLE_ISSUES}` is empty, skip code application entirely. Fork PRs and `DRY_RUN=true` sessions must remain review-only and should return empty `applied_issues` / `failed_issues` arrays with no `commit_sha`.
 
 Issues to fix (consensus status: accepted, application status: pending or failed):
 {APPLICABLE_ISSUES}

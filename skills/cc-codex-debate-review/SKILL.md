@@ -343,6 +343,8 @@ The sub-agent edits files, commits, and pushes directly in `$WORKTREE_PATH`. The
 **Skip all 3 phases for fork PRs.** (Push not possible, `application_status=recommended`)
 **Skip all 3 phases if `DRY_RUN=true`.** (Review-only simulation)
 
+`build-context` enforces the same gate for the agent prompt: when `IS_FORK=true` or `DRY_RUN=true`, `{APPLICABLE_ISSUES}` is `[]`, so the lead agent skips edits/commit/push and returns an empty `application_result`.
+
 The agent's `application_result` contains `applied_issues`, `failed_issues`, and `commit_sha`.
 
 **Phase 1: Record Application Results**
@@ -485,7 +487,7 @@ The output JSON includes:
 
 | Field | Placeholder | Description |
 |-------|------------|-------------|
-| `review_context` | `{REVIEW_CONTEXT}` | Last 2 rounds summary (text) |
+| `review_context` | `(not injected)` | Legacy last-2-round summary from `build-context`; retained in JSON output but no longer mapped to an agent prompt placeholder |
 | `open_issues` | `{OPEN_ISSUES}` | Unresolved issues (JSON array) |
 | `debate_ledger` | `{DEBATE_LEDGER}` | Cumulative conclusion record (text) |
 | `pending_rebuttals` | `{PENDING_REBUTTALS}` | Previous round rebuttals (JSON array) |

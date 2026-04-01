@@ -243,6 +243,9 @@ def build_cross_findings(state, round_num):
 
 def build_applicable_issues(state):
     """Build {APPLICABLE_ISSUES} — issues ready for code application."""
+    if state.get("is_fork") or state.get("dry_run"):
+        return []
+
     result = []
     for iid, issue in state.get("issues", {}).items():
         if (issue.get("consensus_status") == "accepted"
