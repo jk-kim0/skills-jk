@@ -12,6 +12,12 @@ def _get_pr_head_sha(repo, pr_number):
     return data["headRefOid"]
 
 
+def _validate_issue_ids_exist(state, issue_ids):
+    unknown = [issue_id for issue_id in issue_ids if issue_id not in state["issues"]]
+    if unknown:
+        raise ValueError(f"Unknown issue IDs: {unknown}")
+
+
 def record_application_phase1(state, *, round_num, applied_issue_ids, failed_issue_ids) -> dict:
     """Phase 1: Record applied/failed issues before commit."""
     round_ = _find_round(state, round_num)
@@ -19,9 +25,7 @@ def record_application_phase1(state, *, round_num, applied_issue_ids, failed_iss
 
     # Validate all issue IDs exist
     all_ids = list(applied_issue_ids) + list(failed_issue_ids)
-    unknown = [iid for iid in all_ids if iid not in state["issues"]]
-    if unknown:
-        raise ValueError(f"Unknown issue IDs: {unknown}")
+    _validate_issue_ids_exist(state, all_ids)
 
     # Warn if no issues were applied but some failed
     if not applied_issue_ids and failed_issue_ids:
@@ -148,6 +152,7 @@ def build_commit_message(state, *, round_num, applied_issue_ids=None) -> str:
     """
     journal = state["journal"]
     applied_ids = applied_issue_ids if applied_issue_ids is not None else journal.get("applied_issue_ids", [])
+    _validate_issue_ids_exist(state, applied_ids)
     subject = _build_commit_subject(state, round_num=round_num, applied_ids=applied_ids)
 
     if not applied_ids:

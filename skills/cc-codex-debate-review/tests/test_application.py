@@ -252,3 +252,13 @@ def test_build_commit_message_uses_localized_issue_message_for_other_languages()
     lines = msg.split("\n")
     assert lines[0] == "fix: Validation d'entree manquante"
     assert lines[2].endswith("Validation d'entree manquante")
+
+
+def test_build_commit_message_rejects_unknown_issue_ids():
+    """Commit message generation should fail fast on unknown applied issue IDs."""
+    import pytest
+
+    state = _state_with_accepted_issues()
+
+    with pytest.raises(ValueError, match="Unknown issue IDs"):
+        build_commit_message(state, round_num=1, applied_issue_ids=["isu_missing"])

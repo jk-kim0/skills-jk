@@ -484,9 +484,9 @@ def cmd_build_commit_message(args):
             args.applied_issues,
             flag_name="--applied-issues",
         ) if args.applied_issues is not None else None
+        msg = build_commit_message(state, round_num=args.round, applied_issue_ids=applied_ids)
     except ValueError as e:
         _error_exit(str(e))
-    msg = build_commit_message(state, round_num=args.round, applied_issue_ids=applied_ids)
     print(msg)
 
 

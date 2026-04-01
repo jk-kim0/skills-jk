@@ -157,6 +157,24 @@ def test_cli_build_commit_message_with_explicit_applied_issues(monkeypatch, caps
     assert "Missing input validation" in out
 
 
+def test_cli_build_commit_message_rejects_unknown_issue_ids(monkeypatch, capsys, state_path):
+    monkeypatch.setattr(sys, "argv", [
+        "debate-review",
+        "build-commit-message",
+        "--state-file", state_path,
+        "--round", "1",
+        "--applied-issues", json.dumps(["isu_missing"]),
+    ])
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == 1
+    out = capsys.readouterr().out
+    result = json.loads(out)
+    assert result["error"] == "Unknown issue IDs: ['isu_missing']"
+
+
 # Test 4: post-comment --no-comment outputs body without posting
 def test_cli_post_comment_no_comment(monkeypatch, capsys, state_path):
     # Set up terminal state
