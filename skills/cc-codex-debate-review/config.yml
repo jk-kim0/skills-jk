@@ -1,7 +1,9 @@
 # CC-Codex Debate Review configuration
 max_rounds: 10
-# Full access so agents can run tests, edit files, and git push directly.
-codex_sandbox: danger-full-access
+# Review and cross-verification only need inspection privileges.
+codex_sandbox: read-only
+# Code-application rounds need write access to edit, commit, and push.
+codex_apply_sandbox: danger-full-access
 # Language for LLM-generated output (issue messages, reasons, descriptions).
 # Passed to Codex prompts via {OUTPUT_LANGUAGE}. CLI templates are always English.
 language: en

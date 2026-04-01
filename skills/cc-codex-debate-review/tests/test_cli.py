@@ -490,7 +490,8 @@ def test_cli_init_persists_language_from_config(monkeypatch, capsys, tmp_path):
     ])
     result = json.loads(capsys.readouterr().out)
     assert result["language"] == "ko"
-    assert result["codex_sandbox"] == "danger-full-access"
+    assert result["codex_sandbox"] == "read-only"
+    assert result["codex_apply_sandbox"] == "danger-full-access"
     state = load_state(result["state_file"])
     assert state["language"] == "ko"
     assert state["max_rounds"] == 7
@@ -549,6 +550,43 @@ def test_cli_record_application_warns_all_failed(monkeypatch, capsys, state_path
     assert result["failed"] == 1
     assert "WARNING" in captured.err
     assert "applied=0" in captured.err
+
+
+def test_cli_record_application_accepts_failed_issue_objects(monkeypatch, capsys, state_path):
+    _run_cli(monkeypatch, [
+        "upsert-issue", "--state-file", state_path,
+        "--agent", "codex", "--round", "1",
+        "--severity", "critical", "--criterion", "1",
+        "--file", "src/a.py", "--line", "10",
+        "--anchor", "validate_input",
+        "--message", "Missing input validation",
+    ])
+    issue_id = json.loads(capsys.readouterr().out)["issue_id"]
+    report_id = load_state(state_path)["issues"][issue_id]["reports"][0]["report_id"]
+
+    _run_cli(monkeypatch, [
+        "record-cross-verification", "--state-file", state_path,
+        "--round", "1",
+        "--verifications", json.dumps([
+            {"report_id": report_id, "decision": "accept", "reason": "Valid"},
+        ]),
+    ])
+    capsys.readouterr()
+
+    _run_cli(monkeypatch, [
+        "record-application", "--state-file", state_path,
+        "--round", "1",
+        "--applied-issues", json.dumps([]),
+        "--failed-issues", json.dumps([
+            {"issue_id": issue_id, "reason": "Could not determine the correct fix"},
+        ]),
+    ])
+    result = json.loads(capsys.readouterr().out)
+
+    assert result["phase"] == 1
+    assert result["failed"] == 1
+    state = load_state(state_path)
+    assert state["issues"][issue_id]["application_status"] == "failed"
 
 
 def test_cli_test_error_exits_with_json_error(monkeypatch, capsys):

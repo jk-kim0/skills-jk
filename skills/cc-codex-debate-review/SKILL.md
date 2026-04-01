@@ -78,6 +78,7 @@ CURRENT_ROUND=$(echo "$RESULT" | jq -r '.current_round')
 IS_FORK=$(echo "$RESULT" | jq -r '.is_fork')
 DRY_RUN=$(echo "$RESULT" | jq -r '.dry_run')
 CODEX_SANDBOX=$(echo "$RESULT" | jq -r '.codex_sandbox')
+CODEX_APPLY_SANDBOX=$(echo "$RESULT" | jq -r '.codex_apply_sandbox')
 LANGUAGE=$(echo "$RESULT" | jq -r '.language')
 ```
 
@@ -346,6 +347,7 @@ The sub-agent edits files, commits, and pushes directly in `$WORKTREE_PATH`. The
 `build-context` enforces the same gate for the agent prompt: when `IS_FORK=true` or `DRY_RUN=true`, `{APPLICABLE_ISSUES}` is `[]`, so the lead agent skips edits/commit/push and returns an empty `application_result`.
 
 The agent's `application_result` contains `applied_issues`, `failed_issues`, and `commit_sha`.
+`failed_issues` may be reported as either issue ID strings or objects with `{issue_id, reason}`; `record-application` normalizes both forms.
 
 **Phase 1: Record Application Results**
 
@@ -571,7 +573,9 @@ Both CC and Codex use the same prompt templates. The orchestrator selects the ru
 cd "$WORKTREE_PATH"
 PROMPT_FILE=$(mktemp /tmp/debate-prompt-XXXXXX)
 printf '%s' "$FILLED_PROMPT" > "$PROMPT_FILE"
-codex exec -s "$CODEX_SANDBOX" - < "$PROMPT_FILE"
+SANDBOX="$CODEX_SANDBOX"
+[ "$STEP" = "3" ] && SANDBOX="$CODEX_APPLY_SANDBOX"
+codex exec -s "$SANDBOX" - < "$PROMPT_FILE"
 rm -f "$PROMPT_FILE"
 ```
 
@@ -598,7 +602,7 @@ State-derivable placeholders are returned by `build-context --state-file --round
 | CLI | `$DEBATE_REVIEW_BIN <subcommand>` |
 | Comment tag | `[debate-review][sha:<initial_sha>]` |
 | Max rounds | 10 (config `max_rounds`) |
-| Codex sandbox | `danger-full-access` (agents edit files, run tests, git push directly) |
+| Codex sandbox | Steps 1-2: `read-only`; Step 3: `danger-full-access` (configurable via `codex_sandbox` / `codex_apply_sandbox`) |
 | Worktree | `<repo_root>/.worktrees/debate-pr-<N>` |
 | GitHub CLI | `env -u GITHUB_TOKEN -u GH_TOKEN gh ...` |
 | Output language | Config `language` (default: `en`) |
