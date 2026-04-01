@@ -126,6 +126,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_bcm = subparsers.add_parser("build-commit-message", help="Build commit message from applied issues")
     p_bcm.add_argument("--state-file", required=True)
     p_bcm.add_argument("--round", type=int, required=True)
+    p_bcm.add_argument("--applied-issues", default=None)
 
     # record-application subcommand
     p_app = subparsers.add_parser("record-application")
@@ -152,22 +153,27 @@ def _dry_run_skip(state, *, command, **payload):
 
 
 def _normalize_failed_issues(raw_failed_issues):
-    failed_issues = json.loads(raw_failed_issues) if raw_failed_issues else []
-    if not isinstance(failed_issues, list):
-        raise ValueError("--failed-issues must decode to a JSON array")
+    return _normalize_issue_ids(raw_failed_issues, flag_name="--failed-issues", allow_objects=True)
 
-    issue_ids = []
-    for item in failed_issues:
+def _normalize_issue_ids(raw_issue_ids, *, flag_name, allow_objects=False):
+    issue_ids = json.loads(raw_issue_ids) if raw_issue_ids else []
+    if not isinstance(issue_ids, list):
+        raise ValueError(f"{flag_name} must decode to a JSON array")
+
+    normalized = []
+    for item in issue_ids:
         if isinstance(item, str):
-            issue_ids.append(item)
+            normalized.append(item)
             continue
-        if isinstance(item, dict) and isinstance(item.get("issue_id"), str):
-            issue_ids.append(item["issue_id"])
+        if allow_objects and isinstance(item, dict) and isinstance(item.get("issue_id"), str):
+            normalized.append(item["issue_id"])
             continue
-        raise ValueError(
-            "--failed-issues entries must be issue ID strings or objects with string field 'issue_id'"
-        )
-    return issue_ids
+        if allow_objects:
+            raise ValueError(
+                f"{flag_name} entries must be issue ID strings or objects with string field 'issue_id'"
+            )
+        raise ValueError(f"{flag_name} entries must be issue ID strings")
+    return normalized
 
 
 def _resolve_repo_root(repo, repo_root_arg):
@@ -473,7 +479,14 @@ def cmd_build_commit_message(args):
     state = load_state(args.state_file)
     if state is None:
         _error_exit(f"No state file found at {args.state_file}")
-    msg = build_commit_message(state, round_num=args.round)
+    try:
+        applied_ids = _normalize_issue_ids(
+            args.applied_issues,
+            flag_name="--applied-issues",
+        ) if args.applied_issues is not None else None
+    except ValueError as e:
+        _error_exit(str(e))
+    msg = build_commit_message(state, round_num=args.round, applied_issue_ids=applied_ids)
     print(msg)
 
 

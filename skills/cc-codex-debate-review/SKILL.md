@@ -348,10 +348,13 @@ From the agent's JSON response:
 
 The sub-agent edits files, commits, and pushes directly in `$WORKTREE_PATH`. The orchestrator verifies the result and records it via CLI.
 
-**Commit message**: The agent must use `build-commit-message` to generate the commit message. This ensures applied issue summaries are included and the configured language is respected:
+**Commit message**: The agent must use `build-commit-message` with the exact applied issue IDs it plans to return in `application_result`. This ensures applied issue summaries are included before phase 1 is recorded and the configured language is respected:
 
 ```bash
-COMMIT_MSG=$("$DEBATE_REVIEW_BIN" build-commit-message --state-file "$STATE_FILE" --round "$CURRENT_ROUND")
+COMMIT_MSG=$("$DEBATE_REVIEW_BIN" build-commit-message \
+  --state-file "$STATE_FILE" \
+  --round "$CURRENT_ROUND" \
+  --applied-issues "$APPLIED_ISSUES_JSON")
 git -C "$WORKTREE_PATH" commit -m "$COMMIT_MSG"
 ```
 

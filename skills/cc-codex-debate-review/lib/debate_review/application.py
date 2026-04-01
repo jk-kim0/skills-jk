@@ -140,14 +140,14 @@ def _build_commit_subject(state, *, round_num, applied_ids) -> str:
     return f"fix: debate-review r{round_num}"
 
 
-def build_commit_message(state, *, round_num) -> str:
+def build_commit_message(state, *, round_num, applied_issue_ids=None) -> str:
     """Build a commit message from applied issues in the current round.
 
-    Reads journal.applied_issue_ids and generates a structured message
-    with issue summaries. Respects state["language"] for the subject line.
+    Uses explicit applied_issue_ids when provided, otherwise falls back to
+    journal.applied_issue_ids. Respects state["language"] for the subject line.
     """
     journal = state["journal"]
-    applied_ids = journal.get("applied_issue_ids", [])
+    applied_ids = applied_issue_ids if applied_issue_ids is not None else journal.get("applied_issue_ids", [])
     subject = _build_commit_subject(state, round_num=round_num, applied_ids=applied_ids)
 
     if not applied_ids:

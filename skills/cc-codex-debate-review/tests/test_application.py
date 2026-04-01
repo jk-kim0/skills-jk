@@ -228,6 +228,17 @@ def test_build_commit_message_no_applied_issues():
     assert "round 1" in msg
 
 
+def test_build_commit_message_with_explicit_applied_issues_before_phase1():
+    """Explicit applied issues should allow structured commit messages before phase 1 persists state."""
+    state = _state_with_accepted_issues()
+    msg = build_commit_message(state, round_num=1, applied_issue_ids=["isu_001"])
+    lines = msg.split("\n")
+    assert lines[0] == "fix: apply debate review findings (round 1)"
+    assert lines[1] == ""
+    assert "isu_001" in lines[2]
+    assert "Missing validation" in lines[2]
+
+
 def test_build_commit_message_uses_localized_issue_message_for_other_languages():
     """Non-English/Korean languages should not fall back to an English subject."""
     state = _state_with_accepted_issues()
