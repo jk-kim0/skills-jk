@@ -487,7 +487,6 @@ The output JSON includes:
 
 | Field | Placeholder | Description |
 |-------|------------|-------------|
-| `review_context` | `(not injected)` | Legacy last-2-round summary from `build-context`; retained in JSON output but no longer mapped to an agent prompt placeholder |
 | `open_issues` | `{OPEN_ISSUES}` | Unresolved issues (JSON array) |
 | `debate_ledger` | `{DEBATE_LEDGER}` | Cumulative conclusion record (text) |
 | `pending_rebuttals` | `{PENDING_REBUTTALS}` | Previous round rebuttals (JSON array) |
