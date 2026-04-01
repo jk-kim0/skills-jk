@@ -170,6 +170,28 @@ def test_load_config_missing_explicit_raises():
         load_config("/nonexistent/path/config.yml")
 
 
+def test_load_config_malformed_yaml_override(monkeypatch, tmp_path):
+    """Malformed YAML in override file should fall back to defaults."""
+    from debate_review import config as config_module
+    override_file = tmp_path / "bad.yml"
+    override_file.write_text(": :\n  - :\n bad: [")
+    monkeypatch.setattr(config_module, "_USER_OVERRIDE_PATH", str(override_file))
+    result = config_module.load_config()
+    assert result["max_rounds"] == 10
+    assert result["language"] == "en"
+
+
+def test_load_config_non_dict_yaml_override(monkeypatch, tmp_path):
+    """Non-dict YAML in override file should fall back to defaults."""
+    from debate_review import config as config_module
+    override_file = tmp_path / "list.yml"
+    override_file.write_text("- ko\n- en\n")
+    monkeypatch.setattr(config_module, "_USER_OVERRIDE_PATH", str(override_file))
+    result = config_module.load_config()
+    assert result["max_rounds"] == 10
+    assert result["language"] == "en"
+
+
 # determine_next_step tests
 
 def test_next_step_from_init(sample_state):

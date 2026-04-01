@@ -24,8 +24,22 @@ def load_config(path=None) -> dict:
     try:
         with open(_USER_OVERRIDE_PATH) as f:
             overrides = yaml.safe_load(f) or {}
-        config.update(overrides)
+        if not isinstance(overrides, dict):
+            import sys
+            print(
+                f"WARNING: {_USER_OVERRIDE_PATH} does not contain a YAML mapping; ignoring overrides",
+                file=sys.stderr,
+            )
+        else:
+            config.update(overrides)
     except FileNotFoundError:
         pass
+    except yaml.YAMLError:
+        import sys
+        print(
+            f"WARNING: {_USER_OVERRIDE_PATH} contains invalid YAML; ignoring overrides",
+            file=sys.stderr,
+        )
+
 
     return config
