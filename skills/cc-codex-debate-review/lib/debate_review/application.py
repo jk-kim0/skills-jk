@@ -3,6 +3,7 @@
 import sys
 
 from debate_review.gh import gh_json
+from debate_review.issue_ops import latest_report_message
 from debate_review.round_ops import _find_round
 
 
@@ -123,13 +124,6 @@ def record_application_phase3(state, *, round_num, _get_head=None) -> dict:
     return {"phase": 3, "round": round_num, "push_verified": True}
 
 
-def _latest_report_message(issue):
-    """Get message from the latest report."""
-    if not issue.get("reports"):
-        return issue.get("severity", "unknown") + " issue"
-    return issue["reports"][-1]["message"]
-
-
 def _build_commit_subject(state, *, round_num, applied_ids) -> str:
     """Build a localized commit subject for the current round."""
     language = state.get("language", "en")
@@ -141,7 +135,7 @@ def _build_commit_subject(state, *, round_num, applied_ids) -> str:
     for issue_id in applied_ids:
         issue = state.get("issues", {}).get(issue_id)
         if issue:
-            return f"fix: {_latest_report_message(issue)}"
+            return f"fix: {latest_report_message(issue)}"
 
     return f"fix: debate-review r{round_num}"
 
@@ -165,7 +159,7 @@ def build_commit_message(state, *, round_num) -> str:
         issue = state.get("issues", {}).get(issue_id)
         if not issue:
             continue
-        msg = _latest_report_message(issue)
+        msg = latest_report_message(issue)
         loc = f"{issue.get('file', '?')}:{issue.get('line', '?')}"
         lines.append(f"- {issue_id} ({loc}): {msg}")
 

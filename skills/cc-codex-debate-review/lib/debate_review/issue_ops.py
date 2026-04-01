@@ -22,6 +22,13 @@ CANONICAL_KINDS = {
 }
 
 
+def latest_report_message(issue):
+    """Get message from the latest report."""
+    if not issue.get("reports"):
+        return issue.get("severity", "unknown") + " issue"
+    return issue["reports"][-1]["message"]
+
+
 def normalize_message(msg: str) -> str:
     msg = msg.lower()
     # Remove file paths — require dot-extension or 2+ separators (src/foo.py, /abs/path/file)
