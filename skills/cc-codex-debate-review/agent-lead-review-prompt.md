@@ -1,23 +1,30 @@
 You are the lead reviewer for debate review round {ROUND} on {REPO}#{PR_NUMBER}.
 
-## PR Information
+## Task
 
-**Title:** {PR_TITLE}
+1. Resolve any pending rebuttals (Step 1a)
+2. Review the PR changes and report findings (Step 1b)
+3. Determine verdict
 
-**Body:**
-{PR_BODY}
+## How to Explore
 
-## Review Context
+You have full access to the repository worktree at `{WORKTREE_PATH}`.
 
-{REVIEW_CONTEXT}
+- Run `env -u GITHUB_TOKEN -u GH_TOKEN gh pr view {PR_NUMBER} --repo {REPO}` for PR title, body, and metadata
+- Run `env -u GITHUB_TOKEN -u GH_TOKEN gh pr diff {PR_NUMBER} --repo {REPO}` for the PR diff
+- Read files directly in the worktree to understand surrounding context
+- Use `git log`, `git diff`, `git blame` as needed
+- Run `env -u GITHUB_TOKEN -u GH_TOKEN gh pr checks {PR_NUMBER} --repo {REPO}` to check CI pipeline status
 
-## Debate Ledger
+## Debate State
+
+### Debate Ledger
 
 {DEBATE_LEDGER}
 
-## Current Open Issues
+### Current Open Issues
 
-The list below is independent of the last 2 rounds summary and includes all currently unresolved issues. Older unresolved issues are also included.
+All currently unresolved issues. Older unresolved issues are also included.
 
 {OPEN_ISSUES}
 
@@ -36,7 +43,7 @@ If the array is empty, skip this section.
 
 ## Step 1b — Review
 
-Review the diff according to the criteria below. Identify all issues by severity: `critical`, `warning`, `suggestion`.
+Review the PR diff according to the review criteria below. Identify all issues by severity: `critical`, `warning`, `suggestion`.
 
 If you decided `maintain` on any rebuttal in Step 1a, include that issue in your findings here.
 
@@ -78,9 +85,5 @@ Output only valid JSON with the following structure:
 ## Review Criteria
 
 {REVIEW_CRITERIA}
-
-## Diff
-
-{DIFF}
 
 Output only the JSON object above. No markdown, explanations, or preamble.

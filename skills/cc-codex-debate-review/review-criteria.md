@@ -29,6 +29,7 @@
 | 13 | `incorrect_algorithm` | Logic/algorithm error |
 | 14 | `missing_test` | Missing test coverage |
 | 15 | `doc_mismatch` | Documentation does not match implementation |
+| 16 | `ci_failure` | CI pipeline failure caused or not addressed by the PR |
 
 **Fallback** (when none of the above apply):
 `criterion:<N>|file:<path>|anchor:<anchor>|msg:<sha1(normalize(message))[:12]>`
@@ -79,6 +80,27 @@ Raw findings placed in the `findings` field follow this JSON array item schema:
 - `line`: Line number based on the current PR diff
 - `anchor`: Symbol name, function name, or other identifier less sensitive to line shifts. Use `line<N>` format if none exists.
 - `message`: Clear explanation of what is wrong and why it matters
+
+---
+
+## CI Pipeline Check
+
+Before reviewing the diff, check the PR's CI pipeline status:
+
+```bash
+env -u GITHUB_TOKEN -u GH_TOKEN gh pr checks {PR_NUMBER} --repo {REPO}
+```
+
+- **All passing**: Proceed to diff review.
+- **No checks reported**: `gh pr checks` may print `no checks reported on the '<branch>' branch` and exit with status 1 when the PR has no check runs yet. Treat this as `no checks yet`, not as a CI failure. Confirm with:
+
+```bash
+env -u GITHUB_TOKEN -u GH_TOKEN gh run list --repo {REPO} --branch "$(env -u GITHUB_TOKEN -u GH_TOKEN gh pr view {PR_NUMBER} --repo {REPO} --json headRefName -q .headRefName)" --limit 20
+```
+
+If the fallback shows no runs, note `no checks yet` and proceed to diff review.
+- **Failures present**: Investigate failed checks using `gh run view <run-id> --log-failed`. Diagnose the root cause — determine whether the failure is caused by changes in this PR or is a pre-existing/flaky issue. Report PR-caused failures as findings with `criterion: 16` (`ci_failure`).
+- **Pending/running**: Note the status and proceed to diff review. Do not wait.
 
 ---
 

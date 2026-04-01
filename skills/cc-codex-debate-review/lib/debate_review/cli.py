@@ -145,6 +145,25 @@ def _dry_run_skip(state, *, command, **payload):
     return result
 
 
+def _normalize_failed_issues(raw_failed_issues):
+    failed_issues = json.loads(raw_failed_issues) if raw_failed_issues else []
+    if not isinstance(failed_issues, list):
+        raise ValueError("--failed-issues must decode to a JSON array")
+
+    issue_ids = []
+    for item in failed_issues:
+        if isinstance(item, str):
+            issue_ids.append(item)
+            continue
+        if isinstance(item, dict) and isinstance(item.get("issue_id"), str):
+            issue_ids.append(item["issue_id"])
+            continue
+        raise ValueError(
+            "--failed-issues entries must be issue ID strings or objects with string field 'issue_id'"
+        )
+    return issue_ids
+
+
 def _resolve_repo_root(repo, repo_root_arg):
     if repo_root_arg:
         return repo_root_arg
@@ -179,6 +198,7 @@ def cmd_init(args):
     max_rounds = args.max_rounds if args.max_rounds is not None else config.get("max_rounds", 10)
     language = str(config.get("language", "en"))
     codex_sandbox = str(config.get("codex_sandbox", "read-only"))
+    codex_apply_sandbox = str(config.get("codex_apply_sandbox", "danger-full-access"))
 
     state_path = state_file_path(repo, pr_number, dry_run)
     existing = load_state(state_path)
@@ -238,6 +258,7 @@ def cmd_init(args):
         "is_fork": is_fork,
         "dry_run": dry_run,
         "codex_sandbox": codex_sandbox,
+        "codex_apply_sandbox": codex_apply_sandbox,
         "language": existing.get("language", language) if result_status == "resumed" else language,
     }
     if result_status == "resumed":
@@ -428,8 +449,8 @@ def cmd_record_application(args):
     elif args.applied_issues is not None:
         try:
             applied = json.loads(args.applied_issues)
-            failed = json.loads(args.failed_issues) if args.failed_issues else []
-        except json.JSONDecodeError as e:
+            failed = _normalize_failed_issues(args.failed_issues)
+        except (json.JSONDecodeError, ValueError) as e:
             _error_exit(f"Invalid JSON: {e}")
         result = record_application_phase1(
             state, round_num=args.round,
