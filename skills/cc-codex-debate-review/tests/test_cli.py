@@ -531,8 +531,7 @@ def test_cli_init_persists_language_from_config(monkeypatch, capsys, tmp_path):
     ])
     result = json.loads(capsys.readouterr().out)
     assert result["language"] == "ko"
-    assert result["codex_sandbox"] == "read-only"
-    assert result["codex_apply_sandbox"] == "danger-full-access"
+    assert result["codex_sandbox"] == "danger-full-access"
     state = load_state(result["state_file"])
     assert state["language"] == "ko"
     assert state["max_rounds"] == 7
