@@ -236,11 +236,14 @@ def cmd_init(args):
         current_round = existing["current_round"]
         is_fork = existing["is_fork"]
         dry_run = existing["dry_run"]
+        needs_save = False
         if "language" not in existing:
             existing["language"] = language
+            needs_save = True
         if "agent_mode" not in existing:
             existing["agent_mode"] = agent_mode
-        if "language" not in existing or "agent_mode" not in existing:
+            needs_save = True
+        if needs_save:
             save_state(existing, state_path)
     else:
         # Terminal state — use terminal_sha for session identity
