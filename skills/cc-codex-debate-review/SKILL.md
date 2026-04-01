@@ -603,6 +603,10 @@ The orchestrator does NOT use `isolation: "worktree"` — both agents work in th
 
 ### Placeholder Derivation
 
+> **Deprecated:** This section will be removed when the persistent-agent design
+> (`docs/plans/2026-04-01-debate-review-persistent-agent-design.md`) is implemented.
+> The new design replaces `build-context` CLI with direct orchestrator data composition.
+
 State-derivable placeholders are returned by `build-context --state-file --round N`. See `REFERENCE.md` for full placeholder sources.
 
 ---
