@@ -71,7 +71,8 @@ CONFIG_FILE="$SKILL_ROOT/config.yml"
 
 ```bash
 RESULT=$("$DEBATE_REVIEW_BIN" init --repo "$REPO" --pr "$PR_NUMBER" \
-  --config "$CONFIG_FILE")
+  --config "$CONFIG_FILE" \
+  ${AGENT_MODE_ARG:+--agent-mode "$AGENT_MODE_ARG"})
 STATE_FILE=$(echo "$RESULT" | jq -r '.state_file')
 STATUS=$(echo "$RESULT" | jq -r '.status')           # "created" | "resumed"
 CURRENT_ROUND=$(echo "$RESULT" | jq -r '.current_round')
@@ -81,6 +82,8 @@ CODEX_SANDBOX=$(echo "$RESULT" | jq -r '.codex_sandbox')
 LANGUAGE=$(echo "$RESULT" | jq -r '.language')
 AGENT_MODE=$(echo "$RESULT" | jq -r '.agent_mode')   # "legacy" | "persistent"
 ```
+
+`--agent-mode` is optional. When provided, it overrides the `agent_mode` value from `config.yml`. Valid values: `legacy`, `persistent`. If omitted, the config file value is used (default: `legacy`).
 
 `AGENT_MODE` determines agent invocation strategy. See **Agent Mode** section below.
 
@@ -166,6 +169,35 @@ After initialization, start loop from `CURRENT_ROUND`. Each round:
 5. Step 3: Lead agent response + code application (skipped on clean pass)
 6. Step 4: Settlement
 
+#### Agent Lifecycle (Persistent Mode Only)
+
+Skip this section entirely when `AGENT_MODE=legacy`.
+
+Before the first step dispatch, resolve agent state **once per orchestrator session**:
+
+```
+Is this a fresh session (STATUS=created)?
+  YES → agents do not exist yet.
+        After the first init-round provides WORKTREE_PATH,
+        create both agents per "Persistent Mode: Agent Creation" above.
+        Persist IDs with record-agent-sessions.
+        Set AGENTS_READY=true.
+  NO (STATUS=resumed) →
+    STATE_JSON=$("$DEBATE_REVIEW_BIN" show --state-file "$STATE_FILE" --json)
+    CC_AGENT_ID=$(echo "$STATE_JSON" | jq -r '.persistent_agents.cc_agent_id // empty')
+    CODEX_SESSION_ID=$(echo "$STATE_JSON" | jq -r '.persistent_agents.codex_session_id // empty')
+
+    Are both handles non-empty?
+      NO → handles missing. Go to Recovery.
+      YES → attempt first step dispatch with existing handles.
+            If SendMessage/resume fails → Go to Recovery.
+            If succeeds → Set AGENTS_READY=true.
+```
+
+**Recovery**: Create replacement agent(s) using the recovery prompt from **Persistent Mode Restart** below. After creation, persist new IDs with `record-agent-sessions`. Set `AGENTS_READY=true`.
+
+Once `AGENTS_READY=true`, all subsequent step dispatches use `SendMessage`/`codex exec resume` for the remainder of the session.
+
 ---
 
 ### Step 0: Sync PR HEAD
@@ -243,7 +275,9 @@ Skip if no previous round exists or no rebuttals are pending.
 
 **Persistent mode:**
 
-1. Compose step message (see **Step 1 Message Format** below)
+1. Compose step message using **Step 1 Message Format** below with data from **Step Message Data Sources**:
+   - `OPEN_ISSUES_JSON`, `DEBATE_LEDGER_TEXT` → from `"$DEBATE_REVIEW_BIN" show --state-file "$STATE_FILE" --json`
+   - `PENDING_REBUTTALS_JSON` → previous round Step 3 output, items where `decision=maintain`. If round 1, use `[]`.
 2. Dispatch to lead agent:
    - CC: `SendMessage(to=CC_AGENT_ID, message=step_message)`
    - Codex: `cd "$WORKTREE_PATH" && codex exec resume "$CODEX_SESSION_ID" - <<< "$step_message"`
@@ -330,8 +364,12 @@ The cross-verifier performs two tasks:
 
 **Persistent mode:**
 
-1. Compose step message (see **Step 2 Message Format** below)
-2. Dispatch to cross-verifier agent (SendMessage or codex resume)
+1. Compose step message using **Step 2 Message Format** below with data from **Step Message Data Sources**:
+   - `LEAD_FINDINGS_JSON` → this round's Step 1 agent output (`findings` array verbatim)
+   - `DEBATE_LEDGER_TEXT` → from `"$DEBATE_REVIEW_BIN" show --state-file "$STATE_FILE" --json`
+2. Dispatch to cross-verifier agent:
+   - CC: `SendMessage(to=CC_AGENT_ID, message=step_message)`
+   - Codex: `cd "$WORKTREE_PATH" && codex exec resume "$CODEX_SESSION_ID" - <<< "$step_message"`
 3. Parse JSON response (retry up to 3 times on failure)
 
 #### Record Cross-Verification Results
@@ -395,8 +433,14 @@ The lead agent edits files directly in the worktree, commits, and pushes. There 
 
 **Persistent mode:**
 
-1. Compose step message (see **Step 3 Message Format** below)
-2. Dispatch to lead agent (SendMessage or codex resume)
+1. Compose step message using **Step 3 Message Format** below with data from **Step Message Data Sources**:
+   - `CROSS_REBUTTALS_JSON` → this round's Step 2 agent output (`cross_verifications` where `decision=rebut`)
+   - `CROSS_NEW_FINDINGS_JSON` → this round's Step 2 agent output (`findings` array verbatim)
+   - `APPLICABLE_ISSUES_JSON` → from `show --json`, filtered: `consensus_status=accepted` AND `application_status in (pending, failed)`. Empty `[]` when `IS_FORK=true` or `DRY_RUN=true`.
+   - Include `WORKTREE_PATH`, `DEBATE_REVIEW_BIN`, `STATE_FILE`, `HEAD_BRANCH`, `ROUND` literals in the message.
+2. Dispatch to lead agent:
+   - CC: `SendMessage(to=CC_AGENT_ID, message=step_message)`
+   - Codex: `cd "$WORKTREE_PATH" && codex exec resume "$CODEX_SESSION_ID" - <<< "$step_message"`
 3. Parse JSON response (retry up to 3 times on failure)
 
 #### Record Rebuttal Responses + Cross Findings Evaluation
@@ -638,6 +682,8 @@ When `init` returns `status: "resumed"`, the `next_step` field indicates where t
 The `resume_context` object provides additional details (e.g., `clean_pass`, `commit_sha`).
 
 #### Persistent Mode Restart
+
+> Referenced by the **Agent Lifecycle** decision tree in the Round Loop section.
 
 When `AGENT_MODE=persistent` and a session is resumed:
 

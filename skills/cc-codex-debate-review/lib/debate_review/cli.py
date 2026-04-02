@@ -45,6 +45,12 @@ def build_parser() -> argparse.ArgumentParser:
     init_parser.add_argument("--config", help="Path to config YAML")
     init_parser.add_argument("--max-rounds", type=int, help="Override max_rounds from config")
     init_parser.add_argument("--dry-run", action="store_true", help="Dry run mode")
+    init_parser.add_argument(
+        "--agent-mode",
+        choices=["legacy", "persistent"],
+        default=None,
+        help="Override agent_mode from config (legacy or persistent)",
+    )
 
     # show subcommand
     show_parser = subparsers.add_parser("show", help="Show debate-review state")
@@ -230,6 +236,8 @@ def cmd_init(args):
     language = str(config.get("language", "en"))
     codex_sandbox = str(config.get("codex_sandbox", "danger-full-access"))
     config_agent_mode = str(config.get("agent_mode", "legacy"))
+    if args.agent_mode is not None:
+        config_agent_mode = args.agent_mode
     agent_mode = None
 
     state_path = state_file_path(repo, pr_number, dry_run)

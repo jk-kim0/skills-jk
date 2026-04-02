@@ -559,6 +559,43 @@ def test_cli_init_agent_mode_from_config(monkeypatch, capsys, tmp_path):
     assert result["agent_mode"] == "persistent"
 
 
+def test_cli_init_agent_mode_cli_override(monkeypatch, capsys, tmp_path):
+    """--agent-mode CLI flag overrides config value."""
+    config_path = tmp_path / "config.yml"
+    config_path.write_text("agent_mode: legacy\n")
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setattr(
+        "debate_review.cli.gh_json",
+        lambda *args: {
+            "headRefName": "feat/test",
+            "headRefOid": "abc123",
+            "headRepositoryOwner": {"login": "owner"},
+        },
+    )
+
+    _run_cli(monkeypatch, [
+        "init", "--repo", "owner/repo", "--pr", "457",
+        "--config", str(config_path),
+        "--agent-mode", "persistent",
+    ])
+    result = json.loads(capsys.readouterr().out)
+    assert result["agent_mode"] == "persistent"
+    state = load_state(result["state_file"])
+    assert state["agent_mode"] == "persistent"
+
+
+def test_cli_init_agent_mode_cli_override_rejected_when_invalid(monkeypatch, capsys, tmp_path):
+    """--agent-mode rejects invalid values via argparse choices."""
+    monkeypatch.setattr(sys, "argv", [
+        "debate-review",
+        "init", "--repo", "owner/repo", "--pr", "458",
+        "--agent-mode", "bogus",
+    ])
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+    assert exc_info.value.code == 2  # argparse exits with 2 for invalid choices
+
+
 def test_cli_init_rejects_invalid_agent_mode(monkeypatch, capsys, tmp_path):
     config_path = tmp_path / "config.yml"
     config_path.write_text("agent_mode: invalid\n")
