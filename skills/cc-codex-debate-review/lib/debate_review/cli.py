@@ -270,7 +270,7 @@ def cmd_init(args):
             existing["language"] = language
             needs_save = True
         if "agent_mode" not in existing:
-            existing["agent_mode"] = _validate_agent_mode(config_agent_mode)
+            existing["agent_mode"] = "legacy"
             needs_save = True
         else:
             existing["agent_mode"] = _validate_agent_mode(str(existing["agent_mode"]))
