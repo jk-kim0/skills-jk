@@ -656,6 +656,36 @@ def test_cli_init_resumed_session_ignores_invalid_config_agent_mode(monkeypatch,
     assert load_state(str(path))["agent_mode"] == "persistent"
 
 
+def test_cli_record_agent_sessions_persists_identifiers(monkeypatch, capsys, tmp_path):
+    state = create_initial_state(
+        repo="owner/repo",
+        repo_root="/tmp/repo",
+        pr_number=791,
+        is_fork=False,
+        head_sha="abc123",
+        pr_branch_name="feat/test",
+        agent_mode="persistent",
+    )
+    path = tmp_path / "agent-state.json"
+    save_state(state, str(path))
+
+    _run_cli(monkeypatch, [
+        "record-agent-sessions",
+        "--state-file", str(path),
+        "--cc-agent-id", "agent-123",
+        "--codex-session-id", "thread-456",
+    ])
+    result = json.loads(capsys.readouterr().out)
+    assert result["cc_agent_id"] == "agent-123"
+    assert result["codex_session_id"] == "thread-456"
+
+    saved = load_state(str(path))
+    assert saved["persistent_agents"] == {
+        "cc_agent_id": "agent-123",
+        "codex_session_id": "thread-456",
+    }
+
+
 def test_cli_mark_failed(monkeypatch, capsys, state_path):
     _run_cli(monkeypatch, [
         "mark-failed", "--state-file", state_path,

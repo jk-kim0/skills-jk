@@ -40,3 +40,11 @@ def test_skill_doc_explains_how_to_capture_codex_session_id():
     assert 'codex exec --json -s "$CODEX_SANDBOX" - < "$PROMPT_FILE"' in skill
     assert 'select(.type == "thread.started") | .thread_id' in skill
     assert "CODEX_SESSION_ID=<parse session ID from CODEX_OUTPUT>" not in skill
+
+
+def test_skill_doc_persists_agent_identifiers_for_persistent_restart():
+    skill_path = Path(__file__).resolve().parents[1] / "SKILL.md"
+    skill = skill_path.read_text()
+
+    assert 'record-agent-sessions --state-file "$STATE_FILE"' in skill
+    assert "`persistent_agents.cc_agent_id` / `persistent_agents.codex_session_id`" in skill

@@ -142,6 +142,15 @@ rm -f "$PROMPT_FILE" "$CODEX_INIT_LOG"
 
 The `thread.started` event is emitted at the start of `codex exec --json`; use its `thread_id` as `CODEX_SESSION_ID` for later `resume` calls.
 
+Persist both handles immediately after creation so restart can reuse the same live agents:
+
+```bash
+"$DEBATE_REVIEW_BIN" record-agent-sessions \
+  --state-file "$STATE_FILE" \
+  --cc-agent-id "$CC_AGENT_ID" \
+  --codex-session-id "$CODEX_SESSION_ID"
+```
+
 Skip agent creation if `AGENT_MODE=legacy`.
 
 ---
@@ -632,7 +641,9 @@ The `resume_context` object provides additional details (e.g., `clean_pass`, `co
 
 When `AGENT_MODE=persistent` and a session is resumed:
 
-- **Agent still alive** (SendMessage/resume succeeds): Continue from the journal step with the existing agent. No special recovery needed.
+- Load `persistent_agents.cc_agent_id` / `persistent_agents.codex_session_id` from the state file (or `show --json`) first.
+- **Agent still alive** (persisted handle exists and SendMessage/resume succeeds): Continue from the journal step with the existing agent. No special recovery needed.
+- **Missing handle** (`persistent_agents` field absent or either ID is null): Treat as agent dead and go to recovery immediately.
 - **Agent dead** (SendMessage/resume fails): Create a new agent with a recovery prompt that includes the debate state so far:
 
 ```markdown
@@ -651,6 +662,14 @@ Previous agent session was lost. Debate state so far:
 {filtered issues from show --json}
 
 Resume from Round {N} Step {M}.
+```
+
+After creating replacement agents, persist the new IDs again with:
+
+```bash
+"$DEBATE_REVIEW_BIN" record-agent-sessions --state-file "$STATE_FILE" \
+  --cc-agent-id "$CC_AGENT_ID" \
+  --codex-session-id "$CODEX_SESSION_ID"
 ```
 
 Then dispatch the current step instruction as the first follow-up message.

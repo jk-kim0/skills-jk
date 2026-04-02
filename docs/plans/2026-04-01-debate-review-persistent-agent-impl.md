@@ -69,7 +69,8 @@ Persistent agent에 필요한 파일을 추가하고, 모드 선택 플래그를
 | `agent-initial-prompt.md` (~40줄) | **신규** — 설계 문서 Task 2의 initial prompt |
 | `config.yml` | `agent_mode: legacy` 추가 |
 | `lib/debate_review/config.py` | `agent_mode` 필드 파싱 추가 |
-| `cli.py` | `init` 출력에 `agent_mode` 포함 |
+| `cli.py` | `init` 출력에 `agent_mode` 포함, `record-agent-sessions` 추가 |
+| `lib/debate_review/state.py` | `persistent_agents` state 필드 추가 |
 
 ### agent-initial-prompt.md
 
@@ -94,6 +95,22 @@ agent_mode: legacy      # legacy | persistent
 ```
 
 Orchestrator는 `AGENT_MODE` 변수를 저장하고, 이후 절차 분기에 사용한다.
+
+### persistent agent handle 저장
+
+Persistent mode에서 agent 생성 직후 다음 state 필드를 저장한다:
+
+- `persistent_agents.cc_agent_id`
+- `persistent_agents.codex_session_id`
+
+CLI subcommand:
+
+```bash
+"$DEBATE_REVIEW_BIN" record-agent-sessions \
+  --state-file "$STATE_FILE" \
+  --cc-agent-id "$CC_AGENT_ID" \
+  --codex-session-id "$CODEX_SESSION_ID"
+```
 
 ### 검증
 
@@ -149,7 +166,7 @@ init에서 받은 `AGENT_MODE` 값에 따라 절차를 분기한다.
 | Agent Lifecycle | Create (세션 시작 1회) + Resume (SendMessage / codex resume) |
 | Step Message Format | Step 1 (Lead Review), Step 2 (Cross-Verify), Step 3 (Lead Response + Code Apply) |
 | Step Message 데이터 소스 | 직전 agent output + `show --json` 결과로 구성 (build-context 미사용) |
-| Restart Rules | agent 생존 → SendMessage 재개, agent 사망 → recovery prompt로 새 agent 생성 |
+| Restart Rules | persisted handle 생존 → SendMessage/resume 재개, handle 없음/agent 사망 → recovery prompt로 새 agent 생성 |
 | Supersede Handling | agent에게 external push 메시지 전달 |
 
 ### 모드 분기 위치

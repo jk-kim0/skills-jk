@@ -23,6 +23,7 @@ from debate_review.state import (
     append_ledger,
     create_initial_state,
     determine_next_step,
+    ensure_persistent_agents,
     load_state,
     mark_failed,
     save_state,
@@ -123,6 +124,15 @@ def build_parser() -> argparse.ArgumentParser:
     p_ctx = subparsers.add_parser("build-context", help="Build review context from state")
     p_ctx.add_argument("--state-file", required=True)
     p_ctx.add_argument("--round", type=int, required=True)
+
+    # record-agent-sessions subcommand
+    p_agents = subparsers.add_parser(
+        "record-agent-sessions",
+        help="Persist persistent-mode agent identifiers for restart/resume",
+    )
+    p_agents.add_argument("--state-file", required=True)
+    p_agents.add_argument("--cc-agent-id")
+    p_agents.add_argument("--codex-session-id")
 
     # build-commit-message subcommand
     p_bcm = subparsers.add_parser("build-commit-message", help="Build commit message from applied issues")
@@ -256,6 +266,8 @@ def cmd_init(args):
             needs_save = True
         else:
             existing["agent_mode"] = _validate_agent_mode(str(existing["agent_mode"]))
+        if ensure_persistent_agents(existing):
+            needs_save = True
         if needs_save:
             save_state(existing, state_path)
     else:
@@ -301,6 +313,26 @@ def cmd_init(args):
         if "resume_context" in resume_info:
             result["resume_context"] = resume_info["resume_context"]
     print(json.dumps(result))
+
+
+def cmd_record_agent_sessions(args):
+    state = load_state(args.state_file)
+    if state is None:
+        _error_exit(f"No state file found at {args.state_file}")
+    if state.get("agent_mode") != "persistent":
+        _error_exit("record-agent-sessions requires agent_mode=persistent")
+    if args.cc_agent_id is None and args.codex_session_id is None:
+        _error_exit("Must provide --cc-agent-id and/or --codex-session-id")
+
+    ensure_persistent_agents(state)
+    sessions = state["persistent_agents"]
+    if args.cc_agent_id is not None:
+        sessions["cc_agent_id"] = args.cc_agent_id
+    if args.codex_session_id is not None:
+        sessions["codex_session_id"] = args.codex_session_id
+
+    save_state(state, args.state_file)
+    print(json.dumps(sessions))
 
 
 def cmd_show(args):
@@ -582,6 +614,7 @@ def main():
         "record-cross-verification": cmd_record_cross_verification,
         "resolve-rebuttals": cmd_resolve_rebuttals,
         "record-application": cmd_record_application,
+        "record-agent-sessions": cmd_record_agent_sessions,
         "build-commit-message": cmd_build_commit_message,
         "build-context": cmd_build_context,
         "test-error": cmd_test_error,

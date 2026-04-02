@@ -145,7 +145,11 @@ def cmd_build_context(args):
 issues에서 consensus_status=accepted AND application_status in (pending, failed) 필터링
 ```
 
-추가 CLI subcommand 없음.
+Persistent mode 재시작을 위해 agent 식별자도 state file에 저장해야 한다. 따라서 다음 상태 관리 entry를 추가한다:
+
+- `state["persistent_agents"]["cc_agent_id"]`
+- `state["persistent_agents"]["codex_session_id"]`
+- CLI subcommand: `record-agent-sessions --state-file ... --cc-agent-id ... --codex-session-id ...`
 
 ---
 
@@ -530,7 +534,7 @@ Codex Agent:
 
 | 파일 | 이유 |
 |------|------|
-| `state.py` | 상태 관리는 agent 호출 방식과 무관 |
+| `state.py` | `persistent_agents` state 필드 추가 |
 | `round_ops.py` | consensus/stall 판정 변경 없음 |
 | `cross_verification.py` | rebuttal/accept 로직 변경 없음 |
 | `issue_ops.py` | issue upsert/dedup 변경 없음 |
@@ -587,7 +591,7 @@ Text prefix match로 prompt caching 적용. Persistent agent 대비 agent의 파
 | Agent 정상 | journal step → SendMessage로 재개 |
 | CC Agent crash | 새 agent 생성 + recovery prompt |
 | Codex crash | --resume 재시도, 실패 시 새 세션 + recovery prompt |
-| Orchestrator crash | state file + journal에서 복구 (현재 동일). Agent 새로 생성 |
+| Orchestrator crash | state file + journal + persisted agent IDs로 복구. Handle이 살아 있으면 재사용, 아니면 새 agent 생성 |
 
 ---
 
