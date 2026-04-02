@@ -332,6 +332,10 @@ def cmd_record_agent_sessions(args):
     if args.cc_agent_id is None and args.codex_session_id is None:
         _error_exit("Must provide --cc-agent-id and/or --codex-session-id")
 
+    if state.get("dry_run"):
+        print(json.dumps(_dry_run_skip(state, command="record-agent-sessions")))
+        return
+
     ensure_persistent_agents(state)
     sessions = state["persistent_agents"]
     if args.cc_agent_id is not None:
