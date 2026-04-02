@@ -929,7 +929,7 @@ If empty, skip code application.
 | Step message data | Source |
 |-------------------|--------|
 | `PENDING_REBUTTALS_JSON` | Orchestrator: previous round Step 3 output — items decided as `maintain` |
-| `OPEN_ISSUES_JSON` | `show --json` → issues where `consensus_status` is `open` or (`accepted` and not `applied`) |
+| `OPEN_ISSUES_JSON` | `show --json` → issues where `consensus_status` is `open` or (`accepted` and `application_status` not in (`applied`, `recommended`)) |
 | `LEAD_FINDINGS_JSON` | Current round Step 1 agent output — `findings` array verbatim |
 | `CROSS_REBUTTALS_JSON` | Current round Step 2 agent output — `cross_verifications` where `decision=rebut` |
 | `CROSS_NEW_FINDINGS_JSON` | Current round Step 2 agent output — `findings` array verbatim |
