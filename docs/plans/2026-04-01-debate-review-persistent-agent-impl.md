@@ -44,7 +44,7 @@ PR 1 착수 전에 runtime 요구사항을 검증한다.
 | 검증 항목 | 방법 | 통과 기준 |
 |-----------|------|----------|
 | Agent Teams (SendMessage) | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` 환경에서 Agent 생성 후 SendMessage로 후속 지시 전달 | 응답 수신, context 유지 확인 |
-| Codex session resume | `codex exec` 후 session ID 캡처 → `codex exec --resume` 재개 | 이전 turn context 보존 확인 |
+| Codex session resume | `codex exec` 후 session ID 캡처 → `codex exec resume` 재개 | 이전 turn context 보존 확인 |
 | 장시간 안정성 | 3+ turns 연속 SendMessage / resume | crash 없이 동작 |
 
 검증 결과에 따라:
