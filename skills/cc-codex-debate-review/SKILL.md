@@ -243,7 +243,8 @@ HEAD_BRANCH=$(echo "$ROUND_RESULT" | jq -r '.head_branch')
 
 If rebuttals from the previous round exist, the lead agent decides `withdraw` or `maintain` for each.
 
-Previous round rebuttals are available via `build-context` output's `pending_rebuttals` field.
+**Legacy mode:** Previous round rebuttals are available via `build-context` output's `pending_rebuttals` field.
+**Persistent mode:** Use the previous round's Step 3 agent output (items where `decision=maintain`). See **Step Message Data Sources** for details.
 
 Once the lead agent (CC or Codex) makes decisions:
 
@@ -280,7 +281,7 @@ Skip if no previous round exists or no rebuttals are pending.
    - `PENDING_REBUTTALS_JSON` → previous round Step 3 output, items where `decision=maintain`. If round 1, use `[]`. On restart/recovery when the previous agent output is unavailable, rebuild it from `show --json` using the previous round's `step3.rebuttals` plus `issues[*].reports` matched by `report_id`.
 2. Dispatch to lead agent:
    - CC: `SendMessage(to=CC_AGENT_ID, message=step_message)`
-   - Codex: `cd "$WORKTREE_PATH" && codex exec resume "$CODEX_SESSION_ID" - <<< "$step_message"`
+   - Codex: write `$step_message` to a temp file, then `cd "$WORKTREE_PATH" && codex exec resume "$CODEX_SESSION_ID" - < "$STEP_FILE"`
 3. Parse JSON response (retry up to 3 times on failure)
 
 **Both modes — route response:**
@@ -369,7 +370,7 @@ The cross-verifier performs two tasks:
    - `DEBATE_LEDGER_TEXT` → from `"$DEBATE_REVIEW_BIN" show --state-file "$STATE_FILE" --json`
 2. Dispatch to cross-verifier agent:
    - CC: `SendMessage(to=CC_AGENT_ID, message=step_message)`
-   - Codex: `cd "$WORKTREE_PATH" && codex exec resume "$CODEX_SESSION_ID" - <<< "$step_message"`
+   - Codex: write `$step_message` to a temp file, then `cd "$WORKTREE_PATH" && codex exec resume "$CODEX_SESSION_ID" - < "$STEP_FILE"`
 3. Parse JSON response (retry up to 3 times on failure)
 
 #### Record Cross-Verification Results
@@ -440,7 +441,7 @@ The lead agent edits files directly in the worktree, commits, and pushes. There 
    - Include `WORKTREE_PATH`, `DEBATE_REVIEW_BIN`, `STATE_FILE`, `HEAD_BRANCH`, `ROUND` literals in the message.
 2. Dispatch to lead agent:
    - CC: `SendMessage(to=CC_AGENT_ID, message=step_message)`
-   - Codex: `cd "$WORKTREE_PATH" && codex exec resume "$CODEX_SESSION_ID" - <<< "$step_message"`
+   - Codex: write `$step_message` to a temp file, then `cd "$WORKTREE_PATH" && codex exec resume "$CODEX_SESSION_ID" - < "$STEP_FILE"`
 3. Parse JSON response (retry up to 3 times on failure)
 
 #### Record Rebuttal Responses + Cross Findings Evaluation
