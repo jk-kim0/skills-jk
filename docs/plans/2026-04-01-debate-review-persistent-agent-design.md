@@ -247,7 +247,7 @@ Codex:
 #### Step Dispatch (매 step)
 
 CC:   SendMessage(to=CC_AGENT_ID, message=step_instruction)
-Codex: codex exec --resume "$CODEX_SESSION_ID" -s danger-full-access - < step_message.md
+Codex: codex exec resume "$CODEX_SESSION_ID" -s danger-full-access - < step_message.md
 ```
 
 **(B) "Review Context + Placeholder Construction" 섹션 — 제거**
@@ -276,7 +276,7 @@ Use `build-context` to generate all state-derived placeholder data...
 
 ```
 1. Compose step message (format은 아래 참조)
-2. SendMessage(agent_id, step_message) 또는 codex exec --resume
+2. SendMessage(agent_id, step_message) 또는 codex exec resume
 3. Parse JSON response
 4. Route to CLI subcommands
 ```
@@ -482,7 +482,7 @@ CC Agent:
 
 Codex Agent:
 - Create: codex exec -s danger-full-access - < initial_prompt.md
-- Resume: codex exec --resume "$SESSION_ID" -s danger-full-access - < step.md
+- Resume: codex exec resume "$SESSION_ID" -s danger-full-access - < step.md
 
 모든 step에서 동일한 danger-full-access sandbox 사용.
 ```
@@ -564,7 +564,7 @@ Agent Teams 활성화 시 SendMessage tool로 기존 agent에 후속 메시지 �
 
 ```bash
 codex exec -s danger-full-access - < initial_prompt_filled.md   # 최초
-codex exec --resume "$SESSION_ID" -s danger-full-access - < step.md   # 이후
+codex exec resume "$SESSION_ID" -s danger-full-access - < step.md   # 이후
 ```
 
 모든 step에서 동일한 `danger-full-access` sandbox를 사용하므로, resume 시 sandbox 변경 문제가 없다.

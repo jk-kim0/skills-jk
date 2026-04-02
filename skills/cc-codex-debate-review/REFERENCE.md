@@ -12,6 +12,8 @@
 
 **From `build-context` output:** `{OPEN_ISSUES}`, `{DEBATE_LEDGER}`, `{PENDING_REBUTTALS}`, `{LEAD_REPORTS}`, `{CROSS_REBUTTALS}`, `{CROSS_FINDINGS}`, `{APPLICABLE_ISSUES}` — all returned as a single JSON object by `build-context --state-file --round N`.
 
+**Persistent mode (`show --json`)**: step message state data comes from `show --state-file "$STATE_FILE" --json`; use `issues` for open/applicable issue filtering, `debate_ledger` for ledger text, and `persistent_agents` for restart/recovery handle lookup. Step-specific findings and rebuttals still come from the previous agent JSON outputs, not `build-context`.
+
 **Removed (agents obtain directly):** `{PR_TITLE}`, `{PR_BODY}`, `{DIFF}`, `{REVIEW_CONTEXT}` — agents run `gh pr view`, `gh pr diff`, and explore the worktree themselves.
 
 ## Persistent Agent Handles
