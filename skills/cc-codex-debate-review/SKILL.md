@@ -277,7 +277,7 @@ Skip if no previous round exists or no rebuttals are pending.
 
 1. Compose step message using **Step 1 Message Format** below with data from **Step Message Data Sources**:
    - `OPEN_ISSUES_JSON`, `DEBATE_LEDGER_TEXT` → from `"$DEBATE_REVIEW_BIN" show --state-file "$STATE_FILE" --json`
-   - `PENDING_REBUTTALS_JSON` → previous round Step 3 output, items where `decision=maintain`. If round 1, use `[]`.
+   - `PENDING_REBUTTALS_JSON` → previous round Step 3 output, items where `decision=maintain`. If round 1, use `[]`. On restart/recovery when the previous agent output is unavailable, rebuild it from `show --json` using the previous round's `step3.rebuttals` plus `issues[*].reports` matched by `report_id`.
 2. Dispatch to lead agent:
    - CC: `SendMessage(to=CC_AGENT_ID, message=step_message)`
    - Codex: `cd "$WORKTREE_PATH" && codex exec resume "$CODEX_SESSION_ID" - <<< "$step_message"`
@@ -365,7 +365,7 @@ The cross-verifier performs two tasks:
 **Persistent mode:**
 
 1. Compose step message using **Step 2 Message Format** below with data from **Step Message Data Sources**:
-   - `LEAD_FINDINGS_JSON` → this round's Step 1 agent output (`findings` array verbatim)
+   - `LEAD_FINDINGS_JSON` → this round's Step 1 agent output (`findings` array verbatim). On restart/recovery when that output is unavailable, rebuild it from `show --json` using the current round's `step1.report_ids` plus `issues[*].reports` matched by `report_id`.
    - `DEBATE_LEDGER_TEXT` → from `"$DEBATE_REVIEW_BIN" show --state-file "$STATE_FILE" --json`
 2. Dispatch to cross-verifier agent:
    - CC: `SendMessage(to=CC_AGENT_ID, message=step_message)`
@@ -434,8 +434,8 @@ The lead agent edits files directly in the worktree, commits, and pushes. There 
 **Persistent mode:**
 
 1. Compose step message using **Step 3 Message Format** below with data from **Step Message Data Sources**:
-   - `CROSS_REBUTTALS_JSON` → this round's Step 2 agent output (`cross_verifications` where `decision=rebut`)
-   - `CROSS_NEW_FINDINGS_JSON` → this round's Step 2 agent output (`findings` array verbatim)
+   - `CROSS_REBUTTALS_JSON` → this round's Step 2 agent output (`cross_verifications` where `decision=rebut`). On restart/recovery when that output is unavailable, rebuild it from `show --json` using the current round's `step2.rebuttals` plus `issues[*].reports` matched by `report_id`.
+   - `CROSS_NEW_FINDINGS_JSON` → this round's Step 2 agent output (`findings` array verbatim). On restart/recovery when that output is unavailable, rebuild it from `show --json` using the current round's `step2.report_ids` excluding `step2.accepted_report_ids`, then resolve each `report_id` through `issues[*].reports`.
    - `APPLICABLE_ISSUES_JSON` → from `show --json`, filtered: `consensus_status=accepted` AND `application_status in (pending, failed)`. Empty `[]` when `IS_FORK=true` or `DRY_RUN=true`.
    - Include `WORKTREE_PATH`, `DEBATE_REVIEW_BIN`, `STATE_FILE`, `HEAD_BRANCH`, `ROUND` literals in the message.
 2. Dispatch to lead agent:
@@ -718,6 +718,8 @@ After creating replacement agents, persist the new IDs again with:
   --codex-session-id "$CODEX_SESSION_ID"
 ```
 
+For the first post-restart step, do not rely on lost agent transcripts. Rebuild any required step-message arrays from `show --json` using `rounds[*]` state plus `issues[*].reports`, as documented in **Step Message Data Sources** below.
+
 Then dispatch the current step instruction as the first follow-up message.
 
 ---
@@ -928,15 +930,15 @@ If empty, skip code application.
 
 | Step message data | Source |
 |-------------------|--------|
-| `PENDING_REBUTTALS_JSON` | Orchestrator: previous round Step 3 output — items decided as `maintain` |
+| `PENDING_REBUTTALS_JSON` | Primary: previous round Step 3 agent output — items decided as `maintain`. Restart/recovery fallback: `show --json` → previous round `step3.rebuttals`, enriched from `issues[*].reports` by `report_id`. |
 | `OPEN_ISSUES_JSON` | `show --json` → issues where `consensus_status` is `open` or (`accepted` and `application_status` not in (`applied`, `recommended`)) |
-| `LEAD_FINDINGS_JSON` | Current round Step 1 agent output — `findings` array verbatim |
-| `CROSS_REBUTTALS_JSON` | Current round Step 2 agent output — `cross_verifications` where `decision=rebut` |
-| `CROSS_NEW_FINDINGS_JSON` | Current round Step 2 agent output — `findings` array verbatim |
+| `LEAD_FINDINGS_JSON` | Primary: current round Step 1 agent output — `findings` array verbatim. Restart/recovery fallback: `show --json` → current round `step1.report_ids`, resolved through `issues[*].reports` by `report_id`. |
+| `CROSS_REBUTTALS_JSON` | Primary: current round Step 2 agent output — `cross_verifications` where `decision=rebut`. Restart/recovery fallback: `show --json` → current round `step2.rebuttals`, enriched from `issues[*].reports` by `report_id`. |
+| `CROSS_NEW_FINDINGS_JSON` | Primary: current round Step 2 agent output — `findings` array verbatim. Restart/recovery fallback: `show --json` → current round `step2.report_ids` excluding `step2.accepted_report_ids`, resolved through `issues[*].reports` by `report_id`. |
 | `APPLICABLE_ISSUES_JSON` | `show --json` → issues where `consensus_status=accepted` AND `application_status` in (`pending`, `failed`). Empty `[]` when `IS_FORK=true` or `DRY_RUN=true`. |
 | `DEBATE_LEDGER_TEXT` | `show --json` → `debate_ledger` field, formatted as text |
 
-Key: no `build-context` CLI call. Orchestrator composes from (1) previous agent output and (2) `show --json` result.
+Key: no `build-context` CLI call. In the normal path, the orchestrator composes from prior in-memory agent output plus `show --json`. On restart/recovery, it must reconstruct any missing step arrays from `show --json` (`rounds[*]` + `issues[*].reports`) before composing the next message.
 
 ### Supersede Handling (Persistent Mode)
 
