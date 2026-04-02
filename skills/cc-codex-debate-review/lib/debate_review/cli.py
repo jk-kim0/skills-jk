@@ -23,11 +23,14 @@ from debate_review.state import (
     append_ledger,
     create_initial_state,
     determine_next_step,
+    ensure_persistent_agents,
     load_state,
     mark_failed,
     save_state,
     state_file_path,
 )
+
+_ALLOWED_AGENT_MODES = ("legacy", "persistent")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -42,6 +45,12 @@ def build_parser() -> argparse.ArgumentParser:
     init_parser.add_argument("--config", help="Path to config YAML")
     init_parser.add_argument("--max-rounds", type=int, help="Override max_rounds from config")
     init_parser.add_argument("--dry-run", action="store_true", help="Dry run mode")
+    init_parser.add_argument(
+        "--agent-mode",
+        choices=["legacy", "persistent"],
+        default=None,
+        help="Override agent_mode from config (legacy or persistent)",
+    )
 
     # show subcommand
     show_parser = subparsers.add_parser("show", help="Show debate-review state")
@@ -122,6 +131,15 @@ def build_parser() -> argparse.ArgumentParser:
     p_ctx.add_argument("--state-file", required=True)
     p_ctx.add_argument("--round", type=int, required=True)
 
+    # record-agent-sessions subcommand
+    p_agents = subparsers.add_parser(
+        "record-agent-sessions",
+        help="Persist persistent-mode agent identifiers for restart/resume",
+    )
+    p_agents.add_argument("--state-file", required=True)
+    p_agents.add_argument("--cc-agent-id")
+    p_agents.add_argument("--codex-session-id")
+
     # build-commit-message subcommand
     p_bcm = subparsers.add_parser("build-commit-message", help="Build commit message from applied issues")
     p_bcm.add_argument("--state-file", required=True)
@@ -144,6 +162,13 @@ def _error_exit(message):
     """Print JSON error and exit with code 1."""
     print(json.dumps({"error": message}))
     sys.exit(1)
+
+
+def _validate_agent_mode(agent_mode):
+    if agent_mode not in _ALLOWED_AGENT_MODES:
+        allowed = ", ".join(_ALLOWED_AGENT_MODES)
+        _error_exit(f"Invalid agent_mode: {agent_mode}. Expected one of: {allowed}")
+    return agent_mode
 
 
 def _dry_run_skip(state, *, command, **payload):
@@ -210,11 +235,16 @@ def cmd_init(args):
     max_rounds = args.max_rounds if args.max_rounds is not None else config.get("max_rounds", 10)
     language = str(config.get("language", "en"))
     codex_sandbox = str(config.get("codex_sandbox", "danger-full-access"))
+    config_agent_mode = str(config.get("agent_mode", "legacy"))
+    if args.agent_mode is not None:
+        config_agent_mode = args.agent_mode
+    agent_mode = None
 
     state_path = state_file_path(repo, pr_number, dry_run)
     existing = load_state(state_path)
 
     if existing is None:
+        agent_mode = _validate_agent_mode(config_agent_mode)
         state = create_initial_state(
             repo=repo,
             repo_root=repo_root,
@@ -224,6 +254,7 @@ def cmd_init(args):
             pr_branch_name=head_ref_name,
             max_rounds=max_rounds,
             language=language,
+            agent_mode=agent_mode,
             dry_run=dry_run,
         )
         save_state(state, state_path)
@@ -234,8 +265,18 @@ def cmd_init(args):
         current_round = existing["current_round"]
         is_fork = existing["is_fork"]
         dry_run = existing["dry_run"]
+        needs_save = False
         if "language" not in existing:
             existing["language"] = language
+            needs_save = True
+        if "agent_mode" not in existing:
+            existing["agent_mode"] = "legacy"
+            needs_save = True
+        else:
+            existing["agent_mode"] = _validate_agent_mode(str(existing["agent_mode"]))
+        if ensure_persistent_agents(existing):
+            needs_save = True
+        if needs_save:
             save_state(existing, state_path)
     else:
         # Terminal state — use terminal_sha for session identity
@@ -247,6 +288,7 @@ def cmd_init(args):
             archive_sha = existing_sha[:8]
             archive_path = f"{state_path}.{archive_sha}.archived"
             shutil.copy2(state_path, archive_path)
+            agent_mode = _validate_agent_mode(config_agent_mode)
             state = create_initial_state(
                 repo=repo,
                 repo_root=repo_root,
@@ -256,6 +298,7 @@ def cmd_init(args):
                 pr_branch_name=head_ref_name,
                 max_rounds=max_rounds,
                 language=language,
+                agent_mode=agent_mode,
                 dry_run=dry_run,
             )
             save_state(state, state_path)
@@ -270,6 +313,7 @@ def cmd_init(args):
         "dry_run": dry_run,
         "codex_sandbox": codex_sandbox,
         "language": existing.get("language", language) if result_status == "resumed" else language,
+        "agent_mode": existing["agent_mode"] if result_status == "resumed" else agent_mode,
     }
     if result_status == "resumed":
         resume_info = determine_next_step(existing)
@@ -277,6 +321,30 @@ def cmd_init(args):
         if "resume_context" in resume_info:
             result["resume_context"] = resume_info["resume_context"]
     print(json.dumps(result))
+
+
+def cmd_record_agent_sessions(args):
+    state = load_state(args.state_file)
+    if state is None:
+        _error_exit(f"No state file found at {args.state_file}")
+    if state.get("agent_mode") != "persistent":
+        _error_exit("record-agent-sessions requires agent_mode=persistent")
+    if args.cc_agent_id is None and args.codex_session_id is None:
+        _error_exit("Must provide --cc-agent-id and/or --codex-session-id")
+
+    if state.get("dry_run"):
+        print(json.dumps(_dry_run_skip(state, command="record-agent-sessions")))
+        return
+
+    ensure_persistent_agents(state)
+    sessions = state["persistent_agents"]
+    if args.cc_agent_id is not None:
+        sessions["cc_agent_id"] = args.cc_agent_id
+    if args.codex_session_id is not None:
+        sessions["codex_session_id"] = args.codex_session_id
+
+    save_state(state, args.state_file)
+    print(json.dumps(sessions))
 
 
 def cmd_show(args):
@@ -558,6 +626,7 @@ def main():
         "record-cross-verification": cmd_record_cross_verification,
         "resolve-rebuttals": cmd_resolve_rebuttals,
         "record-application": cmd_record_application,
+        "record-agent-sessions": cmd_record_agent_sessions,
         "build-commit-message": cmd_build_commit_message,
         "build-context": cmd_build_context,
         "test-error": cmd_test_error,

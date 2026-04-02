@@ -4,6 +4,28 @@ import tempfile
 from datetime import datetime, timezone
 
 
+def default_persistent_agents() -> dict:
+    return {
+        "cc_agent_id": None,
+        "codex_session_id": None,
+    }
+
+
+def ensure_persistent_agents(state) -> bool:
+    """Ensure the persisted state has the persistent agent handle block."""
+    current = state.get("persistent_agents")
+    if not isinstance(current, dict):
+        state["persistent_agents"] = default_persistent_agents()
+        return True
+
+    changed = False
+    for key, value in default_persistent_agents().items():
+        if key not in current:
+            current[key] = value
+            changed = True
+    return changed
+
+
 def create_initial_state(
     *,
     repo,
@@ -14,6 +36,7 @@ def create_initial_state(
     pr_branch_name,
     max_rounds=10,
     language="en",
+    agent_mode="legacy",
     dry_run=False,
 ) -> dict:
     now = datetime.now(timezone.utc).isoformat()
@@ -25,6 +48,8 @@ def create_initial_state(
         "dry_run": dry_run,
         "max_rounds": max_rounds,
         "language": language,
+        "agent_mode": agent_mode,
+        "persistent_agents": default_persistent_agents(),
         "status": "in_progress",
         "current_round": 1,
         "head": {

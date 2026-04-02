@@ -71,7 +71,8 @@ CONFIG_FILE="$SKILL_ROOT/config.yml"
 
 ```bash
 RESULT=$("$DEBATE_REVIEW_BIN" init --repo "$REPO" --pr "$PR_NUMBER" \
-  --config "$CONFIG_FILE")
+  --config "$CONFIG_FILE" \
+  ${AGENT_MODE_ARG:+--agent-mode "$AGENT_MODE_ARG"})
 STATE_FILE=$(echo "$RESULT" | jq -r '.state_file')
 STATUS=$(echo "$RESULT" | jq -r '.status')           # "created" | "resumed"
 CURRENT_ROUND=$(echo "$RESULT" | jq -r '.current_round')
@@ -79,7 +80,12 @@ IS_FORK=$(echo "$RESULT" | jq -r '.is_fork')
 DRY_RUN=$(echo "$RESULT" | jq -r '.dry_run')
 CODEX_SANDBOX=$(echo "$RESULT" | jq -r '.codex_sandbox')
 LANGUAGE=$(echo "$RESULT" | jq -r '.language')
+AGENT_MODE=$(echo "$RESULT" | jq -r '.agent_mode')   # "legacy" | "persistent"
 ```
+
+`--agent-mode` is optional. When provided, it overrides the `agent_mode` value from `config.yml`. Valid values: `legacy`, `persistent`. If omitted, the config file value is used (default: `legacy`).
+
+`AGENT_MODE` determines agent invocation strategy. See **Agent Mode** section below.
 
 `LANGUAGE` is passed to LLM prompts via `{OUTPUT_LANGUAGE}` to control user-facing output language. The language setting applies to **all user-facing text**:
 
@@ -94,6 +100,64 @@ If `STATUS` is `resumed`, the response also includes `next_step` and optionally 
 
 ---
 
+### Agent Mode
+
+`AGENT_MODE` determines how sub-agents are invoked. Both modes use the same CLI subcommands for state management — only the agent dispatch differs.
+
+| | `legacy` | `persistent` |
+|---|---|---|
+| Agent lifetime | New agent per step | 1 agent per role, entire debate |
+| Context source | `build-context` → template placeholders | Conversation history (auto-accumulated) |
+| Prompt files | `agent-lead-review-prompt.md`, `agent-cross-verify-prompt.md`, `agent-lead-response-prompt.md` | `agent-initial-prompt.md` (1 file) |
+| Step dispatch | Full prompt per invocation | Follow-up message (step instruction only) |
+
+#### Persistent Mode: Agent Creation
+
+When `AGENT_MODE=persistent`, create both agents **once** after the first `init-round` provides `WORKTREE_PATH`, immediately before Step 1 of round 1. Step 0 `sync-head` and the first round initialization still happen first. Each agent receives `agent-initial-prompt.md` with placeholders substituted.
+
+Read and substitute `$SKILL_ROOT/agent-initial-prompt.md`:
+- `{REPO}` → `$REPO`
+- `{PR_NUMBER}` → `$PR_NUMBER`
+- `{WORKTREE_PATH}` → `$WORKTREE_PATH` (from first `init-round`)
+- `{OUTPUT_LANGUAGE}` → `$LANGUAGE`
+- `{REVIEW_CRITERIA}` → contents of `$SKILL_ROOT/review-criteria.md`
+
+**CC Agent:**
+```
+Agent(prompt="$FILLED_INITIAL_PROMPT", description="debate-review CC agent")
+→ store CC_AGENT_ID
+```
+
+**Codex Agent:**
+```bash
+PROMPT_FILE=$(mktemp /tmp/debate-initial-XXXXXX)
+CODEX_INIT_LOG=$(mktemp /tmp/debate-codex-init-XXXXXX.jsonl)
+printf '%s' "$FILLED_INITIAL_PROMPT" > "$PROMPT_FILE"
+cd "$WORKTREE_PATH"
+codex exec --json -s "$CODEX_SANDBOX" - < "$PROMPT_FILE" | tee "$CODEX_INIT_LOG"
+CODEX_SESSION_ID=$(jq -r 'select(.type == "thread.started") | .thread_id' "$CODEX_INIT_LOG" | tail -n 1)
+if [ -z "$CODEX_SESSION_ID" ]; then
+  echo "Failed to capture CODEX_SESSION_ID from Codex JSON output" >&2
+  exit 1
+fi
+rm -f "$PROMPT_FILE" "$CODEX_INIT_LOG"
+```
+
+The `thread.started` event is emitted at the start of `codex exec --json`; use its `thread_id` as `CODEX_SESSION_ID` for later `resume` calls.
+
+Persist both handles immediately after creation so restart can reuse the same live agents:
+
+```bash
+"$DEBATE_REVIEW_BIN" record-agent-sessions \
+  --state-file "$STATE_FILE" \
+  --cc-agent-id "$CC_AGENT_ID" \
+  --codex-session-id "$CODEX_SESSION_ID"
+```
+
+Skip agent creation if `AGENT_MODE=legacy`.
+
+---
+
 ### 2. Round Loop
 
 After initialization, start loop from `CURRENT_ROUND`. Each round:
@@ -104,6 +168,35 @@ After initialization, start loop from `CURRENT_ROUND`. Each round:
 4. Step 2: Cross-verifier cross-verification (skipped on clean pass)
 5. Step 3: Lead agent response + code application (skipped on clean pass)
 6. Step 4: Settlement
+
+#### Agent Lifecycle (Persistent Mode Only)
+
+Skip this section entirely when `AGENT_MODE=legacy`.
+
+Before the first step dispatch, resolve agent state **once per orchestrator session**:
+
+```
+Is this a fresh session (STATUS=created)?
+  YES → agents do not exist yet.
+        After the first init-round provides WORKTREE_PATH,
+        create both agents per "Persistent Mode: Agent Creation" above.
+        Persist IDs with record-agent-sessions.
+        Set AGENTS_READY=true.
+  NO (STATUS=resumed) →
+    STATE_JSON=$("$DEBATE_REVIEW_BIN" show --state-file "$STATE_FILE" --json)
+    CC_AGENT_ID=$(echo "$STATE_JSON" | jq -r '.persistent_agents.cc_agent_id // empty')
+    CODEX_SESSION_ID=$(echo "$STATE_JSON" | jq -r '.persistent_agents.codex_session_id // empty')
+
+    Are both handles non-empty?
+      NO → handles missing. Go to Recovery.
+      YES → attempt first step dispatch with existing handles.
+            If SendMessage/resume fails → Go to Recovery.
+            If succeeds → Set AGENTS_READY=true.
+```
+
+**Recovery**: Create replacement agent(s) using the recovery prompt from **Persistent Mode Restart** below. After creation, persist new IDs with `record-agent-sessions`. Set `AGENTS_READY=true`.
+
+Once `AGENTS_READY=true`, all subsequent step dispatches use `SendMessage`/`codex exec resume` for the remainder of the session.
 
 ---
 
@@ -150,7 +243,8 @@ HEAD_BRANCH=$(echo "$ROUND_RESULT" | jq -r '.head_branch')
 
 If rebuttals from the previous round exist, the lead agent decides `withdraw` or `maintain` for each.
 
-Previous round rebuttals are available via `build-context` output's `pending_rebuttals` field.
+**Legacy mode:** Previous round rebuttals are available via `build-context` output's `pending_rebuttals` field.
+**Persistent mode:** Use the previous round's Step 3 agent output (items where `decision=maintain`). See **Step Message Data Sources** for details.
 
 Once the lead agent (CC or Codex) makes decisions:
 
@@ -170,14 +264,27 @@ Skip if no previous round exists or no rebuttals are pending.
 
 #### Step 1b: New Review
 
-> **Important:** `agent-lead-review-prompt.md` handles Step 1a (rebuttal resolution) and Step 1b (new review) in **a single invocation**. From the response, route `rebuttal_responses` to `resolve-rebuttals --step "1a"`, `findings` to `upsert-issue`, and `verdict` to `record-verdict`.
+> **Important:** The agent handles Step 1a (rebuttal resolution) and Step 1b (new review) in **a single invocation**. From the response, route `rebuttal_responses` to `resolve-rebuttals --step "1a"`, `findings` to `upsert-issue`, and `verdict` to `record-verdict`.
+
+**Legacy mode:**
 
 1. Build review context via `build-context`
 2. Read prompt template: `./agent-lead-review-prompt.md` (`$SKILL_ROOT/agent-lead-review-prompt.md`)
 3. Substitute placeholders: `{REPO}`, `{PR_NUMBER}`, `{ROUND}`, `{WORKTREE_PATH}`, `{DEBATE_LEDGER}`, `{OPEN_ISSUES}`, `{PENDING_REBUTTALS}`, `{OUTPUT_LANGUAGE}`, `{REVIEW_CRITERIA}`
 4. Invoke sub-agent (see **Agent Invocation**)
 5. Parse JSON response (retry up to 3 times on failure)
-6. Route response:
+
+**Persistent mode:**
+
+1. Compose step message using **Step 1 Message Format** below with data from **Step Message Data Sources**:
+   - `OPEN_ISSUES_JSON`, `DEBATE_LEDGER_TEXT` → from `"$DEBATE_REVIEW_BIN" show --state-file "$STATE_FILE" --json`
+   - `PENDING_REBUTTALS_JSON` → previous round Step 3 output, items where `decision=maintain`. If round 1, use `[]`. On restart/recovery when the previous agent output is unavailable, rebuild it from `show --json` using the previous round's `step3.rebuttals` plus `issues[*].reports` matched by `report_id`.
+2. Dispatch to lead agent:
+   - CC: `SendMessage(to=CC_AGENT_ID, message=step_message)`
+   - Codex: write `$step_message` to a temp file, then `cd "$WORKTREE_PATH" && codex exec resume "$CODEX_SESSION_ID" - < "$STEP_FILE"`
+3. Parse JSON response (retry up to 3 times on failure)
+
+**Both modes — route response:**
    - `rebuttal_responses` → `resolve-rebuttals --step "1a"` (if non-empty)
    - `findings` → record each via `upsert-issue`
    - `verdict` → `record-verdict`
@@ -249,10 +356,22 @@ The cross-verifier performs two tasks:
 1. `accept` or `rebut` each of the lead's reports
 2. Report its own new findings
 
+**Legacy mode:**
+
 1. Read prompt template: `./agent-cross-verify-prompt.md` (`$SKILL_ROOT/agent-cross-verify-prompt.md`)
 2. Substitute placeholders: `{REPO}`, `{PR_NUMBER}`, `{ROUND}`, `{WORKTREE_PATH}`, `{DEBATE_LEDGER}`, `{LEAD_AGENT_ID}`, `{LEAD_REPORTS}`, `{OUTPUT_LANGUAGE}`, `{REVIEW_CRITERIA}`
 3. Invoke sub-agent (see **Agent Invocation**)
 4. Parse JSON response (retry up to 3 times on failure)
+
+**Persistent mode:**
+
+1. Compose step message using **Step 2 Message Format** below with data from **Step Message Data Sources**:
+   - `LEAD_FINDINGS_JSON` → this round's Step 1 agent output (`findings` array verbatim). On restart/recovery when that output is unavailable, rebuild it from `show --json` using the current round's `step1.report_ids` plus `issues[*].reports` matched by `report_id`.
+   - `DEBATE_LEDGER_TEXT` → from `"$DEBATE_REVIEW_BIN" show --state-file "$STATE_FILE" --json`
+2. Dispatch to cross-verifier agent:
+   - CC: `SendMessage(to=CC_AGENT_ID, message=step_message)`
+   - Codex: write `$step_message` to a temp file, then `cd "$WORKTREE_PATH" && codex exec resume "$CODEX_SESSION_ID" - < "$STEP_FILE"`
+3. Parse JSON response (retry up to 3 times on failure)
 
 #### Record Cross-Verification Results
 
@@ -306,10 +425,24 @@ The lead agent edits files directly in the worktree, commits, and pushes. There 
 
 #### Invoke Lead Response Agent
 
+**Legacy mode:**
+
 1. Read prompt template: `./agent-lead-response-prompt.md` (`$SKILL_ROOT/agent-lead-response-prompt.md`)
 2. Substitute placeholders: `{REPO}`, `{PR_NUMBER}`, `{ROUND}`, `{WORKTREE_PATH}`, `{HEAD_BRANCH}`, `{DEBATE_REVIEW_BIN}`, `{STATE_FILE}`, `{DEBATE_LEDGER}`, `{CROSS_REBUTTALS}`, `{CROSS_FINDINGS}`, `{APPLICABLE_ISSUES}`, `{OUTPUT_LANGUAGE}`, `{REVIEW_CRITERIA}`
 3. Invoke sub-agent (see **Agent Invocation**)
 4. Parse JSON response (retry up to 3 times on failure)
+
+**Persistent mode:**
+
+1. Compose step message using **Step 3 Message Format** below with data from **Step Message Data Sources**:
+   - `CROSS_REBUTTALS_JSON` → this round's Step 2 agent output (`cross_verifications` where `decision=rebut`). On restart/recovery when that output is unavailable, rebuild it from `show --json` using the current round's `step2.rebuttals` plus `issues[*].reports` matched by `report_id`.
+   - `CROSS_NEW_FINDINGS_JSON` → this round's Step 2 agent output (`findings` array verbatim). On restart/recovery when that output is unavailable, rebuild it from `show --json` using the current round's `step2.report_ids` excluding `step2.accepted_report_ids`, then resolve each `report_id` through `issues[*].reports`.
+   - `APPLICABLE_ISSUES_JSON` → from `show --json`, filtered: `consensus_status=accepted` AND `application_status in (pending, failed)`. Empty `[]` when `IS_FORK=true` or `DRY_RUN=true`.
+   - Include `WORKTREE_PATH`, `DEBATE_REVIEW_BIN`, `STATE_FILE`, `HEAD_BRANCH`, `ROUND` literals in the message.
+2. Dispatch to lead agent:
+   - CC: `SendMessage(to=CC_AGENT_ID, message=step_message)`
+   - Codex: write `$step_message` to a temp file, then `cd "$WORKTREE_PATH" && codex exec resume "$CODEX_SESSION_ID" - < "$STEP_FILE"`
+3. Parse JSON response (retry up to 3 times on failure)
 
 #### Record Rebuttal Responses + Cross Findings Evaluation
 
@@ -360,7 +493,7 @@ git -C "$WORKTREE_PATH" commit -m "$COMMIT_MSG"
 **Skip all 3 phases for fork PRs.** (Push not possible, `application_status=recommended`)
 **Skip all 3 phases if `DRY_RUN=true`.** (Review-only simulation)
 
-`build-context` enforces the same gate for the agent prompt: when `IS_FORK=true` or `DRY_RUN=true`, `{APPLICABLE_ISSUES}` is `[]`, so the lead agent skips edits/commit/push and returns an empty `application_result`.
+In legacy mode, `build-context` enforces the same gate for the agent prompt: when `IS_FORK=true` or `DRY_RUN=true`, `{APPLICABLE_ISSUES}` is `[]`. In persistent mode, the orchestrator applies the same filter when composing the step message (see **Step Message Data Sources**).
 
 The agent's `application_result` contains `applied_issues`, `failed_issues`, and `commit_sha`.
 `failed_issues` may be reported as either issue ID strings or objects with `{issue_id, reason}`; `record-application` normalizes both forms.
@@ -549,6 +682,47 @@ When `init` returns `status: "resumed"`, the `next_step` field indicates where t
 
 The `resume_context` object provides additional details (e.g., `clean_pass`, `commit_sha`).
 
+#### Persistent Mode Restart
+
+> Referenced by the **Agent Lifecycle** decision tree in the Round Loop section.
+
+When `AGENT_MODE=persistent` and a session is resumed:
+
+- Load `persistent_agents.cc_agent_id` / `persistent_agents.codex_session_id` from the state file (or `show --json`) first.
+- **Agent still alive** (persisted handle exists and SendMessage/resume succeeds): Continue from the journal step with the existing agent. No special recovery needed.
+- **Missing handle** (`persistent_agents` field absent or either ID is null): Treat as agent dead and go to recovery immediately.
+- **Agent dead** (SendMessage/resume fails): Create a new agent with a recovery prompt that includes the debate state so far:
+
+```markdown
+# Debate Review Agent (Recovered): {REPO} #{PR_NUMBER}
+
+[contents of agent-initial-prompt.md, substituted]
+
+## Recovery Context
+
+Previous agent session was lost. Debate state so far:
+
+### Debate Ledger
+{DEBATE_LEDGER from show --json}
+
+### Open Issues
+{filtered issues from show --json}
+
+Resume from Round {N} Step {M}.
+```
+
+After creating replacement agents, persist the new IDs again with:
+
+```bash
+"$DEBATE_REVIEW_BIN" record-agent-sessions --state-file "$STATE_FILE" \
+  --cc-agent-id "$CC_AGENT_ID" \
+  --codex-session-id "$CODEX_SESSION_ID"
+```
+
+For the first post-restart step, do not rely on lost agent transcripts. Rebuild any required step-message arrays from `show --json` using `rounds[*]` state plus `issues[*].reports`, as documented in **Step Message Data Sources** below.
+
+Then dispatch the current step instruction as the first follow-up message.
+
 ---
 
 ## Failure Handling
@@ -575,6 +749,8 @@ After marking failed, post the final comment (add `--no-comment` if `DRY_RUN=tru
 
 ## Agent Invocation
 
+### Legacy Mode
+
 Both CC and Codex use the same prompt templates. The orchestrator selects the runtime based on the assigned agent.
 
 | Step | Template | Purpose |
@@ -582,8 +758,6 @@ Both CC and Codex use the same prompt templates. The orchestrator selects the ru
 | Step 1 (lead) | `agent-lead-review-prompt.md` | Review + rebuttal resolution |
 | Step 2 (cross) | `agent-cross-verify-prompt.md` | Cross-verification + own findings |
 | Step 3 (lead) | `agent-lead-response-prompt.md` | Response + direct code application |
-
-### Invocation by Runtime
 
 **Codex:**
 ```bash
@@ -599,11 +773,187 @@ rm -f "$PROMPT_FILE"
 Agent(prompt="$FILLED_PROMPT", description="debate-review step N")
 ```
 
-The orchestrator does NOT use `isolation: "worktree"` — both agents work in the existing CLI-managed worktree at `$WORKTREE_PATH`.
-
-### Placeholder Derivation
+#### Legacy Placeholder Derivation
 
 State-derivable placeholders are returned by `build-context --state-file --round N`. See `REFERENCE.md` for full placeholder sources.
+
+### Persistent Mode
+
+Agents are created once (see **Agent Mode** section). Each step sends a follow-up message to the existing agent.
+
+**CC Agent dispatch:**
+```
+SendMessage(to=CC_AGENT_ID, message=step_message)
+```
+Requires: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`
+
+**Codex Agent dispatch:**
+```bash
+STEP_FILE=$(mktemp /tmp/debate-step-XXXXXX)
+printf '%s' "$step_message" > "$STEP_FILE"
+cd "$WORKTREE_PATH"
+codex exec resume "$CODEX_SESSION_ID" - < "$STEP_FILE"
+rm -f "$STEP_FILE"
+```
+
+`codex exec resume` reuses the existing session configuration, so do not pass `-s` again on resumed turns.
+
+### Common Rules (Both Modes)
+
+The orchestrator does NOT use `isolation: "worktree"` — both agents work in the existing CLI-managed worktree at `$WORKTREE_PATH`.
+
+---
+
+## Step Message Formats (Persistent Mode)
+
+In persistent mode, the orchestrator composes a step message for each step. The agent's conversation history preserves all previous context, so step messages contain only the current task and its data.
+
+### Step 1 Message Format
+
+```markdown
+## Round {ROUND} — Lead Review
+
+You are the LEAD reviewer this round.
+
+### Pending Rebuttals (Step 1a)
+
+{PENDING_REBUTTALS_JSON}
+
+If empty, skip rebuttal resolution.
+For each: decide `withdraw` (accept rebuttal) or `maintain` (keep finding).
+
+### Task (Step 1b)
+
+Review the PR diff. Report new findings by severity: critical, warning, suggestion.
+
+Rules:
+- Do NOT re-report withdrawn issues unless you have new evidence
+- Do NOT report code added as a fix for a previously accepted issue
+- If unsure, err on the side of not reporting
+
+### Current Open Issues
+
+{OPEN_ISSUES_JSON}
+
+### Debate Ledger
+
+{DEBATE_LEDGER_TEXT}
+
+### Verdict
+
+- 0 new findings + open issues is empty → `no_findings_mergeable`
+- Otherwise → `has_findings`
+
+### Output
+
+```json
+{"rebuttal_responses": [...], "findings": [...], "verdict": "..."}
+```
+```
+
+### Step 2 Message Format
+
+```markdown
+## Round {ROUND} — Cross-Verification
+
+You are the CROSS-VERIFIER this round.
+
+### Lead's Findings
+
+{LEAD_FINDINGS_JSON}
+
+For each: `accept` or `rebut` with reason.
+
+### Task
+
+Report your own additional findings not raised by the lead.
+
+Re-raise rule: To re-raise an issue recorded as `withdrawn` in the Debate Ledger,
+you must provide new evidence different from the original withdrawal reason.
+
+Before reporting a finding, check the Debate Ledger:
+- Do NOT report code added as a fix for a previously accepted issue
+- Do NOT report something that is working correctly
+- If unsure, err on the side of not reporting
+
+### Debate Ledger
+
+{DEBATE_LEDGER_TEXT}
+
+### Output
+
+```json
+{"cross_verifications": [...], "findings": [...]}
+```
+```
+
+### Step 3 Message Format
+
+```markdown
+## Round {ROUND} — Lead Response + Code Application
+
+### Rebuttals Against Your Findings
+
+{CROSS_REBUTTALS_JSON}
+
+For each: `withdraw` or `maintain`.
+
+### Cross-Verifier's New Findings
+
+{CROSS_NEW_FINDINGS_JSON}
+
+For each: `accept` or `maintain`.
+
+### Issues to Fix
+
+{APPLICABLE_ISSUES_JSON}
+
+If empty, skip code application.
+
+### Code Application
+
+1. Edit files in {WORKTREE_PATH}
+2. `git add <files>` (only files you modified)
+3. `COMMIT_MSG=$("{DEBATE_REVIEW_BIN}" build-commit-message --state-file "{STATE_FILE}" --round {ROUND} --applied-issues "$APPLIED_ISSUES_JSON")`
+4. `git commit -m "$COMMIT_MSG"`
+5. `git push origin HEAD:{HEAD_BRANCH}`
+
+### Output
+
+```json
+{"rebuttal_decisions": [...], "cross_finding_evaluations": [...], "application_result": {...}}
+```
+```
+
+---
+
+## Step Message Data Sources (Persistent Mode)
+
+| Step message data | Source |
+|-------------------|--------|
+| `PENDING_REBUTTALS_JSON` | Primary: previous round Step 3 agent output — items decided as `maintain`. Restart/recovery fallback: `show --json` → previous round `step3.rebuttals`, enriched from `issues[*].reports` by `report_id`. |
+| `OPEN_ISSUES_JSON` | `show --json` → issues where `consensus_status` is `open` or (`accepted` and `application_status` not in (`applied`, `recommended`)) |
+| `LEAD_FINDINGS_JSON` | Primary: current round Step 1 agent output — `findings` array verbatim. Restart/recovery fallback: `show --json` → current round `step1.report_ids`, resolved through `issues[*].reports` by `report_id`. |
+| `CROSS_REBUTTALS_JSON` | Primary: current round Step 2 agent output — `cross_verifications` where `decision=rebut`. Restart/recovery fallback: `show --json` → current round `step2.rebuttals`, enriched from `issues[*].reports` by `report_id`. |
+| `CROSS_NEW_FINDINGS_JSON` | Primary: current round Step 2 agent output — `findings` array verbatim. Restart/recovery fallback: `show --json` → current round `step2.report_ids` excluding `step2.accepted_report_ids`, resolved through `issues[*].reports` by `report_id`. |
+| `APPLICABLE_ISSUES_JSON` | `show --json` → issues where `consensus_status=accepted` AND `application_status` in (`pending`, `failed`). Empty `[]` when `IS_FORK=true` or `DRY_RUN=true`. |
+| `DEBATE_LEDGER_TEXT` | `show --json` → `debate_ledger` field, formatted as text |
+
+Key: no `build-context` CLI call. In the normal path, the orchestrator composes from prior in-memory agent output plus `show --json`. On restart/recovery, it must reconstruct any missing step arrays from `show --json` (`rounds[*]` + `issues[*].reports`) before composing the next message.
+
+### Supersede Handling (Persistent Mode)
+
+When `sync-head` returns `external_change: true`, send the following message to **both** agents before the next step instruction:
+
+```markdown
+## External Push Detected
+
+PR HEAD changed externally (new SHA: {NEW_SHA}).
+Previous line numbers and code references may be invalid.
+Re-read the PR diff in your next task.
+```
+
+Then proceed with the new round's Step 1 instruction.
 
 ---
 
@@ -621,6 +971,7 @@ State-derivable placeholders are returned by `build-context --state-file --round
 | Worktree | `<repo_root>/.worktrees/debate-pr-<N>` |
 | GitHub CLI | `env -u GITHUB_TOKEN -u GH_TOKEN gh ...` |
 | Output language | Config `language` (default: `en`) |
+| Agent mode | Config `agent_mode`: `legacy` (default) or `persistent` |
 | Code application | Mandatory when `DRY_RUN=false` and `IS_FORK=false` |
 
 ## Error Handling & Bug Reporting
