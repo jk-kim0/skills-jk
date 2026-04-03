@@ -20,6 +20,8 @@ Before reporting a finding, check the Debate Ledger:
 - Do NOT report something that is working correctly
 - If unsure, err on the side of not reporting
 
+**Duplicate detection:** If you notice an open issue you previously opened that describes the same root cause as another issue, add a `withdrawals` entry for your redundant issue.
+
 ### Debate Ledger
 
 {DEBATE_LEDGER_TEXT}
@@ -27,5 +29,5 @@ Before reporting a finding, check the Debate Ledger:
 ### Output
 
 ```json
-{"cross_verifications": [...], "findings": [...]}
+{"cross_verifications": [...], "withdrawals": [...], "findings": [...]}
 ```

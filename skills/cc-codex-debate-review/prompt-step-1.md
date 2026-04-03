@@ -18,6 +18,8 @@ Rules:
 - Do NOT report code added as a fix for a previously accepted issue
 - If unsure, err on the side of not reporting
 
+**Duplicate detection:** If an open issue describes the same root cause as another open issue, add a `withdrawals` entry for the redundant one. Two issues are duplicates when they point to the same underlying defect, even if `file` or `anchor` differs.
+
 ### Current Open Issues
 
 {OPEN_ISSUES_JSON}
@@ -34,5 +36,5 @@ Rules:
 ### Output
 
 ```json
-{"rebuttal_responses": [...], "findings": [...], "verdict": "..."}
+{"rebuttal_responses": [...], "withdrawals": [...], "findings": [...], "verdict": "..."}
 ```

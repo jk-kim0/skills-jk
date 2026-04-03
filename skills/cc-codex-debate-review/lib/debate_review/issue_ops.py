@@ -202,3 +202,32 @@ def upsert_issue(
     _track_report_for_round(state, round_num, agent, report_id, existing_id)
 
     return {"issue_id": existing_id, "report_id": report_id, "action": "appended", "issue_key": issue_key}
+
+
+def withdraw_issue(state, *, issue_id, agent, round_num, reason):
+    """Withdraw an open issue by the agent that originally opened it."""
+    issues = state["issues"]
+    if issue_id not in issues:
+        raise ValueError(f"Unknown issue ID: {issue_id}")
+    issue = issues[issue_id]
+    if issue["consensus_status"] != "open":
+        raise ValueError(
+            f"Issue {issue_id} is not open (status={issue['consensus_status']}), cannot withdraw"
+        )
+    if issue["opened_by"] != agent:
+        raise ValueError(
+            f"Agent '{agent}' cannot withdraw {issue_id}: opened by '{issue['opened_by']}'"
+        )
+    now = datetime.now(timezone.utc).isoformat()
+    issue["consensus_status"] = "withdrawn"
+    issue["consensus_reason"] = reason
+    issue["updated_at"] = now
+    # Record in round's issue_ids_touched so settle_round() recognizes the withdrawal
+    for r in state.get("rounds", []):
+        if r["round"] == round_num and r["status"] == "active":
+            step_key = "step1" if agent == r["lead_agent"] else "step2"
+            step = r[step_key]
+            if issue_id not in step["issue_ids_touched"]:
+                step["issue_ids_touched"].append(issue_id)
+            break
+    return {"issue_id": issue_id, "status": "withdrawn", "reason": reason}

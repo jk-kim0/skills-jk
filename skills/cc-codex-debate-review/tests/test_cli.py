@@ -903,3 +903,29 @@ def test_cli_test_error_custom_message(monkeypatch, capsys):
     out = capsys.readouterr().out
     result = json.loads(out)
     assert result["error"] == "custom failure"
+
+
+def test_cli_withdraw_issue(monkeypatch, capsys, state_path):
+    """withdraw-issue CLI should withdraw an open issue."""
+    _run_cli(monkeypatch, [
+        "upsert-issue", "--state-file", state_path,
+        "--agent", "codex", "--round", "1",
+        "--severity", "warning", "--criterion", "3",
+        "--file", "src/a.py", "--line", "10",
+        "--anchor", "fallback",
+        "--message", "Missing fallback",
+    ])
+    issue_id = json.loads(capsys.readouterr().out)["issue_id"]
+
+    _run_cli(monkeypatch, [
+        "withdraw-issue", "--state-file", state_path,
+        "--issue-id", issue_id,
+        "--agent", "codex",
+        "--round", "1",
+        "--reason", "duplicate of isu_002",
+    ])
+    result = json.loads(capsys.readouterr().out)
+    assert result["status"] == "withdrawn"
+
+    state = load_state(state_path)
+    assert state["issues"][issue_id]["consensus_status"] == "withdrawn"

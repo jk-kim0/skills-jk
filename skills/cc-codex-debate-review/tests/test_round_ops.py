@@ -344,6 +344,59 @@ def test_settle_allows_re_raised_issue_in_new_round(sample_state):
     assert result["settled_issues"][0]["issue_id"] == issue_id
 
 
+def test_withdraw_issue(sample_state):
+    """withdraw_issue should mark an open issue as withdrawn."""
+    from debate_review.issue_ops import upsert_issue, withdraw_issue
+
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    r1 = upsert_issue(sample_state, agent="codex", round_num=1, severity="warning",
+                       criterion=3, file="config.yml", line=10, anchor="agent_mode_fallback",
+                       message="missing fallback")
+    issue_id = r1["issue_id"]
+    assert sample_state["issues"][issue_id]["consensus_status"] == "open"
+
+    result = withdraw_issue(sample_state, issue_id=issue_id, agent="codex", round_num=1,
+                            reason="duplicate of isu_002 — same root cause")
+    assert result["status"] == "withdrawn"
+    assert sample_state["issues"][issue_id]["consensus_status"] == "withdrawn"
+    assert "duplicate" in sample_state["issues"][issue_id]["consensus_reason"]
+    # issue_ids_touched should include the withdrawn issue
+    round_data = sample_state["rounds"][0]
+    assert issue_id in round_data["step1"]["issue_ids_touched"]
+
+
+def test_withdraw_issue_rejects_non_open(sample_state):
+    """withdraw_issue should reject issues that are not open."""
+    from debate_review.issue_ops import upsert_issue, withdraw_issue
+    import pytest
+
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    r1 = upsert_issue(sample_state, agent="codex", round_num=1, severity="warning",
+                       criterion=3, file="config.yml", line=10, anchor="fallback",
+                       message="missing fallback")
+    issue_id = r1["issue_id"]
+    # Manually set to withdrawn
+    sample_state["issues"][issue_id]["consensus_status"] = "withdrawn"
+
+    with pytest.raises(ValueError, match="not open"):
+        withdraw_issue(sample_state, issue_id=issue_id, agent="codex", round_num=1, reason="test")
+
+
+def test_withdraw_issue_rejects_wrong_agent(sample_state):
+    """withdraw_issue should reject withdrawal by an agent that didn't open the issue."""
+    from debate_review.issue_ops import upsert_issue, withdraw_issue
+    import pytest
+
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    r1 = upsert_issue(sample_state, agent="codex", round_num=1, severity="warning",
+                       criterion=3, file="config.yml", line=10, anchor="fallback",
+                       message="missing fallback")
+    issue_id = r1["issue_id"]
+
+    with pytest.raises(ValueError, match="cannot withdraw"):
+        withdraw_issue(sample_state, issue_id=issue_id, agent="cc", round_num=1, reason="not mine")
+
+
 def test_settle_stall_detection_after_2_no_progress_rounds(sample_state):
     """2 consecutive rounds with no settlements and no applied code → stalled."""
     from debate_review.issue_ops import upsert_issue

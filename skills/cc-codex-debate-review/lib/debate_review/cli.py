@@ -16,7 +16,7 @@ from debate_review.application import (
     record_application_phase3,
 )
 from debate_review.cross_verification import record_cross_verification, resolve_rebuttals
-from debate_review.issue_ops import upsert_issue
+from debate_review.issue_ops import upsert_issue, withdraw_issue
 from debate_review.round_ops import init_round, record_verdict, settle_round
 from debate_review.comment import post_comment
 from debate_review.sync import sync_head
@@ -123,6 +123,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_ledger = subparsers.add_parser("append-ledger", help="Append entries to debate_ledger")
     p_ledger.add_argument("--state-file", required=True)
     p_ledger.add_argument("--entries", required=True, help="JSON array of ledger entries")
+
+    # withdraw-issue subcommand
+    p_withdraw = subparsers.add_parser("withdraw-issue", help="Withdraw an open issue by orchestrator/agent decision")
+    p_withdraw.add_argument("--state-file", required=True)
+    p_withdraw.add_argument("--issue-id", required=True)
+    p_withdraw.add_argument("--agent", required=True)
+    p_withdraw.add_argument("--round", required=True, type=int)
+    p_withdraw.add_argument("--reason", required=True)
 
     # test-error subcommand
     p_test = subparsers.add_parser("test-error", help="Trigger an intentional error for pipeline verification")
@@ -634,6 +642,21 @@ def cmd_append_ledger(args):
     print(json.dumps(result))
 
 
+def cmd_withdraw_issue(args):
+    state = load_state(args.state_file)
+    if state is None:
+        _error_exit(f"No state file found at {args.state_file}")
+    if state.get("dry_run"):
+        print(json.dumps(_dry_run_skip(state, command="withdraw-issue", issue_id=args.issue_id)))
+        return
+    try:
+        result = withdraw_issue(state, issue_id=args.issue_id, agent=args.agent, round_num=args.round, reason=args.reason)
+    except ValueError as e:
+        _error_exit(str(e))
+    save_state(state, args.state_file)
+    print(json.dumps(result))
+
+
 def cmd_build_prompt(args):
     state = load_state(args.state_file)
     if state is None:
@@ -672,6 +695,7 @@ def main():
         "build-prompt": cmd_build_prompt,
         "test-error": cmd_test_error,
         "mark-failed": cmd_mark_failed,
+        "withdraw-issue": cmd_withdraw_issue,
         "append-ledger": cmd_append_ledger,
         "sync-head": cmd_sync_head,
         "post-comment": cmd_post_comment,

@@ -87,6 +87,24 @@ def test_step2_message_contains_lead_findings():
     assert "Test" in msg
 
 
+def test_step1_message_requests_withdrawals_output():
+    state = _make_state()
+    init_round(state, round_num=1, synced_head_sha="abc123")
+    msg = build_step_message(state, step=1, round_num=1, skill_root=SKILL_ROOT)
+    assert '"withdrawals": [' in msg
+    assert "Duplicate detection" in msg
+
+
+def test_step2_message_requests_withdrawals_output():
+    state = _make_state()
+    init_round(state, round_num=1, synced_head_sha="abc123")
+    upsert_issue(state, agent="codex", round_num=1, severity="warning",
+                 criterion=7, file="a.py", line=1, anchor="foo", message="Test")
+    msg = build_step_message(state, step=2, round_num=1, skill_root=SKILL_ROOT)
+    assert '"withdrawals": [' in msg
+    assert "Duplicate detection" in msg
+
+
 def test_step3_message_contains_applicable_issues():
     state = _make_state()
     init_round(state, round_num=1, synced_head_sha="abc123")

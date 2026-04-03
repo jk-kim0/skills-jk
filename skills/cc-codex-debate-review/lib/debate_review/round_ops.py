@@ -137,7 +137,6 @@ def settle_round(state, *, round_num) -> dict:
             if issue["consensus_status"] == "accepted" and issue["application_status"] == "recommended":
                 recommendation_issue_ids.append(iid)
 
-    round_["step4"]["unresolved_issue_ids"] = unresolved_issue_ids
     round_["step4"]["recommendation_issue_ids"] = recommendation_issue_ids
 
     # Collect issues that were settled (withdrawn/accepted) during this round
@@ -170,6 +169,7 @@ def settle_round(state, *, round_num) -> dict:
                 "anchor": issue.get("anchor"),
             })
 
+    round_["step4"]["unresolved_issue_ids"] = unresolved_issue_ids
     round_["step4"]["settled_issues"] = settled_issues
 
     # Populate debate_ledger with settled issues
