@@ -11,10 +11,12 @@ from debate_review.round_ops import _find_round
 def _resolve_full_sha(short_sha, *, repo_root=None):
     """Resolve a (possibly short) SHA to a full 40-char SHA via git rev-parse."""
     cmd = ["git", "rev-parse", short_sha]
-    kwargs = {"capture_output": True, "text": True, "check": True}
+    kwargs = {"capture_output": True, "text": True}
     if repo_root:
         kwargs["cwd"] = repo_root
     result = subprocess.run(cmd, **kwargs)
+    if result.returncode != 0:
+        raise ValueError(f"Cannot resolve SHA '{short_sha}': {result.stderr.strip()}")
     return result.stdout.strip()
 
 

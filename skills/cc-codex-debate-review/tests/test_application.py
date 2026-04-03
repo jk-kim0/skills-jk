@@ -266,6 +266,18 @@ def test_build_commit_message_rejects_unknown_issue_ids():
         build_commit_message(state, round_num=1, applied_issue_ids=["isu_missing"])
 
 
+def test_phase2_rejects_invalid_sha():
+    """Phase 2 should raise ValueError for an unresolvable SHA."""
+    import pytest
+
+    state = _state_with_accepted_issues()
+    record_application_phase1(state, round_num=1, applied_issue_ids=["isu_001"], failed_issue_ids=[])
+
+    with patch("debate_review.application._resolve_full_sha", side_effect=ValueError("Cannot resolve SHA 'badsha'")):
+        with pytest.raises(ValueError, match="Cannot resolve SHA"):
+            record_application_phase2(state, round_num=1, commit_sha="badsha")
+
+
 def test_phase2_normalizes_short_sha_to_full():
     """Phase 2 should normalize a short SHA to full 40-char SHA via git rev-parse."""
     short_sha = "3978f1a"
