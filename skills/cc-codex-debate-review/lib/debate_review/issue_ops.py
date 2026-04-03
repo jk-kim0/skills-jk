@@ -202,3 +202,20 @@ def upsert_issue(
     _track_report_for_round(state, round_num, agent, report_id, existing_id)
 
     return {"issue_id": existing_id, "report_id": report_id, "action": "appended", "issue_key": issue_key}
+
+
+def withdraw_issue(state, *, issue_id, reason):
+    """Withdraw an open issue by orchestrator decision (e.g. duplicate)."""
+    issues = state["issues"]
+    if issue_id not in issues:
+        raise ValueError(f"Unknown issue ID: {issue_id}")
+    issue = issues[issue_id]
+    if issue["consensus_status"] != "open":
+        raise ValueError(
+            f"Issue {issue_id} is not open (status={issue['consensus_status']}), cannot withdraw"
+        )
+    now = datetime.now(timezone.utc).isoformat()
+    issue["consensus_status"] = "withdrawn"
+    issue["consensus_reason"] = reason
+    issue["updated_at"] = now
+    return {"issue_id": issue_id, "status": "withdrawn", "reason": reason}

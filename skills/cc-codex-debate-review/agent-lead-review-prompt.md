@@ -53,6 +53,8 @@ If you decided `maintain` on any rebuttal in Step 1a, include that issue in your
 - Do NOT report something that is working correctly. "X uses correct flag" or "X matches the spec" is not an issue.
 - If unsure whether something is a real issue, err on the side of **not reporting** it. Unnecessary findings waste rounds and block consensus.
 
+**Duplicate detection:** If an open issue describes the same root cause as another open issue (e.g. same problem reported from a different file), add a `withdrawals` entry for the redundant one. Two issues are duplicates when they point to the same underlying defect, even if `file` or `anchor` differs.
+
 ## Verdict
 
 - If findings are **0** and `{OPEN_ISSUES}` is an empty array → set verdict to `no_findings_mergeable`
@@ -71,6 +73,9 @@ Output only valid JSON with the following structure:
   "rebuttal_responses": [
     { "report_id": "rpt_003", "decision": "withdraw|maintain", "reason": "..." }
   ],
+  "withdrawals": [
+    { "issue_id": "isu_001", "reason": "duplicate of isu_004 — same root cause applied in different file" }
+  ],
   "findings": [
     { "severity": "critical|warning|suggestion", "criterion": 1, "file": "src/foo.ts", "line": 42, "anchor": "validate_input", "message": "..." }
   ],
@@ -79,6 +84,7 @@ Output only valid JSON with the following structure:
 ```
 
 - `rebuttal_responses`: One entry per pending rebuttal. Empty array `[]` if no pending rebuttals.
+- `withdrawals`: Open issues you identify as duplicates of another issue. Empty array `[]` if none. You may only withdraw issues you originally opened.
 - `findings`: All issues found in this round (including maintained items). Empty array `[]` if none. `anchor` is a symbol/function name less sensitive to line shifts (use `line<N>` if none).
 - `verdict`: `has_findings` or `no_findings_mergeable`.
 

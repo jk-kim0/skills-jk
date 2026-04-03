@@ -161,32 +161,6 @@ def settle_round(state, *, round_num) -> dict:
                 "anchor": issue.get("anchor"),
             })
 
-    # Auto-withdraw duplicates: open issues sharing criterion+anchor with an applied/accepted issue
-    applied_anchors = {}  # (criterion, anchor) -> applied_issue_id
-    for iid, issue in issues.items():
-        if issue["consensus_status"] == "accepted" and issue["application_status"] == "applied":
-            key = (issue.get("criterion"), issue.get("anchor"))
-            if key[0] is not None and key[1] is not None:
-                applied_anchors[key] = iid
-
-    for iid, issue in issues.items():
-        if issue["consensus_status"] == "open":
-            key = (issue.get("criterion"), issue.get("anchor"))
-            if key in applied_anchors and iid != applied_anchors[key]:
-                issue["consensus_status"] = "withdrawn"
-                issue["consensus_reason"] = f"duplicate of {applied_anchors[key]} (same criterion+anchor, different file)"
-                settled_issues.append({
-                    "issue_id": iid,
-                    "consensus_status": "withdrawn",
-                    "consensus_reason": issue["consensus_reason"],
-                    "file": issue.get("file"),
-                    "anchor": issue.get("anchor"),
-                })
-
-    # Remove auto-withdrawn duplicates from unresolved list
-    unresolved_issue_ids = [iid for iid in unresolved_issue_ids
-                            if issues[iid]["consensus_status"] != "withdrawn"]
-
     round_["step4"]["unresolved_issue_ids"] = unresolved_issue_ids
     round_["step4"]["settled_issues"] = settled_issues
 

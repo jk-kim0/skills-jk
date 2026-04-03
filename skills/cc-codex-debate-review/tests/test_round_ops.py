@@ -344,43 +344,39 @@ def test_settle_allows_re_raised_issue_in_new_round(sample_state):
     assert result["settled_issues"][0]["issue_id"] == issue_id
 
 
-def test_settle_auto_withdraws_duplicate_issues(sample_state):
-    """Open issue sharing criterion+anchor with an applied issue should be auto-withdrawn."""
-    from debate_review.issue_ops import upsert_issue
-    from debate_review.cross_verification import record_cross_verification
+def test_withdraw_issue(sample_state):
+    """withdraw_issue should mark an open issue as withdrawn."""
+    from debate_review.issue_ops import upsert_issue, withdraw_issue
 
-    # Create two issues: same criterion+anchor but different file
     init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
     r1 = upsert_issue(sample_state, agent="codex", round_num=1, severity="warning",
                        criterion=3, file="config.yml", line=10, anchor="agent_mode_fallback",
                        message="missing fallback")
-    r2 = upsert_issue(sample_state, agent="codex", round_num=1, severity="warning",
-                       criterion=3, file="cli.py", line=20, anchor="agent_mode_fallback",
+    issue_id = r1["issue_id"]
+    assert sample_state["issues"][issue_id]["consensus_status"] == "open"
+
+    result = withdraw_issue(sample_state, issue_id=issue_id,
+                            reason="duplicate of isu_002 — same root cause")
+    assert result["status"] == "withdrawn"
+    assert sample_state["issues"][issue_id]["consensus_status"] == "withdrawn"
+    assert "duplicate" in sample_state["issues"][issue_id]["consensus_reason"]
+
+
+def test_withdraw_issue_rejects_non_open(sample_state):
+    """withdraw_issue should reject issues that are not open."""
+    from debate_review.issue_ops import upsert_issue, withdraw_issue
+    import pytest
+
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    r1 = upsert_issue(sample_state, agent="codex", round_num=1, severity="warning",
+                       criterion=3, file="config.yml", line=10, anchor="fallback",
                        message="missing fallback")
-    issue1_id = r1["issue_id"]
-    issue2_id = r2["issue_id"]
-    assert issue1_id != issue2_id  # different keys due to different file
+    issue_id = r1["issue_id"]
+    # Manually set to withdrawn
+    sample_state["issues"][issue_id]["consensus_status"] = "withdrawn"
 
-    # Accept and apply issue1
-    record_cross_verification(sample_state, round_num=1,
-                              verifications=[{"report_id": r1["report_id"], "decision": "accept", "reason": "ok"}])
-    sample_state["issues"][issue1_id]["application_status"] = "applied"
-    sample_state["issues"][issue1_id]["applied_by"] = "codex"
-
-    record_verdict(sample_state, round_num=1, verdict="has_findings")
-    result = settle_round(sample_state, round_num=1)
-
-    # issue2 should be auto-withdrawn as duplicate
-    assert sample_state["issues"][issue2_id]["consensus_status"] == "withdrawn"
-    assert "duplicate" in sample_state["issues"][issue2_id]["consensus_reason"]
-
-    # The auto-withdrawn issue should appear in settled_issues
-    withdrawn_settled = [s for s in result["settled_issues"] if s["issue_id"] == issue2_id]
-    assert len(withdrawn_settled) == 1
-    assert withdrawn_settled[0]["consensus_status"] == "withdrawn"
-
-    # Auto-withdrawn issue should NOT appear in unresolved_issue_ids
-    assert issue2_id not in result["unresolved_issue_ids"]
+    with pytest.raises(ValueError, match="not open"):
+        withdraw_issue(sample_state, issue_id=issue_id, reason="test")
 
 
 def test_settle_stall_detection_after_2_no_progress_rounds(sample_state):

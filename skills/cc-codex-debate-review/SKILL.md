@@ -292,6 +292,7 @@ Skip if no previous round exists or no rebuttals are pending.
 
 **Both modes — route response:**
    - `rebuttal_responses` → `resolve-rebuttals --step "1a"` (if non-empty)
+   - `withdrawals` → `withdraw-issue` for each (if non-empty)
    - `findings` → record each via `upsert-issue`
    - `verdict` → `record-verdict`
 
@@ -313,6 +314,19 @@ Call `upsert-issue` for each finding from the lead agent:
 ```
 
 `anchor` should prefer symbol names, function names, or other identifiers less sensitive to line shifts. Use `line<N>` if none exists.
+
+#### Process Withdrawals
+
+If the agent response includes `withdrawals` (non-empty array), call `withdraw-issue` for each:
+
+```bash
+"$DEBATE_REVIEW_BIN" withdraw-issue \
+  --state-file "$STATE_FILE" \
+  --issue-id "isu_001" \
+  --reason "duplicate of isu_004 — same root cause applied in different file"
+```
+
+Agents may only withdraw issues they originally opened. The CLI validates the issue exists and is currently open.
 
 #### Reopen Review for Applied Issues
 
@@ -390,6 +404,10 @@ The cross-verifier performs two tasks:
     {"report_id": "rpt_002", "decision": "rebut", "reason": "Intentional duplication"}
   ]'
 ```
+
+#### Process Cross-Verifier Withdrawals
+
+If the cross-verifier response includes `withdrawals` (non-empty array), call `withdraw-issue` for each entry (same as Step 1 withdrawal processing).
 
 #### Record Cross-Verifier's New Findings
 
