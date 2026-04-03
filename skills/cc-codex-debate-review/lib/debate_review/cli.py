@@ -6,6 +6,7 @@ import sys
 
 from debate_review.config import load_config
 from debate_review.context import build_context
+from debate_review.prompt import build_prompt
 from debate_review.gh import gh_json
 from debate_review.application import (
     build_commit_message,
@@ -146,6 +147,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_bcm.add_argument("--round", type=int, required=True)
     p_bcm.add_argument("--applied-issues", default=None)
 
+    # build-prompt subcommand
+    p_bp = subparsers.add_parser("build-prompt", help="Build and persist agent prompt file")
+    p_bp.add_argument("--state-file", required=True)
+    p_bp.add_argument("--agent", required=True, choices=["cc", "codex"])
+    p_bp.add_argument("--step", required=True, choices=["init", "1", "2", "3"])
+    p_bp.add_argument("--round", type=int, default=None)
+    p_bp.add_argument("--extra", default=None, help="Additional context to append")
+
     # record-application subcommand
     p_app = subparsers.add_parser("record-application")
     p_app.add_argument("--state-file", required=True)
@@ -235,7 +244,7 @@ def cmd_init(args):
     max_rounds = args.max_rounds if args.max_rounds is not None else config.get("max_rounds", 10)
     language = str(config.get("language", "en"))
     codex_sandbox = str(config.get("codex_sandbox", "danger-full-access"))
-    config_agent_mode = str(config.get("agent_mode", "legacy"))
+    config_agent_mode = str(config.get("agent_mode", "persistent"))
     if args.agent_mode is not None:
         config_agent_mode = args.agent_mode
     agent_mode = None
@@ -612,6 +621,24 @@ def cmd_append_ledger(args):
     print(json.dumps(result))
 
 
+def cmd_build_prompt(args):
+    state = load_state(args.state_file)
+    if state is None:
+        _error_exit(f"No state file found at {args.state_file}")
+    # cli.py is at lib/debate_review/cli.py, skill root is 3 levels up
+    skill_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    result = build_prompt(
+        state,
+        agent=args.agent,
+        step=args.step,
+        round_num=args.round,
+        skill_root=skill_root,
+        extra=args.extra,
+        state_file=args.state_file,
+    )
+    print(json.dumps(result))
+
+
 def main():
     parser = build_parser()
     args = parser.parse_args()
@@ -629,6 +656,7 @@ def main():
         "record-agent-sessions": cmd_record_agent_sessions,
         "build-commit-message": cmd_build_commit_message,
         "build-context": cmd_build_context,
+        "build-prompt": cmd_build_prompt,
         "test-error": cmd_test_error,
         "mark-failed": cmd_mark_failed,
         "append-ledger": cmd_append_ledger,

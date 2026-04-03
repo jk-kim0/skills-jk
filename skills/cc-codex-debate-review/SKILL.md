@@ -83,7 +83,7 @@ LANGUAGE=$(echo "$RESULT" | jq -r '.language')
 AGENT_MODE=$(echo "$RESULT" | jq -r '.agent_mode')   # "legacy" | "persistent"
 ```
 
-`--agent-mode` is optional. When provided, it overrides the `agent_mode` value from `config.yml`. Valid values: `legacy`, `persistent`. If omitted, the config file value is used (default: `legacy`).
+`--agent-mode` is optional. When provided, it overrides the `agent_mode` value from `config.yml`. Valid values: `legacy`, `persistent`. If omitted, the config file value is used (default: `persistent`).
 
 `AGENT_MODE` determines agent invocation strategy. See **Agent Mode** section below.
 
@@ -115,32 +115,38 @@ If `STATUS` is `resumed`, the response also includes `next_step` and optionally 
 
 When `AGENT_MODE=persistent`, create both agents **once** after the first `init-round` provides `WORKTREE_PATH`, immediately before Step 1 of round 1. Step 0 `sync-head` and the first round initialization still happen first. Each agent receives `agent-initial-prompt.md` with placeholders substituted.
 
-Read and substitute `$SKILL_ROOT/agent-initial-prompt.md`:
-- `{REPO}` → `$REPO`
-- `{PR_NUMBER}` → `$PR_NUMBER`
-- `{WORKTREE_PATH}` → `$WORKTREE_PATH` (from first `init-round`)
-- `{OUTPUT_LANGUAGE}` → `$LANGUAGE`
-- `{REVIEW_CRITERIA}` → contents of `$SKILL_ROOT/review-criteria.md`
+Use `build-prompt --step init` to create the initial prompt file for each agent:
+
+```bash
+INIT_RESULT=$("$DEBATE_REVIEW_BIN" build-prompt \
+  --state-file "$STATE_FILE" --agent cc --step init)
+CC_PROMPT_FILE=$(echo "$INIT_RESULT" | jq -r '.prompt_file')
+
+INIT_RESULT=$("$DEBATE_REVIEW_BIN" build-prompt \
+  --state-file "$STATE_FILE" --agent codex --step init)
+CODEX_PROMPT_FILE=$(echo "$INIT_RESULT" | jq -r '.prompt_file')
+```
+
+Prompt files are persisted at `~/.claude/debate-state/prompts/{owner}-{repo}-{pr}-{agent}.md`. Each subsequent step appends to the same file.
 
 **CC Agent:**
 ```
+FILLED_INITIAL_PROMPT=$(cat "$CC_PROMPT_FILE")
 Agent(prompt="$FILLED_INITIAL_PROMPT", description="debate-review CC agent")
 → store CC_AGENT_ID
 ```
 
 **Codex Agent:**
 ```bash
-PROMPT_FILE=$(mktemp /tmp/debate-initial-XXXXXX)
-CODEX_INIT_LOG=$(mktemp /tmp/debate-codex-init-XXXXXX.jsonl)
-printf '%s' "$FILLED_INITIAL_PROMPT" > "$PROMPT_FILE"
+CODEX_INIT_LOG=$(mktemp /tmp/debate-codex-init-XXXXXX)
 cd "$WORKTREE_PATH"
-codex exec --json -s "$CODEX_SANDBOX" - < "$PROMPT_FILE" | tee "$CODEX_INIT_LOG"
+codex exec --json -s "$CODEX_SANDBOX" - < "$CODEX_PROMPT_FILE" | tee "$CODEX_INIT_LOG"
 CODEX_SESSION_ID=$(jq -r 'select(.type == "thread.started") | .thread_id' "$CODEX_INIT_LOG" | tail -n 1)
 if [ -z "$CODEX_SESSION_ID" ]; then
   echo "Failed to capture CODEX_SESSION_ID from Codex JSON output" >&2
   exit 1
 fi
-rm -f "$PROMPT_FILE" "$CODEX_INIT_LOG"
+rm -f "$CODEX_INIT_LOG"
 ```
 
 The `thread.started` event is emitted at the start of `codex exec --json`; use its `thread_id` as `CODEX_SESSION_ID` for later `resume` calls.
@@ -781,16 +787,25 @@ State-derivable placeholders are returned by `build-context --state-file --round
 
 Agents are created once (see **Agent Mode** section). Each step sends a follow-up message to the existing agent.
 
+Build the step message via CLI (appends to the persistent prompt file):
+
+```bash
+STEP_RESULT=$("$DEBATE_REVIEW_BIN" build-prompt \
+  --state-file "$STATE_FILE" --agent "$AGENT" --step "$STEP" --round "$CURRENT_ROUND")
+STEP_MESSAGE=$(echo "$STEP_RESULT" | jq -r '.message')
+PROMPT_FILE=$(echo "$STEP_RESULT" | jq -r '.prompt_file')
+```
+
 **CC Agent dispatch:**
 ```
-SendMessage(to=CC_AGENT_ID, message=step_message)
+SendMessage(to=CC_AGENT_ID, message=STEP_MESSAGE)
 ```
 Requires: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`
 
 **Codex Agent dispatch:**
 ```bash
 STEP_FILE=$(mktemp /tmp/debate-step-XXXXXX)
-printf '%s' "$step_message" > "$STEP_FILE"
+printf '%s' "$STEP_MESSAGE" > "$STEP_FILE"
 cd "$WORKTREE_PATH"
 codex exec resume "$CODEX_SESSION_ID" - < "$STEP_FILE"
 rm -f "$STEP_FILE"
@@ -939,7 +954,7 @@ If empty, skip code application.
 | `APPLICABLE_ISSUES_JSON` | `show --json` → issues where `consensus_status=accepted` AND `application_status` in (`pending`, `failed`). Empty `[]` when `IS_FORK=true` or `DRY_RUN=true`. |
 | `DEBATE_LEDGER_TEXT` | `show --json` → `debate_ledger` field, formatted as text |
 
-Key: no `build-context` CLI call. In the normal path, the orchestrator composes from prior in-memory agent output plus `show --json`. On restart/recovery, it must reconstruct any missing step arrays from `show --json` (`rounds[*]` + `issues[*].reports`) before composing the next message.
+Use `build-prompt` to generate step messages: it reads templates, substitutes placeholders from state, and appends to the agent's persistent prompt file. The orchestrator does not need to call `build-context` separately — `build-prompt` handles all data derivation internally.
 
 ### Supersede Handling (Persistent Mode)
 
@@ -968,10 +983,11 @@ Then proceed with the new round's Step 1 instruction.
 | Comment tag | `[debate-review][sha:<initial_sha>]` |
 | Max rounds | 10 (config `max_rounds`) |
 | Codex sandbox | `danger-full-access` for all steps (configurable via `codex_sandbox`) |
+| Prompt files | `~/.claude/debate-state/prompts/<owner>-<repo>-<pr>-<agent>.md` |
 | Worktree | `<repo_root>/.worktrees/debate-pr-<N>` |
 | GitHub CLI | `env -u GITHUB_TOKEN -u GH_TOKEN gh ...` |
 | Output language | Config `language` (default: `en`) |
-| Agent mode | Config `agent_mode`: `legacy` (default) or `persistent` |
+| Agent mode | Config `agent_mode`: `persistent` (default) or `legacy` |
 | Code application | Mandatory when `DRY_RUN=false` and `IS_FORK=false` |
 
 ## Error Handling & Bug Reporting

@@ -10,4 +10,4 @@ language: en
 # Agent invocation mode.
 #   legacy:     Independent agent per step (build-context + template substitution)
 #   persistent: Long-lived agents with SendMessage/resume (append-only prompt)
-agent_mode: legacy
+agent_mode: persistent

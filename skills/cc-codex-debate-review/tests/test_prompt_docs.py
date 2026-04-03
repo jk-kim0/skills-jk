@@ -37,7 +37,7 @@ def test_skill_doc_explains_how_to_capture_codex_session_id():
     skill_path = Path(__file__).resolve().parents[1] / "SKILL.md"
     skill = skill_path.read_text()
 
-    assert 'codex exec --json -s "$CODEX_SANDBOX" - < "$PROMPT_FILE"' in skill
+    assert 'codex exec --json -s "$CODEX_SANDBOX" - < "$CODEX_PROMPT_FILE"' in skill
     assert 'select(.type == "thread.started") | .thread_id' in skill
     assert "CODEX_SESSION_ID=<parse session ID from CODEX_OUTPUT>" not in skill
 
