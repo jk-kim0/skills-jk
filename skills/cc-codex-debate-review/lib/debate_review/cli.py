@@ -673,13 +673,16 @@ def cmd_build_prompt(args):
         extra=args.extra,
         state_file=args.state_file,
     )
-    # Write the step message to a separate file so callers can read it directly
-    # without shell-variable corruption (zsh echo interprets \\n as newlines,
-    # breaking JSON round-tripping of multiline markdown content).
-    msg_fd, msg_path = tempfile.mkstemp(prefix="debate-msg-", suffix=".md")
-    with os.fdopen(msg_fd, "w") as f:
-        f.write(result["message"])
-    print(json.dumps({"prompt_file": result["prompt_file"], "message_file": msg_path}))
+    output = {"prompt_file": result["prompt_file"]}
+    # For non-init steps, write the step message to a separate file so callers
+    # can read it directly without shell-variable corruption (zsh echo interprets
+    # \\n as newlines, breaking JSON round-tripping of multiline markdown content).
+    if args.step != "init":
+        msg_fd, msg_path = tempfile.mkstemp(prefix="debate-msg-", suffix=".md")
+        with os.fdopen(msg_fd, "w") as f:
+            f.write(result["message"])
+        output["message_file"] = msg_path
+    print(json.dumps(output))
 
 
 def main():
