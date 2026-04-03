@@ -98,15 +98,15 @@ class TestCreateFailureIssue:
         assert "#42" in body
         assert "step2_cross_review" in body
 
-    def test_gh_failure_propagates(self):
+    def test_gh_failure_returns_error(self):
         state = _failed_state()
 
         def mock_gh(*args):
             raise RuntimeError("gh: not authenticated")
 
-        import pytest
-        with pytest.raises(RuntimeError, match="not authenticated"):
-            create_failure_issue(state, _gh=mock_gh)
+        result = create_failure_issue(state, _gh=mock_gh)
+        assert result["action"] == "error"
+        assert "not authenticated" in result["reason"]
 
     def test_dry_run_skips_creation(self):
         state = _failed_state()
@@ -277,6 +277,19 @@ class TestUpdatePrStatus:
         result = update_pr_status(state, _gh_json=mock_gh_json)
         assert result["action"] == "error"
         assert "Failed to fetch PR title" in result["reason"]
+
+    def test_gh_edit_failure_returns_error(self):
+        state = _consensus_state()
+
+        def mock_gh_json(*args):
+            return {"title": "Fix stuff"}
+
+        def mock_gh(*args):
+            raise RuntimeError("GraphQL: Resource not accessible")
+
+        result = update_pr_status(state, _gh=mock_gh, _gh_json=mock_gh_json)
+        assert result["action"] == "error"
+        assert "Failed to update PR title" in result["reason"]
 
 
 # --- cleanup_worktree ---

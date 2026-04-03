@@ -48,13 +48,16 @@ def create_failure_issue(state, *, _gh=None) -> dict:
 
     gh_fn = _gh or gh
     # gh issue create outputs a URL string, not JSON
-    raw = gh_fn(
-        "issue", "create",
-        "--repo", repo,
-        "--title", title,
-        "--body", body,
-        "--label", "debate-review",
-    )
+    try:
+        raw = gh_fn(
+            "issue", "create",
+            "--repo", repo,
+            "--title", title,
+            "--body", body,
+            "--label", "debate-review",
+        )
+    except RuntimeError as e:
+        return {"action": "error", "reason": f"Failed to create issue: {e}"}
 
     return {"action": "created", "url": raw.strip()}
 
@@ -92,11 +95,14 @@ def update_pr_status(state, *, _gh=None, _gh_json=None) -> dict:
     new_title = f"{label} {stripped_title}"
 
     gh_fn = _gh or gh
-    gh_fn(
-        "pr", "edit", str(pr_number),
-        "--repo", repo,
-        "--title", new_title,
-    )
+    try:
+        gh_fn(
+            "pr", "edit", str(pr_number),
+            "--repo", repo,
+            "--title", new_title,
+        )
+    except RuntimeError as e:
+        return {"action": "error", "reason": f"Failed to update PR title: {e}"}
 
     return {"action": "updated", "label": label, "title": new_title}
 
