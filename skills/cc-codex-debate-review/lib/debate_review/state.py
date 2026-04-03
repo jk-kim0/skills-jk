@@ -71,6 +71,7 @@ def create_initial_state(
             "commit_sha": None,
             "push_verified": False,
             "state_persisted": True,
+            "step_timings": {},
         },
         "issues": {},
         "debate_ledger": [],

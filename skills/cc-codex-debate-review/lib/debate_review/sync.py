@@ -4,6 +4,7 @@ import os
 import subprocess
 
 from debate_review.gh import gh_json
+from debate_review.timing import record_step_timing
 
 
 def _run_git(repo_root, *args):
@@ -119,6 +120,7 @@ def sync_head(state, *, _get_head=None, _fetch=None, _ensure_wt=None) -> dict:
             # Reset journal for the new round
             journal["round"] = state["current_round"]
             journal["step"] = "step0_sync"
+            record_step_timing(state, "step0_sync")
             journal["applied_issue_ids"] = []
             journal["failed_application_issue_ids"] = []
             journal["commit_sha"] = None

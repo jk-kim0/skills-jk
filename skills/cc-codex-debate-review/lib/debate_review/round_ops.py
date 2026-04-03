@@ -11,11 +11,13 @@ def init_round(state, *, round_num, lead_agent=None, synced_head_sha):
     for r in state["rounds"]:
         if r["round"] == round_num:
             return
+    now = datetime.now(timezone.utc).isoformat()
     state["rounds"].append({
         "round": round_num,
         "status": "active",
         "lead_agent": lead_agent,
         "synced_head_sha": synced_head_sha,
+        "started_at": now,
         "clean_pass": False,
         "step1": {
             "rebuttal_responses": [],
@@ -109,6 +111,7 @@ def settle_round(state, *, round_num) -> dict:
     if round_["status"] != "active":
         raise ValueError(f"Round {round_num} is not active (status={round_['status']})")
     round_["status"] = "completed"
+    round_["completed_at"] = datetime.now(timezone.utc).isoformat()
 
     issues = state["issues"]
     is_fork = state.get("is_fork", False)

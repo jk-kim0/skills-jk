@@ -5,6 +5,7 @@ import sys
 from debate_review.gh import gh_json
 from debate_review.issue_ops import latest_report_message
 from debate_review.round_ops import _find_round
+from debate_review.timing import record_step_timing
 
 
 def _get_pr_head_sha(repo, pr_number):
@@ -37,6 +38,7 @@ def record_application_phase1(state, *, round_num, applied_issue_ids, failed_iss
 
     # Checkpoint 0: initialize
     journal["step"] = "step3_lead_apply"
+    record_step_timing(state, "step3_lead_apply")
     journal["applied_issue_ids"] = []
     journal["failed_application_issue_ids"] = []
     journal["commit_sha"] = None
