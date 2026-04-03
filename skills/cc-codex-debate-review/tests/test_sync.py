@@ -174,6 +174,20 @@ def test_sync_supersede_returns_next_round_and_resets_journal():
     assert state["journal"]["push_verified"] is False
 
 
+def test_sync_supersede_resets_step_timings_for_new_round():
+    state = _make_state_with_round()
+    state["journal"]["step_timings"]["step0_sync"] = "old-round-timestamp"
+
+    sync_head(
+        state,
+        _get_head=lambda repo, pr: "sha_external",
+        _fetch=lambda rr, pn, tr: None,
+        _ensure_wt=lambda rr, pn, tr: ("/tmp/wt", "sha_external"),
+    )
+
+    assert state["journal"]["step_timings"]["step0_sync"] != "old-round-timestamp"
+
+
 def test_sync_dry_run_skips_operations():
     """sync_head should skip all git/gh operations in dry_run mode."""
     state = _make_state_with_round()

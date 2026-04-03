@@ -5,6 +5,7 @@ import shutil
 import sys
 
 from debate_review.config import load_config
+from debate_review.timing import record_step_timing
 from debate_review.context import build_context
 from debate_review.prompt import build_prompt
 from debate_review.gh import gh_json
@@ -403,6 +404,7 @@ def cmd_init_round(args):
     init_round(state, round_num=args.round, lead_agent=lead_agent, synced_head_sha=args.synced_head_sha)
     state["journal"]["round"] = args.round
     state["journal"]["step"] = "step0_sync"
+    record_step_timing(state, "step0_sync")
     state["journal"]["phase1_completed"] = False
     save_state(state, args.state_file)
     print(json.dumps({
@@ -423,6 +425,7 @@ def cmd_upsert_issue(args):
         print(json.dumps(_dry_run_skip(state, command="upsert-issue", round=args.round, agent=args.agent)))
         return
     state["journal"]["step"] = "step1_lead_review"
+    record_step_timing(state, "step1_lead_review")
     result = upsert_issue(
         state,
         agent=args.agent,
@@ -447,6 +450,7 @@ def cmd_record_verdict(args):
         print(json.dumps(_dry_run_skip(state, command="record-verdict", round=args.round, verdict=args.verdict)))
         return
     state["journal"]["step"] = "step1_lead_review"
+    record_step_timing(state, "step1_lead_review")
     result = record_verdict(state, round_num=args.round, verdict=args.verdict)
     save_state(state, args.state_file)
     print(json.dumps(result))
@@ -460,6 +464,7 @@ def cmd_settle_round(args):
         print(json.dumps(_dry_run_skip(state, command="settle-round", round=args.round)))
         return
     state["journal"]["step"] = "step4_settle"
+    record_step_timing(state, "step4_settle")
     result = settle_round(state, round_num=args.round)
     save_state(state, args.state_file)
     print(json.dumps(result))
@@ -477,6 +482,7 @@ def cmd_record_cross_verification(args):
         print(json.dumps(_dry_run_skip(state, command="record-cross-verification", round=args.round)))
         return
     state["journal"]["step"] = "step2_cross_review"
+    record_step_timing(state, "step2_cross_review")
     result = record_cross_verification(state, round_num=args.round, verifications=verifications)
     save_state(state, args.state_file)
     print(json.dumps(result))
@@ -494,7 +500,9 @@ def cmd_resolve_rebuttals(args):
         print(json.dumps(_dry_run_skip(state, command="resolve-rebuttals", round=args.round, step=args.step)))
         return
     step_map = {"1a": "step1_lead_review", "3": "step3_lead_apply"}
-    state["journal"]["step"] = step_map.get(args.step, state["journal"]["step"])
+    new_step = step_map.get(args.step, state["journal"]["step"])
+    state["journal"]["step"] = new_step
+    record_step_timing(state, new_step)
     result = resolve_rebuttals(state, round_num=args.round, step=args.step, decisions=decisions)
     save_state(state, args.state_file)
     print(json.dumps(result))
@@ -505,6 +513,7 @@ def cmd_sync_head(args):
     if state is None:
         _error_exit(f"No state file found at {args.state_file}")
     state["journal"]["step"] = "step0_sync"
+    record_step_timing(state, "step0_sync")
     result = sync_head(state)
     if not state.get("dry_run"):
         save_state(state, args.state_file)
