@@ -851,6 +851,35 @@ def test_cli_record_application_accepts_failed_issue_objects(monkeypatch, capsys
     assert state["issues"][issue_id]["application_status"] == "failed"
 
 
+def test_cli_record_application_phase1_then_phase2(monkeypatch, capsys, state_path):
+    """When both --applied-issues and --commit-sha are provided, Phase 1 and Phase 2 run sequentially."""
+    _run_cli(monkeypatch, [
+        "upsert-issue", "--state-file", state_path,
+        "--agent", "codex", "--round", "1",
+        "--severity", "critical", "--criterion", "1",
+        "--file", "src/a.py", "--line", "10",
+        "--anchor", "validate_input",
+        "--message", "Missing input validation",
+    ])
+    issue_id = json.loads(capsys.readouterr().out)["issue_id"]
+
+    _run_cli(monkeypatch, [
+        "record-application", "--state-file", state_path,
+        "--round", "1",
+        "--applied-issues", json.dumps([issue_id]),
+        "--commit-sha", "deadbeef123",
+    ])
+    result = json.loads(capsys.readouterr().out)
+    # Phase 2 result is printed last
+    assert result["phase"] == 2
+    assert result["commit_sha"] == "deadbeef123"
+
+    # Phase 1 must have also run: application_status should be "applied"
+    state = load_state(state_path)
+    assert state["issues"][issue_id]["application_status"] == "applied"
+    assert state["journal"]["commit_sha"] == "deadbeef123"
+
+
 def test_cli_test_error_exits_with_json_error(monkeypatch, capsys):
     """test-error should raise RuntimeError → _error_exit → JSON error + exit 1."""
     monkeypatch.setattr(sys, "argv", ["debate-review", "test-error"])

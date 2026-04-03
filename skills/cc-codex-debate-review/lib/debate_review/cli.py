@@ -529,11 +529,8 @@ def cmd_record_application(args):
         print(json.dumps(_dry_run_skip(state, command="record-application", round=args.round)))
         return
 
-    if args.verify_push:
-        result = record_application_phase3(state, round_num=args.round)
-    elif args.commit_sha:
-        result = record_application_phase2(state, round_num=args.round, commit_sha=args.commit_sha)
-    elif args.applied_issues is not None:
+    result = None
+    if args.applied_issues is not None:
         try:
             applied = json.loads(args.applied_issues)
             failed = _normalize_failed_issues(args.failed_issues)
@@ -543,7 +540,14 @@ def cmd_record_application(args):
             state, round_num=args.round,
             applied_issue_ids=applied, failed_issue_ids=failed,
         )
-    else:
+
+    if args.commit_sha:
+        result = record_application_phase2(state, round_num=args.round, commit_sha=args.commit_sha)
+
+    if args.verify_push:
+        result = record_application_phase3(state, round_num=args.round)
+
+    if result is None:
         _error_exit("Must provide --applied-issues, --commit-sha, or --verify-push")
 
     save_state(state, args.state_file)
