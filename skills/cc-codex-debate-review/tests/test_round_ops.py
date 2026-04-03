@@ -344,6 +344,42 @@ def test_settle_allows_re_raised_issue_in_new_round(sample_state):
     assert result["settled_issues"][0]["issue_id"] == issue_id
 
 
+def test_settle_auto_withdraws_duplicate_issues(sample_state):
+    """Open issue sharing criterion+anchor with an applied issue should be auto-withdrawn."""
+    from debate_review.issue_ops import upsert_issue
+    from debate_review.cross_verification import record_cross_verification
+
+    # Create two issues: same criterion+anchor but different file
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    r1 = upsert_issue(sample_state, agent="codex", round_num=1, severity="warning",
+                       criterion=3, file="config.yml", line=10, anchor="agent_mode_fallback",
+                       message="missing fallback")
+    r2 = upsert_issue(sample_state, agent="codex", round_num=1, severity="warning",
+                       criterion=3, file="cli.py", line=20, anchor="agent_mode_fallback",
+                       message="missing fallback")
+    issue1_id = r1["issue_id"]
+    issue2_id = r2["issue_id"]
+    assert issue1_id != issue2_id  # different keys due to different file
+
+    # Accept and apply issue1
+    record_cross_verification(sample_state, round_num=1,
+                              verifications=[{"report_id": r1["report_id"], "decision": "accept", "reason": "ok"}])
+    sample_state["issues"][issue1_id]["application_status"] = "applied"
+    sample_state["issues"][issue1_id]["applied_by"] = "codex"
+
+    record_verdict(sample_state, round_num=1, verdict="has_findings")
+    result = settle_round(sample_state, round_num=1)
+
+    # issue2 should be auto-withdrawn as duplicate
+    assert sample_state["issues"][issue2_id]["consensus_status"] == "withdrawn"
+    assert "duplicate" in sample_state["issues"][issue2_id]["consensus_reason"]
+
+    # The auto-withdrawn issue should appear in settled_issues
+    withdrawn_settled = [s for s in result["settled_issues"] if s["issue_id"] == issue2_id]
+    assert len(withdrawn_settled) == 1
+    assert withdrawn_settled[0]["consensus_status"] == "withdrawn"
+
+
 def test_settle_stall_detection_after_2_no_progress_rounds(sample_state):
     """2 consecutive rounds with no settlements and no applied code → stalled."""
     from debate_review.issue_ops import upsert_issue
