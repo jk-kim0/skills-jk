@@ -500,6 +500,7 @@ Record all decisions in a single `resolve-rebuttals --step "3"` call:
 From the agent's JSON response:
 - `rebuttal_decisions` → `resolve-rebuttals --step "3"`
 - `cross_finding_evaluations` → `resolve-rebuttals --step "3"`
+- `withdrawals` → `withdraw-issue` for each (if non-empty; same as Step 1 withdrawal processing)
 - `application_result` → record via 3-phase process below
 
 #### Code Application (Same-Repo PR, 3-Phase)

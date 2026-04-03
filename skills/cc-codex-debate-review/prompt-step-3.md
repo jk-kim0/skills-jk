@@ -12,6 +12,10 @@ For each: `withdraw` or `maintain`.
 
 For each: `accept` or `maintain`.
 
+### Withdrawals
+
+If you realize one of your own open issues is a duplicate of another open issue or is no longer valid, add a `withdrawals` entry. You may only withdraw issues you originally opened.
+
 ### Issues to Fix
 
 {APPLICABLE_ISSUES_JSON}
@@ -30,5 +34,5 @@ If empty, skip code application entirely — return empty `applied_issues`/`fail
 ### Output
 
 ```json
-{"rebuttal_decisions": [...], "cross_finding_evaluations": [...], "application_result": {"applied_issues": [...], "failed_issues": [...], "commit_sha": "..."}}
+{"rebuttal_decisions": [...], "cross_finding_evaluations": [...], "withdrawals": [...], "application_result": {"applied_issues": [...], "failed_issues": [...], "commit_sha": "..."}}
 ```

@@ -9,7 +9,7 @@
 - 이 문서는 persistent agent mode가 baseline 설계를 어떻게 확장하는지 설명한다.
 - 현재 유효한 implementation backlog는 [2026-04-01-debate-review-persistent-agent-impl.md](./2026-04-01-debate-review-persistent-agent-impl.md)에서 관리한다.
 
-## Current Implementation Checkpoint (2026-04-03)
+## Current Implementation Checkpoint (2026-04-04)
 
 이미 `main`에 반영된 항목:
 
@@ -22,12 +22,10 @@
 - duplicate withdrawal의 state-side 1차 반영 (`#164`)
 - Phase 2 commit SHA full-length 정규화 (`#165`)
 - round / step timing instrumentation (`#166`)
+- `build-prompt` JSON 출력 zsh echo 손상 수정 (`#168`)
+- prompt/routing schema parity: Step 3 `withdrawals` 필드 추가, legacy/persistent 일관성 확보
 
-현재 가장 시급한 blocker는 `#161`이다.
-
-- `build-prompt` 출력이 invalid JSON이어서 persistent agent 초기화가 시작 단계에서 실패한다.
-- duplicate withdrawal은 state-side 기반 반영까지는 들어왔지만, prompt/state parity는 아직 닫히지 않았다.
-- 나머지 active backlog는 orchestration path, operational follow-through, E2E verification이며 canonical 목록은 [2026-04-01-debate-review-persistent-agent-impl.md](./2026-04-01-debate-review-persistent-agent-impl.md)에 둔다.
+Prompt/state routing parity (Workstream A)는 완료되었다. 나머지 active backlog는 orchestration path, operational follow-through, E2E verification이며 canonical 목록은 [2026-04-01-debate-review-persistent-agent-impl.md](./2026-04-01-debate-review-persistent-agent-impl.md)에 둔다.
 
 ## Background
 
@@ -83,8 +81,8 @@ CC Orchestrator
 
 이 문서는 더 이상 step-by-step implementation plan을 담지 않는다. 현재 유효한 설계 민감 이슈만 남긴다.
 
-- `#161`: `build-prompt` output JSON 안정화
-- persistent step prompt와 state routing의 schema 정합성
+- ~~`#161`: `build-prompt` output JSON 안정화~~ → `#168`에서 해결
+- ~~persistent step prompt와 state routing의 schema 정합성~~ → Step 3 withdrawals 추가로 해결
 - restart / recovery / supersede의 실제 런타임 검증
 - terminal follow-through의 재현 가능한 orchestration path
 

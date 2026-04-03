@@ -39,6 +39,10 @@ These are findings independently submitted by the cross-verifier. Decide on each
 Cross-verifier's findings:
 {CROSS_FINDINGS}
 
+## Withdrawals
+
+If you realize one of your own open issues is a duplicate of another open issue or is no longer valid, include a `withdrawals` array with entries like `{"issue_id": "isu_001", "reason": "..."}`. You may only withdraw issues you originally opened. If none, use an empty array `[]`.
+
 ## Code Application
 
 Fix the issues listed below by editing files directly in the worktree. After all fixes are applied:
@@ -76,6 +80,9 @@ Output only valid JSON with the following structure:
   "cross_finding_evaluations": [
     { "report_id": "rpt_005", "decision": "accept|maintain", "reason": "..." }
   ],
+  "withdrawals": [
+    { "issue_id": "isu_004", "reason": "..." }
+  ],
   "application_result": {
     "applied_issues": ["isu_001", "isu_003"],
     "failed_issues": [{"issue_id": "isu_002", "reason": "..."}],
@@ -86,6 +93,7 @@ Output only valid JSON with the following structure:
 
 - `rebuttal_decisions`: One entry per rebuttal in `{CROSS_REBUTTALS}`. Empty array `[]` if none.
 - `cross_finding_evaluations`: One entry per finding in `{CROSS_FINDINGS}`. Empty array `[]` if none.
+- `withdrawals`: Issues you want to withdraw. Empty array `[]` if none.
 - `application_result`: Code application results. `commit_sha` is the SHA after commit+push. Omit `commit_sha` if no issues were applied.
 
 ## Review Criteria
