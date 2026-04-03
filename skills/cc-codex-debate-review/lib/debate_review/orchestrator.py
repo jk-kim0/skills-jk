@@ -512,6 +512,7 @@ class DebateReviewOrchestrator:
         elif step == "step3":
             progress = {
                 "decisions_done": False,
+                "withdrawals_done": 0,
                 "phase1_done": False,
                 "phase2_done": False,
                 "phase3_done": False,
@@ -726,6 +727,19 @@ class DebateReviewOrchestrator:
                 decisions=decisions,
             )
             checkpoint["progress"]["decisions_done"] = True
+            self._save_checkpoint(checkpoint)
+
+        withdrawals = response.get("withdrawals", [])
+        done = checkpoint["progress"].setdefault("withdrawals_done", 0)
+        for item in withdrawals[done:]:
+            self.cli.withdraw_issue(
+                self.state_file,
+                issue_id=item["issue_id"],
+                agent=round_ctx["lead_agent"],
+                round_num=round_ctx["round"],
+                reason=item["reason"],
+            )
+            checkpoint["progress"]["withdrawals_done"] += 1
             self._save_checkpoint(checkpoint)
 
         app = response.get("application_result", {})
@@ -947,7 +961,28 @@ class DebateReviewOrchestrator:
             raise
 
 
-def _build_adapters(config: dict) -> dict[str, AgentAdapter]:
+def _validate_runtime_commands(*, agent_mode: str, adapters: dict[str, AgentAdapter]) -> None:
+    cc_adapter = adapters["cc"]
+    if agent_mode == "legacy" and not cc_adapter.legacy_command:
+        raise OrchestrationError(
+            "Missing runtime command for cc legacy mode. "
+            "Set orchestrator.agents.cc.legacy_command in config or ~/.claude/debate-review-config.yml."
+        )
+    if agent_mode == "persistent":
+        missing = []
+        if not cc_adapter.create_command:
+            missing.append("persistent_create_command")
+        if not cc_adapter.send_command:
+            missing.append("persistent_send_command")
+        if missing:
+            missing_text = ", ".join(missing)
+            raise OrchestrationError(
+                "Missing runtime command for cc persistent mode. "
+                f"Set orchestrator.agents.cc.{missing_text} in config or ~/.claude/debate-review-config.yml."
+            )
+
+
+def _build_adapters(config: dict, *, agent_mode: str | None = None) -> dict[str, AgentAdapter]:
     orch = config.get("orchestrator", {})
     agent_cfg = orch.get("agents", {}) if isinstance(orch, dict) else {}
 
@@ -967,10 +1002,13 @@ def _build_adapters(config: dict) -> dict[str, AgentAdapter]:
             send_command=cfg.get("persistent_send_command"),
         )
 
-    return {
+    adapters = {
         "codex": _from_cfg("codex", defaults=CodexAdapter()),
         "cc": _from_cfg("cc"),
     }
+    effective_mode = agent_mode or str(config.get("agent_mode", "persistent"))
+    _validate_runtime_commands(agent_mode=effective_mode, adapters=adapters)
+    return adapters
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -992,9 +1030,10 @@ def main() -> None:
 
     skill_root = _skill_root()
     config = load_config(args.config)
+    effective_agent_mode = args.agent_mode or str(config.get("agent_mode", "persistent"))
     orchestrator = DebateReviewOrchestrator(
         cli=SubprocessDebateCli(_debate_review_bin(skill_root)),
-        adapters=_build_adapters(config),
+        adapters=_build_adapters(config, agent_mode=effective_agent_mode),
         skill_root=skill_root,
         config=config,
         no_comment=args.no_comment,

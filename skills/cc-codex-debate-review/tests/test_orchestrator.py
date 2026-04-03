@@ -10,7 +10,11 @@ from debate_review.application import (
 )
 from debate_review.cross_verification import record_cross_verification, resolve_rebuttals
 from debate_review.issue_ops import upsert_issue, withdraw_issue
-from debate_review.orchestrator import DebateReviewOrchestrator
+from debate_review.orchestrator import (
+    DebateReviewOrchestrator,
+    OrchestrationError,
+    _build_adapters,
+)
 from debate_review.round_ops import init_round, record_verdict, settle_round
 from debate_review.state import create_initial_state, mark_failed
 
@@ -376,6 +380,115 @@ def test_route_step3_checkpoint_resumes_remaining_phases(monkeypatch, tmp_path):
         },
     ]
     assert cli.state["issues"]["isu_001"]["application_commit_sha"] == "deadbeef"
+    assert not checkpoint_path.exists()
+
+
+@pytest.mark.parametrize(
+    ("config", "expected_message"),
+    [
+        (
+            {"agent_mode": "legacy"},
+            "Missing runtime command for cc legacy mode",
+        ),
+        (
+            {"agent_mode": "persistent"},
+            "Missing runtime command for cc persistent mode",
+        ),
+    ],
+)
+def test_build_adapters_requires_cc_runtime_commands(config, expected_message):
+    with pytest.raises(OrchestrationError, match=expected_message):
+        _build_adapters(config)
+
+
+def test_route_step3_checkpoint_processes_withdrawals(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    checkpoint_path = tmp_path / "checkpoint.json"
+    monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
+
+    state = _sample_state(agent_mode="persistent")
+    init_round(state, round_num=1, synced_head_sha=state["head"]["last_observed_pr_sha"])
+    state["issues"]["isu_001"] = {
+        "issue_id": "isu_001",
+        "issue_key": "criterion:8|file:src/app.py|anchor:line1|kind:duplicate_logic",
+        "opened_by": "codex",
+        "introduced_in_round": 1,
+        "criterion": 8,
+        "file": "src/app.py",
+        "line": 1,
+        "anchor": "line1",
+        "severity": "warning",
+        "consensus_status": "open",
+        "application_status": "pending",
+        "accepted_by": ["codex"],
+        "rejected_by": [],
+        "applied_by": None,
+        "application_commit_sha": None,
+        "consensus_reason": None,
+        "reports": [
+            {
+                "report_id": "rpt_001",
+                "agent": "codex",
+                "round": 1,
+                "severity": "warning",
+                "message": "duplicate logic",
+                "reported_at": "2026-04-04T00:00:00+00:00",
+                "status": "open",
+            }
+        ],
+        "created_at": "2026-04-04T00:00:00+00:00",
+        "updated_at": "2026-04-04T00:00:00+00:00",
+    }
+
+    cli = FakeCli(state, state_file=str(tmp_path / "state.json"), init_status="resumed", next_step="step3")
+    orchestrator = DebateReviewOrchestrator(
+        cli=cli,
+        adapters={"codex": ScriptedAdapter("codex"), "cc": ScriptedAdapter("cc")},
+        skill_root=SKILL_ROOT,
+        config={"codex_sandbox": "danger-full-access"},
+        cleanup_worktree=False,
+    )
+    orchestrator.state_file = cli.state_file
+
+    checkpoint = {
+        "step": "step3",
+        "round": 1,
+        "agent": "codex",
+        "response": {
+            "rebuttal_decisions": [],
+            "cross_finding_evaluations": [],
+            "withdrawals": [
+                {
+                    "issue_id": "isu_001",
+                    "reason": "duplicate of isu_002",
+                }
+            ],
+            "application_result": {
+                "applied_issues": [],
+                "failed_issues": [],
+            },
+        },
+        "progress": {
+            "decisions_done": True,
+            "withdrawals_done": 0,
+            "phase1_done": False,
+            "phase2_done": False,
+            "phase3_done": False,
+        },
+    }
+
+    next_step = orchestrator._route_step3_checkpoint(checkpoint, {
+        "round": 1,
+        "lead_agent": "codex",
+        "cross_verifier": "cc",
+        "worktree_path": "/tmp/repo/.worktrees/debate-pr-123",
+        "head_branch": "feat/test",
+    })
+
+    assert next_step == "step4"
+    assert cli.state["issues"]["isu_001"]["consensus_status"] == "withdrawn"
+    assert cli.state["issues"]["isu_001"]["consensus_reason"] == "duplicate of isu_002"
     assert not checkpoint_path.exists()
 
 

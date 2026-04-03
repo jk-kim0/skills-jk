@@ -10,4 +10,6 @@ language: en
 # Agent invocation mode.
 #   legacy:     Independent agent per step (build-context + template substitution)
 #   persistent: Long-lived agents with SendMessage/resume (append-only prompt)
+# Note: CC runtime commands are environment-specific and must be provided via
+# config or ~/.claude/debate-review-config.yml under orchestrator.agents.cc.*.
 agent_mode: persistent
