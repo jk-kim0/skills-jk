@@ -37,6 +37,17 @@ def test_record_step_timing_initializes_missing_key(sample_state):
     assert "step1_lead_review" in sample_state["journal"]["step_timings"]
 
 
+def test_init_round_resets_step_timings_for_new_round(sample_state):
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    sample_state["journal"]["step_timings"]["step0_sync"] = "old-round-timestamp"
+    record_verdict(sample_state, round_num=1, verdict="has_findings")
+    settle_round(sample_state, round_num=1)
+
+    init_round(sample_state, round_num=2, lead_agent="cc", synced_head_sha="def")
+
+    assert sample_state["journal"]["step_timings"] == {}
+
+
 # --- Round-level timing ---
 
 def test_init_round_sets_started_at(sample_state):

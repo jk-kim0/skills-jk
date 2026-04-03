@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 
 from debate_review.issue_ops import latest_report_message
 from debate_review.state import append_ledger
+from debate_review.timing import reset_step_timings
 
 
 def init_round(state, *, round_num, lead_agent=None, synced_head_sha):
@@ -12,6 +13,7 @@ def init_round(state, *, round_num, lead_agent=None, synced_head_sha):
         if r["round"] == round_num:
             return
     now = datetime.now(timezone.utc).isoformat()
+    reset_step_timings(state)
     state["rounds"].append({
         "round": round_num,
         "status": "active",
