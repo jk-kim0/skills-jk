@@ -19,17 +19,17 @@
 - `record-agent-sessions` CLI
 - `agent-initial-prompt.md`, `prompt-step-{1,2,3}.md`, `build-prompt`
 - persistent mode 기본값 전환
-- round / step timing 계측
+- `settle-round`의 `debate_ledger` 정산 반영 (`#162`)
+- 다중 플래그 시 application phase sequential 실행 보장 (`#163`)
 - duplicate withdrawal의 state-side 1차 반영 (`#164`)
 - Phase 2 commit SHA full-length 정규화 (`#165`)
+- round / step timing instrumentation (`#166`)
 
 아직 completion 기준에 못 미치는 항목:
 
 - 현재 가장 시급한 blocker는 `build-prompt` 출력이 invalid JSON이어서 persistent agent 초기화가 깨지는 `#161`이다.
 - duplicate withdrawal 설계가 persistent mode step prompt와 state bookkeeping까지 일관되게 닫히지 않았다. `#164`는 state-side 기반 작업이고 prompt/routing parity는 아직 남아 있다.
-- round loop, agent lifecycle, terminal follow-through를 재현 가능하게 실행하는 repo-owned orchestration path가 아직 닫히지 않았다.
-- failure 이후 bug report 생성, PR title/body 갱신, worktree cleanup은 여전히 문서 절차에 머물러 있다.
-- 실제 resume/recovery, supersede, terminal processing을 포함한 end-to-end 검증이 없다.
+- 나머지 active backlog는 repo-owned orchestration path, operational follow-through, E2E verification이며 canonical 목록은 [2026-04-01-debate-review-persistent-agent-impl.md](./2026-04-01-debate-review-persistent-agent-impl.md)에서 관리한다.
 
 즉, 현재 debate-review는 "상태 전이용 CLI + prompt assets + 운영 절차 문서"는 갖췄지만, 설계 문서가 상정한 완성형 운영 시스템은 아직 아니다. canonical backlog와 우선순위는 [2026-04-01-debate-review-persistent-agent-impl.md](./2026-04-01-debate-review-persistent-agent-impl.md)에 둔다.
 
