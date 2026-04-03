@@ -177,9 +177,9 @@ def test_phase2_rejects_different_sha_overwrite():
     import pytest
     state = _state_with_accepted_issues()
     record_application_phase1(state, round_num=1, applied_issue_ids=["isu_001"], failed_issue_ids=[])
-    record_application_phase2(state, round_num=1, commit_sha="sha_first")
+    record_application_phase2(state, round_num=1, commit_sha="abcdef1")
     with pytest.raises(ValueError, match="already recorded"):
-        record_application_phase2(state, round_num=1, commit_sha="sha_different")
+        record_application_phase2(state, round_num=1, commit_sha="abcdef2")
 
 
 # --- build_commit_message tests ---
@@ -273,15 +273,15 @@ def test_phase2_rejects_invalid_sha():
     state = _state_with_accepted_issues()
     record_application_phase1(state, round_num=1, applied_issue_ids=["isu_001"], failed_issue_ids=[])
 
-    with patch("debate_review.application._resolve_full_sha", side_effect=ValueError("Cannot resolve SHA 'badsha'")):
+    with patch("debate_review.application._resolve_full_sha", side_effect=ValueError("Cannot resolve SHA 'bad5bad'")):
         with pytest.raises(ValueError, match="Cannot resolve SHA"):
-            record_application_phase2(state, round_num=1, commit_sha="badsha")
+            record_application_phase2(state, round_num=1, commit_sha="bad5bad")
 
 
 def test_phase2_normalizes_short_sha_to_full():
     """Phase 2 should normalize a short SHA to full 40-char SHA via git rev-parse."""
     short_sha = "3978f1a"
-    full_sha = "3978f1a1234567890abcdef1234567890abcdef12"
+    full_sha = "3978f1a1234567890abcdef1234567890abcdef1"
 
     state = _state_with_accepted_issues()
     record_application_phase1(state, round_num=1, applied_issue_ids=["isu_001"], failed_issue_ids=[])
@@ -296,7 +296,7 @@ def test_phase2_normalizes_short_sha_to_full():
 def test_phase2_short_sha_then_phase3_succeeds():
     """End-to-end: short SHA in Phase 2 should match full SHA from GitHub API in Phase 3."""
     short_sha = "3978f1a"
-    full_sha = "3978f1a1234567890abcdef1234567890abcdef12"
+    full_sha = "3978f1a1234567890abcdef1234567890abcdef1"
 
     state = _state_with_accepted_issues()
     record_application_phase1(state, round_num=1, applied_issue_ids=["isu_001"], failed_issue_ids=[])
@@ -314,7 +314,7 @@ def test_phase2_short_sha_then_phase3_succeeds():
 def test_phase2_idempotent_with_short_sha():
     """Phase 2 idempotency check should work when called again with the same short SHA."""
     short_sha = "3978f1a"
-    full_sha = "3978f1a1234567890abcdef1234567890abcdef12"
+    full_sha = "3978f1a1234567890abcdef1234567890abcdef1"
 
     state = _state_with_accepted_issues()
     record_application_phase1(state, round_num=1, applied_issue_ids=["isu_001"], failed_issue_ids=[])
@@ -326,3 +326,30 @@ def test_phase2_idempotent_with_short_sha():
 
     assert result["commit_sha"] == full_sha
     assert state["journal"]["commit_sha"] == full_sha
+
+
+def test_phase2_idempotent_with_legacy_stored_short_sha():
+    """Legacy state with a short stored SHA should normalize and stay idempotent."""
+    short_sha = "3978f1a"
+    full_sha = "3978f1a1234567890abcdef1234567890abcdef1"
+
+    state = _state_with_accepted_issues()
+    record_application_phase1(state, round_num=1, applied_issue_ids=["isu_001"], failed_issue_ids=[])
+    state["journal"]["commit_sha"] = short_sha
+
+    with patch("debate_review.application._resolve_full_sha", return_value=full_sha):
+        result = record_application_phase2(state, round_num=1, commit_sha=short_sha)
+
+    assert result["commit_sha"] == full_sha
+    assert state["journal"]["commit_sha"] == full_sha
+
+
+def test_phase2_rejects_symbolic_ref_input():
+    """Phase 2 should reject symbolic refs like HEAD for --commit-sha."""
+    import pytest
+
+    state = _state_with_accepted_issues()
+    record_application_phase1(state, round_num=1, applied_issue_ids=["isu_001"], failed_issue_ids=[])
+
+    with pytest.raises(ValueError, match="Invalid commit SHA"):
+        record_application_phase2(state, round_num=1, commit_sha="HEAD")
