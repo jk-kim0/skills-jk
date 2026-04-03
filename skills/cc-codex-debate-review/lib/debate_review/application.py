@@ -1,11 +1,36 @@
 """record-application: 3-phase checkpoint for code application."""
 
+import re
+import subprocess
 import sys
 
 from debate_review.gh import gh_json
 from debate_review.issue_ops import latest_report_message
 from debate_review.round_ops import _find_round
 from debate_review.timing import record_step_timing
+
+
+_HEX_SHA_RE = re.compile(r"^[0-9a-fA-F]{7,40}$")
+
+
+def _resolve_full_sha(short_sha, *, repo_root=None):
+    """Resolve a (possibly short) SHA to a full 40-char SHA via git rev-parse."""
+    cmd = ["git", "rev-parse", "--verify", f"{short_sha}^{{commit}}"]
+    kwargs = {"capture_output": True, "text": True}
+    if repo_root:
+        kwargs["cwd"] = repo_root
+    result = subprocess.run(cmd, **kwargs)
+    if result.returncode != 0:
+        raise ValueError(f"Cannot resolve SHA '{short_sha}': {result.stderr.strip()}")
+    return result.stdout.strip()
+
+
+def _normalize_commit_sha(commit_sha, *, repo_root=None):
+    if not _HEX_SHA_RE.fullmatch(commit_sha):
+        raise ValueError(
+            f"Invalid commit SHA '{commit_sha}': expected 7-40 hexadecimal characters"
+        )
+    return _resolve_full_sha(commit_sha, repo_root=repo_root)
 
 
 def _get_pr_head_sha(repo, pr_number):
@@ -78,18 +103,23 @@ def record_application_phase2(state, *, round_num, commit_sha) -> dict:
     if journal.get("step") != "step3_lead_apply":
         raise ValueError("Phase 2 requires Phase 1 to be completed first")
 
-    # Checkpoint 2 (idempotent: skip if same SHA already recorded)
-    if journal.get("commit_sha") == commit_sha:
-        return {"phase": 2, "round": round_num, "commit_sha": commit_sha}
+    # Normalize to full 40-char SHA
+    full_sha = _normalize_commit_sha(commit_sha, repo_root=state.get("repo_root"))
 
-    if journal.get("commit_sha") is not None:
+    # Checkpoint 2 (idempotent: skip if same SHA already recorded)
+    stored = journal.get("commit_sha")
+    if stored is not None:
+        stored_full_sha = _normalize_commit_sha(stored, repo_root=state.get("repo_root"))
+        if stored_full_sha == full_sha:
+            journal["commit_sha"] = full_sha
+            return {"phase": 2, "round": round_num, "commit_sha": full_sha}
         raise ValueError(
-            f"commit_sha already recorded as {journal['commit_sha']}, cannot overwrite with {commit_sha}"
+            f"commit_sha already recorded as {stored}, cannot overwrite with {full_sha}"
         )
 
-    journal["commit_sha"] = commit_sha
+    journal["commit_sha"] = full_sha
 
-    return {"phase": 2, "round": round_num, "commit_sha": commit_sha}
+    return {"phase": 2, "round": round_num, "commit_sha": full_sha}
 
 
 def record_application_phase3(state, *, round_num, _get_head=None) -> dict:
