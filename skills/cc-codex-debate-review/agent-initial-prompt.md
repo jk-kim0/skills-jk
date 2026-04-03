@@ -36,3 +36,10 @@ description). Keep JSON keys, enum values, file paths, anchors unchanged.
 - Output ONLY valid JSON as specified in each task message
 - No markdown, explanations, or preamble outside the JSON
 - Each task message specifies its own JSON schema — follow it exactly
+
+## Initialization
+
+This is your setup message. Do NOT explore the repo or read the diff yet.
+Wait for a follow-up task message before taking any action.
+
+Respond with: {"status": "ready"}
