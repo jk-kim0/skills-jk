@@ -9,7 +9,7 @@ replaces:
   - querypie-docs-mdx-to-storage-xhtml-cli
   - querypie-docs-reverse-sync-code-review
 created: 2026-02-17
-updated: 2026-02-23
+updated: 2026-04-04
 ---
 
 # QueryPie Docs: Confluence ↔ MDX 양방향 변환 시스템
@@ -267,6 +267,12 @@ MDX를 Confluence Storage Format XHTML로 변환하는 역순변환기이다. L5
 - 빈 컨테이너 자동 삭제
 - Confluence API 페이지 이동/이름 변경 연동
 - 페이지 트리 구조 관리
+
+**운영 가드레일(2026-04 문서화):**
+
+- reverse-sync 오케스트레이터는 실행 시작 전에 외부 런타임 명령과 자격 증명을 fail-fast 검증해야 한다.
+- 자동 실패 보고를 붙일 경우, tooling 버그 보고 대상과 콘텐츠/페이지 오류 보고 대상을 분리해야 한다.
+- worktree / artifact cleanup 명령은 cwd에 의존하지 않고 `repo_root` 기준 절대 경로로 실행해야 한다.
 
 ---
 
