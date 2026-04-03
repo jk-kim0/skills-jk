@@ -1,4 +1,5 @@
 import json
+import os
 import sys
 import pytest
 from debate_review.state import create_initial_state, save_state, load_state
@@ -903,6 +904,44 @@ def test_cli_test_error_custom_message(monkeypatch, capsys):
     out = capsys.readouterr().out
     result = json.loads(out)
     assert result["error"] == "custom failure"
+
+
+def test_cli_build_prompt_init_returns_prompt_file_only(monkeypatch, capsys, state_path, tmp_path):
+    """build-prompt --step init should return JSON with prompt_file but NOT message_file."""
+    monkeypatch.setattr("debate_review.prompt._PROMPTS_DIR", str(tmp_path))
+    _run_cli(monkeypatch, [
+        "build-prompt", "--state-file", state_path,
+        "--agent", "cc", "--step", "init",
+    ])
+    result = json.loads(capsys.readouterr().out)
+    assert "prompt_file" in result
+    assert "message_file" not in result
+    assert os.path.exists(result["prompt_file"])
+
+
+def test_cli_build_prompt_step_returns_prompt_and_message_file(monkeypatch, capsys, state_path, tmp_path):
+    """build-prompt --step 1 should return JSON with both prompt_file and message_file."""
+    monkeypatch.setattr("debate_review.prompt._PROMPTS_DIR", str(tmp_path))
+    # init first to create the prompt file
+    _run_cli(monkeypatch, [
+        "build-prompt", "--state-file", state_path,
+        "--agent", "cc", "--step", "init",
+    ])
+    capsys.readouterr()
+
+    _run_cli(monkeypatch, [
+        "build-prompt", "--state-file", state_path,
+        "--agent", "cc", "--step", "1", "--round", "1",
+    ])
+    result = json.loads(capsys.readouterr().out)
+    assert "prompt_file" in result
+    assert "message_file" in result
+    assert os.path.exists(result["prompt_file"])
+    assert os.path.exists(result["message_file"])
+    # message_file should contain non-empty content
+    with open(result["message_file"]) as f:
+        content = f.read()
+    assert len(content) > 0
 
 
 def test_cli_withdraw_issue(monkeypatch, capsys, state_path):

@@ -3,6 +3,7 @@ import json
 import os
 import shutil
 import sys
+import tempfile
 
 from debate_review.config import load_config
 from debate_review.timing import record_step_timing
@@ -672,7 +673,16 @@ def cmd_build_prompt(args):
         extra=args.extra,
         state_file=args.state_file,
     )
-    print(json.dumps(result))
+    output = {"prompt_file": result["prompt_file"]}
+    # For non-init steps, write the step message to a separate file so callers
+    # can read it directly without shell-variable corruption (zsh echo interprets
+    # \\n as newlines, breaking JSON round-tripping of multiline markdown content).
+    if args.step != "init":
+        msg_fd, msg_path = tempfile.mkstemp(prefix="debate-msg-", suffix=".md")
+        with os.fdopen(msg_fd, "w") as f:
+            f.write(result["message"])
+        output["message_file"] = msg_path
+    print(json.dumps(output))
 
 
 def main():

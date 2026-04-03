@@ -807,28 +807,30 @@ State-derivable placeholders are returned by `build-context --state-file --round
 
 Agents are created once (see **Agent Mode** section). Each step sends a follow-up message to the existing agent.
 
-Build the step message via CLI (appends to the persistent prompt file):
+Build the step message via CLI (appends to the persistent prompt file and writes a separate message file):
 
 ```bash
 STEP_RESULT=$("$DEBATE_REVIEW_BIN" build-prompt \
   --state-file "$STATE_FILE" --agent "$AGENT" --step "$STEP" --round "$CURRENT_ROUND")
-STEP_MESSAGE=$(echo "$STEP_RESULT" | jq -r '.message')
 PROMPT_FILE=$(echo "$STEP_RESULT" | jq -r '.prompt_file')
+MSG_FILE=$(echo "$STEP_RESULT" | jq -r '.message_file')
 ```
 
+The CLI returns `prompt_file` (cumulative) and `message_file` (this step only). Read the step message from `message_file` — do not extract from JSON to avoid shell escape corruption.
+
 **CC Agent dispatch:**
-```
+```bash
+STEP_MESSAGE=$(cat "$MSG_FILE")
 SendMessage(to=CC_AGENT_ID, message=STEP_MESSAGE)
+rm -f "$MSG_FILE"
 ```
 Requires: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`
 
 **Codex Agent dispatch:**
 ```bash
-STEP_FILE=$(mktemp /tmp/debate-step-XXXXXX)
-printf '%s' "$STEP_MESSAGE" > "$STEP_FILE"
 cd "$WORKTREE_PATH"
-codex exec resume "$CODEX_SESSION_ID" - < "$STEP_FILE"
-rm -f "$STEP_FILE"
+codex exec resume "$CODEX_SESSION_ID" - < "$MSG_FILE"
+rm -f "$MSG_FILE"
 ```
 
 `codex exec resume` reuses the existing session configuration, so do not pass `-s` again on resumed turns.
