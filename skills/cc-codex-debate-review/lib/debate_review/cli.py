@@ -127,6 +127,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_withdraw = subparsers.add_parser("withdraw-issue", help="Withdraw an open issue by orchestrator/agent decision")
     p_withdraw.add_argument("--state-file", required=True)
     p_withdraw.add_argument("--issue-id", required=True)
+    p_withdraw.add_argument("--agent", required=True)
+    p_withdraw.add_argument("--round", required=True, type=int)
     p_withdraw.add_argument("--reason", required=True)
 
     # test-error subcommand
@@ -635,7 +637,7 @@ def cmd_withdraw_issue(args):
         print(json.dumps(_dry_run_skip(state, command="withdraw-issue", issue_id=args.issue_id)))
         return
     try:
-        result = withdraw_issue(state, issue_id=args.issue_id, reason=args.reason)
+        result = withdraw_issue(state, issue_id=args.issue_id, agent=args.agent, round_num=args.round, reason=args.reason)
     except ValueError as e:
         _error_exit(str(e))
     save_state(state, args.state_file)

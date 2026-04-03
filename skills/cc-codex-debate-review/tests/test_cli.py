@@ -891,6 +891,8 @@ def test_cli_withdraw_issue(monkeypatch, capsys, state_path):
     _run_cli(monkeypatch, [
         "withdraw-issue", "--state-file", state_path,
         "--issue-id", issue_id,
+        "--agent", "codex",
+        "--round", "1",
         "--reason", "duplicate of isu_002",
     ])
     result = json.loads(capsys.readouterr().out)

@@ -323,10 +323,12 @@ If the agent response includes `withdrawals` (non-empty array), call `withdraw-i
 "$DEBATE_REVIEW_BIN" withdraw-issue \
   --state-file "$STATE_FILE" \
   --issue-id "isu_001" \
+  --agent "$LEAD_AGENT" \
+  --round "$CURRENT_ROUND" \
   --reason "duplicate of isu_004 — same root cause applied in different file"
 ```
 
-Agents may only withdraw issues they originally opened. The CLI validates the issue exists and is currently open.
+Agents may only withdraw issues they originally opened. The CLI validates the issue exists, is currently open, and was opened by the requesting agent.
 
 #### Reopen Review for Applied Issues
 
