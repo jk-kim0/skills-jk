@@ -55,7 +55,10 @@ def test_all_step_prompts_include_withdrawals_in_output_schema():
     root = Path(__file__).resolve().parents[1]
     for step_file in ["prompt-step-1.md", "prompt-step-2.md", "prompt-step-3.md"]:
         prompt = (root / step_file).read_text()
-        assert "withdrawals" in prompt, f"{step_file} missing withdrawals in output schema"
+        output_section = prompt.split("### Output", 1)[1]
+        assert '"withdrawals": [' in output_section, (
+            f"{step_file} missing withdrawals in output schema"
+        )
 
 
 def test_legacy_and_persistent_step3_both_have_withdrawals():
@@ -71,9 +74,15 @@ def test_skill_doc_step3_routing_includes_withdrawals():
     """SKILL.md Step 3 routing should mention withdraw-issue processing."""
     skill_path = Path(__file__).resolve().parents[1] / "SKILL.md"
     skill = skill_path.read_text()
-    # Step 3 Route Response section should reference withdrawals
-    step3_section = skill[skill.index("#### Route Response"):]
-    assert "withdraw-issue" in step3_section, "SKILL.md Step 3 routing missing withdraw-issue"
+    step3_start = skill.index("### Step 3: Lead Agent Response + Code Application")
+    step3_end = skill.index("### Step 4: Settlement")
+    step3_section = skill[step3_start:step3_end]
+    route_start = step3_section.index("#### Route Response")
+    route_end = step3_section.index("#### Code Application (Same-Repo PR, 3-Phase)")
+    route_section = step3_section[route_start:route_end]
+    assert (
+        "`withdrawals` → `withdraw-issue`" in route_section
+    ), "SKILL.md Step 3 routing missing withdraw-issue"
 
 
 def test_skill_doc_open_issues_excludes_recommended_fork_items():
