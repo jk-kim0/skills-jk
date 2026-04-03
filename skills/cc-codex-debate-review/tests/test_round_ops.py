@@ -379,6 +379,9 @@ def test_settle_auto_withdraws_duplicate_issues(sample_state):
     assert len(withdrawn_settled) == 1
     assert withdrawn_settled[0]["consensus_status"] == "withdrawn"
 
+    # Auto-withdrawn issue should NOT appear in unresolved_issue_ids
+    assert issue2_id not in result["unresolved_issue_ids"]
+
 
 def test_settle_stall_detection_after_2_no_progress_rounds(sample_state):
     """2 consecutive rounds with no settlements and no applied code → stalled."""
