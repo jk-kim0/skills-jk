@@ -441,3 +441,30 @@ def test_settle_stall_resets_after_progress(sample_state):
     assert r3_result["result"] == "continue"
     # stall_count is 1, NOT 2 — the progress in round 2 reset the streak
     assert r3_result.get("stall_count") == 1
+
+
+def test_settle_populates_debate_ledger(sample_state):
+    """settle_round should populate state['debate_ledger'] with settled issues."""
+    from debate_review.issue_ops import upsert_issue
+    from debate_review.cross_verification import record_cross_verification, resolve_rebuttals
+
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    r1 = upsert_issue(sample_state, agent="codex", round_num=1, severity="warning",
+                       criterion=3, file="src/foo.ts", line=42, anchor="retry",
+                       message="unbounded loop")
+    report_id = r1["report_id"]
+    issue_id = r1["issue_id"]
+    # cc rebuts, codex withdraws
+    record_cross_verification(sample_state, round_num=1,
+                              verifications=[{"report_id": report_id, "decision": "rebut", "reason": "scope"}])
+    resolve_rebuttals(sample_state, round_num=1, step="3",
+                      decisions=[{"report_id": report_id, "decision": "withdraw", "reason": "rebuttal accepted"}])
+    record_verdict(sample_state, round_num=1, verdict="has_findings")
+    settle_round(sample_state, round_num=1)
+
+    ledger = sample_state["debate_ledger"]
+    assert len(ledger) == 1
+    entry = ledger[0]
+    assert entry["issue_id"] == issue_id
+    assert entry["status"] == "withdrawn"
+    assert entry["round"] == 1

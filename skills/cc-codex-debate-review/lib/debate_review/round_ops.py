@@ -1,5 +1,8 @@
 from datetime import datetime, timezone
 
+from debate_review.issue_ops import latest_report_message
+from debate_review.state import append_ledger
+
 
 def init_round(state, *, round_num, lead_agent=None, synced_head_sha):
     if lead_agent is None:
@@ -163,6 +166,20 @@ def settle_round(state, *, round_num) -> dict:
             })
 
     round_["step4"]["settled_issues"] = settled_issues
+
+    # Populate debate_ledger with settled issues
+    if settled_issues:
+        ledger_entries = [
+            {
+                "issue_id": si["issue_id"],
+                "status": si["consensus_status"],
+                "round": round_num,
+                "summary": latest_report_message(issues[si["issue_id"]]),
+                "reason": si.get("consensus_reason"),
+            }
+            for si in settled_issues
+        ]
+        append_ledger(state, entries=ledger_entries)
 
     # Check consensus: last 2 completed rounds both have clean_pass==True
     # AND different lead agents (spec requirement)
