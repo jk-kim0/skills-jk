@@ -8,10 +8,14 @@
 
 **Tech Stack:** Python 3.10+, argparse (외부 의존성 없음), pytest
 
-**Spec:** `docs/superpowers/specs/2026-03-30-cc-codex-debate-review-cli-interface-design.md`
-**Design:** `docs/superpowers/specs/2026-03-30-cc-codex-debate-review-design.md`
+**Interface Design:** `docs/plans/2026-03-30-debate-review-cli-interface-design.md`
+**Core Design:** `docs/plans/2026-03-30-debate-review-core-design.md`
 
 ---
+
+## Document Role
+
+이 문서는 CLI를 실제 코드로 옮기기 위한 historical implementation plan이다. 현재 저장소 상태를 반영한 debate-review completion 우선순위는 [2026-04-01-debate-review-persistent-agent-impl.md](./2026-04-01-debate-review-persistent-agent-impl.md)에서 이어서 관리한다.
 
 ## File Structure
 

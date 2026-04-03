@@ -2,6 +2,13 @@
 
 ## Status: Proposed
 
+## 문서 구성
+
+- baseline architecture와 상태 전이 규칙은 [2026-03-30-debate-review-core-design.md](./2026-03-30-debate-review-core-design.md)를 따른다.
+- CLI 경계와 subcommand 계약은 [2026-03-30-debate-review-cli-interface-design.md](./2026-03-30-debate-review-cli-interface-design.md)를 따른다.
+- 이 문서는 persistent agent mode가 baseline 설계를 어떻게 확장하는지 정의한다.
+- 실제 rollout 순서와 현재 completion backlog는 [2026-04-01-debate-review-persistent-agent-impl.md](./2026-04-01-debate-review-persistent-agent-impl.md)에서 관리한다.
+
 ## Current Implementation Checkpoint (2026-04-03)
 
 이 문서는 원래 "persistent agent로 전환하는 설계"를 정의했지만, 현재 저장소의 구현 상태는 당시 가정과 완전히 같지 않다.
@@ -13,16 +20,18 @@
 - `agent-initial-prompt.md`, `prompt-step-{1,2,3}.md`, `build-prompt`
 - persistent mode 기본값 전환
 - round / step timing 계측
+- duplicate withdrawal의 state-side 1차 반영 (`#164`)
+- Phase 2 commit SHA full-length 정규화 (`#165`)
 
 아직 completion 기준에 못 미치는 항목:
 
-- 저장소 안에 전체 debate loop를 끝까지 실행하는 상위 orchestrator runner가 없다.
+- 현재 가장 시급한 blocker는 `build-prompt` 출력이 invalid JSON이어서 persistent agent 초기화가 깨지는 `#161`이다.
+- duplicate withdrawal 설계가 persistent mode step prompt와 state bookkeeping까지 일관되게 닫히지 않았다. `#164`는 state-side 기반 작업이고 prompt/routing parity는 아직 남아 있다.
+- round loop, agent lifecycle, terminal follow-through를 재현 가능하게 실행하는 repo-owned orchestration path가 아직 닫히지 않았다.
 - failure 이후 bug report 생성, PR title/body 갱신, worktree cleanup은 여전히 문서 절차에 머물러 있다.
-- duplicate issue withdrawal 설계가 persistent mode step prompt와 state bookkeeping까지 일관되게 닫히지 않았다.
-- short SHA 입력을 안정적으로 처리하는 Step 3 application 경로 hardening이 필요하다.
 - 실제 resume/recovery, supersede, terminal processing을 포함한 end-to-end 검증이 없다.
 
-즉, 현재 debate-review는 "상태 전이용 CLI + prompt assets + 운영 절차 문서"는 갖췄지만, 설계 문서가 상정한 완성형 운영 시스템은 아직 아니다.
+즉, 현재 debate-review는 "상태 전이용 CLI + prompt assets + 운영 절차 문서"는 갖췄지만, 설계 문서가 상정한 완성형 운영 시스템은 아직 아니다. canonical backlog와 우선순위는 [2026-04-01-debate-review-persistent-agent-impl.md](./2026-04-01-debate-review-persistent-agent-impl.md)에 둔다.
 
 ## Background
 
