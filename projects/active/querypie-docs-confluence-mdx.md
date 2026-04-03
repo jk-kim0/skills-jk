@@ -392,6 +392,7 @@ bin/
 
 | 날짜 | PR | 내용 |
 |------|-----|------|
+| 2026-04-04 | skills-jk#174 | reverse-sync 디자인/구현 계획 문서에 오케스트레이션 운영 가드레일(fail-fast validation, failure routing, cwd-independent cleanup) 반영 |
 | 2026-02-23 | querypie-docs#837 | 연속 inline 마커 사이 텍스트 변경 감지 수정 |
 | 2026-02-23 | querypie-docs#835 | Forward Converter `--language` 옵션 (날짜 locale 해결) |
 | 2026-02-23 | querypie-docs#834 | **Verify 엄격 모드 기본 전환** + `--lenient` 옵션 분리 |
