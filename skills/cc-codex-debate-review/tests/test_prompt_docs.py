@@ -50,6 +50,41 @@ def test_skill_doc_persists_agent_identifiers_for_persistent_restart():
     assert "`persistent_agents.cc_agent_id` / `persistent_agents.codex_session_id`" in skill
 
 
+def test_all_step_prompts_include_withdrawals_in_output_schema():
+    """All step prompts should include withdrawals field for schema consistency."""
+    root = Path(__file__).resolve().parents[1]
+    for step_file in ["prompt-step-1.md", "prompt-step-2.md", "prompt-step-3.md"]:
+        prompt = (root / step_file).read_text()
+        output_section = prompt.split("### Output", 1)[1]
+        assert '"withdrawals": [' in output_section, (
+            f"{step_file} missing withdrawals in output schema"
+        )
+
+
+def test_legacy_and_persistent_step3_both_have_withdrawals():
+    """Both legacy and persistent Step 3 prompts should include withdrawals."""
+    root = Path(__file__).resolve().parents[1]
+    legacy = (root / "agent-lead-response-prompt.md").read_text()
+    persistent = (root / "prompt-step-3.md").read_text()
+    assert "withdrawals" in legacy, "Legacy Step 3 prompt missing withdrawals"
+    assert "withdrawals" in persistent, "Persistent Step 3 prompt missing withdrawals"
+
+
+def test_skill_doc_step3_routing_includes_withdrawals():
+    """SKILL.md Step 3 routing should mention withdraw-issue processing."""
+    skill_path = Path(__file__).resolve().parents[1] / "SKILL.md"
+    skill = skill_path.read_text()
+    step3_start = skill.index("### Step 3: Lead Agent Response + Code Application")
+    step3_end = skill.index("### Step 4: Settlement")
+    step3_section = skill[step3_start:step3_end]
+    route_start = step3_section.index("#### Route Response")
+    route_end = step3_section.index("#### Code Application (Same-Repo PR, 3-Phase)")
+    route_section = step3_section[route_start:route_end]
+    assert (
+        "`withdrawals` → `withdraw-issue`" in route_section
+    ), "SKILL.md Step 3 routing missing withdraw-issue"
+
+
 def test_skill_doc_open_issues_excludes_recommended_fork_items():
     skill_path = Path(__file__).resolve().parents[1] / "SKILL.md"
     skill = skill_path.read_text()

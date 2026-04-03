@@ -131,6 +131,28 @@ def test_step3_message_contains_applicable_issues():
     assert "{STATE_FILE}" not in msg
 
 
+def test_step3_message_requests_withdrawals_output():
+    state = _make_state()
+    init_round(state, round_num=1, synced_head_sha="abc123")
+    upsert_issue(state, agent="codex", round_num=1, severity="warning",
+                 criterion=7, file="a.py", line=1, anchor="foo", message="Fix this")
+    record_verdict(state, round_num=1, verdict="has_findings")
+    issue_id = list(state["issues"].keys())[0]
+    report_id = state["issues"][issue_id]["reports"][0]["report_id"]
+    record_cross_verification(state, round_num=1, verifications=[
+        {"report_id": report_id, "decision": "accept", "reason": "ok"}
+    ])
+    msg = build_step_message(
+        state,
+        step=3,
+        round_num=1,
+        skill_root=SKILL_ROOT,
+        state_file="/tmp/state.json",
+    )
+    assert "### Withdrawals" in msg
+    assert '"withdrawals": [' in msg
+
+
 def test_step_message_invalid_step():
     state = _make_state()
     with pytest.raises(ValueError, match="Unknown step"):

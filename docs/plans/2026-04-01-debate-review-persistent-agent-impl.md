@@ -7,7 +7,7 @@
 - persistent mode 설계 설명은 [2026-04-01-debate-review-persistent-agent-design.md](./2026-04-01-debate-review-persistent-agent-design.md)에 있다.
 - 이 문서는 현재 시점의 debate-review completion backlog만 관리한다.
 
-## 현재 체크포인트 (2026-04-03)
+## 현재 체크포인트 (2026-04-04)
 
 현재 `main`에는 아래 기반이 이미 구현돼 있다.
 
@@ -20,6 +20,8 @@
 - duplicate withdrawal의 state-side 1차 반영 (`#164`)
 - Step 3 Phase 2의 short SHA 정규화 (`#165`)
 - round / step timing instrumentation (`#166`)
+- `build-prompt` JSON 출력 zsh echo 손상 수정 (`#168`) — persistent 초기화 blocker 해소
+- `build-prompt` init 경로 temp file 누수 수정 + CLI-level 테스트 추가 (`#168` debate-review 결과)
 
 ## Implemented Foundation
 
@@ -46,13 +48,6 @@
   [`test_state.py`](../../skills/cc-codex-debate-review/tests/test_state.py),
   [`test_timing.py`](../../skills/cc-codex-debate-review/tests/test_timing.py)
 
-## 현재 핵심 블로커
-
-가장 시급한 문제는 `#161`이다.
-
-- `build-prompt` 출력이 invalid JSON이어서 persistent agent 초기화가 시작 단계에서 실패한다.
-- 이 문제는 Codex lead 구성에서 persistent debate를 실제로 시작할 수 없게 만들므로, 다른 backlog보다 우선한다.
-
 ## Completion Criteria
 
 완료 기준은 아래 다섯 가지다.
@@ -65,13 +60,12 @@
 
 ## Current Remaining Work
 
-### Workstream A: Persistent prompt / routing parity
+### Workstream A: Persistent prompt / routing parity ✅
 
-- `#161`: `build-prompt` output JSON 안정화
-- Step 1 / Step 2 prompt-step 템플릿의 최신 output schema 반영
-- duplicate withdrawal state transition을 step prompt, CLI, Step 4 정산까지 일관되게 연결
-- `#164` 이후 남은 prompt/state parity와 stall-safe bookkeeping 정리
-- legacy / persistent 간 출력 schema 불일치 제거
+- ~~`#161`: `build-prompt` output JSON 안정화~~ → `#168`에서 해결
+- ~~Step prompt 템플릿의 최신 output schema 반영~~ → Step 3에 `withdrawals` 필드 추가 완료
+- ~~duplicate withdrawal state transition을 step prompt, CLI, Step 4 정산까지 일관되게 연결~~ → `#164` + Step 3 prompt/routing 보완으로 완료
+- ~~legacy / persistent 간 출력 schema 불일치 제거~~ → legacy `agent-lead-response-prompt.md`에도 `withdrawals` 추가
 
 ### Workstream B: Repo-owned orchestration path
 
@@ -104,8 +98,8 @@
 
 ## 현재 우선순위
 
-1. `#161` 해소로 persistent initialization 복구
-2. persistent prompt / state routing parity 복구
+1. ~~`#161` 해소로 persistent initialization 복구~~ ✅
+2. ~~persistent prompt / state routing parity 복구~~ ✅
 3. repo-owned orchestration path 정리
 4. failure / cleanup / PR update 자동화
 5. end-to-end verification 보강
