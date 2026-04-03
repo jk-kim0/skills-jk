@@ -71,12 +71,11 @@ class TestCreateFailureIssue:
 
         def mock_gh(*args):
             created.append(args)
-            return '{"url": "https://github.com/owner/repo/issues/99"}'
+            return "https://github.com/owner/repo/issues/99\n"
 
         result = create_failure_issue(state, _gh=mock_gh)
         assert result["action"] == "created"
         assert "issues/99" in result["url"]
-        # Verify gh was called with correct args
         args = created[0]
         assert "issue" in args
         assert "create" in args
@@ -89,16 +88,25 @@ class TestCreateFailureIssue:
 
         def mock_gh(*args):
             captured_args.append(args)
-            return '{"url": "https://github.com/owner/repo/issues/99"}'
+            return "https://github.com/owner/repo/issues/99"
 
         create_failure_issue(state, _gh=mock_gh)
         args = captured_args[0]
-        # Find --body value
         body_idx = list(args).index("--body") + 1
         body = args[body_idx]
         assert "Codex parse failure" in body
         assert "#42" in body
         assert "step2_cross_review" in body
+
+    def test_gh_failure_propagates(self):
+        state = _failed_state()
+
+        def mock_gh(*args):
+            raise RuntimeError("gh: not authenticated")
+
+        import pytest
+        with pytest.raises(RuntimeError, match="not authenticated"):
+            create_failure_issue(state, _gh=mock_gh)
 
     def test_dry_run_skips_creation(self):
         state = _failed_state()
@@ -118,7 +126,7 @@ class TestCreateFailureIssue:
 
         def mock_gh(*args):
             created.append(args)
-            return '{"url": "https://github.com/owner/repo/issues/100"}'
+            return "https://github.com/owner/repo/issues/100"
 
         result = create_failure_issue(state, _gh=mock_gh)
         assert result["action"] == "created"
@@ -129,7 +137,7 @@ class TestCreateFailureIssue:
 
         def mock_gh(*args):
             captured_args.append(args)
-            return '{"url": "https://github.com/owner/repo/issues/99"}'
+            return "https://github.com/owner/repo/issues/99"
 
         create_failure_issue(state, _gh=mock_gh)
         args = captured_args[0]
@@ -241,6 +249,35 @@ class TestUpdatePrStatus:
         title_idx = list(args).index("--title") + 1
         assert args[title_idx] == "[debate: consensus] Fix stuff"
 
+    def test_strips_old_label_before_adding_new(self):
+        """If title already has a different debate label, strip it first."""
+        state = _consensus_state()
+        edited = []
+
+        def mock_gh_json(*args):
+            return {"title": "[debate: failed] Fix stuff"}
+
+        def mock_gh(*args):
+            edited.append(args)
+            return ""
+
+        result = update_pr_status(state, _gh=mock_gh, _gh_json=mock_gh_json)
+        assert result["action"] == "updated"
+        args = edited[0]
+        title_idx = list(args).index("--title") + 1
+        assert args[title_idx] == "[debate: consensus] Fix stuff"
+        assert "[debate: failed]" not in args[title_idx]
+
+    def test_gh_json_failure_returns_error(self):
+        state = _consensus_state()
+
+        def mock_gh_json(*args):
+            raise RuntimeError("GraphQL: not found")
+
+        result = update_pr_status(state, _gh_json=mock_gh_json)
+        assert result["action"] == "error"
+        assert "Failed to fetch PR title" in result["reason"]
+
 
 # --- cleanup_worktree ---
 
@@ -290,6 +327,33 @@ class TestCleanupWorktree:
         result = cleanup_worktree(state)
         assert result["action"] == "dry_run"
         assert worktree_dir.exists()  # not actually removed
+
+    def test_empty_repo_root_skips(self):
+        state = create_initial_state(
+            repo="owner/repo", repo_root="", pr_number=42,
+            is_fork=False, head_sha="abc1234def5678",
+            pr_branch_name="feat/test", max_rounds=10,
+        )
+        result = cleanup_worktree(state)
+        assert result["action"] == "skipped"
+        assert "repo_root" in result["reason"]
+
+    def test_remove_failure_propagates(self, tmp_path):
+        import pytest
+        worktree_dir = tmp_path / ".worktrees" / "debate-pr-42"
+        worktree_dir.mkdir(parents=True)
+
+        state = create_initial_state(
+            repo="owner/repo", repo_root=str(tmp_path), pr_number=42,
+            is_fork=False, head_sha="abc1234def5678",
+            pr_branch_name="feat/test", max_rounds=10,
+        )
+
+        def mock_remove_fail(path):
+            raise RuntimeError("git worktree remove failed")
+
+        with pytest.raises(RuntimeError, match="worktree remove failed"):
+            cleanup_worktree(state, _remove_worktree=mock_remove_fail)
 
 
 # --- CLI subcommand integration ---

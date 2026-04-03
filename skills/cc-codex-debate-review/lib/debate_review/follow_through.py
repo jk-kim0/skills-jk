@@ -1,6 +1,8 @@
 """Operational follow-through automation for terminal debate-review sessions."""
 
+import json
 import os
+import re
 import subprocess
 
 from debate_review.gh import gh, gh_json
@@ -14,6 +16,8 @@ _OUTCOME_LABELS = {
 }
 
 _FAILURE_OUTCOMES = {"error", "stalled"}
+
+_DEBATE_LABEL_RE = re.compile(r"\[debate: [^\]]+\]\s*")
 
 
 def create_failure_issue(state, *, _gh=None) -> dict:
@@ -43,6 +47,7 @@ def create_failure_issue(state, *, _gh=None) -> dict:
     )
 
     gh_fn = _gh or gh
+    # gh issue create outputs a URL string, not JSON
     raw = gh_fn(
         "issue", "create",
         "--repo", repo,
@@ -51,14 +56,7 @@ def create_failure_issue(state, *, _gh=None) -> dict:
         "--label", "debate-review",
     )
 
-    import json
-    try:
-        data = json.loads(raw)
-        url = data.get("url", "")
-    except (json.JSONDecodeError, AttributeError):
-        url = raw.strip()
-
-    return {"action": "created", "url": url}
+    return {"action": "created", "url": raw.strip()}
 
 
 def update_pr_status(state, *, _gh=None, _gh_json=None) -> dict:
@@ -75,17 +73,24 @@ def update_pr_status(state, *, _gh=None, _gh_json=None) -> dict:
     pr_number = state["pr_number"]
 
     gh_json_fn = _gh_json or gh_json
-    pr_data = gh_json_fn(
-        "pr", "view", str(pr_number),
-        "--repo", repo,
-        "--json", "title",
-    )
+    try:
+        pr_data = gh_json_fn(
+            "pr", "view", str(pr_number),
+            "--repo", repo,
+            "--json", "title",
+        )
+    except RuntimeError as e:
+        return {"action": "error", "reason": f"Failed to fetch PR title: {e}"}
+
     current_title = pr_data.get("title", "")
 
     if label in current_title:
         return {"action": "skipped", "reason": "already labeled", "label": label}
 
-    new_title = f"{label} {current_title}"
+    # Strip any existing debate label before adding the new one
+    stripped_title = _DEBATE_LABEL_RE.sub("", current_title)
+    new_title = f"{label} {stripped_title}"
+
     gh_fn = _gh or gh
     gh_fn(
         "pr", "edit", str(pr_number),
@@ -99,6 +104,9 @@ def update_pr_status(state, *, _gh=None, _gh_json=None) -> dict:
 def cleanup_worktree(state, *, _remove_worktree=None) -> dict:
     """Remove the debate worktree for this PR."""
     repo_root = state.get("repo_root", "")
+    if not repo_root:
+        return {"action": "skipped", "reason": "repo_root not set"}
+
     pr_number = state["pr_number"]
     worktree_path = os.path.join(repo_root, ".worktrees", f"debate-pr-{pr_number}")
 
@@ -109,11 +117,15 @@ def cleanup_worktree(state, *, _remove_worktree=None) -> dict:
         return {"action": "dry_run", "path": worktree_path}
 
     def _default_remove(path):
-        subprocess.run(
+        result = subprocess.run(
             ["git", "worktree", "remove", "--force", path],
             capture_output=True,
             text=True,
         )
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"git worktree remove failed (exit {result.returncode}): {result.stderr}"
+            )
 
     remove_fn = _remove_worktree or _default_remove
     remove_fn(worktree_path)
