@@ -1,13 +1,15 @@
-# CC-Codex Debate Review: State Management CLI 설계 문서
+# Debate Review CLI Interface Design
 
 **작성일:** 2026-03-30
 **상태:** 초안
 
 ---
 
-## 선행 문서
+## 문서 구성
 
-이 문서는 [CC-Codex Debate Review 설계 문서](./2026-03-30-cc-codex-debate-review-design.md)를 전제로 한다.
+- 이 문서는 [2026-03-30-debate-review-core-design.md](./2026-03-30-debate-review-core-design.md)를 전제로, CC 오케스트레이터와 `bin/debate-review` 사이의 계약을 정의한다.
+- 실제 구현 작업 순서와 체크리스트는 [2026-03-30-debate-review-cli-impl.md](./2026-03-30-debate-review-cli-impl.md)에서 관리한다.
+- persistent agent 확장 시 CLI 경계에 추가되는 요구는 [2026-04-01-debate-review-persistent-agent-design.md](./2026-04-01-debate-review-persistent-agent-design.md)에서 다룬다.
 
 - **상태 스키마**: 설계 문서 Section 2를 그대로 승계한다.
 - **라운드 흐름**: 설계 문서 Section 3의 step 정의를 코드로 구현한다.
