@@ -22,6 +22,7 @@ from debate_review.round_ops import init_round, record_verdict, settle_round
 from debate_review.comment import post_comment
 from debate_review.sync import sync_head
 from debate_review.error_log import save_error_log
+from debate_review.follow_through import create_failure_issue, update_pr_status, cleanup_worktree
 from debate_review.state import (
     append_ledger,
     create_initial_state,
@@ -164,6 +165,18 @@ def build_parser() -> argparse.ArgumentParser:
     p_bp.add_argument("--step", required=True, choices=["init", "1", "2", "3"])
     p_bp.add_argument("--round", type=int, default=None)
     p_bp.add_argument("--extra", default=None, help="Additional context to append")
+
+    # create-failure-issue subcommand
+    p_cfi = subparsers.add_parser("create-failure-issue", help="Create GitHub issue on failure/stall")
+    p_cfi.add_argument("--state-file", required=True)
+
+    # update-pr-status subcommand
+    p_ups = subparsers.add_parser("update-pr-status", help="Add debate result label to PR title")
+    p_ups.add_argument("--state-file", required=True)
+
+    # cleanup-worktree subcommand
+    p_cw = subparsers.add_parser("cleanup-worktree", help="Remove debate worktree")
+    p_cw.add_argument("--state-file", required=True)
 
     # record-application subcommand
     p_app = subparsers.add_parser("record-application")
@@ -658,6 +671,30 @@ def cmd_withdraw_issue(args):
     print(json.dumps(result))
 
 
+def cmd_create_failure_issue(args):
+    state = load_state(args.state_file)
+    if state is None:
+        _error_exit(f"No state file found at {args.state_file}")
+    result = create_failure_issue(state)
+    print(json.dumps(result))
+
+
+def cmd_update_pr_status(args):
+    state = load_state(args.state_file)
+    if state is None:
+        _error_exit(f"No state file found at {args.state_file}")
+    result = update_pr_status(state)
+    print(json.dumps(result))
+
+
+def cmd_cleanup_worktree(args):
+    state = load_state(args.state_file)
+    if state is None:
+        _error_exit(f"No state file found at {args.state_file}")
+    result = cleanup_worktree(state)
+    print(json.dumps(result))
+
+
 def cmd_build_prompt(args):
     state = load_state(args.state_file)
     if state is None:
@@ -703,6 +740,9 @@ def main():
         "build-commit-message": cmd_build_commit_message,
         "build-context": cmd_build_context,
         "build-prompt": cmd_build_prompt,
+        "create-failure-issue": cmd_create_failure_issue,
+        "update-pr-status": cmd_update_pr_status,
+        "cleanup-worktree": cmd_cleanup_worktree,
         "test-error": cmd_test_error,
         "mark-failed": cmd_mark_failed,
         "withdraw-issue": cmd_withdraw_issue,
