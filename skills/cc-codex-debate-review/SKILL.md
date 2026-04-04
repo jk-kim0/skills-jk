@@ -661,6 +661,28 @@ After terminal state:
 git -C "$REPO_ROOT" worktree remove "$WORKTREE_PATH" --force
 ```
 
+#### Final Report to User
+
+After terminal processing completes, report the following to the user:
+
+1. **PR URL**: `https://github.com/{REPO}/pull/{PR_NUMBER}` — always include the clickable link
+2. **Outcome**: consensus / no_consensus / error / stalled
+3. **Round timing summary**: Round=row, step=column format
+
+   | Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+   | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+   | 1 | codex | 2s | 1m 30s | 48s | 2m 10s | 2s | 4m 32s |
+   | 2 | cc | 1s | 1m 0s | skip | skip | 1s | 1m 2s |
+
+4. **Prompt file paths**: Show the persistent prompt file locations so the user can inspect them
+   - CC: `~/.claude/debate-state/prompts/{owner}-{repo}-{pr}-cc.md`
+   - Codex: `~/.claude/debate-state/prompts/{owner}-{repo}-{pr}-codex.md`
+
+5. **Debate markdown file**: The orchestrator exports the full debate session to a markdown file at `~/.claude/debate-state/{state-basename}-debate.md`. Show this path so the user can review the complete debate history.
+
+All of this information is available in the orchestrator's `run()` return value:
+- `pr_url`, `outcome`, `total_duration`, `round_timings`, `prompt_files`, `debate_markdown`
+
 ---
 
 ## Review Context + Placeholder Construction

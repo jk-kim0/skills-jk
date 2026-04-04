@@ -13,7 +13,8 @@ from debate_review.context import (
     build_open_issues,
 )
 from debate_review.issue_ops import normalize_message
-from debate_review.prompt import build_initial_prompt
+from debate_review.prompt import build_initial_prompt, prompt_file_path
+from debate_review.reporting import build_final_summary, export_debate_markdown
 from debate_review.timing import utc_now_iso
 
 
@@ -1130,6 +1131,46 @@ class DebateReviewOrchestrator:
             except Exception:
                 pass
 
+    def _build_final_result(self, state: dict, settle_result: str) -> dict:
+        """Build enriched result dict for the final report."""
+        summary = build_final_summary(state)
+
+        # Export debate markdown
+        state_dir = os.path.dirname(self.state_file)
+        state_basename = os.path.splitext(os.path.basename(self.state_file))[0]
+        debate_md_path = os.path.join(state_dir, f"{state_basename}-debate.md")
+        try:
+            export_debate_markdown(state, debate_md_path)
+        except Exception:
+            debate_md_path = None
+
+        # Collect prompt file paths
+        prompt_files = {}
+        try:
+            for agent in ("cc", "codex"):
+                pf = prompt_file_path(
+                    state.get("repo", ""),
+                    state.get("pr_number", 0),
+                    agent,
+                    dry_run=state.get("dry_run", False),
+                )
+                if os.path.exists(pf):
+                    prompt_files[agent] = pf
+        except Exception:
+            pass
+
+        return {
+            "state_file": self.state_file,
+            "result": settle_result,
+            "current_round": state["current_round"],
+            "pr_url": summary["pr_url"],
+            "outcome": summary["outcome"],
+            "total_duration": summary["total_duration"],
+            "round_timings": summary["round_timings"],
+            "prompt_files": prompt_files,
+            "debate_markdown": debate_md_path,
+        }
+
     def _terminal(self, state: dict) -> None:
         comment_error = None
         try:
@@ -1256,11 +1297,7 @@ class DebateReviewOrchestrator:
                         continue
                     state = self._load_state()
                     self._terminal(state)
-                    return {
-                        "state_file": self.state_file,
-                        "result": settle_result["result"],
-                        "current_round": state["current_round"],
-                    }
+                    return self._build_final_result(state, settle_result["result"])
 
                 raise OrchestrationError(f"Unsupported resume step: {next_step}")
         except TerminalActionError:
