@@ -119,14 +119,14 @@ def _parse_round_step(text: str) -> tuple[int | None, str | None]:
 
 def _finalize_breakdown(breakdown: defaultdict[str, float], *, active_seconds: float) -> dict:
     used_seconds = sum(breakdown.values())
-    breakdown["reasoning_seconds"] = max(active_seconds - used_seconds, 0.0)
+    breakdown["unattributed_seconds"] = max(active_seconds - used_seconds, 0.0)
     breakdown["active_seconds"] = active_seconds
     for key in (
         "local_file_seconds",
         "local_git_seconds",
         "github_api_seconds",
         "other_tool_seconds",
-        "reasoning_seconds",
+        "unattributed_seconds",
         "active_seconds",
     ):
         breakdown[key] = round(breakdown.get(key, 0.0), 1)
@@ -380,10 +380,12 @@ def _fallback_steps(state: dict, round_data: dict, session_end: datetime | None)
     steps = {}
     for idx, (step_name, started_at) in enumerate(entries):
         next_started = entries[idx + 1][1] if idx + 1 < len(entries) else _round_end(round_data, session_end)
+        wall_clock_seconds = _seconds(started_at, next_started)
         steps[step_name] = {
             "started_at": _to_iso(started_at),
             "completed_at": _to_iso(next_started),
-            "duration_seconds": _seconds(started_at, next_started),
+            "wall_clock_seconds": wall_clock_seconds,
+            "duration_seconds": wall_clock_seconds,
         }
     return steps
 
@@ -420,12 +422,19 @@ def _expected_step_agents(round_data: dict) -> dict[str, str]:
 def _apply_matched_step(step_summary: dict, matched: dict, default_agent: str) -> dict:
     started_at = _parse_iso(step_summary.get("started_at")) or _parse_iso(matched.get("started_at"))
     completed_at = _parse_iso(step_summary.get("completed_at")) or _parse_iso(matched.get("completed_at"))
+    wall_clock_seconds = (
+        step_summary.get("wall_clock_seconds")
+        or step_summary.get("duration_seconds")
+        or _seconds(started_at, completed_at)
+    )
     step_summary.update(
         {
             "agent": step_summary.get("agent") or matched.get("agent") or default_agent,
             "started_at": _to_iso(started_at),
             "completed_at": _to_iso(completed_at),
-            "duration_seconds": step_summary.get("duration_seconds") or _seconds(started_at, completed_at),
+            "wall_clock_seconds": wall_clock_seconds,
+            "agent_active_seconds": matched["agent_breakdown"].get("active_seconds"),
+            "duration_seconds": wall_clock_seconds,
             "agent_breakdown": matched["agent_breakdown"],
         }
     )
@@ -449,13 +458,15 @@ def _summarize_round_steps(
         trace = traces[step_name]
         started_at = _parse_iso(trace.get("started_at")) or _parse_iso(round_data.get("step_timings", {}).get(step_name))
         completed_at = _parse_iso(trace.get("completed_at")) or _round_end(round_data, session_end)
+        wall_clock_seconds = _seconds(started_at, completed_at)
         step_summary = steps.get(step_name, {})
         step_summary.update(
             {
                 "agent": trace.get("agent"),
                 "started_at": _to_iso(started_at),
                 "completed_at": _to_iso(completed_at),
-                "duration_seconds": _seconds(started_at, completed_at),
+                "wall_clock_seconds": wall_clock_seconds,
+                "duration_seconds": wall_clock_seconds,
                 "command_spans": trace.get("command_spans", []),
             }
         )
@@ -521,29 +532,132 @@ def _summarize_round_steps(
     return dict(sorted(steps.items(), key=lambda item: _step_order_key(item[0])))
 
 
+def _step_agent_label(step_name: str, agent: str) -> str:
+    return f"{step_name} / {agent}"
+
+
+def _sum_active_seconds(items: list[dict]) -> float | None:
+    active_values = [item.get("agent_active_seconds") for item in items if item.get("agent_active_seconds") is not None]
+    if not active_values:
+        return None
+    return round(sum(active_values), 1)
+
+
+def _mark_stats_eligibility(*, dry_run: bool, session_finished: bool, explicit_completed: bool = True) -> tuple[bool, list[str]]:
+    reasons = []
+    if dry_run:
+        reasons.append("dry_run")
+    if not session_finished:
+        reasons.append("in_progress")
+    if not explicit_completed:
+        reasons.append("missing_completed_at")
+    return not reasons, reasons
+
+
 def _build_stats(sessions: list[dict]) -> dict:
-    session_durations = []
-    round_durations = []
-    step_durations: dict[str, list[float]] = defaultdict(list)
-    lead_agent_round_durations: dict[str, list[float]] = defaultdict(list)
+    session_wall_clock = []
+    session_active = []
+    round_wall_clock = []
+    round_active = []
+    step_wall_clock: dict[str, list[float]] = defaultdict(list)
+    step_wall_clock_by_agent: dict[str, list[float]] = defaultdict(list)
+    step_active: dict[str, list[float]] = defaultdict(list)
+    step_active_by_agent: dict[str, list[float]] = defaultdict(list)
+    lead_agent_round_wall_clock: dict[str, list[float]] = defaultdict(list)
 
     for session in sessions:
-        if session.get("duration_seconds") is not None:
-            session_durations.append(session["duration_seconds"])
+        if session.get("include_in_wall_clock_stats") and session.get("wall_clock_seconds") is not None:
+            session_wall_clock.append(session["wall_clock_seconds"])
+        if session.get("include_in_active_stats") and session.get("agent_active_seconds") is not None:
+            session_active.append(session["agent_active_seconds"])
+
         for round_data in session.get("rounds", []):
-            if round_data.get("duration_seconds") is not None:
-                round_durations.append(round_data["duration_seconds"])
-                lead_agent_round_durations[round_data.get("lead_agent")].append(round_data["duration_seconds"])
+            if round_data.get("include_in_wall_clock_stats") and round_data.get("wall_clock_seconds") is not None:
+                round_wall_clock.append(round_data["wall_clock_seconds"])
+                lead_agent = round_data.get("lead_agent")
+                if lead_agent:
+                    lead_agent_round_wall_clock[lead_agent].append(round_data["wall_clock_seconds"])
+            if round_data.get("include_in_active_stats") and round_data.get("agent_active_seconds") is not None:
+                round_active.append(round_data["agent_active_seconds"])
+
             for step_name, step in round_data.get("steps", {}).items():
-                if step.get("duration_seconds") is not None:
-                    step_durations[step_name].append(step["duration_seconds"])
+                if step.get("include_in_wall_clock_stats") and step.get("wall_clock_seconds") is not None:
+                    step_wall_clock[step_name].append(step["wall_clock_seconds"])
+                    if step.get("agent"):
+                        step_wall_clock_by_agent[_step_agent_label(step_name, step["agent"])].append(step["wall_clock_seconds"])
+                if step.get("include_in_active_stats") and step.get("agent_active_seconds") is not None:
+                    step_active[step_name].append(step["agent_active_seconds"])
+                    if step.get("agent"):
+                        step_active_by_agent[_step_agent_label(step_name, step["agent"])].append(step["agent_active_seconds"])
 
     return {
-        "session_duration_seconds": _stats(session_durations),
-        "round_duration_seconds": _stats(round_durations),
-        "step_duration_seconds": {step: _stats(values) for step, values in sorted(step_durations.items(), key=lambda item: _step_order_key(item[0]))},
-        "lead_agent_round_duration_seconds": {agent: _stats(values) for agent, values in sorted(lead_agent_round_durations.items()) if agent},
+        "session_wall_clock_seconds": _stats(session_wall_clock),
+        "session_active_seconds": _stats(session_active),
+        "round_wall_clock_seconds": _stats(round_wall_clock),
+        "round_active_seconds": _stats(round_active),
+        "step_wall_clock_seconds": {step: _stats(values) for step, values in sorted(step_wall_clock.items(), key=lambda item: _step_order_key(item[0]))},
+        "step_wall_clock_seconds_by_agent": {step: _stats(values) for step, values in sorted(step_wall_clock_by_agent.items())},
+        "step_active_seconds": {step: _stats(values) for step, values in sorted(step_active.items(), key=lambda item: _step_order_key(item[0]))},
+        "step_active_seconds_by_agent": {step: _stats(values) for step, values in sorted(step_active_by_agent.items())},
+        "lead_agent_round_wall_clock_seconds": {agent: _stats(values) for agent, values in sorted(lead_agent_round_wall_clock.items())},
     }
+
+
+def _build_populations(sessions: list[dict]) -> dict:
+    populations = {
+        "sessions": {
+            "total": 0,
+            "included_in_wall_clock_stats": 0,
+            "excluded_dry_run": 0,
+            "excluded_in_progress": 0,
+        },
+        "rounds": {
+            "total": 0,
+            "included_in_wall_clock_stats": 0,
+            "excluded_dry_run": 0,
+            "excluded_in_progress": 0,
+            "excluded_missing_completed_at": 0,
+        },
+        "steps": {
+            "total": 0,
+            "included_in_wall_clock_stats": 0,
+            "included_in_active_stats": 0,
+            "excluded_dry_run": 0,
+            "excluded_in_progress": 0,
+            "excluded_missing_completed_at": 0,
+        },
+    }
+
+    for session in sessions:
+        populations["sessions"]["total"] += 1
+        if session.get("include_in_wall_clock_stats"):
+            populations["sessions"]["included_in_wall_clock_stats"] += 1
+        for reason in session.get("exclusion_reasons", []):
+            key = f"excluded_{reason}"
+            if key in populations["sessions"]:
+                populations["sessions"][key] += 1
+
+        for round_data in session.get("rounds", []):
+            populations["rounds"]["total"] += 1
+            if round_data.get("include_in_wall_clock_stats"):
+                populations["rounds"]["included_in_wall_clock_stats"] += 1
+            for reason in round_data.get("exclusion_reasons", []):
+                key = f"excluded_{reason}"
+                if key in populations["rounds"]:
+                    populations["rounds"][key] += 1
+
+            for step in round_data.get("steps", {}).values():
+                populations["steps"]["total"] += 1
+                if step.get("include_in_wall_clock_stats"):
+                    populations["steps"]["included_in_wall_clock_stats"] += 1
+                if step.get("include_in_active_stats"):
+                    populations["steps"]["included_in_active_stats"] += 1
+                for reason in step.get("exclusion_reasons", []):
+                    key = f"excluded_{reason}"
+                    if key in populations["steps"]:
+                        populations["steps"][key] += 1
+
+    return populations
 
 
 def _build_coverage(sessions: list[dict]) -> dict:
@@ -555,11 +669,14 @@ def _build_coverage(sessions: list[dict]) -> dict:
 
     for session in sessions:
         for round_data in session.get("rounds", []):
+            if not round_data.get("include_in_wall_clock_stats"):
+                continue
             rounds_total += 1
-            if round_data.get("steps"):
+            eligible_steps = [step for step in round_data.get("steps", {}).values() if step.get("include_in_wall_clock_stats")]
+            if eligible_steps:
                 rounds_with_any_steps += 1
             has_breakdown = False
-            for step in round_data.get("steps", {}).values():
+            for step in eligible_steps:
                 steps_total += 1
                 if step.get("agent_breakdown"):
                     steps_with_breakdown += 1
@@ -578,25 +695,29 @@ def _build_coverage(sessions: list[dict]) -> dict:
     }
 
 
-def _build_findings(sessions: list[dict], stats: dict, coverage: dict) -> list[dict]:
-    findings = []
-    findings.append(
+def _build_findings(sessions: list[dict], stats: dict, coverage: dict, populations: dict) -> list[dict]:
+    findings = [
+        {
+            "title": "Excluded Population",
+            "detail": (
+                f"session 통계에서는 dry-run {populations['sessions']['excluded_dry_run']}개, "
+                f"in-progress {populations['sessions']['excluded_in_progress']}개를 제외했습니다. "
+                f"round 통계에서는 completed_at 누락 {populations['rounds']['excluded_missing_completed_at']}개를 제외했습니다."
+            ),
+        },
         {
             "title": "Step-Level Coverage",
             "detail": (
-                f"{coverage['rounds_total']}개 round 중 step 정보가 있는 round는 "
+                f"통계 대상 completed round {coverage['rounds_total']}개 중 step 정보가 있는 round는 "
                 f"{coverage['rounds_with_any_steps']}개, agent breakdown이 있는 round는 "
                 f"{coverage['rounds_with_any_breakdown']}개입니다."
             ),
-        }
-    )
+        },
+    ]
 
-    step_stats = stats.get("step_duration_seconds", {})
+    step_stats = stats.get("step_wall_clock_seconds", {})
     if step_stats:
-        slowest_step, slowest_stat = max(
-            step_stats.items(),
-            key=lambda item: item[1]["median"] or -1,
-        )
+        slowest_step, slowest_stat = max(step_stats.items(), key=lambda item: item[1]["median"] or -1)
         findings.append(
             {
                 "title": "Slowest Median Step",
@@ -604,7 +725,21 @@ def _build_findings(sessions: list[dict], stats: dict, coverage: dict) -> list[d
             }
         )
 
-    lead_stats = stats.get("lead_agent_round_duration_seconds", {})
+    split_stats = stats.get("step_wall_clock_seconds_by_agent", {})
+    cc_cross = split_stats.get("step2_cross_review / cc", {})
+    codex_cross = split_stats.get("step2_cross_review / codex", {})
+    if cc_cross.get("median") is not None and codex_cross.get("median") is not None:
+        findings.append(
+            {
+                "title": "Cross-Reviewer Split",
+                "detail": (
+                    f"step2_cross_review median은 CC {cc_cross['median']}초, Codex {codex_cross['median']}초로 "
+                    f"cross-review 분포가 agent별로 크게 갈립니다."
+                ),
+            }
+        )
+
+    lead_stats = stats.get("lead_agent_round_wall_clock_seconds", {})
     if lead_stats.get("cc", {}).get("median") is not None and lead_stats.get("codex", {}).get("median") is not None:
         cc_median = lead_stats["cc"]["median"]
         codex_median = lead_stats["codex"]["median"]
@@ -612,19 +747,18 @@ def _build_findings(sessions: list[dict], stats: dict, coverage: dict) -> list[d
         findings.append(
             {
                 "title": "Lead Agent Comparison",
-                "detail": (
-                    f"Lead round median은 CC {cc_median}초, Codex {codex_median}초이며 "
-                    f"{slower} 쪽이 더 느립니다."
-                ),
+                "detail": f"Lead round median은 CC {cc_median}초, Codex {codex_median}초이며 {slower} 쪽이 더 느립니다.",
             }
         )
 
     longest_session = None
     for session in sessions:
-        duration = session.get("duration_seconds")
+        if not session.get("include_in_wall_clock_stats"):
+            continue
+        duration = session.get("wall_clock_seconds")
         if duration is None:
             continue
-        if longest_session is None or duration > longest_session["duration_seconds"]:
+        if longest_session is None or duration > longest_session["wall_clock_seconds"]:
             longest_session = session
     if longest_session:
         findings.append(
@@ -632,7 +766,7 @@ def _build_findings(sessions: list[dict], stats: dict, coverage: dict) -> list[d
                 "title": "Longest Session",
                 "detail": (
                     f"{longest_session['repo']}#{longest_session['pr_number']} 세션이 "
-                    f"{longest_session['duration_seconds']}초로 가장 길었습니다."
+                    f"{longest_session['wall_clock_seconds']}초로 가장 길었습니다."
                 ),
             }
         )
@@ -664,48 +798,93 @@ def generate_sessions_report(
         if not isinstance(state, dict) or "repo" not in state or "pr_number" not in state:
             continue
 
+        dry_run = bool(state.get("dry_run"))
         started_at = _parse_iso(state.get("started_at"))
-        finished_at = _parse_iso(state.get("finished_at")) or now
+        explicit_finished_at = _parse_iso(state.get("finished_at"))
+        finished_at = explicit_finished_at or now
+        session_finished = explicit_finished_at is not None
+        session_include, session_reasons = _mark_stats_eligibility(
+            dry_run=dry_run,
+            session_finished=session_finished,
+            explicit_completed=session_finished,
+        )
+
+        session_wall_clock = _seconds(started_at, finished_at)
         session_summary = {
             "state_file": str(state_path),
             "repo": state["repo"],
             "pr_number": state["pr_number"],
             "status": state.get("status"),
             "final_outcome": state.get("final_outcome"),
+            "dry_run": dry_run,
             "started_at": _to_iso(started_at),
-            "finished_at": _to_iso(_parse_iso(state.get("finished_at"))),
-            "duration_seconds": _seconds(started_at, finished_at),
+            "finished_at": _to_iso(explicit_finished_at),
+            "wall_clock_seconds": session_wall_clock,
+            "duration_seconds": session_wall_clock,
+            "agent_active_seconds": None,
+            "include_in_wall_clock_stats": session_include,
+            "include_in_active_stats": False,
+            "exclusion_reasons": session_reasons,
             "rounds": [],
         }
 
         for round_data in sorted(state.get("rounds", []), key=lambda item: item.get("round", 0)):
             round_started = _parse_iso(round_data.get("started_at"))
-            round_completed = _parse_iso(round_data.get("completed_at")) or finished_at
-            session_summary["rounds"].append(
-                {
-                    "round": round_data["round"],
-                    "lead_agent": round_data.get("lead_agent"),
-                    "clean_pass": round_data.get("clean_pass"),
-                    "started_at": _to_iso(round_started),
-                    "completed_at": _to_iso(round_completed),
-                    "duration_seconds": _seconds(round_started, round_completed),
-                    "steps": _summarize_round_steps(
-                        state,
-                        session_summary,
-                        round_data,
-                        cc_index,
-                        codex_index,
-                        finished_at,
-                    ),
-                }
+            explicit_round_completed = _parse_iso(round_data.get("completed_at"))
+            round_include, round_reasons = _mark_stats_eligibility(
+                dry_run=dry_run,
+                session_finished=session_finished,
+                explicit_completed=explicit_round_completed is not None,
             )
 
+            steps = _summarize_round_steps(
+                state,
+                session_summary,
+                round_data,
+                cc_index,
+                codex_index,
+                finished_at,
+            )
+            for step in steps.values():
+                explicit_step_completed = step.get("completed_at") is not None
+                step_include, step_reasons = _mark_stats_eligibility(
+                    dry_run=dry_run,
+                    session_finished=session_finished,
+                    explicit_completed=explicit_step_completed,
+                )
+                step["include_in_wall_clock_stats"] = step_include
+                step["include_in_active_stats"] = step_include and step.get("agent_active_seconds") is not None
+                step["exclusion_reasons"] = step_reasons
+
+            round_wall_clock = _seconds(round_started, explicit_round_completed) if explicit_round_completed else None
+            round_active = _sum_active_seconds(list(steps.values()))
+            round_summary = {
+                "round": round_data["round"],
+                "lead_agent": round_data.get("lead_agent"),
+                "clean_pass": round_data.get("clean_pass"),
+                "started_at": _to_iso(round_started),
+                "completed_at": _to_iso(explicit_round_completed),
+                "wall_clock_seconds": round_wall_clock,
+                "duration_seconds": round_wall_clock,
+                "agent_active_seconds": round_active,
+                "include_in_wall_clock_stats": round_include,
+                "include_in_active_stats": round_include and round_active is not None,
+                "exclusion_reasons": round_reasons,
+                "steps": steps,
+            }
+            session_summary["rounds"].append(round_summary)
+
+        session_summary["agent_active_seconds"] = _sum_active_seconds(session_summary["rounds"])
+        session_summary["include_in_active_stats"] = (
+            session_summary["include_in_wall_clock_stats"] and session_summary["agent_active_seconds"] is not None
+        )
         sessions.append(session_summary)
 
     sessions.sort(key=lambda item: item.get("started_at") or "", reverse=True)
+    populations = _build_populations(sessions)
     coverage = _build_coverage(sessions)
     stats = _build_stats(sessions)
-    findings = _build_findings(sessions, stats, coverage)
+    findings = _build_findings(sessions, stats, coverage, populations)
 
     return {
         "generated_at": _to_iso(now),
@@ -714,6 +893,7 @@ def generate_sessions_report(
             "completed": sum(1 for session in sessions if session.get("finished_at")),
             "in_progress": sum(1 for session in sessions if not session.get("finished_at")),
         },
+        "populations": populations,
         "coverage": coverage,
         "stats": stats,
         "findings": findings,
@@ -745,8 +925,34 @@ def render_sessions_report_markdown(report: dict) -> str:
     ]
     for finding in report.get("findings", []):
         lines.append(f"- **{finding['title']}**: {finding['detail']}")
+
     lines.extend(
         [
+            "",
+            "## Population",
+            "",
+            "| Population | Total | Included | Excluded Dry Run | Excluded In Progress | Excluded Missing Completed At |",
+            "| --- | ---: | ---: | ---: | ---: | ---: |",
+            (
+                f"| Sessions | {report['populations']['sessions']['total']} | "
+                f"{report['populations']['sessions']['included_in_wall_clock_stats']} | "
+                f"{report['populations']['sessions']['excluded_dry_run']} | "
+                f"{report['populations']['sessions']['excluded_in_progress']} | - |"
+            ),
+            (
+                f"| Rounds | {report['populations']['rounds']['total']} | "
+                f"{report['populations']['rounds']['included_in_wall_clock_stats']} | "
+                f"{report['populations']['rounds']['excluded_dry_run']} | "
+                f"{report['populations']['rounds']['excluded_in_progress']} | "
+                f"{report['populations']['rounds']['excluded_missing_completed_at']} |"
+            ),
+            (
+                f"| Steps | {report['populations']['steps']['total']} | "
+                f"{report['populations']['steps']['included_in_wall_clock_stats']} | "
+                f"{report['populations']['steps']['excluded_dry_run']} | "
+                f"{report['populations']['steps']['excluded_in_progress']} | "
+                f"{report['populations']['steps']['excluded_missing_completed_at']} |"
+            ),
             "",
             "## Statistics",
             "",
@@ -755,31 +961,80 @@ def render_sessions_report_markdown(report: dict) -> str:
             "",
         ]
     )
-    lines.extend(_render_stats_rows("Durations", {
-        "Sessions": report["stats"]["session_duration_seconds"],
-        "Rounds": report["stats"]["round_duration_seconds"],
-    }))
-    if report["stats"].get("step_duration_seconds"):
-        lines.extend(_render_stats_rows("Step Durations", report["stats"]["step_duration_seconds"]))
-    if report["stats"].get("lead_agent_round_duration_seconds"):
-        lines.extend(_render_stats_rows(
-            "Lead Agent Round Durations",
-            {agent.capitalize(): stats for agent, stats in report["stats"]["lead_agent_round_duration_seconds"].items()},
-        ))
+    lines.extend(
+        _render_stats_rows(
+            "Completed Session And Round Wall-Clock Durations",
+            {
+                "Sessions": report["stats"]["session_wall_clock_seconds"],
+                "Rounds": report["stats"]["round_wall_clock_seconds"],
+            },
+        )
+    )
+    if report["stats"].get("step_wall_clock_seconds"):
+        lines.extend(_render_stats_rows("Completed Step Wall-Clock Durations", report["stats"]["step_wall_clock_seconds"]))
+    if report["stats"].get("step_wall_clock_seconds_by_agent"):
+        lines.extend(_render_stats_rows("Completed Step Wall-Clock Durations By Agent", report["stats"]["step_wall_clock_seconds_by_agent"]))
+    if report["stats"].get("step_active_seconds"):
+        lines.extend(_render_stats_rows("Completed Step Active Durations", report["stats"]["step_active_seconds"]))
+    if report["stats"].get("step_active_seconds_by_agent"):
+        lines.extend(_render_stats_rows("Completed Step Active Durations By Agent", report["stats"]["step_active_seconds_by_agent"]))
+    if report["stats"].get("lead_agent_round_wall_clock_seconds"):
+        lines.extend(
+            _render_stats_rows(
+                "Completed Lead Agent Round Wall-Clock Durations",
+                {agent.capitalize(): stats for agent, stats in report["stats"]["lead_agent_round_wall_clock_seconds"].items()},
+            )
+        )
 
     lines.extend(["## Appendix", ""])
     for session in report.get("sessions", []):
+        session_stats_line = "yes"
+        if session.get("exclusion_reasons"):
+            session_stats_line = f"no (excluded from stats: {', '.join(session['exclusion_reasons'])})"
         lines.extend(
             [
                 f"### {session['repo']}#{session['pr_number']}",
                 "",
                 f"- Status: {session.get('status')}",
                 f"- Outcome: {session.get('final_outcome')}",
-                f"- Duration: {session.get('duration_seconds')}s",
+                f"- Dry run: {session.get('dry_run')}",
+                f"- Stats eligibility: {session_stats_line}",
+                f"- Wall clock: {session.get('wall_clock_seconds')}s",
+                f"- Active: {session.get('agent_active_seconds')}s",
                 "",
             ]
         )
         lines.extend(_render_round_step_table(session.get("rounds", [])))
+        for round_data in session.get("rounds", []):
+            round_stats_line = "yes"
+            if round_data.get("exclusion_reasons"):
+                round_stats_line = f"no (excluded from stats: {', '.join(round_data['exclusion_reasons'])})"
+            lines.extend(
+                [
+                    f"#### Round {round_data['round']}",
+                    "",
+                    f"- Lead agent: {round_data.get('lead_agent')}",
+                    f"- Stats eligibility: {round_stats_line}",
+                    f"- Wall clock: {round_data.get('wall_clock_seconds')}s",
+                    f"- Active: {round_data.get('agent_active_seconds')}s",
+                    "",
+                    "| Step | Wall Clock (s) | Active (s) | Agent | Local File | Local Git | GitHub/API | Unattributed |",
+                    "| --- | ---: | ---: | --- | ---: | ---: | ---: | ---: |",
+                ]
+            )
+            for step_name, step in round_data.get("steps", {}).items():
+                breakdown = step.get("agent_breakdown", {})
+                lines.append(
+                    "| "
+                    f"{step_name} | {step.get('wall_clock_seconds')} | {step.get('agent_active_seconds')} | {step.get('agent', '')} | "
+                    f"{breakdown.get('local_file_seconds', '')} | "
+                    f"{breakdown.get('local_git_seconds', '')} | "
+                    f"{breakdown.get('github_api_seconds', '')} | "
+                    f"{breakdown.get('unattributed_seconds', '')} |"
+                )
+            if not round_data.get("steps"):
+                lines.append("| (no step-level data) |  |  |  |  |  |  |  |")
+            lines.append("")
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 
