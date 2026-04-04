@@ -1,6 +1,6 @@
 import json
 
-from debate_review.reporting import generate_sessions_report, render_sessions_report_markdown
+from debate_review.reporting import _stats, generate_sessions_report, render_sessions_report_markdown
 from debate_review.state import create_initial_state, save_state
 from debate_review.round_ops import init_round, settle_round
 from debate_review.timing import complete_step_trace, record_step_timing, start_step_trace
@@ -435,6 +435,66 @@ def test_generate_sessions_report_uses_completed_population_for_stats_and_split_
     assert "step2_cross_review / cc" in markdown
     assert "excluded from stats" in markdown
     assert "## Appendix" in markdown
+
+
+def test_stats_include_quartiles_and_markdown_uses_requested_column_order(tmp_path):
+    assert _stats([10.0, 20.0, 30.0, 40.0, 50.0]) == {
+        "count": 5,
+        "min": 10.0,
+        "p25": 20.0,
+        "median": 30.0,
+        "p75": 40.0,
+        "max": 50.0,
+        "average": 30.0,
+    }
+
+    state_dir = tmp_path / "debate-state"
+    claude_projects_root = tmp_path / "claude-projects"
+    codex_sessions_root = tmp_path / "codex-sessions"
+    state_dir.mkdir()
+    claude_projects_root.mkdir()
+    codex_sessions_root.mkdir()
+
+    state = create_initial_state(
+        repo="owner/repo",
+        repo_root="/tmp/repo",
+        pr_number=999,
+        is_fork=False,
+        head_sha="abc999",
+        pr_branch_name="feat/quartiles",
+        agent_mode="persistent",
+    )
+    state["started_at"] = "2026-04-04T00:00:00+00:00"
+    state["finished_at"] = "2026-04-04T00:10:00+00:00"
+    state["status"] = "consensus_reached"
+    state["final_outcome"] = "consensus"
+    init_round(state, round_num=1, lead_agent="codex", synced_head_sha="abc999")
+    state["rounds"][0]["started_at"] = "2026-04-04T00:00:00+00:00"
+    state["rounds"][0]["completed_at"] = "2026-04-04T00:10:00+00:00"
+    start_step_trace(
+        state,
+        round_num=1,
+        step_name="step1_lead_review",
+        agent="codex",
+        started_at="2026-04-04T00:01:00+00:00",
+    )
+    complete_step_trace(
+        state,
+        round_num=1,
+        step_name="step1_lead_review",
+        completed_at="2026-04-04T00:02:00+00:00",
+    )
+    settle_round(state, round_num=1)
+    save_state(state, str(state_dir / "owner-repo-999.json"))
+
+    report = generate_sessions_report(
+        state_dir=state_dir,
+        claude_projects_root=claude_projects_root,
+        codex_sessions_root=codex_sessions_root,
+    )
+    markdown = render_sessions_report_markdown(report)
+
+    assert "| Metric | Count | Min | 25% | Median | 75% | Max | Average |" in markdown
 
 
 def test_generate_sessions_report_uses_trace_session_handle_for_codex_matching(tmp_path):

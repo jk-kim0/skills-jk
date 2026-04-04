@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -52,15 +53,44 @@ def _step_order_key(step_name: str) -> tuple[int, str]:
         return (len(_STEP_ORDER), step_name)
 
 
+def _percentile(values: list[float], percent: float) -> float | None:
+    if not values:
+        return None
+    ordered = sorted(values)
+    if len(ordered) == 1:
+        return round(ordered[0], 1)
+
+    position = (len(ordered) - 1) * percent
+    lower = math.floor(position)
+    upper = math.ceil(position)
+    if lower == upper:
+        return round(ordered[lower], 1)
+
+    lower_value = ordered[lower]
+    upper_value = ordered[upper]
+    interpolated = lower_value + (upper_value - lower_value) * (position - lower)
+    return round(interpolated, 1)
+
+
 def _stats(values: list[float]) -> dict:
     if not values:
-        return {"count": 0, "min": None, "max": None, "average": None, "median": None}
+        return {
+            "count": 0,
+            "min": None,
+            "p25": None,
+            "median": None,
+            "p75": None,
+            "max": None,
+            "average": None,
+        }
     return {
         "count": len(values),
         "min": round(min(values), 1),
+        "p25": _percentile(values, 0.25),
+        "median": round(median(values), 1),
+        "p75": _percentile(values, 0.75),
         "max": round(max(values), 1),
         "average": round(mean(values), 1),
-        "median": round(median(values), 1),
     }
 
 
@@ -902,10 +932,16 @@ def generate_sessions_report(
 
 
 def _render_stats_rows(title: str, stats_dict: dict) -> list[str]:
-    lines = [f"### {title}", "", "| Metric | Count | Min | Max | Average | Median |", "| --- | ---: | ---: | ---: | ---: | ---: |"]
+    lines = [
+        f"### {title}",
+        "",
+        "| Metric | Count | Min | 25% | Median | 75% | Max | Average |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ]
     for label, value in stats_dict.items():
         lines.append(
-            f"| {label} | {value['count']} | {value['min']} | {value['max']} | {value['average']} | {value['median']} |"
+            f"| {label} | {value['count']} | {value['min']} | {value['p25']} | {value['median']} | "
+            f"{value['p75']} | {value['max']} | {value['average']} |"
         )
     lines.append("")
     return lines
