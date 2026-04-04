@@ -779,33 +779,38 @@ def render_sessions_report_markdown(report: dict) -> str:
                 "",
             ]
         )
-        for round_data in session.get("rounds", []):
-            lines.extend(
-                [
-                    f"#### Round {round_data['round']}",
-                    "",
-                    f"- Lead agent: {round_data.get('lead_agent')}",
-                    f"- Duration: {round_data.get('duration_seconds')}s",
-                    "",
-                    "| Step | Duration (s) | Agent | Local File | Local Git | GitHub/API | Reasoning |",
-                    "| --- | ---: | --- | ---: | ---: | ---: | ---: |",
-                ]
-            )
-            for step_name, step in round_data.get("steps", {}).items():
-                breakdown = step.get("agent_breakdown", {})
-                lines.append(
-                    "| "
-                    f"{step_name} | {step.get('duration_seconds')} | {step.get('agent', '')} | "
-                    f"{breakdown.get('local_file_seconds', '')} | "
-                    f"{breakdown.get('local_git_seconds', '')} | "
-                    f"{breakdown.get('github_api_seconds', '')} | "
-                    f"{breakdown.get('reasoning_seconds', '')} |"
-                )
-            if not round_data.get("steps"):
-                lines.append("| (no step-level data) |  |  |  |  |  |  |")
-            lines.append("")
+        lines.extend(_render_round_step_table(session.get("rounds", [])))
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _render_round_step_table(rounds: list[dict]) -> list[str]:
+    """Render a single table: round=row, step=column."""
+    lines = [
+        "| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |",
+        "| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    for round_data in rounds:
+        lead = round_data.get("lead_agent", "?")
+        total = round_data.get("duration_seconds")
+        total_str = f"{total}s" if total is not None else "-"
+        steps = round_data.get("steps", {})
+        cells = []
+        for step_key in _STEP_ORDER:
+            step = steps.get(step_key)
+            if step is None:
+                cells.append("skip")
+            else:
+                dur = step.get("duration_seconds")
+                cells.append(f"{dur}s" if dur is not None else "-")
+        lines.append(
+            f"| {round_data.get('round', '?')} | {lead} | "
+            + " | ".join(cells)
+            + f" | {total_str} |"
+        )
+    if not rounds:
+        lines.append("| (no rounds) | | | | | | | |")
+    return lines
 
 
 def _format_duration(seconds: float | None) -> str:
@@ -888,16 +893,32 @@ def export_debate_markdown(state: dict, output_path: str) -> str:
     if total_secs is not None:
         lines.append(f"- **Total Duration**: {_format_duration(total_secs)}")
 
-    # Round timing summary
+    # Round timing summary (round=row, step=column)
     lines.extend(["", "## Round Summary", ""])
-    lines.append("| Round | Lead Agent | Duration |")
-    lines.append("| ---: | --- | --- |")
+    lines.append("| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |")
+    lines.append("| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |")
     for round_ in state.get("rounds", []):
         r_started = _parse_iso(round_.get("started_at"))
         r_completed = _parse_iso(round_.get("completed_at"))
         r_secs = _seconds(r_started, r_completed)
+        step_traces = round_.get("step_traces", {})
+        cells = []
+        clean_pass = round_.get("clean_pass", False)
+        for step_key in _STEP_ORDER:
+            trace = step_traces.get(step_key)
+            if trace is not None:
+                s_start = _parse_iso(trace.get("started_at"))
+                s_end = _parse_iso(trace.get("completed_at"))
+                s_secs = _seconds(s_start, s_end)
+                cells.append(_format_duration(s_secs))
+            elif clean_pass and step_key in ("step2_cross_review", "step3_lead_apply"):
+                cells.append("skip")
+            else:
+                cells.append("-")
         lines.append(
-            f"| {round_.get('round', '?')} | {round_.get('lead_agent', '?')} | {_format_duration(r_secs)} |"
+            f"| {round_.get('round', '?')} | {round_.get('lead_agent', '?')} | "
+            + " | ".join(cells)
+            + f" | {_format_duration(r_secs)} |"
         )
 
     # Debate ledger
@@ -955,22 +976,6 @@ def export_debate_markdown(state: dict, output_path: str) -> str:
         lines.append(f"- **Lead**: {round_.get('lead_agent', '?')}")
         lines.append(f"- **Status**: {round_.get('status', '?')}")
         lines.append(f"- **Clean pass**: {round_.get('clean_pass', '?')}")
-
-        r_started = _parse_iso(round_.get("started_at"))
-        r_completed = _parse_iso(round_.get("completed_at"))
-        r_secs = _seconds(r_started, r_completed)
-        lines.append(f"- **Duration**: {_format_duration(r_secs)}")
-
-        # Step timings
-        step_traces = round_.get("step_traces", {})
-        if step_traces:
-            lines.extend(["", "| Step | Agent | Duration |", "| --- | --- | --- |"])
-            for step_name in sorted(step_traces.keys(), key=_step_order_key):
-                trace = step_traces[step_name]
-                s_start = _parse_iso(trace.get("started_at"))
-                s_end = _parse_iso(trace.get("completed_at"))
-                s_secs = _seconds(s_start, s_end)
-                lines.append(f"| {step_name} | {trace.get('agent', '?')} | {_format_duration(s_secs)} |")
 
     lines.append("")
     content = "\n".join(lines)

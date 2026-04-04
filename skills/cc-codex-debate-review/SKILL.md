@@ -667,12 +667,12 @@ After terminal processing completes, report the following to the user:
 
 1. **PR URL**: `https://github.com/{REPO}/pull/{PR_NUMBER}` — always include the clickable link
 2. **Outcome**: consensus / no_consensus / error / stalled
-3. **Round timing summary**: Per-round duration in minutes and seconds format
+3. **Round timing summary**: Round=row, step=column format
 
-   | Round | Lead Agent | Duration |
-   | ---: | --- | --- |
-   | 1 | codex | 2m 34s |
-   | 2 | cc | 1m 12s |
+   | Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+   | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+   | 1 | codex | 2s | 1m 30s | 48s | 2m 10s | 2s | 4m 32s |
+   | 2 | cc | 1s | 1m 0s | skip | skip | 1s | 1m 2s |
 
 4. **Prompt file paths**: Show the persistent prompt file locations so the user can inspect them
    - CC: `~/.claude/debate-state/prompts/{owner}-{repo}-{pr}-cc.md`

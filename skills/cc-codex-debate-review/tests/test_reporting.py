@@ -142,7 +142,8 @@ def test_generate_sessions_report_uses_state_trace_and_cc_subagent_breakdown(tmp
     markdown = render_sessions_report_markdown(report)
     assert "owner/repo#123" in markdown
     assert "step1_lead_review" in markdown
-    assert "GitHub/API" in markdown
+    assert "| Round | Lead |" in markdown
+    assert "| Step0 | Step1 |" in markdown or "Step1" in markdown
 
 
 def test_generate_sessions_report_includes_codex_breakdown_and_findings_statistics(tmp_path):
