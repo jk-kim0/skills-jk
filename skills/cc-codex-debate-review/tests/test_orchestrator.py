@@ -1,4 +1,5 @@
 import copy
+import json
 import os
 
 import pytest
@@ -767,3 +768,77 @@ def test_cleanup_worktree_skips_dry_run(monkeypatch, tmp_path):
     monkeypatch.setattr(orchestrator_module.subprocess, "run", fail_if_called)
 
     orchestrator._cleanup_worktree(state)
+
+
+# --- Agent response normalization tests ---
+
+from debate_review.orchestrator import (
+    _extract_json_from_text,
+    _normalize_cross_verifications,
+    _normalize_withdrawals,
+    _unwrap_cc_result,
+)
+
+
+def test_unwrap_cc_result_plain_json():
+    inner = json.dumps({"verdict": "no_findings_mergeable", "findings": []})
+    wrapper = json.dumps({"type": "result", "result": inner})
+    assert _unwrap_cc_result(wrapper) == {"verdict": "no_findings_mergeable", "findings": []}
+
+
+def test_unwrap_cc_result_markdown_fenced_json():
+    inner = '```json\n{"verdict": "has_findings", "findings": []}\n```'
+    wrapper = json.dumps({"type": "result", "result": inner})
+    assert _unwrap_cc_result(wrapper)["verdict"] == "has_findings"
+
+
+def test_unwrap_cc_result_prose_with_embedded_json():
+    inner = 'Some explanation.\n\n```json\n{"verdict": "has_findings", "findings": []}\n```'
+    wrapper = json.dumps({"type": "result", "result": inner})
+    assert _unwrap_cc_result(wrapper)["verdict"] == "has_findings"
+
+
+def test_extract_json_from_text_plain():
+    assert _extract_json_from_text('{"a": 1}') == '{"a": 1}'
+
+
+def test_extract_json_from_text_fenced():
+    assert json.loads(_extract_json_from_text('```json\n{"a": 1}\n```')) == {"a": 1}
+
+
+def test_extract_json_from_text_prose():
+    text = "Here is the result:\n\n```json\n{\"b\": 2}\n```\n\nDone."
+    assert json.loads(_extract_json_from_text(text)) == {"b": 2}
+
+
+def test_normalize_cross_verifications_issue_id_and_verdict():
+    state = {"issues": {"isu_001": {"reports": [{"report_id": "rpt_001"}]}}}
+    raw = [{"issue_id": "isu_001", "verdict": "rebut", "reason": "disagree"}]
+    result = _normalize_cross_verifications(raw, state)
+    assert result[0]["report_id"] == "rpt_001"
+    assert result[0]["decision"] == "rebut"
+
+
+def test_normalize_cross_verifications_already_correct():
+    state = {"issues": {}}
+    raw = [{"report_id": "rpt_001", "decision": "accept"}]
+    assert _normalize_cross_verifications(raw, state) == raw
+
+
+def test_normalize_withdrawals_strings():
+    assert _normalize_withdrawals(["isu_001", "isu_002"]) == [
+        {"issue_id": "isu_001", "reason": ""},
+        {"issue_id": "isu_002", "reason": ""},
+    ]
+
+
+def test_normalize_withdrawals_dicts():
+    items = [{"issue_id": "isu_001", "reason": "no longer relevant"}]
+    assert _normalize_withdrawals(items) == items
+
+
+def test_normalize_withdrawals_mixed():
+    items = ["isu_001", {"issue_id": "isu_002", "reason": "duplicate"}]
+    result = _normalize_withdrawals(items)
+    assert result[0] == {"issue_id": "isu_001", "reason": ""}
+    assert result[1] == {"issue_id": "isu_002", "reason": "duplicate"}
