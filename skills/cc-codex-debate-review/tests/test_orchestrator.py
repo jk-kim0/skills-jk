@@ -521,10 +521,9 @@ def test_follow_through_errors_do_not_propagate(monkeypatch, tmp_path):
 
 
 def test_build_adapters_requires_cc_commands_in_persistent_mode():
-    from debate_review.config import load_config
     from debate_review.orchestrator import OrchestrationError, _build_adapters
 
-    config = load_config(os.path.join(SKILL_ROOT, "config.yml"))
+    config = {"agent_mode": "persistent"}
 
     with pytest.raises(OrchestrationError, match="cc runtime commands are not configured"):
         _build_adapters(config)
