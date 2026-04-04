@@ -829,9 +829,9 @@ class DebateReviewOrchestrator:
                 failed_completed = utc_now_iso()
                 failed_span = {
                     "name": "send_message",
-                    "started_at": step_started_at,
+                    "started_at": send_started,
                     "completed_at": failed_completed,
-                    "duration_seconds": 0.0,
+                    "duration_seconds": round(time.monotonic() - send_clock, 3),
                     "status": "error",
                     "error": str(exc),
                 }
