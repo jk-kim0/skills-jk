@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from statistics import mean, median
 
+from debate_review.issue_ops import latest_report_message
+
 _STEP_ORDER = [
     "step0_sync",
     "step1_lead_review",
@@ -922,19 +924,19 @@ def export_debate_markdown(state: dict, output_path: str) -> str:
         if applied:
             lines.extend(["", "## Applied Fixes", ""])
             for issue in applied:
-                msg = issue.get("reports", [{}])[0].get("message", "") if issue.get("reports") else ""
+                msg = latest_report_message(issue)
                 lines.append(f"- `{issue.get('file', '?')}:{issue.get('line', '?')}` — {msg}")
 
         if recommended:
             lines.extend(["", "## Recommended Fixes", ""])
             for issue in recommended:
-                msg = issue.get("reports", [{}])[0].get("message", "") if issue.get("reports") else ""
+                msg = latest_report_message(issue)
                 lines.append(f"- `{issue.get('file', '?')}:{issue.get('line', '?')}` — {msg}")
 
         if withdrawn:
             lines.extend(["", "## Withdrawn Findings", ""])
             for issue in withdrawn:
-                msg = issue.get("reports", [{}])[0].get("message", "") if issue.get("reports") else ""
+                msg = latest_report_message(issue)
                 reason = issue.get("consensus_reason", "")
                 lines.append(f"- `{issue.get('file', '?')}:{issue.get('line', '?')}` — {msg}")
                 if reason:
@@ -943,7 +945,7 @@ def export_debate_markdown(state: dict, output_path: str) -> str:
         if open_issues:
             lines.extend(["", "## Unresolved Issues", ""])
             for issue in open_issues:
-                msg = issue.get("reports", [{}])[0].get("message", "") if issue.get("reports") else ""
+                msg = latest_report_message(issue)
                 lines.append(f"- `{issue.get('file', '?')}:{issue.get('line', '?')}` — {msg}")
 
     # Round details

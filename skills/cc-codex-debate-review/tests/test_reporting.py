@@ -524,6 +524,68 @@ def test_export_debate_markdown_creates_file(tmp_path):
     assert "| 1 | codex |" in content
 
 
+def test_export_debate_markdown_uses_latest_issue_message(tmp_path):
+    from debate_review.reporting import export_debate_markdown
+
+    state = create_initial_state(
+        repo="owner/repo",
+        repo_root="/tmp/repo",
+        pr_number=42,
+        is_fork=False,
+        head_sha="abc123",
+        pr_branch_name="feat/test",
+        agent_mode="persistent",
+    )
+    state["final_outcome"] = "consensus"
+    state["issues"]["isu_001"] = {
+        "issue_id": "isu_001",
+        "issue_key": "criterion:13|file:foo.py|anchor:bar|kind:incorrect_algorithm",
+        "opened_by": "codex",
+        "introduced_in_round": 1,
+        "criterion": 13,
+        "file": "foo.py",
+        "line": 10,
+        "anchor": "bar",
+        "severity": "warning",
+        "consensus_status": "accepted",
+        "application_status": "applied",
+        "accepted_by": ["codex", "cc"],
+        "rejected_by": [],
+        "applied_by": "codex",
+        "application_commit_sha": "deadbeef",
+        "consensus_reason": None,
+        "reports": [
+            {
+                "report_id": "rpt_001",
+                "agent": "codex",
+                "round": 1,
+                "severity": "warning",
+                "message": "initial stale message",
+                "reported_at": "2026-04-04T00:00:00+00:00",
+                "status": "open",
+            },
+            {
+                "report_id": "rpt_002",
+                "agent": "cc",
+                "round": 2,
+                "severity": "warning",
+                "message": "latest clarified message",
+                "reported_at": "2026-04-04T00:01:00+00:00",
+                "status": "open",
+            },
+        ],
+        "created_at": "2026-04-04T00:00:00+00:00",
+        "updated_at": "2026-04-04T00:01:00+00:00",
+    }
+
+    output_path = str(tmp_path / "debate.md")
+    export_debate_markdown(state, output_path)
+
+    content = (tmp_path / "debate.md").read_text()
+    assert "latest clarified message" in content
+    assert "initial stale message" not in content
+
+
 def test_format_duration():
     from debate_review.reporting import _format_duration
 
