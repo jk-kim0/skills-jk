@@ -25,7 +25,6 @@
 - Step 3 prompt/routing에 `withdrawals` 필드 추가 (`#169`)
 - operational follow-through CLI 명령 추가: `create-failure-issue`, `update-pr-status`, `cleanup-worktree` (`#170`)
 - orchestration runner: round loop, agent dispatch, checkpoint/recovery, terminal processing (`#171`, merged)
-- orchestrator-follow-through 통합: `_terminal()` / `_mark_failed()` 경로에 follow-through 호출 (`#172`, open)
 
 ## Implemented Foundation
 
@@ -74,7 +73,7 @@
 - ~~duplicate withdrawal state transition을 step prompt, CLI, Step 4 정산까지 일관되게 연결~~ → `#164` + Step 3 prompt/routing 보완으로 완료
 - ~~legacy / persistent 간 출력 schema 불일치 제거~~ → legacy `agent-lead-response-prompt.md`에도 `withdrawals` 추가
 
-### Workstream B: Repo-owned orchestration path ⏳
+### Workstream B: Repo-owned orchestration path ✅
 
 `#171` (merged) — Python orchestration runner 구현.
 
@@ -82,9 +81,6 @@
 - ~~agent 생성 / resume / retry / recovery 구현~~ ✅
 - ~~CLI subcommand routing 자동화~~ ✅
 - ~~terminal 시 comment / cleanup 호출까지 연결~~ ✅
-- `#172`에서 follow-through 통합 완료 (PR title 갱신, failure issue 생성)
-
-머지 대기 중. E2E 검증 후 최종 확정.
 
 ### Workstream C: Operational follow-through automation ✅
 
@@ -108,7 +104,7 @@
 
 1. ~~`#161` 해소로 persistent initialization 복구~~ ✅
 2. ~~persistent prompt / state routing parity 복구~~ ✅
-3. ~~repo-owned orchestration path 정리~~ → `#171` 머지 대기
+3. ~~repo-owned orchestration path 정리~~ ✅
 4. ~~failure / cleanup / PR update 자동화~~ ✅
 5. end-to-end verification 보강
 6. legacy 제거와 문서 정리
