@@ -183,6 +183,10 @@ _REQUIRED_JOURNAL = [
     "commit_sha", "push_verified", "state_persisted",
 ]
 
+_REQUIRED_ROUND = [
+    "round", "status", "step1", "step2", "step3", "step4",
+]
+
 
 def validate_state(state) -> None:
     """Validate that a loaded state dict has the required structure.
@@ -214,6 +218,14 @@ def validate_state(state) -> None:
         raise StateCorruptedError("issues must be a dict")
     if not isinstance(state["rounds"], list):
         raise StateCorruptedError("rounds must be a list")
+    for idx, round_ in enumerate(state["rounds"]):
+        if not isinstance(round_, dict):
+            raise StateCorruptedError(f"rounds[{idx}] must be a dict")
+        missing_round = [f for f in _REQUIRED_ROUND if f not in round_]
+        if missing_round:
+            raise StateCorruptedError(
+                f"Missing round fields in rounds[{idx}]: {', '.join(missing_round)}"
+            )
 
 
 def load_state(path, *, validate=True) -> dict | None:

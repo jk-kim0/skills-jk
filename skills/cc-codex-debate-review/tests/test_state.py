@@ -373,6 +373,21 @@ def test_validate_state_rejects_rounds_not_list(sample_state):
         validate_state(sample_state)
 
 
+def test_validate_state_rejects_round_entry_not_dict(sample_state):
+    sample_state["rounds"] = [None]
+    with pytest.raises(StateCorruptedError, match=r"rounds\[0\].*dict"):
+        validate_state(sample_state)
+
+
+def test_validate_state_rejects_round_entry_missing_required_field(sample_state):
+    from debate_review.round_ops import init_round
+
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    del sample_state["rounds"][0]["round"]
+    with pytest.raises(StateCorruptedError, match=r"rounds\[0\].*round"):
+        validate_state(sample_state)
+
+
 # load_state with corrupted files
 
 def test_load_state_corrupted_json(tmp_path):
