@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 
 from debate_review.round_ops import init_round, record_verdict, settle_round
-from debate_review.timing import record_step_timing
+from debate_review.timing import complete_step_trace, record_step_timing, start_step_trace, update_step_trace
 
 
 def _is_iso_utc(value):
@@ -17,35 +17,81 @@ def _is_iso_utc(value):
 # --- record_step_timing helper ---
 
 def test_record_step_timing_writes_to_journal(sample_state):
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
     record_step_timing(sample_state, "step0_sync")
     timings = sample_state["journal"]["step_timings"]
     assert "step0_sync" in timings
     assert _is_iso_utc(timings["step0_sync"])
+    assert sample_state["rounds"][0]["step_timings"]["step0_sync"] == timings["step0_sync"]
 
 
 def test_record_step_timing_does_not_overwrite(sample_state):
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
     record_step_timing(sample_state, "step0_sync")
     first = sample_state["journal"]["step_timings"]["step0_sync"]
     record_step_timing(sample_state, "step0_sync")
     assert sample_state["journal"]["step_timings"]["step0_sync"] == first
+    assert sample_state["rounds"][0]["step_timings"]["step0_sync"] == first
 
 
 def test_record_step_timing_initializes_missing_key(sample_state):
     # Simulate legacy state without step_timings
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
     del sample_state["journal"]["step_timings"]
     record_step_timing(sample_state, "step1_lead_review")
     assert "step1_lead_review" in sample_state["journal"]["step_timings"]
+    assert "step1_lead_review" in sample_state["rounds"][0]["step_timings"]
 
 
 def test_init_round_resets_step_timings_for_new_round(sample_state):
     init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
     sample_state["journal"]["step_timings"]["step0_sync"] = "old-round-timestamp"
+    sample_state["rounds"][0]["step_timings"]["step0_sync"] = "old-round-timestamp"
     record_verdict(sample_state, round_num=1, verdict="has_findings")
     settle_round(sample_state, round_num=1)
 
     init_round(sample_state, round_num=2, lead_agent="cc", synced_head_sha="def")
 
     assert sample_state["journal"]["step_timings"] == {}
+    assert sample_state["rounds"][1]["step_timings"] == {}
+    assert sample_state["rounds"][0]["step_timings"]["step0_sync"] == "old-round-timestamp"
+
+
+def test_step_trace_lifecycle_persists_per_round(sample_state):
+    init_round(sample_state, round_num=1, lead_agent="cc", synced_head_sha="abc")
+
+    start_step_trace(
+        sample_state,
+        round_num=1,
+        step_name="step1_lead_review",
+        agent="cc",
+        started_at="2026-04-04T00:00:00+00:00",
+        patch={"persistent_session": {"handle": "cc-session-1"}},
+    )
+    update_step_trace(
+        sample_state,
+        round_num=1,
+        step_name="step1_lead_review",
+        patch={
+            "dispatch": {"task_id": "task-1"},
+            "command_spans": [{"name": "send_message", "started_at": "2026-04-04T00:00:01+00:00"}],
+        },
+    )
+    complete_step_trace(
+        sample_state,
+        round_num=1,
+        step_name="step1_lead_review",
+        completed_at="2026-04-04T00:00:05+00:00",
+        patch={"runtime_artifacts": {"subagent_log_path": "/tmp/subagent.jsonl"}},
+    )
+
+    trace = sample_state["rounds"][0]["step_traces"]["step1_lead_review"]
+    assert trace["agent"] == "cc"
+    assert trace["persistent_session"]["handle"] == "cc-session-1"
+    assert trace["dispatch"]["task_id"] == "task-1"
+    assert trace["runtime_artifacts"]["subagent_log_path"] == "/tmp/subagent.jsonl"
+    assert trace["completed_at"] == "2026-04-04T00:00:05+00:00"
+    assert len(trace["command_spans"]) == 1
 
 
 # --- Round-level timing ---

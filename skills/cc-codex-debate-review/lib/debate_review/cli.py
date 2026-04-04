@@ -6,9 +6,10 @@ import sys
 import tempfile
 
 from debate_review.config import load_config
-from debate_review.timing import record_step_timing
+from debate_review.timing import ensure_timing_fields, record_step_timing
 from debate_review.context import build_context
 from debate_review.prompt import build_prompt
+from debate_review.reporting import generate_sessions_report, render_sessions_report_markdown
 from debate_review.gh import gh_json
 from debate_review.application import (
     build_commit_message,
@@ -188,6 +189,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_app.add_argument("--commit-sha", default=None)
     p_app.add_argument("--verify-push", action="store_true")
 
+    # report-sessions subcommand
+    p_report = subparsers.add_parser("report-sessions", help="Generate a full-session timing report")
+    p_report.add_argument("--state-dir", default=os.path.expanduser("~/.claude/debate-state"))
+    p_report.add_argument("--claude-projects-root", default=os.path.expanduser("~/.claude/projects"))
+    p_report.add_argument("--codex-sessions-root", default=os.path.expanduser("~/.codex/sessions"))
+    p_report.add_argument("--format", choices=["markdown", "json"], default="markdown")
+    p_report.add_argument("--output", default=None)
+
     return parser
 
 
@@ -308,6 +317,13 @@ def cmd_init(args):
         else:
             existing["agent_mode"] = _validate_agent_mode(str(existing["agent_mode"]))
         if ensure_persistent_agents(existing):
+            needs_save = True
+        rounds_before = json.dumps(existing.get("rounds", []), sort_keys=True)
+        journal_before = json.dumps(existing.get("journal", {}), sort_keys=True)
+        ensure_timing_fields(existing)
+        if rounds_before != json.dumps(existing.get("rounds", []), sort_keys=True):
+            needs_save = True
+        if journal_before != json.dumps(existing.get("journal", {}), sort_keys=True):
             needs_save = True
         if needs_save:
             save_state(existing, state_path)
@@ -723,6 +739,22 @@ def cmd_build_prompt(args):
     print(json.dumps(output))
 
 
+def cmd_report_sessions(args):
+    report = generate_sessions_report(
+        state_dir=args.state_dir,
+        claude_projects_root=args.claude_projects_root,
+        codex_sessions_root=args.codex_sessions_root,
+    )
+    rendered = render_sessions_report_markdown(report) if args.format == "markdown" else json.dumps(report, indent=2)
+    if args.output:
+        output_path = os.path.abspath(args.output)
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        with open(output_path, "w") as f:
+            f.write(rendered)
+        return
+    print(rendered)
+
+
 def main():
     parser = build_parser()
     args = parser.parse_args()
@@ -741,6 +773,7 @@ def main():
         "build-commit-message": cmd_build_commit_message,
         "build-context": cmd_build_context,
         "build-prompt": cmd_build_prompt,
+        "report-sessions": cmd_report_sessions,
         "create-failure-issue": cmd_create_failure_issue,
         "update-pr-status": cmd_update_pr_status,
         "cleanup-worktree": cmd_cleanup_worktree,

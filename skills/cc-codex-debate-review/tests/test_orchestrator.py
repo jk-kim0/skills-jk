@@ -28,6 +28,7 @@ class FakeCli:
         self.record_agent_sessions_calls = []
         self.record_application_calls = []
         self.build_prompt_calls = []
+        self.record_step_trace_calls = []
         self.create_failure_issue_calls = []
         self.update_pr_status_calls = []
 
@@ -173,6 +174,40 @@ class FakeCli:
             self.state["persistent_agents"]["codex_session_id"] = codex_session_id
         return copy.deepcopy(self.state["persistent_agents"])
 
+    def record_step_trace(self, _state_file, *, round_num, step_name, agent=None, started_at=None, completed_at=None, patch=None):
+        from debate_review.timing import complete_step_trace, start_step_trace, update_step_trace
+
+        self.record_step_trace_calls.append(
+            {
+                "round": round_num,
+                "step_name": step_name,
+                "agent": agent,
+                "started_at": started_at,
+                "completed_at": completed_at,
+                "patch": copy.deepcopy(patch),
+            }
+        )
+        if started_at is not None:
+            start_step_trace(
+                self.state,
+                round_num=round_num,
+                step_name=step_name,
+                agent=agent or "unknown",
+                started_at=started_at,
+                patch=patch,
+            )
+        elif completed_at is not None:
+            complete_step_trace(
+                self.state,
+                round_num=round_num,
+                step_name=step_name,
+                completed_at=completed_at,
+                patch=patch,
+            )
+        else:
+            update_step_trace(self.state, round_num=round_num, step_name=step_name, patch=patch or {})
+        return copy.deepcopy(self.state["rounds"][round_num - 1]["step_traces"][step_name])
+
 
 class ScriptedAdapter:
     def __init__(self, name, *, legacy=None, send=None):
@@ -289,6 +324,71 @@ def test_orchestrator_run_persistent_recovers_missing_handles(monkeypatch, tmp_p
     assert len(cc.create_calls) == 1
     assert len(codex.send_calls) == 1
     assert len(cc.send_calls) == 1
+
+
+def test_dispatch_step_persistent_records_trace_metadata(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    checkpoint_path = tmp_path / "checkpoint.json"
+    monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
+
+    state = _sample_state(agent_mode="persistent")
+    init_round(state, round_num=1, lead_agent="cc", synced_head_sha=state["head"]["last_observed_pr_sha"])
+    state["persistent_agents"]["cc_agent_id"] = "cc-session-1"
+    state["persistent_agents"]["codex_session_id"] = "codex-session-1"
+
+    output_real = tmp_path / "subagents" / "agent-task-1.jsonl"
+    output_real.parent.mkdir(parents=True)
+    output_real.write_text("{}\n")
+    output_link = tmp_path / "task-1.output"
+    output_link.symlink_to(output_real)
+
+    cli = FakeCli(state, state_file=str(tmp_path / "state.json"))
+    cc = ScriptedAdapter(
+        "cc",
+        send=[{
+            "rebuttal_responses": [],
+            "withdrawals": [],
+            "findings": [],
+            "verdict": "no_findings_mergeable",
+            "task_id": "task-1",
+            "tool_use_id": "tool-1",
+            "output_file": str(output_link),
+        }],
+    )
+    orchestrator = DebateReviewOrchestrator(
+        cli=cli,
+        adapters={"codex": ScriptedAdapter("codex"), "cc": cc},
+        skill_root=SKILL_ROOT,
+        config={"codex_sandbox": "danger-full-access"},
+        cleanup_worktree=False,
+    )
+    orchestrator.state_file = cli.state_file
+
+    round_ctx = {
+        "round": 1,
+        "lead_agent": "cc",
+        "cross_verifier": "codex",
+        "worktree_path": f"{state['repo_root']}/.worktrees/debate-pr-{state['pr_number']}",
+        "head_branch": state["head"]["pr_branch_name"],
+    }
+
+    checkpoint = orchestrator._dispatch_and_checkpoint(
+        step="step1",
+        agent="cc",
+        state=state,
+        round_ctx=round_ctx,
+    )
+
+    assert checkpoint["response"]["task_id"] == "task-1"
+    trace = cli.state["rounds"][0]["step_traces"]["step1_lead_review"]
+    assert trace["agent"] == "cc"
+    assert trace["dispatch"]["task_id"] == "task-1"
+    assert trace["dispatch"]["tool_use_id"] == "tool-1"
+    assert trace["dispatch"]["output_file"] == str(output_link)
+    assert trace["runtime_artifacts"]["subagent_log_path"] == str(output_real.resolve())
+    assert trace["persistent_session"]["handle"] == "cc-session-1"
+    assert [span["name"] for span in trace["command_spans"]] == ["build_prompt", "send_message"]
 
 
 def test_route_step3_checkpoint_resumes_remaining_phases(monkeypatch, tmp_path):

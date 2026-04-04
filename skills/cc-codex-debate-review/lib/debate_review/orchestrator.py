@@ -3,6 +3,7 @@ import json
 import os
 import shlex
 import subprocess
+import time
 from dataclasses import dataclass
 
 from debate_review.config import load_config
@@ -13,6 +14,7 @@ from debate_review.context import (
 )
 from debate_review.issue_ops import normalize_message
 from debate_review.prompt import build_initial_prompt
+from debate_review.timing import utc_now_iso
 
 
 class OrchestrationError(RuntimeError):
@@ -122,6 +124,57 @@ def _run_command(command: str, *, cwd=None, stdin_text=None) -> str:
         message = stderr or stdout or f"exit {result.returncode}"
         raise OrchestrationError(f"Command failed: {command}\n{message}")
     return result.stdout
+
+
+def _trace_step_name(step: str) -> str:
+    return {
+        "step1": "step1_lead_review",
+        "step2": "step2_cross_review",
+        "step3": "step3_lead_apply",
+    }.get(step, step)
+
+
+def _find_first_value(payload, keys: tuple[str, ...]) -> str | None:
+    stack = [payload]
+    while stack:
+        current = stack.pop()
+        if isinstance(current, dict):
+            for key in keys:
+                value = current.get(key)
+                if value:
+                    return str(value)
+            stack.extend(current.values())
+        elif isinstance(current, list):
+            stack.extend(current)
+    return None
+
+
+def _maybe_resolve_output_path(path: str | None) -> str | None:
+    if not path:
+        return None
+    expanded = os.path.expanduser(path)
+    try:
+        if os.path.exists(expanded) or os.path.islink(expanded):
+            return os.path.realpath(expanded)
+    except OSError:
+        return None
+    return None
+
+
+def _extract_dispatch_metadata(response: dict) -> dict:
+    task_id = _find_first_value(response, ("task_id", "task-id", "taskId", "agentId"))
+    tool_use_id = _find_first_value(response, ("tool_use_id", "tool-use-id", "toolUseId", "sourceToolUseID"))
+    output_file = _find_first_value(response, ("output_file", "output-file", "outputFile"))
+    metadata = {
+        "task_id": task_id,
+        "tool_use_id": tool_use_id,
+        "output_file": output_file,
+        "response_keys": sorted(response.keys()),
+    }
+    resolved = _maybe_resolve_output_path(output_file)
+    if resolved:
+        metadata["subagent_log_path"] = resolved
+    return metadata
 
 
 @dataclass
@@ -394,6 +447,51 @@ class SubprocessDebateCli:
             args.extend(["--codex-session-id", codex_session_id])
         return self._run_json(*args)
 
+    def record_step_trace(
+        self,
+        state_file: str,
+        *,
+        round_num: int,
+        step_name: str,
+        agent: str | None = None,
+        started_at: str | None = None,
+        completed_at: str | None = None,
+        patch: dict | None = None,
+    ) -> dict:
+        from debate_review.state import load_state, save_state
+        from debate_review.timing import complete_step_trace, start_step_trace, update_step_trace
+
+        state = load_state(state_file)
+        if state is None:
+            raise OrchestrationError(f"No state file found at {state_file}")
+        if started_at is not None:
+            trace = start_step_trace(
+                state,
+                round_num=round_num,
+                step_name=step_name,
+                agent=agent or "unknown",
+                started_at=started_at,
+                patch=patch,
+            )
+        elif completed_at is not None:
+            trace = complete_step_trace(
+                state,
+                round_num=round_num,
+                step_name=step_name,
+                completed_at=completed_at,
+                patch=patch,
+            )
+        else:
+            trace = update_step_trace(
+                state,
+                round_num=round_num,
+                step_name=step_name,
+                patch=patch or {},
+            )
+        if not state.get("dry_run"):
+            save_state(state, state_file)
+        return trace
+
 
 def _read_file(path: str) -> str:
     with open(path) as f:
@@ -663,6 +761,11 @@ class DebateReviewOrchestrator:
 
         if state.get("agent_mode") == "persistent":
             self._ensure_persistent_agents(state, next_step=step)
+            trace_step = _trace_step_name(step)
+            step_started_at = utc_now_iso()
+
+            prompt_started = utc_now_iso()
+            prompt_clock = time.monotonic()
             prompt_result = self.cli.build_prompt(
                 self.state_file,
                 agent=agent,
@@ -670,21 +773,123 @@ class DebateReviewOrchestrator:
                 round_num=round_ctx["round"],
                 extra=extra,
             )
+            prompt_completed = utc_now_iso()
+            prompt_span = {
+                "name": "build_prompt",
+                "started_at": prompt_started,
+                "completed_at": prompt_completed,
+                "duration_seconds": round(time.monotonic() - prompt_clock, 3),
+                "status": "ok",
+            }
             message = _read_file(prompt_result["message_file"])
             os.remove(prompt_result["message_file"])
             sessions = self._load_state()["persistent_agents"]
             handle_key = "cc_agent_id" if agent == "cc" else "codex_session_id"
             handle = sessions.get(handle_key)
+            self.cli.record_step_trace(
+                self.state_file,
+                round_num=round_ctx["round"],
+                step_name=trace_step,
+                agent=agent,
+                started_at=step_started_at,
+                patch={
+                    "persistent_session": {"handle_key": handle_key, "handle": handle},
+                    "runtime_artifacts": {
+                        "prompt_file": prompt_result["prompt_file"],
+                        "message_file": prompt_result["message_file"],
+                    },
+                    "command_spans": [prompt_span],
+                },
+            )
             try:
-                return adapter.send_message(handle, message, worktree_path=round_ctx["worktree_path"])
-            except OrchestrationError:
+                send_started = utc_now_iso()
+                send_clock = time.monotonic()
+                response = adapter.send_message(handle, message, worktree_path=round_ctx["worktree_path"])
+                send_completed = utc_now_iso()
+                send_span = {
+                    "name": "send_message",
+                    "started_at": send_started,
+                    "completed_at": send_completed,
+                    "duration_seconds": round(time.monotonic() - send_clock, 3),
+                    "status": "ok",
+                }
+                dispatch = _extract_dispatch_metadata(response)
+                patch = {"command_spans": [send_span], "dispatch": dispatch}
+                if dispatch.get("subagent_log_path"):
+                    patch["runtime_artifacts"] = {"subagent_log_path": dispatch["subagent_log_path"]}
+                self.cli.record_step_trace(
+                    self.state_file,
+                    round_num=round_ctx["round"],
+                    step_name=trace_step,
+                    completed_at=send_completed,
+                    patch=patch,
+                )
+                return response
+            except OrchestrationError as exc:
+                failed_completed = utc_now_iso()
+                failed_span = {
+                    "name": "send_message",
+                    "started_at": step_started_at,
+                    "completed_at": failed_completed,
+                    "duration_seconds": 0.0,
+                    "status": "error",
+                    "error": str(exc),
+                }
+                self.cli.record_step_trace(
+                    self.state_file,
+                    round_num=round_ctx["round"],
+                    step_name=trace_step,
+                    patch={"command_spans": [failed_span], "dispatch": {"send_error": str(exc)}},
+                )
                 prompt = _recovery_prompt(skill_root=self.skill_root, state=self._load_state(), next_step=step)
+                create_started = utc_now_iso()
+                create_clock = time.monotonic()
                 new_handle = adapter.create_session(prompt, worktree_path=round_ctx["worktree_path"], sandbox=sandbox)
+                create_completed = utc_now_iso()
+                create_span = {
+                    "name": "create_session",
+                    "started_at": create_started,
+                    "completed_at": create_completed,
+                    "duration_seconds": round(time.monotonic() - create_clock, 3),
+                    "status": "ok",
+                }
                 if agent == "cc":
                     self.cli.record_agent_sessions(self.state_file, cc_agent_id=new_handle, codex_session_id=None)
                 else:
                     self.cli.record_agent_sessions(self.state_file, cc_agent_id=None, codex_session_id=new_handle)
-                return adapter.send_message(new_handle, message, worktree_path=round_ctx["worktree_path"])
+                self.cli.record_step_trace(
+                    self.state_file,
+                    round_num=round_ctx["round"],
+                    step_name=trace_step,
+                    patch={
+                        "command_spans": [create_span],
+                        "persistent_session": {"handle_key": handle_key, "handle": new_handle},
+                    },
+                )
+                send_started = utc_now_iso()
+                send_clock = time.monotonic()
+                response = adapter.send_message(new_handle, message, worktree_path=round_ctx["worktree_path"])
+                send_completed = utc_now_iso()
+                send_span = {
+                    "name": "send_message",
+                    "started_at": send_started,
+                    "completed_at": send_completed,
+                    "duration_seconds": round(time.monotonic() - send_clock, 3),
+                    "status": "ok",
+                    "recovered": True,
+                }
+                dispatch = _extract_dispatch_metadata(response)
+                patch = {"command_spans": [send_span], "dispatch": dispatch}
+                if dispatch.get("subagent_log_path"):
+                    patch["runtime_artifacts"] = {"subagent_log_path": dispatch["subagent_log_path"]}
+                self.cli.record_step_trace(
+                    self.state_file,
+                    round_num=round_ctx["round"],
+                    step_name=trace_step,
+                    completed_at=send_completed,
+                    patch=patch,
+                )
+                return response
 
         prompt = _build_legacy_prompt(
             skill_root=self.skill_root,

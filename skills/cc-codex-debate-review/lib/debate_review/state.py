@@ -76,6 +76,7 @@ def create_initial_state(
             "push_verified": False,
             "state_persisted": True,
             "step_timings": {},
+            "current_step_trace": None,
         },
         "issues": {},
         "debate_ledger": [],
