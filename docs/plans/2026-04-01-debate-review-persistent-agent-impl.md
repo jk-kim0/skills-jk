@@ -82,7 +82,7 @@
 - ~~CLI subcommand routing 자동화~~ ✅
 - ~~terminal 시 comment / cleanup 호출까지 연결~~ ✅
 
-### Workstream C: Operational follow-through automation ✅
+### Workstream C: Operational follow-through automation ⏳
 
 `#170` (merged) — CLI 명령 구현, `#172` (open) — orchestrator 통합.
 
