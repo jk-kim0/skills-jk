@@ -187,6 +187,14 @@ _REQUIRED_ROUND = [
     "round", "status", "step1", "step2", "step3", "step4",
 ]
 
+_REQUIRED_ISSUE = [
+    "issue_id", "issue_key", "opened_by", "introduced_in_round", "criterion",
+    "file", "line", "anchor", "severity", "consensus_status",
+    "application_status", "accepted_by", "rejected_by", "applied_by",
+    "application_commit_sha", "consensus_reason", "reports", "created_at",
+    "updated_at",
+]
+
 
 def validate_state(state) -> None:
     """Validate that a loaded state dict has the required structure.
@@ -216,6 +224,14 @@ def validate_state(state) -> None:
 
     if not isinstance(state["issues"], dict):
         raise StateCorruptedError("issues must be a dict")
+    for issue_id, issue in state["issues"].items():
+        if not isinstance(issue, dict):
+            raise StateCorruptedError(f"issues[{issue_id}] must be a dict")
+        missing_issue = [f for f in _REQUIRED_ISSUE if f not in issue]
+        if missing_issue:
+            raise StateCorruptedError(
+                f"Missing issue fields in issues[{issue_id}]: {', '.join(missing_issue)}"
+            )
     if not isinstance(state["rounds"], list):
         raise StateCorruptedError("rounds must be a list")
     for idx, round_ in enumerate(state["rounds"]):

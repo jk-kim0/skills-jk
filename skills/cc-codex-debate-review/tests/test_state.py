@@ -367,6 +367,28 @@ def test_validate_state_rejects_issues_not_dict(sample_state):
         validate_state(sample_state)
 
 
+def test_validate_state_rejects_issue_entry_not_dict(sample_state):
+    sample_state["issues"] = {"isu_001": None}
+    with pytest.raises(StateCorruptedError, match=r"issues\[isu_001\].*dict"):
+        validate_state(sample_state)
+
+
+def test_validate_state_rejects_issue_entry_missing_required_field(sample_state):
+    sample_state["issues"] = {
+        "isu_001": {
+            "issue_id": "isu_001",
+            "opened_by": "codex",
+            "consensus_status": "open",
+            "application_status": "pending",
+            "accepted_by": ["codex"],
+            "reports": [],
+        }
+    }
+    del sample_state["issues"]["isu_001"]["consensus_status"]
+    with pytest.raises(StateCorruptedError, match=r"issues\[isu_001\].*consensus_status"):
+        validate_state(sample_state)
+
+
 def test_validate_state_rejects_rounds_not_list(sample_state):
     sample_state["rounds"] = {}
     with pytest.raises(StateCorruptedError, match="rounds.*list"):
