@@ -24,8 +24,8 @@
 - `build-prompt` init 경로 temp file 누수 수정 + CLI-level 테스트 추가 (`#168` debate-review 결과)
 - Step 3 prompt/routing에 `withdrawals` 필드 추가 (`#169`)
 - operational follow-through CLI 명령 추가: `create-failure-issue`, `update-pr-status`, `cleanup-worktree` (`#170`)
-- orchestration runner: round loop, agent dispatch, checkpoint/recovery, terminal processing (`#171`, open)
-- orchestrator-follow-through 통합: `_terminal()` / `_mark_failed()` 경로에 follow-through 호출 (`#172`, open → `#171` 대상)
+- orchestration runner: round loop, agent dispatch, checkpoint/recovery, terminal processing (`#171`, merged)
+- orchestrator-follow-through 통합: `_terminal()` / `_mark_failed()` 경로에 follow-through 호출 (`#172`, open)
 
 ## Implemented Foundation
 
@@ -76,7 +76,7 @@
 
 ### Workstream B: Repo-owned orchestration path ⏳
 
-`#171` (open PR) — Python orchestration runner 구현.
+`#171` (merged) — Python orchestration runner 구현.
 
 - ~~round loop 실행 경로 추가~~ ✅
 - ~~agent 생성 / resume / retry / recovery 구현~~ ✅
