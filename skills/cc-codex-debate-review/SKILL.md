@@ -19,7 +19,7 @@ CC is the orchestrator. Both CC and Codex are invoked as sub-agents using the sa
 CC (orchestrator)
   ├─ $DEBATE_REVIEW_BIN <subcommand>  → state management (CLI)
   ├─ codex exec < agent-*.md          → Codex sub-agent (odd lead, even cross)
-  └─ CC Agent(prompt=agent-*.md)      → CC sub-agent (even lead, odd cross)
+  └─ claude -p < agent-*.md           → CC sub-agent (even lead, odd cross)
 ```
 
 ## When to Use
@@ -130,11 +130,20 @@ CODEX_PROMPT_FILE=$(echo "$INIT_RESULT" | jq -r '.prompt_file')
 Prompt files are persisted at `~/.claude/debate-state/prompts/{owner}-{repo}-{pr}-{agent}.md`. Each subsequent step appends to the same file.
 
 **CC Agent:**
+```bash
+CC_INIT_LOG=$(mktemp /tmp/debate-cc-init-XXXXXX)
+cd "$WORKTREE_PATH"
+claude -p --dangerously-skip-permissions --output-format stream-json --verbose \
+  < "$CC_PROMPT_FILE" | tee "$CC_INIT_LOG"
+CC_AGENT_ID=$(jq -r 'select(.type == "system" and .subtype == "init") | .session_id' "$CC_INIT_LOG" | head -n 1)
+if [ -z "$CC_AGENT_ID" ]; then
+  echo "Failed to capture CC_AGENT_ID from Claude Code JSON output" >&2
+  exit 1
+fi
+rm -f "$CC_INIT_LOG"
 ```
-FILLED_INITIAL_PROMPT=$(cat "$CC_PROMPT_FILE")
-Agent(prompt="$FILLED_INITIAL_PROMPT", description="debate-review CC agent")
-→ store CC_AGENT_ID
-```
+
+The `system/init` event is emitted at the start of `claude -p --output-format stream-json`; use its `session_id` as `CC_AGENT_ID` for later `--resume` calls.
 
 **Codex Agent:**
 ```bash
@@ -196,13 +205,13 @@ Is this a fresh session (STATUS=created)?
     Are both handles non-empty?
       NO → handles missing. Go to Recovery.
       YES → attempt first step dispatch with existing handles.
-            If SendMessage/resume fails → Go to Recovery.
+            If resume fails → Go to Recovery.
             If succeeds → Set AGENTS_READY=true.
 ```
 
 **Recovery**: Create replacement agent(s) using the recovery prompt from **Persistent Mode Restart** below. After creation, persist new IDs with `record-agent-sessions`. Set `AGENTS_READY=true`.
 
-Once `AGENTS_READY=true`, all subsequent step dispatches use `SendMessage`/`codex exec resume` for the remainder of the session.
+Once `AGENTS_READY=true`, all subsequent step dispatches use `claude -p --resume`/`codex exec resume` for the remainder of the session.
 
 ---
 
@@ -286,7 +295,7 @@ Skip if no previous round exists or no rebuttals are pending.
    - `OPEN_ISSUES_JSON`, `DEBATE_LEDGER_TEXT` → from `"$DEBATE_REVIEW_BIN" show --state-file "$STATE_FILE" --json`
    - `PENDING_REBUTTALS_JSON` → previous round Step 3 output, items where `decision=maintain`. If round 1, use `[]`. On restart/recovery when the previous agent output is unavailable, rebuild it from `show --json` using the previous round's `step3.rebuttals` plus `issues[*].reports` matched by `report_id`.
 2. Dispatch to lead agent:
-   - CC: `SendMessage(to=CC_AGENT_ID, message=step_message)`
+   - CC: write `$step_message` to a temp file, then `cd "$WORKTREE_PATH" && claude -p --dangerously-skip-permissions --resume "$CC_AGENT_ID" --output-format json - < "$STEP_FILE"`
    - Codex: write `$step_message` to a temp file, then `cd "$WORKTREE_PATH" && codex exec resume "$CODEX_SESSION_ID" - < "$STEP_FILE"`
 3. Parse JSON response (retry up to 3 times on failure)
 
@@ -391,7 +400,7 @@ The cross-verifier performs two tasks:
    - `LEAD_FINDINGS_JSON` → this round's Step 1 agent output (`findings` array verbatim). On restart/recovery when that output is unavailable, rebuild it from `show --json` using the current round's `step1.report_ids` plus `issues[*].reports` matched by `report_id`.
    - `DEBATE_LEDGER_TEXT` → from `"$DEBATE_REVIEW_BIN" show --state-file "$STATE_FILE" --json`
 2. Dispatch to cross-verifier agent:
-   - CC: `SendMessage(to=CC_AGENT_ID, message=step_message)`
+   - CC: write `$step_message` to a temp file, then `cd "$WORKTREE_PATH" && claude -p --dangerously-skip-permissions --resume "$CC_AGENT_ID" --output-format json - < "$STEP_FILE"`
    - Codex: write `$step_message` to a temp file, then `cd "$WORKTREE_PATH" && codex exec resume "$CODEX_SESSION_ID" - < "$STEP_FILE"`
 3. Parse JSON response (retry up to 3 times on failure)
 
@@ -466,7 +475,7 @@ The lead agent edits files directly in the worktree, commits, and pushes. There 
    - `APPLICABLE_ISSUES_JSON` → from `show --json`, filtered: `consensus_status=accepted` AND `application_status in (pending, failed)`. Empty `[]` when `IS_FORK=true` or `DRY_RUN=true`.
    - Include `WORKTREE_PATH`, `DEBATE_REVIEW_BIN`, `STATE_FILE`, `HEAD_BRANCH`, `ROUND` literals in the message.
 2. Dispatch to lead agent:
-   - CC: `SendMessage(to=CC_AGENT_ID, message=step_message)`
+   - CC: write `$step_message` to a temp file, then `cd "$WORKTREE_PATH" && claude -p --dangerously-skip-permissions --resume "$CC_AGENT_ID" --output-format json - < "$STEP_FILE"`
    - Codex: write `$step_message` to a temp file, then `cd "$WORKTREE_PATH" && codex exec resume "$CODEX_SESSION_ID" - < "$STEP_FILE"`
 3. Parse JSON response (retry up to 3 times on failure)
 
@@ -716,9 +725,9 @@ The `resume_context` object provides additional details (e.g., `clean_pass`, `co
 When `AGENT_MODE=persistent` and a session is resumed:
 
 - Load `persistent_agents.cc_agent_id` / `persistent_agents.codex_session_id` from the state file (or `show --json`) first.
-- **Agent still alive** (persisted handle exists and SendMessage/resume succeeds): Continue from the journal step with the existing agent. No special recovery needed.
+- **Agent still alive** (persisted handle exists and resume succeeds): Continue from the journal step with the existing agent. No special recovery needed.
 - **Missing handle** (`persistent_agents` field absent or either ID is null): Treat as agent dead and go to recovery immediately.
-- **Agent dead** (SendMessage/resume fails): Create a new agent with a recovery prompt that includes the debate state so far:
+- **Agent dead** (resume fails): Create a new agent with a recovery prompt that includes the debate state so far:
 
 ```markdown
 # Debate Review Agent (Recovered): {REPO} #{PR_NUMBER}
@@ -796,8 +805,12 @@ rm -f "$PROMPT_FILE"
 ```
 
 **CC sub-agent:**
-```
-Agent(prompt="$FILLED_PROMPT", description="debate-review step N")
+```bash
+cd "$WORKTREE_PATH"
+PROMPT_FILE=$(mktemp /tmp/debate-prompt-XXXXXX)
+printf '%s' "$FILLED_PROMPT" > "$PROMPT_FILE"
+claude -p --dangerously-skip-permissions --output-format json < "$PROMPT_FILE"
+rm -f "$PROMPT_FILE"
 ```
 
 #### Legacy Placeholder Derivation
@@ -821,11 +834,10 @@ The CLI returns `prompt_file` (cumulative) and `message_file` (this step only). 
 
 **CC Agent dispatch:**
 ```bash
-STEP_MESSAGE=$(cat "$MSG_FILE")
-SendMessage(to=CC_AGENT_ID, message=STEP_MESSAGE)
+cd "$WORKTREE_PATH"
+claude -p --dangerously-skip-permissions --resume "$CC_AGENT_ID" --output-format json < "$MSG_FILE"
 rm -f "$MSG_FILE"
 ```
-Requires: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`
 
 **Codex Agent dispatch:**
 ```bash
