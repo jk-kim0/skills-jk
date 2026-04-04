@@ -4,6 +4,10 @@ import tempfile
 from datetime import datetime, timezone
 
 
+class StateCorruptedError(Exception):
+    """Raised when a state file is corrupted or structurally invalid."""
+
+
 def default_persistent_agents() -> dict:
     return {
         "cc_agent_id": None,
@@ -164,11 +168,93 @@ def state_file_path(repo, pr_number, dry_run=False) -> str:
     return os.path.expanduser(f"~/.claude/debate-state/{filename}")
 
 
-def load_state(path) -> dict | None:
+_REQUIRED_TOP_LEVEL = [
+    "repo", "repo_root", "pr_number", "is_fork", "dry_run",
+    "status", "current_round", "max_rounds", "started_at",
+    "head", "journal", "issues", "rounds",
+]
+
+_REQUIRED_HEAD = [
+    "initial_sha", "last_observed_pr_sha", "pr_branch_name", "target_ref",
+]
+
+_REQUIRED_JOURNAL = [
+    "round", "step", "applied_issue_ids", "failed_application_issue_ids",
+    "commit_sha", "push_verified", "state_persisted",
+]
+
+_REQUIRED_ROUND = [
+    "round", "status", "step1", "step2", "step3", "step4",
+]
+
+_REQUIRED_ISSUE = [
+    "issue_id", "issue_key", "opened_by", "introduced_in_round", "criterion",
+    "file", "line", "anchor", "severity", "consensus_status",
+    "application_status", "accepted_by", "rejected_by", "applied_by",
+    "application_commit_sha", "consensus_reason", "reports", "created_at",
+    "updated_at",
+]
+
+
+def validate_state(state) -> None:
+    """Validate that a loaded state dict has the required structure.
+
+    Raises StateCorruptedError if validation fails.
+    """
+    if not isinstance(state, dict):
+        raise StateCorruptedError("State is not a JSON object")
+
+    missing = [f for f in _REQUIRED_TOP_LEVEL if f not in state]
+    if missing:
+        raise StateCorruptedError(f"Missing top-level fields: {', '.join(missing)}")
+
+    head = state["head"]
+    if not isinstance(head, dict):
+        raise StateCorruptedError("head must be a dict")
+    missing_head = [f for f in _REQUIRED_HEAD if f not in head]
+    if missing_head:
+        raise StateCorruptedError(f"Missing head fields: {', '.join(missing_head)}")
+
+    journal = state["journal"]
+    if not isinstance(journal, dict):
+        raise StateCorruptedError("journal must be a dict")
+    missing_journal = [f for f in _REQUIRED_JOURNAL if f not in journal]
+    if missing_journal:
+        raise StateCorruptedError(f"Missing journal fields: {', '.join(missing_journal)}")
+
+    if not isinstance(state["issues"], dict):
+        raise StateCorruptedError("issues must be a dict")
+    for issue_id, issue in state["issues"].items():
+        if not isinstance(issue, dict):
+            raise StateCorruptedError(f"issues[{issue_id}] must be a dict")
+        missing_issue = [f for f in _REQUIRED_ISSUE if f not in issue]
+        if missing_issue:
+            raise StateCorruptedError(
+                f"Missing issue fields in issues[{issue_id}]: {', '.join(missing_issue)}"
+            )
+    if not isinstance(state["rounds"], list):
+        raise StateCorruptedError("rounds must be a list")
+    for idx, round_ in enumerate(state["rounds"]):
+        if not isinstance(round_, dict):
+            raise StateCorruptedError(f"rounds[{idx}] must be a dict")
+        missing_round = [f for f in _REQUIRED_ROUND if f not in round_]
+        if missing_round:
+            raise StateCorruptedError(
+                f"Missing round fields in rounds[{idx}]: {', '.join(missing_round)}"
+            )
+
+
+def load_state(path, *, validate=True) -> dict | None:
     if not os.path.exists(path):
         return None
     with open(path) as f:
-        return json.load(f)
+        try:
+            state = json.load(f)
+        except json.JSONDecodeError as e:
+            raise StateCorruptedError(f"JSON decode error in {path}: {e}") from e
+    if validate:
+        validate_state(state)
+    return state
 
 
 def save_state(state, path):
