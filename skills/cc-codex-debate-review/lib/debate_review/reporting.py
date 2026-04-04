@@ -804,3 +804,176 @@ def render_sessions_report_markdown(report: dict) -> str:
             lines.append("")
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _format_duration(seconds: float | None) -> str:
+    """Format seconds as 'Xm Ys' string."""
+    if seconds is None:
+        return "-"
+    minutes = int(seconds) // 60
+    secs = int(seconds) % 60
+    if minutes > 0:
+        return f"{minutes}m {secs}s"
+    return f"{secs}s"
+
+
+def build_final_summary(state: dict) -> dict:
+    """Build a final summary dict from session state for user-facing report.
+
+    Returns dict with:
+    - pr_url: GitHub PR URL
+    - outcome: final outcome string
+    - total_rounds: number of rounds completed
+    - total_duration: formatted total duration
+    - round_timings: list of {round, lead_agent, duration} dicts
+    - prompt_files: dict of agent -> prompt file path
+    - state_file: state file path (added by caller)
+    """
+    repo = state.get("repo", "")
+    pr_number = state.get("pr_number", "")
+    pr_url = f"https://github.com/{repo}/pull/{pr_number}" if repo and pr_number else None
+
+    started = _parse_iso(state.get("started_at"))
+    finished = _parse_iso(state.get("finished_at"))
+    total_secs = _seconds(started, finished)
+
+    round_timings = []
+    for round_ in state.get("rounds", []):
+        r_started = _parse_iso(round_.get("started_at"))
+        r_completed = _parse_iso(round_.get("completed_at"))
+        r_secs = _seconds(r_started, r_completed)
+        round_timings.append({
+            "round": round_.get("round"),
+            "lead_agent": round_.get("lead_agent", "unknown"),
+            "duration_seconds": r_secs,
+            "duration": _format_duration(r_secs),
+        })
+
+    return {
+        "pr_url": pr_url,
+        "outcome": state.get("final_outcome", "unknown"),
+        "total_rounds": state.get("current_round", 0),
+        "total_duration": _format_duration(total_secs),
+        "total_duration_seconds": total_secs,
+        "round_timings": round_timings,
+    }
+
+
+def export_debate_markdown(state: dict, output_path: str) -> str:
+    """Export the full debate review session as a markdown file.
+
+    Returns the output file path.
+    """
+    repo = state.get("repo", "")
+    pr_number = state.get("pr_number", "")
+    pr_url = f"https://github.com/{repo}/pull/{pr_number}" if repo and pr_number else ""
+
+    lines = [
+        f"# Debate Review: {repo}#{pr_number}",
+        "",
+        f"- **PR**: {pr_url}",
+        f"- **Outcome**: {state.get('final_outcome', 'unknown')}",
+        f"- **Rounds**: {state.get('current_round', 0)}",
+    ]
+
+    started = _parse_iso(state.get("started_at"))
+    finished = _parse_iso(state.get("finished_at"))
+    total_secs = _seconds(started, finished)
+    if started:
+        lines.append(f"- **Started**: {state.get('started_at', '')}")
+    if finished:
+        lines.append(f"- **Finished**: {state.get('finished_at', '')}")
+    if total_secs is not None:
+        lines.append(f"- **Total Duration**: {_format_duration(total_secs)}")
+
+    # Round timing summary
+    lines.extend(["", "## Round Summary", ""])
+    lines.append("| Round | Lead Agent | Duration |")
+    lines.append("| ---: | --- | --- |")
+    for round_ in state.get("rounds", []):
+        r_started = _parse_iso(round_.get("started_at"))
+        r_completed = _parse_iso(round_.get("completed_at"))
+        r_secs = _seconds(r_started, r_completed)
+        lines.append(
+            f"| {round_.get('round', '?')} | {round_.get('lead_agent', '?')} | {_format_duration(r_secs)} |"
+        )
+
+    # Debate ledger
+    ledger = state.get("debate_ledger", [])
+    if ledger:
+        lines.extend(["", "## Debate Ledger", ""])
+        for entry in ledger:
+            status = entry.get("status", "unknown")
+            summary = entry.get("summary", "")
+            issue_id = entry.get("issue_id", "")
+            lines.append(f"- **{issue_id}** [{status}] {summary}")
+
+    # Issues
+    issues = state.get("issues", {})
+    if issues:
+        applied = [i for i in issues.values() if i.get("application_status") == "applied"]
+        recommended = [i for i in issues.values() if i.get("application_status") == "recommended"]
+        withdrawn = [i for i in issues.values() if i.get("consensus_status") == "withdrawn"]
+        open_issues = [i for i in issues.values()
+                       if i.get("consensus_status") == "open"
+                       or (i.get("consensus_status") == "accepted"
+                           and i.get("application_status") not in ("applied", "recommended"))]
+
+        if applied:
+            lines.extend(["", "## Applied Fixes", ""])
+            for issue in applied:
+                msg = issue.get("reports", [{}])[0].get("message", "") if issue.get("reports") else ""
+                lines.append(f"- `{issue.get('file', '?')}:{issue.get('line', '?')}` — {msg}")
+
+        if recommended:
+            lines.extend(["", "## Recommended Fixes", ""])
+            for issue in recommended:
+                msg = issue.get("reports", [{}])[0].get("message", "") if issue.get("reports") else ""
+                lines.append(f"- `{issue.get('file', '?')}:{issue.get('line', '?')}` — {msg}")
+
+        if withdrawn:
+            lines.extend(["", "## Withdrawn Findings", ""])
+            for issue in withdrawn:
+                msg = issue.get("reports", [{}])[0].get("message", "") if issue.get("reports") else ""
+                reason = issue.get("consensus_reason", "")
+                lines.append(f"- `{issue.get('file', '?')}:{issue.get('line', '?')}` — {msg}")
+                if reason:
+                    lines.append(f"  - Reason: {reason}")
+
+        if open_issues:
+            lines.extend(["", "## Unresolved Issues", ""])
+            for issue in open_issues:
+                msg = issue.get("reports", [{}])[0].get("message", "") if issue.get("reports") else ""
+                lines.append(f"- `{issue.get('file', '?')}:{issue.get('line', '?')}` — {msg}")
+
+    # Round details
+    for round_ in state.get("rounds", []):
+        round_num = round_.get("round", "?")
+        lines.extend(["", f"## Round {round_num} Details", ""])
+        lines.append(f"- **Lead**: {round_.get('lead_agent', '?')}")
+        lines.append(f"- **Status**: {round_.get('status', '?')}")
+        lines.append(f"- **Clean pass**: {round_.get('clean_pass', '?')}")
+
+        r_started = _parse_iso(round_.get("started_at"))
+        r_completed = _parse_iso(round_.get("completed_at"))
+        r_secs = _seconds(r_started, r_completed)
+        lines.append(f"- **Duration**: {_format_duration(r_secs)}")
+
+        # Step timings
+        step_traces = round_.get("step_traces", {})
+        if step_traces:
+            lines.extend(["", "| Step | Agent | Duration |", "| --- | --- | --- |"])
+            for step_name in sorted(step_traces.keys(), key=_step_order_key):
+                trace = step_traces[step_name]
+                s_start = _parse_iso(trace.get("started_at"))
+                s_end = _parse_iso(trace.get("completed_at"))
+                s_secs = _seconds(s_start, s_end)
+                lines.append(f"| {step_name} | {trace.get('agent', '?')} | {_format_duration(s_secs)} |")
+
+    lines.append("")
+    content = "\n".join(lines)
+
+    with open(output_path, "w") as f:
+        f.write(content)
+
+    return output_path

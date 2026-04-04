@@ -453,6 +453,87 @@ def test_generate_sessions_report_uses_trace_session_handle_for_codex_matching(t
     assert step["agent_breakdown"]["github_api_seconds"] == 0.0
 
 
+def test_build_final_summary_includes_pr_url_and_round_timings():
+    from debate_review.reporting import build_final_summary
+
+    state = create_initial_state(
+        repo="owner/repo",
+        repo_root="/tmp/repo",
+        pr_number=42,
+        is_fork=False,
+        head_sha="abc123",
+        pr_branch_name="feat/test",
+        agent_mode="persistent",
+    )
+    state["started_at"] = "2026-04-04T00:00:00+00:00"
+    state["finished_at"] = "2026-04-04T00:05:30+00:00"
+    state["final_outcome"] = "consensus"
+    state["current_round"] = 2
+
+    init_round(state, round_num=1, lead_agent="codex", synced_head_sha="abc123")
+    state["rounds"][0]["started_at"] = "2026-04-04T00:00:10+00:00"
+    state["rounds"][0]["completed_at"] = "2026-04-04T00:02:44+00:00"
+
+    init_round(state, round_num=2, lead_agent="cc", synced_head_sha="abc123")
+    state["rounds"][1]["started_at"] = "2026-04-04T00:02:50+00:00"
+    state["rounds"][1]["completed_at"] = "2026-04-04T00:05:25+00:00"
+
+    summary = build_final_summary(state)
+    assert summary["pr_url"] == "https://github.com/owner/repo/pull/42"
+    assert summary["outcome"] == "consensus"
+    assert summary["total_rounds"] == 2
+    assert summary["total_duration"] == "5m 30s"
+    assert len(summary["round_timings"]) == 2
+    assert summary["round_timings"][0]["round"] == 1
+    assert summary["round_timings"][0]["lead_agent"] == "codex"
+    assert summary["round_timings"][0]["duration"] == "2m 34s"
+    assert summary["round_timings"][1]["round"] == 2
+    assert summary["round_timings"][1]["duration"] == "2m 35s"
+
+
+def test_export_debate_markdown_creates_file(tmp_path):
+    from debate_review.reporting import export_debate_markdown
+
+    state = create_initial_state(
+        repo="owner/repo",
+        repo_root="/tmp/repo",
+        pr_number=42,
+        is_fork=False,
+        head_sha="abc123",
+        pr_branch_name="feat/test",
+        agent_mode="persistent",
+    )
+    state["started_at"] = "2026-04-04T00:00:00+00:00"
+    state["finished_at"] = "2026-04-04T00:03:00+00:00"
+    state["final_outcome"] = "consensus"
+    state["current_round"] = 1
+
+    init_round(state, round_num=1, lead_agent="codex", synced_head_sha="abc123")
+    state["rounds"][0]["started_at"] = "2026-04-04T00:00:10+00:00"
+    state["rounds"][0]["completed_at"] = "2026-04-04T00:02:50+00:00"
+
+    output_path = str(tmp_path / "debate.md")
+    result = export_debate_markdown(state, output_path)
+    assert result == output_path
+
+    content = (tmp_path / "debate.md").read_text()
+    assert "# Debate Review: owner/repo#42" in content
+    assert "https://github.com/owner/repo/pull/42" in content
+    assert "**Outcome**: consensus" in content
+    assert "3m 0s" in content
+    assert "| 1 | codex |" in content
+
+
+def test_format_duration():
+    from debate_review.reporting import _format_duration
+
+    assert _format_duration(None) == "-"
+    assert _format_duration(45.0) == "45s"
+    assert _format_duration(0.0) == "0s"
+    assert _format_duration(125.0) == "2m 5s"
+    assert _format_duration(3600.0) == "60m 0s"
+
+
 def test_generate_sessions_report_returns_empty_when_state_dir_is_missing(tmp_path):
     report = generate_sessions_report(
         state_dir=tmp_path / "missing-state-dir",
