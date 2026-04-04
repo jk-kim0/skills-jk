@@ -309,3 +309,156 @@ def test_generate_sessions_report_includes_codex_breakdown_and_findings_statisti
     assert "Median" in markdown
     assert "Codex" in markdown
     assert "## Appendix" in markdown
+
+
+def test_generate_sessions_report_uses_trace_session_handle_for_codex_matching(tmp_path):
+    state_dir = tmp_path / "debate-state"
+    claude_projects_root = tmp_path / "claude-projects"
+    codex_sessions_root = tmp_path / "codex-sessions"
+    state_dir.mkdir()
+    claude_projects_root.mkdir()
+    codex_sessions_root.mkdir(parents=True)
+
+    state = create_initial_state(
+        repo="owner/repo",
+        repo_root="/tmp/repo",
+        pr_number=789,
+        is_fork=False,
+        head_sha="abc789",
+        pr_branch_name="feat/recovery",
+        agent_mode="persistent",
+    )
+    state["persistent_agents"]["codex_session_id"] = "session-new"
+    init_round(state, round_num=1, lead_agent="codex", synced_head_sha="abc789")
+    start_step_trace(
+        state,
+        round_num=1,
+        step_name="step1_lead_review",
+        agent="codex",
+        started_at="2026-04-04T00:00:00+00:00",
+        patch={"persistent_session": {"handle": "session-old"}},
+    )
+    complete_step_trace(
+        state,
+        round_num=1,
+        step_name="step1_lead_review",
+        completed_at="2026-04-04T00:01:00+00:00",
+    )
+    state["finished_at"] = "2026-04-04T00:02:00+00:00"
+    save_state(state, str(state_dir / "owner-repo-789.json"))
+
+    old_log = codex_sessions_root / "2026" / "04" / "04" / "rollout-session-old.jsonl"
+    old_log.parent.mkdir(parents=True, exist_ok=True)
+    old_log.write_text(
+        "\n".join(
+            [
+                json.dumps({"timestamp": "2026-04-04T00:00:00Z", "type": "session_meta", "payload": {"id": "session-old"}}),
+                json.dumps({"timestamp": "2026-04-04T00:00:01Z", "type": "event_msg", "payload": {"type": "task_started", "turn_id": "turn-1"}}),
+                json.dumps({"timestamp": "2026-04-04T00:00:01Z", "type": "turn_context", "payload": {"turn_id": "turn-1"}}),
+                json.dumps({
+                    "timestamp": "2026-04-04T00:00:02Z",
+                    "type": "response_item",
+                    "payload": {
+                        "type": "message",
+                        "role": "user",
+                        "content": [{"type": "input_text", "text": "# Debate Review Agent: owner/repo #789"}],
+                    },
+                }),
+                json.dumps({
+                    "timestamp": "2026-04-04T00:00:03Z",
+                    "type": "response_item",
+                    "payload": {
+                        "type": "message",
+                        "role": "user",
+                        "content": [{"type": "input_text", "text": "## Round 1 — Lead Review"}],
+                    },
+                }),
+                json.dumps({
+                    "timestamp": "2026-04-04T00:00:10Z",
+                    "type": "response_item",
+                    "payload": {
+                        "type": "function_call",
+                        "name": "exec_command",
+                        "arguments": json.dumps({"cmd": "rg TODO src"}),
+                        "call_id": "call-old",
+                    },
+                }),
+                json.dumps({
+                    "timestamp": "2026-04-04T00:00:20Z",
+                    "type": "response_item",
+                    "payload": {"type": "function_call_output", "call_id": "call-old", "output": "ok"},
+                }),
+                json.dumps({"timestamp": "2026-04-04T00:00:40Z", "type": "event_msg", "payload": {"type": "task_complete", "turn_id": "turn-1"}}),
+            ]
+        )
+        + "\n"
+    )
+
+    new_log = codex_sessions_root / "2026" / "04" / "05" / "rollout-session-new.jsonl"
+    new_log.parent.mkdir(parents=True, exist_ok=True)
+    new_log.write_text(
+        "\n".join(
+            [
+                json.dumps({"timestamp": "2026-04-04T00:00:00Z", "type": "session_meta", "payload": {"id": "session-new"}}),
+                json.dumps({"timestamp": "2026-04-04T00:00:01Z", "type": "event_msg", "payload": {"type": "task_started", "turn_id": "turn-1"}}),
+                json.dumps({"timestamp": "2026-04-04T00:00:01Z", "type": "turn_context", "payload": {"turn_id": "turn-1"}}),
+                json.dumps({
+                    "timestamp": "2026-04-04T00:00:02Z",
+                    "type": "response_item",
+                    "payload": {
+                        "type": "message",
+                        "role": "user",
+                        "content": [{"type": "input_text", "text": "# Debate Review Agent: owner/repo #789"}],
+                    },
+                }),
+                json.dumps({
+                    "timestamp": "2026-04-04T00:00:03Z",
+                    "type": "response_item",
+                    "payload": {
+                        "type": "message",
+                        "role": "user",
+                        "content": [{"type": "input_text", "text": "## Round 1 — Lead Review"}],
+                    },
+                }),
+                json.dumps({
+                    "timestamp": "2026-04-04T00:00:10Z",
+                    "type": "response_item",
+                    "payload": {
+                        "type": "function_call",
+                        "name": "exec_command",
+                        "arguments": json.dumps({"cmd": "gh pr diff 789 --repo owner/repo"}),
+                        "call_id": "call-new",
+                    },
+                }),
+                json.dumps({
+                    "timestamp": "2026-04-04T00:00:25Z",
+                    "type": "response_item",
+                    "payload": {"type": "function_call_output", "call_id": "call-new", "output": "ok"},
+                }),
+                json.dumps({"timestamp": "2026-04-04T00:00:50Z", "type": "event_msg", "payload": {"type": "task_complete", "turn_id": "turn-1"}}),
+            ]
+        )
+        + "\n"
+    )
+
+    report = generate_sessions_report(
+        state_dir=state_dir,
+        claude_projects_root=claude_projects_root,
+        codex_sessions_root=codex_sessions_root,
+    )
+
+    step = report["sessions"][0]["rounds"][0]["steps"]["step1_lead_review"]
+    assert step["artifact_path"] == str(old_log)
+    assert step["agent_breakdown"]["local_file_seconds"] == 10.0
+    assert step["agent_breakdown"]["github_api_seconds"] == 0.0
+
+
+def test_generate_sessions_report_returns_empty_when_state_dir_is_missing(tmp_path):
+    report = generate_sessions_report(
+        state_dir=tmp_path / "missing-state-dir",
+        claude_projects_root=tmp_path / "claude-projects",
+        codex_sessions_root=tmp_path / "codex-sessions",
+    )
+
+    assert report["totals"]["sessions"] == 0
+    assert report["sessions"] == []

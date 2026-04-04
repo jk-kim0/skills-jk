@@ -33,6 +33,8 @@ def _seconds(start: datetime | None, end: datetime | None) -> float | None:
 
 
 def _iter_state_files(state_dir: Path):
+    if not state_dir.exists() or not state_dir.is_dir():
+        return
     for path in sorted(state_dir.iterdir()):
         if not path.is_file():
             continue
@@ -471,9 +473,10 @@ def _summarize_round_steps(
             if matched:
                 _apply_matched_step(step_summary, matched, "cc")
         elif trace.get("agent") == "codex":
+            trace_session_id = trace.get("persistent_session", {}).get("handle")
             matched = _match_codex_trace(
                 codex_index,
-                session_id=state.get("persistent_agents", {}).get("codex_session_id"),
+                session_id=trace_session_id or state.get("persistent_agents", {}).get("codex_session_id"),
                 repo=session["repo"],
                 pr_number=session["pr_number"],
                 round_num=round_data["round"],
