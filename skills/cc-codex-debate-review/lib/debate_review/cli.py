@@ -25,6 +25,7 @@ from debate_review.error_log import save_error_log
 from debate_review.follow_through import create_failure_issue, update_pr_status, cleanup_worktree
 from debate_review.state import (
     append_ledger,
+    StateCorruptedError,
     create_initial_state,
     determine_next_step,
     ensure_persistent_agents,
@@ -754,7 +755,7 @@ def main():
     if args.command in commands:
         try:
             commands[args.command](args)
-        except (RuntimeError, ValueError) as e:
+        except (RuntimeError, ValueError, StateCorruptedError) as e:
             _error_exit(str(e))
     else:
         parser.print_help()

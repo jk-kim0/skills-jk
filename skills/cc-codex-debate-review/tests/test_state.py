@@ -4,6 +4,7 @@ import os
 import pytest
 
 from debate_review.state import (
+    StateCorruptedError,
     append_ledger,
     create_initial_state,
     determine_next_step,
@@ -11,6 +12,7 @@ from debate_review.state import (
     mark_failed,
     save_state,
     state_file_path,
+    validate_state,
 )
 
 
@@ -289,3 +291,94 @@ def test_next_step_from_step3_complete(sample_state):
 def test_next_step_from_step4(sample_state):
     sample_state["journal"]["step"] = "step4_settle"
     assert determine_next_step(sample_state)["next_step"] == "step0"
+
+
+# validate_state tests
+
+def test_validate_state_accepts_valid_state(sample_state):
+    validate_state(sample_state)  # should not raise
+
+
+def test_validate_state_rejects_non_dict():
+    with pytest.raises(StateCorruptedError, match="not a JSON object"):
+        validate_state([1, 2, 3])
+
+
+def test_validate_state_rejects_missing_top_level_field(sample_state):
+    del sample_state["repo"]
+    with pytest.raises(StateCorruptedError, match="repo"):
+        validate_state(sample_state)
+
+
+def test_validate_state_rejects_missing_head(sample_state):
+    del sample_state["head"]
+    with pytest.raises(StateCorruptedError, match="head"):
+        validate_state(sample_state)
+
+
+def test_validate_state_rejects_head_not_dict(sample_state):
+    sample_state["head"] = "bad"
+    with pytest.raises(StateCorruptedError, match="head.*dict"):
+        validate_state(sample_state)
+
+
+def test_validate_state_rejects_missing_head_field(sample_state):
+    del sample_state["head"]["initial_sha"]
+    with pytest.raises(StateCorruptedError, match="initial_sha"):
+        validate_state(sample_state)
+
+
+def test_validate_state_rejects_journal_not_dict(sample_state):
+    sample_state["journal"] = "bad"
+    with pytest.raises(StateCorruptedError, match="journal.*dict"):
+        validate_state(sample_state)
+
+
+def test_validate_state_rejects_missing_journal_field(sample_state):
+    del sample_state["journal"]["step"]
+    with pytest.raises(StateCorruptedError, match="step"):
+        validate_state(sample_state)
+
+
+def test_validate_state_rejects_issues_not_dict(sample_state):
+    sample_state["issues"] = []
+    with pytest.raises(StateCorruptedError, match="issues.*dict"):
+        validate_state(sample_state)
+
+
+def test_validate_state_rejects_rounds_not_list(sample_state):
+    sample_state["rounds"] = {}
+    with pytest.raises(StateCorruptedError, match="rounds.*list"):
+        validate_state(sample_state)
+
+
+# load_state with corrupted files
+
+def test_load_state_corrupted_json(tmp_path):
+    path = str(tmp_path / "bad.json")
+    with open(path, "w") as f:
+        f.write("{invalid json")
+    with pytest.raises(StateCorruptedError, match="JSON"):
+        load_state(path)
+
+
+def test_load_state_valid_json_but_invalid_state(tmp_path):
+    path = str(tmp_path / "partial.json")
+    with open(path, "w") as f:
+        json.dump({"repo": "x"}, f)  # missing most fields
+    with pytest.raises(StateCorruptedError, match="Missing"):
+        load_state(path)
+
+
+def test_load_state_returns_none_for_nonexistent(tmp_path):
+    """Existing behavior preserved: nonexistent file returns None."""
+    assert load_state(str(tmp_path / "nope.json")) is None
+
+
+def test_load_state_skip_validation(tmp_path):
+    """validate=False skips validation for partial/raw reads."""
+    path = str(tmp_path / "partial.json")
+    with open(path, "w") as f:
+        json.dump({"repo": "x"}, f)
+    result = load_state(path, validate=False)
+    assert result == {"repo": "x"}
