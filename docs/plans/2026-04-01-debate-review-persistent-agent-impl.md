@@ -86,10 +86,10 @@
 
 `#170` (merged) — CLI 명령 구현, `#172` (open) — orchestrator 통합.
 
-- ~~`mark-failed` 후 GitHub issue 생성용 CLI 추가~~ → `create-failure-issue`
-- ~~final state 후 PR title 갱신용 CLI 추가~~ → `update-pr-status`
-- ~~worktree cleanup CLI 추가~~ → `cleanup-worktree`
-- orchestrator `_terminal()` / `_mark_failed()` / `_cleanup_worktree()` 연동은 `#172`에서 진행 중
+- ~~`mark-failed` 후 GitHub issue 생성용 CLI 추가~~ → `create-failure-issue` ✅
+- ~~final state 후 PR title 갱신용 CLI 추가~~ → `update-pr-status` ✅
+- ~~worktree cleanup CLI 추가~~ → `cleanup-worktree` ✅
+- ⏳ orchestrator `_terminal()` / `_mark_failed()` / `_cleanup_worktree()` 연동 → `#172` (open)
 - CI / runtime status 추적 → orchestrator의 checkpoint 시스템으로 대체
 
 ### Workstream D: E2E verification
