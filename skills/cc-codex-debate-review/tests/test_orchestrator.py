@@ -561,10 +561,12 @@ def test_terminal_still_runs_follow_through_when_post_comment_fails(monkeypatch,
         cleanup_worktree=False,
     )
 
-    result = orchestrator.run(repo="owner/repo", pr_number=123)
+    with pytest.raises(RuntimeError, match="comment failed"):
+        orchestrator.run(repo="owner/repo", pr_number=123)
 
-    assert result["result"] == "consensus_reached"
     assert cli.update_pr_status_calls
+    assert cli.mark_failed_calls == []
+    assert cli.state["status"] == "consensus_reached"
 
 
 def test_mark_failed_still_runs_follow_through_when_post_comment_fails(monkeypatch, tmp_path):

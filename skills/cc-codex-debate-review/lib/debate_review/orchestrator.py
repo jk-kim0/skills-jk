@@ -19,6 +19,10 @@ class OrchestrationError(RuntimeError):
     pass
 
 
+class TerminalActionError(OrchestrationError):
+    pass
+
+
 def _skill_root() -> str:
     return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -884,12 +888,15 @@ class DebateReviewOrchestrator:
                 pass
 
     def _terminal(self, state: dict) -> None:
+        comment_error = None
         try:
             self.cli.post_comment(self.state_file, no_comment=self.no_comment or state.get("dry_run", False))
-        except Exception:
-            pass
+        except Exception as exc:
+            comment_error = exc
 
         self._follow_through(state)
+        if comment_error is not None:
+            raise TerminalActionError(str(comment_error)) from comment_error
         self._clear_checkpoint()
         try:
             self._cleanup_worktree(state)
@@ -1013,6 +1020,8 @@ class DebateReviewOrchestrator:
                     }
 
                 raise OrchestrationError(f"Unsupported resume step: {next_step}")
+        except TerminalActionError:
+            raise
         except Exception as exc:
             self._mark_failed(str(exc), current_command)
             raise
