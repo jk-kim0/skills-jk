@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from debate_review.issue_ops import latest_report_message
 from debate_review.state import append_ledger
-from debate_review.timing import reset_step_timings
+from debate_review.timing import ensure_timing_fields, reset_step_timings
 
 
 def init_round(state, *, round_num, lead_agent=None, synced_head_sha):
@@ -11,6 +11,7 @@ def init_round(state, *, round_num, lead_agent=None, synced_head_sha):
     # Idempotent: skip if round already exists
     for r in state["rounds"]:
         if r["round"] == round_num:
+            ensure_timing_fields(state)
             return
     now = datetime.now(timezone.utc).isoformat()
     reset_step_timings(state)
@@ -20,6 +21,8 @@ def init_round(state, *, round_num, lead_agent=None, synced_head_sha):
         "lead_agent": lead_agent,
         "synced_head_sha": synced_head_sha,
         "started_at": now,
+        "step_timings": {},
+        "step_traces": {},
         "clean_pass": False,
         "step1": {
             "rebuttal_responses": [],
