@@ -166,6 +166,44 @@ class CodexAdapter(AgentAdapter):
         )
 
 
+def _unwrap_cc_result(output: str) -> dict:
+    """Unwrap Claude Code --output-format json wrapper to extract agent response.
+
+    Claude Code wraps the agent's text in {"type":"result","result":"<json-string>",...}.
+    """
+    wrapper = _parse_json_object(output)
+    if wrapper.get("type") == "result" and "result" in wrapper:
+        inner = wrapper["result"]
+        if isinstance(inner, str):
+            try:
+                parsed = json.loads(inner)
+                if isinstance(parsed, dict):
+                    return parsed
+            except json.JSONDecodeError:
+                pass
+    return wrapper
+
+
+class CcAdapter(AgentAdapter):
+    def __init__(self):
+        super().__init__(
+            name="cc",
+            legacy_command="claude -p --dangerously-skip-permissions --output-format json",
+            create_command="claude -p --dangerously-skip-permissions --output-format stream-json --verbose",
+            send_command="claude -p --dangerously-skip-permissions --resume {session_id} --output-format json",
+        )
+
+    def run_legacy(self, prompt: str, *, worktree_path: str, sandbox: str) -> dict:
+        command = self._format(self.legacy_command, sandbox=sandbox)
+        output = _run_command(command, cwd=worktree_path, stdin_text=prompt)
+        return _unwrap_cc_result(output)
+
+    def send_message(self, session_id: str, message: str, *, worktree_path: str) -> dict:
+        command = self._format(self.send_command, session_id=session_id)
+        output = _run_command(command, cwd=worktree_path, stdin_text=message)
+        return _unwrap_cc_result(output)
+
+
 class SubprocessDebateCli:
     def __init__(self, debate_review_bin: str):
         self.debate_review_bin = debate_review_bin
@@ -1035,12 +1073,12 @@ def _build_adapters(config: dict) -> dict[str, AgentAdapter]:
     def _from_cfg(name: str, defaults: AgentAdapter | None = None) -> AgentAdapter:
         cfg = agent_cfg.get(name, {}) if isinstance(agent_cfg, dict) else {}
         if defaults is not None:
-            return AgentAdapter(
-                name=name,
-                legacy_command=cfg.get("legacy_command", defaults.legacy_command),
-                create_command=cfg.get("persistent_create_command", defaults.create_command),
-                send_command=cfg.get("persistent_send_command", defaults.send_command),
-            )
+            if not cfg:
+                return defaults
+            defaults.legacy_command = cfg.get("legacy_command", defaults.legacy_command)
+            defaults.create_command = cfg.get("persistent_create_command", defaults.create_command)
+            defaults.send_command = cfg.get("persistent_send_command", defaults.send_command)
+            return defaults
         return AgentAdapter(
             name=name,
             legacy_command=cfg.get("legacy_command"),
@@ -1050,7 +1088,7 @@ def _build_adapters(config: dict) -> dict[str, AgentAdapter]:
 
     adapters = {
         "codex": _from_cfg("codex", defaults=CodexAdapter()),
-        "cc": _from_cfg("cc"),
+        "cc": _from_cfg("cc", defaults=CcAdapter()),
     }
     for name, adapter in adapters.items():
         _validate_runtime_commands(agent_name=name, agent_mode=agent_mode, adapter=adapter)

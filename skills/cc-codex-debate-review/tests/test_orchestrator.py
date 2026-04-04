@@ -520,13 +520,16 @@ def test_follow_through_errors_do_not_propagate(monkeypatch, tmp_path):
     assert result["result"] == "consensus_reached"
 
 
-def test_build_adapters_requires_cc_commands_in_persistent_mode():
-    from debate_review.orchestrator import OrchestrationError, _build_adapters
+def test_build_adapters_cc_has_default_commands_in_persistent_mode():
+    from debate_review.orchestrator import CcAdapter, _build_adapters
 
     config = {"agent_mode": "persistent"}
 
-    with pytest.raises(OrchestrationError, match="cc runtime commands are not configured"):
-        _build_adapters(config)
+    adapters = _build_adapters(config)
+    cc = adapters["cc"]
+    assert isinstance(cc, CcAdapter)
+    assert cc.create_command is not None
+    assert cc.send_command is not None
 
 
 def test_terminal_still_runs_follow_through_when_post_comment_fails(monkeypatch, tmp_path):
