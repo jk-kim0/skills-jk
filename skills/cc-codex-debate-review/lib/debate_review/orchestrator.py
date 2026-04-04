@@ -19,6 +19,10 @@ class OrchestrationError(RuntimeError):
     pass
 
 
+class TerminalActionError(OrchestrationError):
+    pass
+
+
 def _skill_root() -> str:
     return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -325,6 +329,12 @@ class SubprocessDebateCli:
             "--failed-command", failed_command,
         )
 
+    def create_failure_issue(self, state_file: str) -> dict:
+        return self._run_json("create-failure-issue", "--state-file", state_file)
+
+    def update_pr_status(self, state_file: str) -> dict:
+        return self._run_json("update-pr-status", "--state-file", state_file)
+
     def build_prompt(self, state_file: str, *, agent: str, step: str, round_num: int | None = None, extra: str | None = None) -> dict:
         args = [
             "build-prompt",
@@ -464,6 +474,28 @@ def _skip_reopen(new_message: str, existing_reports: list[dict]) -> bool:
     return False
 
 
+def _validate_runtime_commands(*, agent_name: str, agent_mode: str, adapter: AgentAdapter) -> None:
+    required_fields = []
+    if agent_mode == "persistent":
+        if not adapter.create_command:
+            required_fields.append("persistent_create_command")
+        if not adapter.send_command:
+            required_fields.append("persistent_send_command")
+    else:
+        if not adapter.legacy_command:
+            required_fields.append("legacy_command")
+
+    if not required_fields:
+        return
+
+    fields = ", ".join(required_fields)
+    override_path = os.path.expanduser("~/.claude/debate-review-config.yml")
+    raise OrchestrationError(
+        f"{agent_name} runtime commands are not configured for agent_mode={agent_mode}: "
+        f"missing {fields}. Set orchestrator.agents.{agent_name}.* in config.yml or {override_path}."
+    )
+
+
 class DebateReviewOrchestrator:
     def __init__(
         self,
@@ -536,6 +568,8 @@ class DebateReviewOrchestrator:
 
     def _cleanup_worktree(self, state: dict) -> None:
         if not self.cleanup_worktree:
+            return
+        if state.get("dry_run"):
             return
         path = self._worktree_path(state)
         if not os.path.isdir(path):
@@ -730,7 +764,7 @@ class DebateReviewOrchestrator:
             self._save_checkpoint(checkpoint)
 
         withdrawals = response.get("withdrawals", [])
-        done = checkpoint["progress"].setdefault("withdrawals_done", 0)
+        done = checkpoint["progress"]["withdrawals_done"]
         for item in withdrawals[done:]:
             self.cli.withdraw_issue(
                 self.state_file,
@@ -841,10 +875,33 @@ class DebateReviewOrchestrator:
             self.round_extra_context = None
         return "step1"
 
+    def _follow_through(self, state: dict) -> None:
+        """Best-effort follow-through: update PR status and create failure issues."""
+        try:
+            self.cli.update_pr_status(self.state_file)
+        except Exception:
+            pass
+        if state.get("final_outcome") in ("error", "stalled"):
+            try:
+                self.cli.create_failure_issue(self.state_file)
+            except Exception:
+                pass
+
     def _terminal(self, state: dict) -> None:
-        self.cli.post_comment(self.state_file, no_comment=self.no_comment or state.get("dry_run", False))
+        comment_error = None
+        try:
+            self.cli.post_comment(self.state_file, no_comment=self.no_comment or state.get("dry_run", False))
+        except Exception as exc:
+            comment_error = exc
+
+        self._follow_through(state)
+        if comment_error is not None:
+            raise TerminalActionError(str(comment_error)) from comment_error
         self._clear_checkpoint()
-        self._cleanup_worktree(state)
+        try:
+            self._cleanup_worktree(state)
+        except Exception:
+            pass
 
     def _mark_failed(self, message: str, command: str) -> None:
         if not self.state_file:
@@ -856,7 +913,14 @@ class DebateReviewOrchestrator:
                 failed_command=command,
             )
             state = self._load_state()
-            self.cli.post_comment(self.state_file, no_comment=self.no_comment or state.get("dry_run", False))
+            comment_error = None
+            try:
+                self.cli.post_comment(self.state_file, no_comment=self.no_comment or state.get("dry_run", False))
+            except Exception as exc:
+                comment_error = exc
+            self._follow_through(state)
+            if comment_error is not None:
+                raise comment_error
         finally:
             try:
                 state = self._load_state()
@@ -956,35 +1020,17 @@ class DebateReviewOrchestrator:
                     }
 
                 raise OrchestrationError(f"Unsupported resume step: {next_step}")
+        except TerminalActionError:
+            raise
         except Exception as exc:
             self._mark_failed(str(exc), current_command)
             raise
 
 
-def _validate_runtime_commands(*, agent_mode: str, adapters: dict[str, AgentAdapter]) -> None:
-    cc_adapter = adapters["cc"]
-    if agent_mode == "legacy" and not cc_adapter.legacy_command:
-        raise OrchestrationError(
-            "Missing runtime command for cc legacy mode. "
-            "Set orchestrator.agents.cc.legacy_command in config or ~/.claude/debate-review-config.yml."
-        )
-    if agent_mode == "persistent":
-        missing = []
-        if not cc_adapter.create_command:
-            missing.append("persistent_create_command")
-        if not cc_adapter.send_command:
-            missing.append("persistent_send_command")
-        if missing:
-            missing_text = ", ".join(missing)
-            raise OrchestrationError(
-                "Missing runtime command for cc persistent mode. "
-                f"Set orchestrator.agents.cc.{missing_text} in config or ~/.claude/debate-review-config.yml."
-            )
-
-
-def _build_adapters(config: dict, *, agent_mode: str | None = None) -> dict[str, AgentAdapter]:
+def _build_adapters(config: dict) -> dict[str, AgentAdapter]:
     orch = config.get("orchestrator", {})
     agent_cfg = orch.get("agents", {}) if isinstance(orch, dict) else {}
+    agent_mode = str(config.get("agent_mode", "persistent"))
 
     def _from_cfg(name: str, defaults: AgentAdapter | None = None) -> AgentAdapter:
         cfg = agent_cfg.get(name, {}) if isinstance(agent_cfg, dict) else {}
@@ -1006,8 +1052,8 @@ def _build_adapters(config: dict, *, agent_mode: str | None = None) -> dict[str,
         "codex": _from_cfg("codex", defaults=CodexAdapter()),
         "cc": _from_cfg("cc"),
     }
-    effective_mode = agent_mode or str(config.get("agent_mode", "persistent"))
-    _validate_runtime_commands(agent_mode=effective_mode, adapters=adapters)
+    for name, adapter in adapters.items():
+        _validate_runtime_commands(agent_name=name, agent_mode=agent_mode, adapter=adapter)
     return adapters
 
 
@@ -1030,10 +1076,11 @@ def main() -> None:
 
     skill_root = _skill_root()
     config = load_config(args.config)
-    effective_agent_mode = args.agent_mode or str(config.get("agent_mode", "persistent"))
+    if args.agent_mode is not None:
+        config["agent_mode"] = args.agent_mode
     orchestrator = DebateReviewOrchestrator(
         cli=SubprocessDebateCli(_debate_review_bin(skill_root)),
-        adapters=_build_adapters(config, agent_mode=effective_agent_mode),
+        adapters=_build_adapters(config),
         skill_root=skill_root,
         config=config,
         no_comment=args.no_comment,
