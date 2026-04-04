@@ -310,6 +310,13 @@ def test_validate_state_rejects_missing_top_level_field(sample_state):
         validate_state(sample_state)
 
 
+@pytest.mark.parametrize("field", ["repo_root", "max_rounds", "is_fork", "dry_run", "started_at"])
+def test_validate_state_rejects_missing_required_top_level_runtime_field(sample_state, field):
+    del sample_state[field]
+    with pytest.raises(StateCorruptedError, match=field):
+        validate_state(sample_state)
+
+
 def test_validate_state_rejects_missing_head(sample_state):
     del sample_state["head"]
     with pytest.raises(StateCorruptedError, match="head"):
@@ -328,6 +335,13 @@ def test_validate_state_rejects_missing_head_field(sample_state):
         validate_state(sample_state)
 
 
+@pytest.mark.parametrize("field", ["target_ref"])
+def test_validate_state_rejects_missing_required_runtime_head_field(sample_state, field):
+    del sample_state["head"][field]
+    with pytest.raises(StateCorruptedError, match=field):
+        validate_state(sample_state)
+
+
 def test_validate_state_rejects_journal_not_dict(sample_state):
     sample_state["journal"] = "bad"
     with pytest.raises(StateCorruptedError, match="journal.*dict"):
@@ -337,6 +351,13 @@ def test_validate_state_rejects_journal_not_dict(sample_state):
 def test_validate_state_rejects_missing_journal_field(sample_state):
     del sample_state["journal"]["step"]
     with pytest.raises(StateCorruptedError, match="step"):
+        validate_state(sample_state)
+
+
+@pytest.mark.parametrize("field", ["applied_issue_ids", "failed_application_issue_ids", "commit_sha", "push_verified"])
+def test_validate_state_rejects_missing_required_runtime_journal_field(sample_state, field):
+    del sample_state["journal"][field]
+    with pytest.raises(StateCorruptedError, match=field):
         validate_state(sample_state)
 
 

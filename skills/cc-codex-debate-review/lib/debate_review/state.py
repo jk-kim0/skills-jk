@@ -169,16 +169,18 @@ def state_file_path(repo, pr_number, dry_run=False) -> str:
 
 
 _REQUIRED_TOP_LEVEL = [
-    "repo", "pr_number", "status", "current_round",
+    "repo", "repo_root", "pr_number", "is_fork", "dry_run",
+    "status", "current_round", "max_rounds", "started_at",
     "head", "journal", "issues", "rounds",
 ]
 
 _REQUIRED_HEAD = [
-    "initial_sha", "last_observed_pr_sha", "pr_branch_name",
+    "initial_sha", "last_observed_pr_sha", "pr_branch_name", "target_ref",
 ]
 
 _REQUIRED_JOURNAL = [
-    "round", "step", "state_persisted",
+    "round", "step", "applied_issue_ids", "failed_application_issue_ids",
+    "commit_sha", "push_verified", "state_persisted",
 ]
 
 
