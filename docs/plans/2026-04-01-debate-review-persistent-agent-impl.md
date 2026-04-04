@@ -22,6 +22,9 @@
 - round / step timing instrumentation (`#166`)
 - `build-prompt` JSON 출력 zsh echo 손상 수정 (`#168`) — persistent 초기화 blocker 해소
 - `build-prompt` init 경로 temp file 누수 수정 + CLI-level 테스트 추가 (`#168` debate-review 결과)
+- Step 3 prompt/routing에 `withdrawals` 필드 추가 (`#169`)
+- operational follow-through CLI 명령 추가: `create-failure-issue`, `update-pr-status`, `cleanup-worktree` (`#170`)
+- orchestration runner: round loop, agent dispatch, checkpoint/recovery, terminal processing (`#171`, merged)
 
 ## Implemented Foundation
 
@@ -41,12 +44,15 @@
 - 운영 절차와 런타임 가이드:
   [`SKILL.md`](../../skills/cc-codex-debate-review/SKILL.md),
   [`REFERENCE.md`](../../skills/cc-codex-debate-review/REFERENCE.md)
+- operational follow-through:
+  [`follow_through.py`](../../skills/cc-codex-debate-review/lib/debate_review/follow_through.py)
 - 검증:
   [`test_cli.py`](../../skills/cc-codex-debate-review/tests/test_cli.py),
   [`test_prompt.py`](../../skills/cc-codex-debate-review/tests/test_prompt.py),
   [`test_prompt_docs.py`](../../skills/cc-codex-debate-review/tests/test_prompt_docs.py),
   [`test_state.py`](../../skills/cc-codex-debate-review/tests/test_state.py),
-  [`test_timing.py`](../../skills/cc-codex-debate-review/tests/test_timing.py)
+  [`test_timing.py`](../../skills/cc-codex-debate-review/tests/test_timing.py),
+  [`test_follow_through.py`](../../skills/cc-codex-debate-review/tests/test_follow_through.py)
 
 ## Completion Criteria
 
@@ -67,20 +73,24 @@
 - ~~duplicate withdrawal state transition을 step prompt, CLI, Step 4 정산까지 일관되게 연결~~ → `#164` + Step 3 prompt/routing 보완으로 완료
 - ~~legacy / persistent 간 출력 schema 불일치 제거~~ → legacy `agent-lead-response-prompt.md`에도 `withdrawals` 추가
 
-### Workstream B: Repo-owned orchestration path
+### Workstream B: Repo-owned orchestration path ✅
 
-- round loop 실행 경로 추가
-- agent 생성 / resume / retry / recovery 구현
-- CLI subcommand routing 자동화
-- terminal 시 comment / cleanup 호출까지 연결
-- 구현 형태는 Python runner로 고정하지 않는다. 저장소 안에서 재현 가능하고 검증 가능하면 된다.
+`#171` (merged) — Python orchestration runner 구현.
 
-### Workstream C: Operational follow-through automation
+- ~~round loop 실행 경로 추가~~ ✅
+- ~~agent 생성 / resume / retry / recovery 구현~~ ✅
+- ~~CLI subcommand routing 자동화~~ ✅
+- ~~terminal 시 comment / cleanup 호출까지 연결~~ ✅
 
-- `mark-failed` 후 GitHub issue 생성
-- final state 후 PR title/body 갱신
-- worktree cleanup
-- CI / runtime status 추적
+### Workstream C: Operational follow-through automation ⏳
+
+`#170` (merged) — CLI 명령 구현, `#172` (open) — orchestrator 통합.
+
+- ~~`mark-failed` 후 GitHub issue 생성용 CLI 추가~~ → `create-failure-issue` ✅
+- ~~final state 후 PR title 갱신용 CLI 추가~~ → `update-pr-status` ✅
+- ~~worktree cleanup CLI 추가~~ → `cleanup-worktree` ✅
+- ⏳ orchestrator `_terminal()` / `_mark_failed()` / `_cleanup_worktree()` 연동 → `#172` (open)
+- CI / runtime status 추적 → orchestrator의 checkpoint 시스템으로 대체
 
 ### Workstream D: E2E verification
 
@@ -91,16 +101,11 @@
 - persistent resume / recovery
 - terminal comment dedupe
 
-참고:
-
-- Step 3 application path의 핵심 checkpoint는 이미 `#163`, `#165`와 현재 `determine_next_step()` / `push_verified` 경로로 상당 부분 구현돼 있다.
-- 따라서 남은 범위는 별도 hardening workstream보다는 orchestration / E2E 검증에서 실제 운영 경로를 증명하는 문제에 가깝다.
-
 ## 현재 우선순위
 
 1. ~~`#161` 해소로 persistent initialization 복구~~ ✅
 2. ~~persistent prompt / state routing parity 복구~~ ✅
-3. repo-owned orchestration path 정리
-4. failure / cleanup / PR update 자동화
+3. ~~repo-owned orchestration path 정리~~ ✅
+4. failure / cleanup / PR update 자동화 마무리 (`#172` open)
 5. end-to-end verification 보강
 6. legacy 제거와 문서 정리
