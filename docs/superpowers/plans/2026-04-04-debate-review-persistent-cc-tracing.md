@@ -63,3 +63,18 @@
 - [ ] Step 3: Commit/push code branch and open code PR
 - [ ] Step 4: Generate full-session markdown report
 - [ ] Step 5: Commit/push docs branch and open docs PR
+
+## Chunk 5: Codex Breakdown And Findings Report
+
+### Task 5: Add Codex rollout parsing and findings-first report output
+
+**Files:**
+- Modify: `skills/cc-codex-debate-review/lib/debate_review/reporting.py`
+- Modify: `skills/cc-codex-debate-review/tests/test_reporting.py`
+- Modify: `docs/reports/debate-review-session-report-2026-04-04.md`
+
+- [ ] Step 1: Write failing tests for Codex rollout parsing and findings/statistics sections
+- [ ] Step 2: Run targeted pytest and confirm failures
+- [ ] Step 3: Implement Codex breakdown matching and statistics aggregation
+- [ ] Step 4: Re-run targeted/full pytest until green
+- [ ] Step 5: Regenerate the docs report with findings-first structure
