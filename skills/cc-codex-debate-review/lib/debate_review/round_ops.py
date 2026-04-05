@@ -1,3 +1,4 @@
+import sys
 from datetime import datetime, timezone
 
 from debate_review.issue_ops import latest_report_message
@@ -64,6 +65,25 @@ def _find_round(state, round_num):
 
 def record_verdict(state, *, round_num, verdict) -> dict:
     round_ = _find_round(state, round_num)
+
+    # Auto-correct contradictory verdict: has_findings with no new findings and all issues resolved
+    if verdict == "has_findings":
+        has_new_findings = bool(round_.get("step1", {}).get("report_ids"))
+        open_issues = [i for i in state["issues"].values() if i["consensus_status"] == "open"]
+        is_fork = state.get("is_fork", False)
+        accepted_unresolved = [
+            i for i in state["issues"].values()
+            if i["consensus_status"] == "accepted"
+            and i["application_status"] not in ("applied", "recommended" if is_fork else "applied")
+        ]
+        if not has_new_findings and not open_issues and not accepted_unresolved and state["issues"]:
+            print(
+                f"WARNING: verdict=has_findings but no new findings and no open issues in round {round_num}. "
+                f"Auto-correcting to no_findings_mergeable.",
+                file=sys.stderr,
+            )
+            verdict = "no_findings_mergeable"
+
     round_["step1"]["verdict"] = verdict
 
     clean_pass = False
