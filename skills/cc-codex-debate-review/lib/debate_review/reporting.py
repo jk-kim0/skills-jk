@@ -415,6 +415,7 @@ def _fallback_steps(state: dict, round_data: dict, session_end: datetime | None)
             "started_at": _to_iso(started_at),
             "completed_at": _to_iso(next_started),
             "wall_clock_seconds": wall_clock_seconds,
+            # Deprecated alias retained for downstream consumers that still read duration_seconds.
             "duration_seconds": wall_clock_seconds,
         }
     return steps
@@ -464,6 +465,7 @@ def _apply_matched_step(step_summary: dict, matched: dict, default_agent: str) -
             "completed_at": _to_iso(completed_at),
             "wall_clock_seconds": wall_clock_seconds,
             "agent_active_seconds": matched["agent_breakdown"].get("active_seconds"),
+            # Deprecated alias retained for downstream consumers that still read duration_seconds.
             "duration_seconds": wall_clock_seconds,
             "agent_breakdown": matched["agent_breakdown"],
         }
@@ -496,6 +498,7 @@ def _summarize_round_steps(
                 "started_at": _to_iso(started_at),
                 "completed_at": _to_iso(completed_at),
                 "wall_clock_seconds": wall_clock_seconds,
+                # Deprecated alias retained for downstream consumers that still read duration_seconds.
                 "duration_seconds": wall_clock_seconds,
                 "command_spans": trace.get("command_spans", []),
             }
@@ -573,13 +576,18 @@ def _sum_active_seconds(items: list[dict]) -> float | None:
     return round(sum(active_values), 1)
 
 
-def _mark_stats_eligibility(*, dry_run: bool, session_finished: bool, explicit_completed: bool = True) -> tuple[bool, list[str]]:
+def _mark_stats_eligibility(
+    *,
+    dry_run: bool,
+    in_progress: bool,
+    missing_completed_at: bool = False,
+) -> tuple[bool, list[str]]:
     reasons = []
     if dry_run:
         reasons.append("dry_run")
-    if not session_finished:
+    if in_progress:
         reasons.append("in_progress")
-    if not explicit_completed:
+    if missing_completed_at:
         reasons.append("missing_completed_at")
     return not reasons, reasons
 
@@ -833,11 +841,7 @@ def generate_sessions_report(
         explicit_finished_at = _parse_iso(state.get("finished_at"))
         finished_at = explicit_finished_at or now
         session_finished = explicit_finished_at is not None
-        session_include, session_reasons = _mark_stats_eligibility(
-            dry_run=dry_run,
-            session_finished=session_finished,
-            explicit_completed=session_finished,
-        )
+        session_include, session_reasons = _mark_stats_eligibility(dry_run=dry_run, in_progress=not session_finished)
 
         session_wall_clock = _seconds(started_at, finished_at)
         session_summary = {
@@ -850,6 +854,7 @@ def generate_sessions_report(
             "started_at": _to_iso(started_at),
             "finished_at": _to_iso(explicit_finished_at),
             "wall_clock_seconds": session_wall_clock,
+            # Deprecated alias retained for downstream consumers that still read duration_seconds.
             "duration_seconds": session_wall_clock,
             "agent_active_seconds": None,
             "include_in_wall_clock_stats": session_include,
@@ -863,8 +868,8 @@ def generate_sessions_report(
             explicit_round_completed = _parse_iso(round_data.get("completed_at"))
             round_include, round_reasons = _mark_stats_eligibility(
                 dry_run=dry_run,
-                session_finished=session_finished,
-                explicit_completed=explicit_round_completed is not None,
+                in_progress=not session_finished,
+                missing_completed_at=explicit_round_completed is None,
             )
 
             steps = _summarize_round_steps(
@@ -879,8 +884,8 @@ def generate_sessions_report(
                 explicit_step_completed = step.get("completed_at") is not None
                 step_include, step_reasons = _mark_stats_eligibility(
                     dry_run=dry_run,
-                    session_finished=session_finished,
-                    explicit_completed=explicit_step_completed,
+                    in_progress=not session_finished,
+                    missing_completed_at=not explicit_step_completed,
                 )
                 step["include_in_wall_clock_stats"] = step_include
                 step["include_in_active_stats"] = step_include and step.get("agent_active_seconds") is not None
@@ -895,6 +900,7 @@ def generate_sessions_report(
                 "started_at": _to_iso(round_started),
                 "completed_at": _to_iso(explicit_round_completed),
                 "wall_clock_seconds": round_wall_clock,
+                # Deprecated alias retained for downstream consumers that still read duration_seconds.
                 "duration_seconds": round_wall_clock,
                 "agent_active_seconds": round_active,
                 "include_in_wall_clock_stats": round_include,
@@ -989,6 +995,8 @@ def render_sessions_report_markdown(report: dict) -> str:
                 f"{report['populations']['steps']['excluded_in_progress']} | "
                 f"{report['populations']['steps']['excluded_missing_completed_at']} |"
             ),
+            "",
+            "_Sessions do not use the Excluded Missing Completed At column; session inclusion is based on `finished_at`._",
             "",
             "## Statistics",
             "",

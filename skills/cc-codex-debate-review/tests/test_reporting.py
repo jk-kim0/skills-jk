@@ -1,6 +1,11 @@
 import json
 
-from debate_review.reporting import _stats, generate_sessions_report, render_sessions_report_markdown
+from debate_review.reporting import (
+    _mark_stats_eligibility,
+    _stats,
+    generate_sessions_report,
+    render_sessions_report_markdown,
+)
 from debate_review.state import create_initial_state, save_state
 from debate_review.round_ops import init_round, settle_round
 from debate_review.timing import complete_step_trace, record_step_timing, start_step_trace
@@ -495,6 +500,52 @@ def test_stats_include_quartiles_and_markdown_uses_requested_column_order(tmp_pa
     markdown = render_sessions_report_markdown(report)
 
     assert "| Metric | Count | Min | 25% | Median | 75% | Max | Average |" in markdown
+
+
+def test_mark_stats_eligibility_uses_explicit_reason_flags():
+    assert _mark_stats_eligibility(
+        dry_run=False,
+        in_progress=False,
+        missing_completed_at=False,
+    ) == (True, [])
+    assert _mark_stats_eligibility(
+        dry_run=True,
+        in_progress=True,
+        missing_completed_at=True,
+    ) == (False, ["dry_run", "in_progress", "missing_completed_at"])
+
+
+def test_population_table_explains_session_missing_completed_at_column(tmp_path):
+    state_dir = tmp_path / "debate-state"
+    claude_projects_root = tmp_path / "claude-projects"
+    codex_sessions_root = tmp_path / "codex-sessions"
+    state_dir.mkdir()
+    claude_projects_root.mkdir()
+    codex_sessions_root.mkdir()
+
+    state = create_initial_state(
+        repo="owner/repo",
+        repo_root="/tmp/repo",
+        pr_number=1001,
+        is_fork=False,
+        head_sha="abc1001",
+        pr_branch_name="feat/population-note",
+        agent_mode="persistent",
+    )
+    state["started_at"] = "2026-04-04T00:00:00+00:00"
+    state["finished_at"] = "2026-04-04T00:05:00+00:00"
+    state["status"] = "consensus_reached"
+    state["final_outcome"] = "consensus"
+    save_state(state, str(state_dir / "owner-repo-1001.json"))
+
+    report = generate_sessions_report(
+        state_dir=state_dir,
+        claude_projects_root=claude_projects_root,
+        codex_sessions_root=codex_sessions_root,
+    )
+    markdown = render_sessions_report_markdown(report)
+
+    assert "Sessions do not use the Excluded Missing Completed At column" in markdown
 
 
 def test_generate_sessions_report_uses_trace_session_handle_for_codex_matching(tmp_path):
