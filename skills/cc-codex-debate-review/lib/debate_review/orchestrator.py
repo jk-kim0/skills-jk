@@ -294,7 +294,8 @@ def _unwrap_cc_result(output: str) -> dict:
 def _normalize_cross_verifications(verifications: list, state: dict) -> list:
     """Normalize agent cross-verification responses to CLI-expected format.
 
-    Agents may return {issue_id, verdict} instead of {report_id, decision}.
+    Agents may return {issue_id, verdict} or {issue_id, action}
+    instead of {report_id, decision}.
     """
     issue_to_report: dict[str, str] = {}
     for issue_id, issue in state.get("issues", {}).items():
@@ -311,6 +312,8 @@ def _normalize_cross_verifications(verifications: list, state: dict) -> list:
                 entry["report_id"] = report_id
         if "decision" not in entry and "verdict" in entry:
             entry["decision"] = entry["verdict"]
+        if "decision" not in entry and "action" in entry:
+            entry["decision"] = entry["action"]
         normalized.append(entry)
     return normalized
 
@@ -1225,8 +1228,8 @@ class DebateReviewOrchestrator:
         elif step == "step2":
             verifications = response.get("cross_verifications", [])
             new_findings = response.get("findings", [])
-            accepts = sum(1 for v in verifications if v.get("verdict", v.get("decision", "")) == "accept")
-            rebuts = sum(1 for v in verifications if v.get("verdict", v.get("decision", "")) == "rebut")
+            accepts = sum(1 for v in verifications if v.get("verdict", v.get("decision", v.get("action", ""))) == "accept")
+            rebuts = sum(1 for v in verifications if v.get("verdict", v.get("decision", v.get("action", ""))) == "rebut")
             parts = []
             if accepts:
                 parts.append(f"{accepts} accept")

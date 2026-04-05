@@ -249,6 +249,11 @@ def _resolve_repo_root(repo, repo_root_arg):
     return os.path.expanduser(f"~/workspace/{repo_name}")
 
 
+def _orchestrator_checkpoint_path(state_file: str) -> str:
+    state_name = os.path.basename(state_file)
+    return os.path.join(os.path.expanduser("~"), ".claude", "debate-state", "orchestrator", f"{state_name}.checkpoint.json")
+
+
 def cmd_init(args):
     repo = args.repo
     pr_number = args.pr
@@ -327,7 +332,20 @@ def cmd_init(args):
         # Terminal state — use terminal_sha for session identity
         existing_sha = existing["head"].get("terminal_sha") or existing["head"]["last_observed_pr_sha"]
         if existing_sha == head_sha:
-            _error_exit("Session already completed for this HEAD")
+            checkpoint_path = _orchestrator_checkpoint_path(state_path)
+            if os.path.exists(checkpoint_path):
+                existing["status"] = "in_progress"
+                existing["final_outcome"] = None
+                existing["finished_at"] = None
+                existing["head"]["terminal_sha"] = None
+                existing.pop("error_message", None)
+                save_state(existing, state_path)
+                result_status = "resumed"
+                current_round = existing["current_round"]
+                is_fork = existing["is_fork"]
+                dry_run = existing["dry_run"]
+            else:
+                _error_exit("Session already completed for this HEAD")
         else:
             # Archive old state and create new
             archive_sha = existing_sha[:8]

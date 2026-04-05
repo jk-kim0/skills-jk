@@ -202,6 +202,18 @@ def test_format_step2_verifications_and_findings():
     assert any("1 new finding" in l for l in lines)
 
 
+def test_format_step2_accepts_action_alias():
+    response = {
+        "cross_verifications": [
+            {"issue_id": "isu_001", "action": "accept", "reason": "agreed"},
+        ],
+        "findings": [],
+    }
+    lines = format_step2(response)
+    assert any("isu_001 ACCEPT" in l for l in lines)
+    assert any("agreed" in l for l in lines)
+
+
 # ── format_step3 ──
 
 
