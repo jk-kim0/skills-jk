@@ -424,9 +424,6 @@ class SubprocessDebateCli:
     def create_failure_issue(self, state_file: str) -> dict:
         return self._run_json("create-failure-issue", "--state-file", state_file)
 
-    def update_pr_status(self, state_file: str) -> dict:
-        return self._run_json("update-pr-status", "--state-file", state_file)
-
     def build_prompt(self, state_file: str, *, agent: str, step: str, round_num: int | None = None, extra: str | None = None) -> dict:
         args = [
             "build-prompt",
@@ -1120,11 +1117,7 @@ class DebateReviewOrchestrator:
         return "step1"
 
     def _follow_through(self, state: dict) -> None:
-        """Best-effort follow-through: update PR status and create failure issues."""
-        try:
-            self.cli.update_pr_status(self.state_file)
-        except Exception:
-            pass
+        """Best-effort follow-through: create failure issues on error/stall."""
         if state.get("final_outcome") in ("error", "stalled"):
             try:
                 self.cli.create_failure_issue(self.state_file)
