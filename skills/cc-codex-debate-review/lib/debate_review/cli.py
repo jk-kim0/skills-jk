@@ -23,6 +23,7 @@ from debate_review.round_ops import init_round, record_verdict, settle_round
 from debate_review.comment import post_comment
 from debate_review.sync import sync_head
 from debate_review.error_log import save_error_log
+from debate_review.agent_cleanup import terminate_agents
 from debate_review.follow_through import create_failure_issue, cleanup_worktree
 from debate_review.state import (
     append_ledger,
@@ -166,6 +167,10 @@ def build_parser() -> argparse.ArgumentParser:
     # cleanup-worktree subcommand
     p_cw = subparsers.add_parser("cleanup-worktree", help="Remove debate worktree")
     p_cw.add_argument("--state-file", required=True)
+
+    # terminate-agents subcommand
+    p_ta = subparsers.add_parser("terminate-agents", help="Kill persistent agent processes")
+    p_ta.add_argument("--state-file", required=True)
 
     # record-application subcommand
     p_app = subparsers.add_parser("record-application")
@@ -501,6 +506,8 @@ def cmd_settle_round(args):
     state["journal"]["step"] = "step4_settle"
     record_step_timing(state, "step4_settle")
     result = settle_round(state, round_num=args.round)
+    if result.get("result") in ("consensus_reached", "max_rounds_exceeded", "stalled"):
+        terminate_agents(state)
     save_state(state, args.state_file)
     print(json.dumps(result))
 
@@ -629,6 +636,7 @@ def cmd_mark_failed(args):
         print(json.dumps(_dry_run_skip(state, command="mark-failed", error_message=args.error_message)))
         return
     mark_failed(state, error_message=args.error_message)
+    terminate_agents(state)
     save_state(state, args.state_file)
     try:
         log_path = save_error_log(
@@ -700,6 +708,14 @@ def cmd_cleanup_worktree(args):
     print(json.dumps(result))
 
 
+def cmd_terminate_agents(args):
+    state = load_state(args.state_file)
+    if state is None:
+        _error_exit(f"No state file found at {args.state_file}")
+    result = terminate_agents(state)
+    print(json.dumps(result))
+
+
 def cmd_build_prompt(args):
     state = load_state(args.state_file)
     if state is None:
@@ -764,6 +780,7 @@ def main():
         "report-sessions": cmd_report_sessions,
         "create-failure-issue": cmd_create_failure_issue,
         "cleanup-worktree": cmd_cleanup_worktree,
+        "terminate-agents": cmd_terminate_agents,
         "test-error": cmd_test_error,
         "mark-failed": cmd_mark_failed,
         "withdraw-issue": cmd_withdraw_issue,
