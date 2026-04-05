@@ -9,7 +9,7 @@ description: Debate-driven PR review orchestration where CC and Codex alternate 
 
 A system where two agents (CC and Codex) repeatedly review, rebut, and fix an open PR until both reach consensus on all issues.
 
-CC is the orchestrator. Both CC and Codex are invoked as sub-agents using the same prompt templates. The orchestrator fills a prompt template, dispatches it to the assigned agent, and routes the JSON response to CLI subcommands.
+CC is the orchestrator. Both CC and Codex are invoked as persistent sub-agents. The orchestrator composes step messages via `build-prompt`, dispatches them to the assigned agent, and routes the JSON response to CLI subcommands.
 
 **State management is handled by the CLI.** The orchestrator calls `$DEBATE_REVIEW_BIN` subcommands for state changes and delegates all review work to sub-agents.
 
@@ -36,7 +36,8 @@ All paths below are relative to the `cc-codex-debate-review/` directory.
 | CLI | `./bin/debate-review` |
 | Config file | `./config.yml` |
 | Review criteria | `./review-criteria.md` |
-| Prompt templates | `./agent-initial-prompt.md`, `./prompt-step-*.md` |
+| Initial prompt | `./agent-initial-prompt.md` |
+| Step templates | `./prompt-step-1.md`, `./prompt-step-2.md`, `./prompt-step-3.md` |
 
 ### Prerequisites
 
@@ -635,27 +636,15 @@ All of this information is available in the orchestrator's `run()` return value:
 
 ---
 
-## build-context Reference
+## build-context (Debugging Only)
 
-`build-context` is still available for inspecting state-derived review data, but it is not part of the normal persistent-agent prompt flow. For actual agent dispatch, use `build-prompt` as described in the step sections below.
+`build-context` is a debugging/inspection command. It is **not** part of the normal prompt flow — use `build-prompt` for agent dispatch.
 
 ```bash
 CTX=$("$DEBATE_REVIEW_BIN" build-context --state-file "$STATE_FILE" --round "$CURRENT_ROUND")
 ```
 
-The output JSON includes:
-
-| Field | Description |
-|-------|-------------|
-| `open_issues` | Unresolved issues (JSON array) |
-| `debate_ledger` | Cumulative conclusion record (text) |
-| `pending_rebuttals` | Previous round rebuttals (JSON array) |
-| `lead_reports` | Current round lead findings (JSON array) |
-| `cross_rebuttals` | Current round cross rebuttals (JSON array) |
-| `cross_findings` | Current round cross new findings (JSON array) |
-| `applicable_issues` | Issues ready for code application (JSON array) |
-
-Use this command for debugging or ad hoc inspection. Do not build step prompts from these fields manually unless you are deliberately debugging the prompt pipeline.
+Output fields: `open_issues`, `debate_ledger`, `pending_rebuttals`, `lead_reports`, `cross_rebuttals`, `cross_findings`, `applicable_issues`.
 
 ---
 
