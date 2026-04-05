@@ -254,6 +254,28 @@ def _orchestrator_checkpoint_path(state_file: str) -> str:
     return os.path.join(os.path.expanduser("~"), ".claude", "debate-state", "orchestrator", f"{state_name}.checkpoint.json")
 
 
+def _migrate_resumed_state(existing: dict, *, language: str) -> bool:
+    needs_save = False
+    if "language" not in existing:
+        existing["language"] = language
+        needs_save = True
+    if "agent_mode" not in existing:
+        existing["agent_mode"] = "legacy"
+        needs_save = True
+    else:
+        existing["agent_mode"] = _validate_agent_mode(str(existing["agent_mode"]))
+    if ensure_persistent_agents(existing):
+        needs_save = True
+    rounds_before = json.dumps(existing.get("rounds", []), sort_keys=True)
+    journal_before = json.dumps(existing.get("journal", {}), sort_keys=True)
+    ensure_timing_fields(existing)
+    if rounds_before != json.dumps(existing.get("rounds", []), sort_keys=True):
+        needs_save = True
+    if journal_before != json.dumps(existing.get("journal", {}), sort_keys=True):
+        needs_save = True
+    return needs_save
+
+
 def cmd_init(args):
     repo = args.repo
     pr_number = args.pr
@@ -308,24 +330,7 @@ def cmd_init(args):
         current_round = existing["current_round"]
         is_fork = existing["is_fork"]
         dry_run = existing["dry_run"]
-        needs_save = False
-        if "language" not in existing:
-            existing["language"] = language
-            needs_save = True
-        if "agent_mode" not in existing:
-            existing["agent_mode"] = "legacy"
-            needs_save = True
-        else:
-            existing["agent_mode"] = _validate_agent_mode(str(existing["agent_mode"]))
-        if ensure_persistent_agents(existing):
-            needs_save = True
-        rounds_before = json.dumps(existing.get("rounds", []), sort_keys=True)
-        journal_before = json.dumps(existing.get("journal", {}), sort_keys=True)
-        ensure_timing_fields(existing)
-        if rounds_before != json.dumps(existing.get("rounds", []), sort_keys=True):
-            needs_save = True
-        if journal_before != json.dumps(existing.get("journal", {}), sort_keys=True):
-            needs_save = True
+        needs_save = _migrate_resumed_state(existing, language=language)
         if needs_save:
             save_state(existing, state_path)
     else:
@@ -339,6 +344,7 @@ def cmd_init(args):
                 existing["finished_at"] = None
                 existing["head"]["terminal_sha"] = None
                 existing.pop("error_message", None)
+                _migrate_resumed_state(existing, language=language)
                 save_state(existing, state_path)
                 result_status = "resumed"
                 current_round = existing["current_round"]

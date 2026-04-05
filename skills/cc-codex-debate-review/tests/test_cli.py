@@ -778,6 +778,61 @@ def test_cli_init_failed_session_with_checkpoint_resumes_same_head(monkeypatch, 
     assert saved.get("error_message") is None
 
 
+def test_cli_init_failed_session_with_checkpoint_applies_resume_migrations(monkeypatch, capsys, tmp_path):
+    state = create_initial_state(
+        repo="owner/repo",
+        repo_root="/tmp/repo",
+        pr_number=794,
+        is_fork=False,
+        head_sha="abc123",
+        pr_branch_name="feat/test",
+        agent_mode="persistent",
+    )
+    init_round(state, round_num=1, lead_agent="codex", synced_head_sha="abc123")
+    state["status"] = "failed"
+    state["final_outcome"] = "error"
+    state["finished_at"] = "2026-04-05T00:00:00+00:00"
+    state["error_message"] = "step2 failed"
+    state["head"]["terminal_sha"] = "abc123"
+    state["persistent_agents"] = {}
+    state["journal"].pop("current_step_trace", None)
+    state["rounds"][0].pop("step_timings", None)
+    state["rounds"][0].pop("step_traces", None)
+    path = tmp_path / "failed-migrated-state.json"
+    save_state(state, str(path))
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    checkpoint_dir = tmp_path / ".claude" / "debate-state" / "orchestrator"
+    checkpoint_dir.mkdir(parents=True)
+    checkpoint_path = checkpoint_dir / f"{path.name}.checkpoint.json"
+    checkpoint_path.write_text('{"step":"step2","round":1,"agent":"cc","response":{},"progress":{}}')
+
+    monkeypatch.setattr("debate_review.cli.state_file_path", lambda *args: str(path))
+    monkeypatch.setattr(
+        "debate_review.cli.gh_json",
+        lambda *args: {
+            "headRefName": "feat/test",
+            "headRefOid": "abc123",
+            "headRepositoryOwner": {"login": "owner"},
+        },
+    )
+
+    _run_cli(monkeypatch, [
+        "init", "--repo", "owner/repo", "--pr", "794",
+    ])
+    result = json.loads(capsys.readouterr().out)
+    assert result["status"] == "resumed"
+
+    saved = load_state(str(path))
+    assert saved["persistent_agents"] == {
+        "cc_agent_id": None,
+        "codex_session_id": None,
+    }
+    assert saved["journal"]["current_step_trace"] is None
+    assert saved["rounds"][0]["step_timings"] == {}
+    assert saved["rounds"][0]["step_traces"] == {}
+
+
 def test_cli_record_agent_sessions_persists_identifiers(monkeypatch, capsys, tmp_path):
     state = create_initial_state(
         repo="owner/repo",
