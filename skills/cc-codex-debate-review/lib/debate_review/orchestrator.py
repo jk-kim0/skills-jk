@@ -1461,9 +1461,9 @@ class DebateReviewOrchestrator:
             comment_error = exc
 
         self._follow_through(state)
+        self._clear_checkpoint()
         if comment_error is not None:
             raise TerminalActionError(str(comment_error)) from comment_error
-        self._clear_checkpoint()
         try:
             self._cleanup_worktree(state)
         except Exception:

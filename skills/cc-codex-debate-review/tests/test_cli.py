@@ -833,6 +833,49 @@ def test_cli_init_failed_session_with_checkpoint_applies_resume_migrations(monke
     assert saved["rounds"][0]["step_traces"] == {}
 
 
+def test_cli_init_consensus_session_with_stale_checkpoint_rejects(monkeypatch, capsys, tmp_path):
+    """consensus_reached 세션은 stale checkpoint가 있어도 복구하지 않는다."""
+    state = create_initial_state(
+        repo="owner/repo",
+        repo_root="/tmp/repo",
+        pr_number=795,
+        is_fork=False,
+        head_sha="abc123",
+        pr_branch_name="feat/test",
+        agent_mode="persistent",
+    )
+    state["status"] = "consensus_reached"
+    state["final_outcome"] = "consensus"
+    state["finished_at"] = "2026-04-05T00:00:00+00:00"
+    state["head"]["terminal_sha"] = "abc123"
+    path = tmp_path / "consensus-state.json"
+    save_state(state, str(path))
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    checkpoint_dir = tmp_path / ".claude" / "debate-state" / "orchestrator"
+    checkpoint_dir.mkdir(parents=True)
+    checkpoint_path = checkpoint_dir / f"{path.name}.checkpoint.json"
+    checkpoint_path.write_text('{"step":"step4","round":2,"agent":"cc","response":{},"progress":{}}')
+
+    monkeypatch.setattr("debate_review.cli.state_file_path", lambda *args: str(path))
+    monkeypatch.setattr(
+        "debate_review.cli.gh_json",
+        lambda *args: {
+            "headRefName": "feat/test",
+            "headRefOid": "abc123",
+            "headRepositoryOwner": {"login": "owner"},
+        },
+    )
+
+    _run_cli(monkeypatch, [
+        "init", "--repo", "owner/repo", "--pr", "795",
+    ])
+    out = capsys.readouterr().out
+    result = json.loads(out)
+    assert "error" in result
+    assert "already completed" in result["error"]
+
+
 def test_cli_init_new_head_archives_old_state_and_clears_stale_checkpoint(monkeypatch, capsys, tmp_path):
     state = create_initial_state(
         repo="owner/repo",

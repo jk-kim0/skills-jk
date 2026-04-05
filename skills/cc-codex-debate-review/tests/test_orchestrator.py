@@ -1070,6 +1070,7 @@ def test_terminal_still_runs_follow_through_when_post_comment_fails(monkeypatch,
 
     assert cli.mark_failed_calls == []
     assert cli.state["status"] == "consensus_reached"
+    assert not checkpoint_path.exists(), "checkpoint must be cleared even when post_comment fails"
 
 
 def test_mark_failed_still_runs_follow_through_when_post_comment_fails(monkeypatch, tmp_path):

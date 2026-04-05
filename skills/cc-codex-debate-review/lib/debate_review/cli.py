@@ -345,7 +345,7 @@ def cmd_init(args):
         existing_sha = existing["head"].get("terminal_sha") or existing["head"]["last_observed_pr_sha"]
         if existing_sha == head_sha:
             checkpoint_path = _orchestrator_checkpoint_path(state_path)
-            if os.path.exists(checkpoint_path):
+            if os.path.exists(checkpoint_path) and existing["status"] in ("failed",):
                 existing["status"] = "in_progress"
                 existing["final_outcome"] = None
                 existing["finished_at"] = None
