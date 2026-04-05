@@ -140,6 +140,9 @@ def record_application_phase3(state, *, round_num, _get_head=None) -> dict:
     # Checkpoint 3
     journal["push_verified"] = True
 
+    # Update head tracking so sync_head won't treat agent's push as external change
+    state["head"]["last_observed_pr_sha"] = journal["commit_sha"]
+
     # Update issue-level fields
     lead_agent = round_["lead_agent"]
     commit_sha = journal["commit_sha"]

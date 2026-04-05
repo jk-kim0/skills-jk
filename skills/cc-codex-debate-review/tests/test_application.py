@@ -94,6 +94,8 @@ def test_phase3_finalizes():
     # Journal
     assert state["journal"]["push_verified"] is True
     assert state["journal"]["state_persisted"] is True
+    # Head tracking updated to prevent supersede cascade (#200)
+    assert state["head"]["last_observed_pr_sha"] == "deadbeef123"
     # Issue-level
     assert state["issues"]["isu_001"]["applied_by"] == "codex"
     assert state["issues"]["isu_001"]["application_commit_sha"] == "deadbeef123"
@@ -105,6 +107,16 @@ def test_phase3_finalizes():
     assert round_["step3"]["failed_application_issue_ids"] == ["isu_002"]
     assert round_["step3"]["commit_sha"] == "deadbeef123"
     assert round_["step3"]["push_verified"] is True
+
+
+def test_phase3_updates_last_observed_pr_sha():
+    """Phase 3 should update last_observed_pr_sha so sync_head won't treat agent push as external."""
+    state = _state_with_accepted_issues()
+    assert state["head"]["last_observed_pr_sha"] == "abc123"
+    record_application_phase1(state, round_num=1, applied_issue_ids=["isu_001"], failed_issue_ids=[])
+    record_application_phase2(state, round_num=1, commit_sha="deadbeef456")
+    record_application_phase3(state, round_num=1, _get_head=lambda repo, pr: "deadbeef456")
+    assert state["head"]["last_observed_pr_sha"] == "deadbeef456"
 
 
 def test_phase3_idempotent():
