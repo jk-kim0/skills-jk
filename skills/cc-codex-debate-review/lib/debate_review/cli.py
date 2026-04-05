@@ -614,6 +614,7 @@ def cmd_build_commit_message(args):
 
 
 def cmd_build_context(args):
+    # Read-only command: loads state but MUST NOT call save_state().
     state = load_state(args.state_file)
     if state is None:
         _error_exit(f"No state file found at {args.state_file}")
@@ -701,6 +702,7 @@ def cmd_cleanup_worktree(args):
 
 
 def cmd_build_prompt(args):
+    # Read-only command: loads state but MUST NOT call save_state().
     state = load_state(args.state_file)
     if state is None:
         _error_exit(f"No state file found at {args.state_file}")

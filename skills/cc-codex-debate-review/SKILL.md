@@ -399,6 +399,8 @@ Each new finding from the cross-verifier is also recorded via `upsert-issue`:
 
 The CLI automatically routes step1/step2 tracking based on the agent role.
 
+**Important:** `build-prompt` and `build-context` are read-only commands — they never modify the state file. Only explicit mutation commands (`upsert-issue`, `record-cross-verification`, `record-verdict`, etc.) create or modify issues. If unexpected issues appear after Step 2, verify that every `upsert-issue` call matches a genuine agent finding.
+
 ---
 
 ### Step 3: Lead Agent Response + Code Application
