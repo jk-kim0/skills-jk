@@ -109,6 +109,28 @@ def _build_error(state, tag):
 
     lines.extend(_build_debate_summary_lines(state))
 
+    # Show applied fixes even on error — they represent real code changes
+    applied = [i for i in state["issues"].values() if i.get("application_status") == "applied"]
+    if applied:
+        lines.append("")
+        lines.append("## Applied Fixes")
+        for issue in applied:
+            reporter = _first_reporter(issue)
+            applier = issue.get("applied_by", "unknown")
+            msg = latest_report_message(issue)
+            lines.append(
+                f"- {issue['file']}:{issue['line']} - (reported by {reporter}, applied by {applier}) {msg}"
+            )
+
+    # Show withdrawn findings
+    withdrawn = [i for i in state["issues"].values() if i.get("consensus_status") == "withdrawn"]
+    if withdrawn:
+        lines.append("")
+        lines.append("## Withdrawn Findings")
+        for issue in withdrawn:
+            msg = latest_report_message(issue)
+            lines.append(f"- {issue['file']}:{issue['line']} - {msg}")
+
     lines.append("")
     lines.append(f"Round: {journal.get('round', '?')}")
     lines.append(f"Step: {journal.get('step', '?')}")
@@ -123,9 +145,21 @@ def build_comment_body(state) -> str:
     tag = _make_tag(state)
     outcome = state.get("final_outcome")
 
+    # Infer outcome from status if final_outcome was not set
+    if not outcome:
+        status = state.get("status", "")
+        if status == "consensus_reached":
+            outcome = "consensus"
+        elif status in ("max_rounds_exceeded",):
+            outcome = "no_consensus"
+        elif status == "stalled":
+            outcome = "stalled"
+
     if outcome == "consensus":
         return _build_consensus(state, tag)
     elif outcome == "no_consensus":
+        return _build_max_rounds(state, tag)
+    elif outcome == "stalled":
         return _build_max_rounds(state, tag)
     else:
         return _build_error(state, tag)
