@@ -9,7 +9,6 @@ from datetime import datetime
 
 from debate_review.config import load_config
 from debate_review.context import (
-    build_context,
     build_cross_findings,
     build_cross_rebuttals,
     build_debate_ledger_text,
@@ -686,13 +685,6 @@ def _round_context(state: dict) -> dict:
         "worktree_path": os.path.join(state["repo_root"], ".worktrees", f"debate-pr-{state['pr_number']}"),
         "head_branch": state["head"]["pr_branch_name"],
     }
-
-
-def _render_template(template: str, placeholders: dict[str, str]) -> str:
-    rendered = template
-    for key, value in placeholders.items():
-        rendered = rendered.replace(key, value)
-    return rendered
 
 
 def _json_text(payload) -> str:
