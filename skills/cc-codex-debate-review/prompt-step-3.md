@@ -26,7 +26,9 @@ If empty, skip code application entirely — return empty `applied_issues`/`fail
 
 ### Code Application
 
-1. Edit files in {WORKTREE_PATH}
+**CRITICAL**: You MUST make exactly ONE commit at the end, after ALL file edits are complete. Do NOT make intermediate commits during the editing process.
+
+1. Edit ALL files in {WORKTREE_PATH} first (fix every applicable issue before committing)
 2. `git add <files>` (only files you modified — do NOT use `git add -A` or `git add .`)
 3. Prepare the issue result arrays, e.g.: `APPLIED_ISSUES_JSON='["isu_001"]'` and `FAILED_ISSUES_JSON='[]'`
 4. `COMMIT_MSG=$("{DEBATE_REVIEW_BIN}" build-commit-message --state-file "{STATE_FILE}" --round {ROUND} --applied-issues "$APPLIED_ISSUES_JSON")`
