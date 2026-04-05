@@ -35,6 +35,7 @@ def init_round(state, *, round_num, lead_agent=None, synced_head_sha):
             "issue_ids_touched": [],
             "accepted_report_ids": [],
             "rebuttals": [],
+            "cross_verifier_clean_pass": False,
         },
         "step3": {
             "withdrawn_report_ids": [],
@@ -189,16 +190,25 @@ def settle_round(state, *, round_num) -> dict:
         ]
         append_ledger(state, entries=ledger_entries)
 
-    # Check consensus: last 2 completed rounds both have clean_pass==True
-    # AND different lead agents (spec requirement)
+    # Check consensus:
+    # Option A: Both lead and cross-verifier gave clean pass in the SAME round
+    # cross_verifier_clean_pass is set explicitly when Step 2 ran and found nothing
+    step2 = round_.get("step2", {})
+    same_round_consensus = (
+        round_["clean_pass"]
+        and step2.get("cross_verifier_clean_pass", False)
+    )
+    # Option B (legacy): last 2 completed rounds both have clean_pass==True
+    # AND different lead agents
     completed = [r for r in state["rounds"] if r["status"] == "completed"]
     last_two = completed[-2:]
-    consensus_reached = (
+    two_round_consensus = (
         len(last_two) >= 2
         and last_two[1]["round"] == last_two[0]["round"] + 1
         and all(r["clean_pass"] for r in last_two)
         and last_two[0]["lead_agent"] != last_two[1]["lead_agent"]
     )
+    consensus_reached = same_round_consensus or two_round_consensus
 
     # Check max_rounds
     max_rounds_exceeded = state["current_round"] >= state["max_rounds"]

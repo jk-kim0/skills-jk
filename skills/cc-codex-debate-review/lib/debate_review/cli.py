@@ -85,6 +85,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_settle = subparsers.add_parser("settle-round")
     p_settle.add_argument("--state-file", required=True)
     p_settle.add_argument("--round", type=int, required=True)
+    p_settle.add_argument("--cross-verifier-clean-pass", action="store_true",
+                          help="Cross-verifier also found no issues (enables same-round consensus)")
 
     # record-cross-verification subcommand
     p_xcv = subparsers.add_parser("record-cross-verification")
@@ -500,6 +502,10 @@ def cmd_settle_round(args):
         return
     state["journal"]["step"] = "step4_settle"
     record_step_timing(state, "step4_settle")
+    if args.cross_verifier_clean_pass:
+        from debate_review.round_ops import _find_round
+        round_ = _find_round(state, args.round)
+        round_.setdefault("step2", {})["cross_verifier_clean_pass"] = True
     result = settle_round(state, round_num=args.round)
     save_state(state, args.state_file)
     print(json.dumps(result))
