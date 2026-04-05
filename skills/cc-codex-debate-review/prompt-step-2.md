@@ -7,6 +7,7 @@ You are the CROSS-VERIFIER this round.
 {LEAD_FINDINGS_JSON}
 
 For each: `accept` or `rebut` with reason.
+Use the provided `report_id` for each verification decision. Do not substitute `issue_id` when a `report_id` is available.
 
 ### Task
 
@@ -28,6 +29,18 @@ Before reporting a finding, check the Debate Ledger:
 
 ### Output
 
+Each `cross_verifications` entry must use `report_id` and `decision`:
+
 ```json
-{"cross_verifications": [...], "withdrawals": [...], "findings": [...]}
-```
+{
+  "cross_verifications": [
+    {"report_id": "rpt_001", "decision": "accept", "reason": "..."},
+    {"report_id": "rpt_002", "decision": "rebut", "reason": "..."}
+  ],
+  "withdrawals": [
+    {"issue_id": "isu_001", "reason": "..."}
+  ],
+  "findings": [
+    {"severity": "...", "criterion": 0, "file": "...", "line": 0, "anchor": "...", "message": "..."}
+  ]
+}
