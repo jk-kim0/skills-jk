@@ -13,6 +13,12 @@ from debate_review.context import (
     build_open_issues,
 )
 from debate_review.issue_ops import normalize_message
+from debate_review.progress import (
+    ProgressReporter,
+    format_step1,
+    format_step2,
+    format_step3,
+)
 from debate_review.prompt import build_initial_prompt, prompt_file_path
 from debate_review.reporting import build_final_summary, export_debate_markdown
 from debate_review.timing import utc_now_iso
@@ -650,6 +656,7 @@ class DebateReviewOrchestrator:
         self.state_file = None
         self.round_extra_context = None
         self.fresh_session = False
+        self.progress = ProgressReporter()
 
     def _checkpoint(self) -> dict | None:
         return _load_checkpoint(self.state_file)
@@ -1069,8 +1076,19 @@ class DebateReviewOrchestrator:
         self._clear_checkpoint()
         return "step4"
 
+    _STEP_ACTIONS = {
+        "step1": "lead review",
+        "step2": "cross-verify",
+        "step3": "lead response",
+    }
+
     def _dispatch_and_checkpoint(self, *, step: str, agent: str, state: dict, round_ctx: dict) -> dict:
+        action = self._STEP_ACTIONS.get(step, step)
+        step_label = step.replace("step", "Step")
+        self.progress.step_start(step_label, agent, action)
+        t0 = time.monotonic()
         response = self._dispatch_step(step=step, agent=agent, state=state, round_ctx=round_ctx)
+        elapsed = time.monotonic() - t0
         checkpoint = self._make_step_checkpoint(
             step=step,
             round_num=round_ctx["round"],
@@ -1078,7 +1096,54 @@ class DebateReviewOrchestrator:
             response=response,
         )
         self._save_checkpoint(checkpoint)
+        self._report_step_done(step, step_label, agent, action, elapsed, response)
         return checkpoint
+
+    def _report_step_done(self, step: str, step_label: str, agent: str, action: str, elapsed: float, response: dict) -> None:
+        if step == "step1":
+            findings = response.get("findings", [])
+            rebuttals = response.get("rebuttal_responses", [])
+            withdrawals = response.get("withdrawals", [])
+            parts = []
+            if findings:
+                parts.append(f"{len(findings)} finding(s)")
+            if rebuttals:
+                parts.append(f"{len(rebuttals)} rebuttal(s)")
+            if withdrawals:
+                parts.append(f"{len(withdrawals)} withdrawal(s)")
+            self.progress.step_done(step_label, agent, action, elapsed, ", ".join(parts))
+            self.progress.debate_content(format_step1(response))
+        elif step == "step2":
+            verifications = response.get("cross_verifications", [])
+            new_findings = response.get("findings", [])
+            accepts = sum(1 for v in verifications if v.get("verdict", v.get("decision", "")) == "accept")
+            rebuts = sum(1 for v in verifications if v.get("verdict", v.get("decision", "")) == "rebut")
+            parts = []
+            if accepts:
+                parts.append(f"{accepts} accept")
+            if rebuts:
+                parts.append(f"{rebuts} rebut")
+            if new_findings:
+                parts.append(f"{len(new_findings)} new")
+            self.progress.step_done(step_label, agent, action, elapsed, ", ".join(parts))
+            self.progress.debate_content(format_step2(response))
+        elif step == "step3":
+            app = response.get("application_result", {})
+            applied = len(app.get("applied_issues", []))
+            failed = len(app.get("failed_issues", []))
+            decisions = response.get("rebuttal_decisions", [])
+            evals = response.get("cross_finding_evaluations", [])
+            parts = []
+            if decisions or evals:
+                parts.append(f"{len(decisions) + len(evals)} decision(s)")
+            if applied:
+                parts.append(f"applied {applied}")
+            if failed:
+                parts.append(f"failed {failed}")
+            self.progress.step_done(step_label, agent, action, elapsed, ", ".join(parts))
+            self.progress.debate_content(format_step3(response))
+        else:
+            self.progress.step_done(step_label, agent, action, elapsed)
 
     def _process_pending_checkpoint(self, state: dict, round_ctx: dict) -> str | None:
         checkpoint = self._checkpoint()
@@ -1241,6 +1306,9 @@ class DebateReviewOrchestrator:
                 if next_step == "step0":
                     current_command = "sync-head"
                     next_step = self._step0(state)
+                    state = self._load_state()
+                    round_ctx = _round_context(state)
+                    self.progress.round_start(round_ctx["round"], round_ctx["lead_agent"], round_ctx["cross_verifier"])
                     continue
 
                 state = self._load_state()
@@ -1255,6 +1323,9 @@ class DebateReviewOrchestrator:
                         round_ctx=round_ctx,
                     )
                     next_step = self._route_step1_checkpoint(checkpoint, round_ctx)
+                    if next_step == "step4":
+                        self.progress.step_skip("Step2", "clean pass")
+                        self.progress.step_skip("Step3", "clean pass")
                     continue
 
                 if next_step == "step2":
@@ -1284,13 +1355,35 @@ class DebateReviewOrchestrator:
                 if next_step == "step4":
                     current_command = "settle-round"
                     settle_result = self.cli.settle_round(self.state_file, round_num=round_ctx["round"])
+                    settled_ids = [s["issue_id"] for s in settle_result.get("settled_issues", [])]
+                    unresolved_ids = settle_result.get("unresolved_issue_ids", [])
+                    self.progress.settle(
+                        settle_result["result"],
+                        next_round=settle_result.get("next_round"),
+                        settled=settled_ids or None,
+                        unresolved=unresolved_ids or None,
+                    )
                     if settle_result["result"] == "continue":
                         self.round_extra_context = None
                         next_step = "step0"
                         continue
                     state = self._load_state()
                     self._terminal(state)
-                    return self._build_final_result(state, settle_result["result"])
+                    final = self._build_final_result(state, settle_result["result"])
+                    summary = build_final_summary(state)
+                    issues = state.get("issues", {})
+                    applied = sum(1 for i in issues.values() if i.get("application_status") == "applied")
+                    withdrawn = sum(1 for i in issues.values() if i.get("consensus_status") == "withdrawn")
+                    unresolved = len(issues) - applied - withdrawn
+                    self.progress.final_result(
+                        summary["outcome"],
+                        summary.get("total_rounds", state["current_round"]),
+                        summary["total_duration"],
+                        applied=applied,
+                        withdrawn=withdrawn,
+                        unresolved=max(0, unresolved),
+                    )
+                    return final
 
                 raise OrchestrationError(f"Unsupported resume step: {next_step}")
         except TerminalActionError:

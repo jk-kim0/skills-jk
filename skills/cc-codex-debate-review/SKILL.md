@@ -1029,6 +1029,56 @@ Then proceed with the new round's Step 1 instruction.
 
 ---
 
+## Progress Display
+
+The orchestrator outputs real-time progress to stderr so users can follow the debate as it happens. stdout remains reserved for the final JSON result.
+
+### Output Format
+
+```
+── Round 1 (lead: codex) ────────────────────────────────
+[Step1] codex lead review...
+[Step1] codex lead review... (30s)
+[Step1] codex lead review ✓ (2m 34s) — 2 finding(s)
+  [warning] src/foo.ts:42 (validate_input)
+    Missing input validation for user-provided data
+  verdict: has_findings
+
+[Step2] cc cross-verify...
+[Step2] cc cross-verify ✓ (1m 12s) — 1 accept, 1 rebut
+  isu_001 ACCEPT:
+    agreed
+  isu_002 REBUT:
+    out of scope for this PR
+
+[Step3] codex lead response...
+[Step3] codex lead response ✓ (45s) — 2 decision(s), applied 1
+  rpt_001 MAINTAIN:
+    still valid
+  CODE APPLIED: isu_001 → commit abc1234
+
+[Step4] settle ✓ continue → round 2
+        settled: isu_001
+        unresolved: isu_002
+
+── Result ──────────────────────────────────────────
+consensus after 2 rounds (4m 43s)
+applied: 1 | withdrawn: 1 | unresolved: 0
+```
+
+### Key behaviors
+
+- **Elapsed time ticks**: During long agent runs, a periodic update prints every 30 seconds (e.g., `[Step1] codex lead review... (30s)`, `... (1m 0s)`)
+- **Debate content**: After each step completes, full findings/rebuttals/decisions are printed with indentation
+- **Clean pass shortcut**: When step1 returns `no_findings_mergeable`, Step2 and Step3 are shown as `skip (clean pass)`
+- **Settlement**: Shows which issues were settled and which remain unresolved
+
+### Implementation
+
+Progress is handled by `ProgressReporter` in `lib/debate_review/progress.py`. The orchestrator calls it at each lifecycle event. Content formatters (`format_step1`, `format_step2`, `format_step3`) extract human-readable summaries from agent JSON responses.
+
+---
+
 ## Quick Reference
 
 | Item | Rule |
