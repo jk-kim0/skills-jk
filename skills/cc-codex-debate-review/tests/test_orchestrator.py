@@ -1192,6 +1192,14 @@ def test_normalize_cross_verifications_issue_id_and_verdict():
     assert result[0]["decision"] == "rebut"
 
 
+def test_normalize_cross_verifications_issue_id_and_action():
+    state = {"issues": {"isu_001": {"reports": [{"report_id": "rpt_001"}]}}}
+    raw = [{"issue_id": "isu_001", "action": "accept", "reason": "agree"}]
+    result = _normalize_cross_verifications(raw, state)
+    assert result[0]["report_id"] == "rpt_001"
+    assert result[0]["decision"] == "accept"
+
+
 def test_normalize_cross_verifications_already_correct():
     state = {"issues": {}}
     raw = [{"report_id": "rpt_001", "decision": "accept"}]

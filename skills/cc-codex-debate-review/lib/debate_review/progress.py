@@ -169,7 +169,7 @@ def format_step2(response: dict) -> list[str]:
     lines: list[str] = []
     for v in response.get("cross_verifications", []):
         issue_id = v.get("issue_id", v.get("report_id", "?"))
-        verdict = v.get("verdict", v.get("decision", "?")).upper()
+        verdict = v.get("verdict", v.get("decision", v.get("action", "?"))).upper()
         reason = v.get("reason", "")
         lines.append(f"{issue_id} {verdict}:")
         if reason:
