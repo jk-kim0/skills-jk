@@ -648,7 +648,6 @@ def test_cli_init_consensus_session_with_stale_checkpoint_rejects(monkeypatch, c
         is_fork=False,
         head_sha="abc123",
         pr_branch_name="feat/test",
-        agent_mode="persistent",
     )
     state["status"] = "consensus_reached"
     state["final_outcome"] = "consensus"

@@ -348,7 +348,7 @@ def test_dispatch_step_persistent_rehydrates_missing_round_with_subprocess_cli(m
     monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
     monkeypatch.setenv("HOME", str(tmp_path))
 
-    state = _sample_state(agent_mode="persistent")
+    state = _sample_state()
     state["current_round"] = 1
     state["rounds"] = []
     init_round(state, round_num=1, lead_agent="cc", synced_head_sha=state["head"]["last_observed_pr_sha"])
@@ -708,7 +708,7 @@ def test_route_step1_checkpoint_normalizes_issue_id_rebuttal_responses(monkeypat
     checkpoint_path = tmp_path / "checkpoint.json"
     monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
 
-    state = _sample_state(agent_mode="legacy")
+    state = _sample_state()
     init_round(state, round_num=1, synced_head_sha=state["head"]["last_observed_pr_sha"])
     issue = upsert_issue(
         state,
@@ -784,7 +784,7 @@ def test_route_step1_checkpoint_maps_issue_id_to_pending_rebuttal_report(monkeyp
     checkpoint_path = tmp_path / "checkpoint.json"
     monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
 
-    state = _sample_state(agent_mode="legacy")
+    state = _sample_state()
     init_round(state, round_num=1, synced_head_sha=state["head"]["last_observed_pr_sha"])
     issue = upsert_issue(
         state,
@@ -870,7 +870,7 @@ def test_route_step3_checkpoint_normalizes_issue_id_decisions(monkeypatch, tmp_p
     checkpoint_path = tmp_path / "checkpoint.json"
     monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
 
-    state = _sample_state(agent_mode="legacy")
+    state = _sample_state()
     init_round(state, round_num=1, synced_head_sha=state["head"]["last_observed_pr_sha"])
     lead = upsert_issue(
         state,
