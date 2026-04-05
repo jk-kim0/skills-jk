@@ -7,6 +7,9 @@ You are the CROSS-VERIFIER this round.
 {LEAD_FINDINGS_JSON}
 
 For each: `accept` or `rebut` with reason.
+Use the provided `report_id` for each cross-verification decision. Do not substitute `issue_id` when a `report_id` is available.
+
+**Important:** Only include `report_id` values from the Lead's Findings above. Do NOT create or fabricate new `report_id` values.
 
 ### Task
 
