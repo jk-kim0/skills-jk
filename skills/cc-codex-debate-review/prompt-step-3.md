@@ -22,7 +22,13 @@ If you realize one of your own open issues is a duplicate of another open issue 
 
 {APPLICABLE_ISSUES_JSON}
 
-If empty, skip code application entirely — return empty `applied_issues`/`failed_issues` arrays and omit `commit_sha`.
+### Potential Issues to Fix (if you accept cross-findings above)
+
+{POTENTIAL_APPLICABLE_ISSUES_JSON}
+
+These issues are from the cross-verifier's findings. If you `accept` them in Cross-Verifier's New Findings above, include them in your code application as well. Do NOT fix them if you chose `maintain` (reject).
+
+If both "Issues to Fix" and accepted potential issues are empty, skip code application entirely — return empty `applied_issues`/`failed_issues` arrays and omit `commit_sha`.
 
 ### Code Application
 

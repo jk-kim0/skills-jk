@@ -260,6 +260,49 @@ def build_applicable_issues(state):
     return result
 
 
+def build_potential_applicable_issues(state, round_num):
+    """Build {POTENTIAL_APPLICABLE_ISSUES} — cross-verifier findings the lead may accept in Step 3.
+
+    These are open issues reported by the cross-verifier in the current round's Step 2
+    that haven't reached consensus yet. If the lead accepts them in Step 3,
+    they should be fixed in the same round instead of waiting for the next round.
+    """
+    if state.get("is_fork") or state.get("dry_run"):
+        return []
+
+    for r in state.get("rounds", []):
+        if r["round"] == round_num:
+            step2 = r.get("step2", {})
+            cross_issue_ids = set(step2.get("issue_ids_touched", []))
+            # Also include issues from cross-verifier's new findings (step2.report_ids)
+            for rid in step2.get("report_ids", []):
+                rpt = _resolve_report(state, rid)
+                if rpt:
+                    cross_issue_ids.add(rpt["issue_id"])
+            break
+    else:
+        return []
+
+    result = []
+    for iid in cross_issue_ids:
+        issue = state.get("issues", {}).get(iid)
+        if not issue:
+            continue
+        # Only include open issues (not yet at consensus)
+        if issue.get("consensus_status") != "open":
+            continue
+        if issue.get("application_status") in ("applied",):
+            continue
+        result.append({
+            "issue_id": iid,
+            "file": issue.get("file"),
+            "line": issue.get("line"),
+            "anchor": issue.get("anchor"),
+            "message": issue.get("reports", [{}])[-1].get("message", ""),
+        })
+    return result
+
+
 def build_context(state, round_num):
     """Build all state-derivable placeholder data for agent prompts."""
     return {
