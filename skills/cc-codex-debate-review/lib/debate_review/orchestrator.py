@@ -5,6 +5,7 @@ import shlex
 import subprocess
 import time
 from dataclasses import dataclass
+from datetime import datetime
 
 from debate_review.config import load_config
 from debate_review.context import (
@@ -139,6 +140,29 @@ def _trace_step_name(step: str) -> str:
         "step2": "step2_cross_review",
         "step3": "step3_lead_apply",
     }.get(step, step)
+
+
+def _parse_iso_datetime(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def _step_elapsed_seconds(state: dict, *, round_num: int, step: str) -> float:
+    trace_name = _trace_step_name(step)
+    for round_ in state.get("rounds", []):
+        if round_.get("round") != round_num:
+            continue
+        trace = round_.get("step_traces", {}).get(trace_name, {})
+        started_at = _parse_iso_datetime(trace.get("started_at"))
+        completed_at = _parse_iso_datetime(trace.get("completed_at"))
+        if started_at and completed_at:
+            return max(0.0, (completed_at - started_at).total_seconds())
+        break
+    return 0.0
 
 
 def _find_first_value(payload, keys: tuple[str, ...]) -> str | None:
@@ -657,6 +681,7 @@ class DebateReviewOrchestrator:
         self.round_extra_context = None
         self.fresh_session = False
         self.progress = ProgressReporter()
+        self._announced_round: int | None = None
 
     def _checkpoint(self) -> dict | None:
         return _load_checkpoint(self.state_file)
@@ -1149,6 +1174,22 @@ class DebateReviewOrchestrator:
         else:
             self.progress.step_done(step_label, agent, action, elapsed)
 
+    def _ensure_round_progress(self, round_ctx: dict) -> None:
+        if self._announced_round == round_ctx["round"]:
+            return
+        self.progress.round_start(round_ctx["round"], round_ctx["lead_agent"], round_ctx["cross_verifier"])
+        self._announced_round = round_ctx["round"]
+
+    def _replay_checkpoint_progress(self, state: dict, round_ctx: dict, checkpoint: dict) -> None:
+        step = checkpoint["step"]
+        action = self._STEP_ACTIONS.get(step, step)
+        step_label = step.replace("step", "Step")
+        agent = checkpoint.get("agent") or (
+            round_ctx["cross_verifier"] if step == "step2" else round_ctx["lead_agent"]
+        )
+        elapsed = _step_elapsed_seconds(state, round_num=round_ctx["round"], step=step)
+        self._report_step_done(step, step_label, agent, action, elapsed, checkpoint["response"])
+
     def _process_pending_checkpoint(self, state: dict, round_ctx: dict) -> str | None:
         checkpoint = self._checkpoint()
         if not checkpoint:
@@ -1156,8 +1197,13 @@ class DebateReviewOrchestrator:
         if checkpoint.get("round") != round_ctx["round"]:
             self._clear_checkpoint()
             return None
+        self._replay_checkpoint_progress(state, round_ctx, checkpoint)
         if checkpoint["step"] == "step1":
-            return self._route_step1_checkpoint(checkpoint, round_ctx)
+            next_step = self._route_step1_checkpoint(checkpoint, round_ctx)
+            if next_step == "step4":
+                self.progress.step_skip("Step2", "clean pass")
+                self.progress.step_skip("Step3", "clean pass")
+            return next_step
         if checkpoint["step"] == "step2":
             return self._route_step2_checkpoint(checkpoint, round_ctx)
         if checkpoint["step"] == "step3":
@@ -1301,6 +1347,8 @@ class DebateReviewOrchestrator:
             while True:
                 state = self._load_state()
                 round_ctx = _round_context(state)
+                if next_step != "step0":
+                    self._ensure_round_progress(round_ctx)
 
                 checkpoint_next = self._process_pending_checkpoint(state, round_ctx)
                 if checkpoint_next:
@@ -1312,7 +1360,7 @@ class DebateReviewOrchestrator:
                     next_step = self._step0(state)
                     state = self._load_state()
                     round_ctx = _round_context(state)
-                    self.progress.round_start(round_ctx["round"], round_ctx["lead_agent"], round_ctx["cross_verifier"])
+                    self._ensure_round_progress(round_ctx)
                     continue
 
                 state = self._load_state()
