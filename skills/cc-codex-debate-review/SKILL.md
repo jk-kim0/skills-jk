@@ -164,7 +164,7 @@ After initialization, start loop from `CURRENT_ROUND`. Each round:
 3. Step 1: Lead agent review (1a: resolve pending rebuttals → 1b: new review + verdict)
 4. Step 2: Cross-verifier cross-verification (skipped on clean pass)
 5. Step 3: Lead agent response + code application (skipped on clean pass)
-6. Step 4: Settlement
+6. Step 4: Settlement (`settle-round`)
 
 #### Agent Lifecycle
 
@@ -527,7 +527,9 @@ git -C "$WORKTREE_PATH" push origin "HEAD:$HEAD_BRANCH"
 
 ---
 
-### Step 4: Settlement
+### Step 4: Settlement (`settle-round`)
+
+The CLI subcommand is `settle-round` (not `settle`).
 
 ```bash
 SETTLE_RESULT=$("$DEBATE_REVIEW_BIN" settle-round \
