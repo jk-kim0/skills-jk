@@ -8,6 +8,7 @@ You are the LEAD reviewer this round.
 
 If empty, skip rebuttal resolution.
 For each: decide `withdraw` (accept rebuttal) or `maintain` (keep finding).
+Use the provided `report_id` for each rebuttal response. Do not substitute `issue_id` when a `report_id` is available.
 
 ### Task (Step 1b)
 

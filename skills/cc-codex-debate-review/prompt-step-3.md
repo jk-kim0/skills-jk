@@ -5,12 +5,14 @@
 {CROSS_REBUTTALS_JSON}
 
 For each: `withdraw` or `maintain`.
+Use the provided `report_id` for each rebuttal decision. Do not substitute `issue_id` when a `report_id` is available.
 
 ### Cross-Verifier's New Findings
 
 {CROSS_NEW_FINDINGS_JSON}
 
 For each: `accept` or `maintain`.
+Use the provided `report_id` for each cross-finding evaluation. Do not substitute `issue_id` when a `report_id` is available.
 
 ### Withdrawals
 

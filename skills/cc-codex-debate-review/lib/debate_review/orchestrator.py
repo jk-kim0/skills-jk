@@ -10,8 +10,11 @@ from datetime import datetime
 from debate_review.config import load_config
 from debate_review.context import (
     build_context,
+    build_cross_findings,
+    build_cross_rebuttals,
     build_debate_ledger_text,
     build_open_issues,
+    build_pending_rebuttals,
 )
 from debate_review.issue_ops import normalize_message
 from debate_review.progress import (
@@ -365,24 +368,37 @@ def _normalize_cross_verifications(verifications: list, state: dict) -> list:
     return normalized
 
 
-def _normalize_rebuttal_responses(responses: list, state: dict) -> list:
+def _normalize_rebuttal_responses(responses: list, candidates: list[dict]) -> list:
     """Normalize agent rebuttal responses to CLI-expected format.
 
     Agents may return {issue_id, action} instead of {report_id, decision}.
+    We only map issue_id aliases within the current step's candidate set.
     """
-    issue_to_report: dict[str, str] = {}
-    for issue_id, issue in state.get("issues", {}).items():
-        reports = issue.get("reports", [])
-        if reports:
-            issue_to_report[issue_id] = reports[-1]["report_id"]
+    issue_to_reports: dict[str, list[str]] = {}
+    for candidate in candidates:
+        issue_id = candidate.get("issue_id")
+        report_id = candidate.get("report_id")
+        if not issue_id or not report_id:
+            continue
+        issue_to_reports.setdefault(issue_id, []).append(report_id)
 
     normalized = []
     for response in responses:
         entry = dict(response)
         if "report_id" not in entry and "issue_id" in entry:
-            report_id = issue_to_report.get(entry["issue_id"])
-            if report_id:
-                entry["report_id"] = report_id
+            matches = issue_to_reports.get(entry["issue_id"], [])
+            if len(matches) == 1:
+                entry["report_id"] = matches[0]
+            elif len(matches) > 1:
+                raise OrchestrationError(
+                    f"Ambiguous rebuttal response for issue_id {entry['issue_id']}: "
+                    f"candidate report_ids={matches}. Agent must return report_id."
+                )
+            else:
+                raise OrchestrationError(
+                    f"Unknown rebuttal response issue_id {entry['issue_id']}. "
+                    "Agent must return report_id from the current step context."
+                )
         if "decision" not in entry and "action" in entry:
             entry["decision"] = entry["action"]
         if "decision" not in entry and "verdict" in entry:
@@ -889,6 +905,28 @@ class DebateReviewOrchestrator:
         if result.returncode != 0:
             raise OrchestrationError(f"worktree cleanup failed: {result.stderr.strip()}")
 
+    def _ensure_round_exists(self, state: dict, round_ctx: dict) -> dict:
+        round_num = round_ctx["round"]
+        if any(round_.get("round") == round_num for round_ in state.get("rounds", [])):
+            return state
+
+        synced_head_sha = (
+            state.get("head", {}).get("synced_worktree_sha")
+            or state.get("journal", {}).get("post_sync_head_sha")
+            or state.get("head", {}).get("last_observed_pr_sha")
+        )
+        if not synced_head_sha:
+            raise OrchestrationError(
+                f"Cannot initialize missing round {round_num}: synced HEAD SHA unavailable"
+            )
+
+        self.cli.init_round(
+            self.state_file,
+            round_num=round_num,
+            synced_head_sha=synced_head_sha,
+        )
+        return self._load_state()
+
     def _ensure_persistent_agents(self, state: dict, next_step: str) -> None:
         if state.get("agent_mode") != "persistent":
             return
@@ -926,6 +964,7 @@ class DebateReviewOrchestrator:
             self.fresh_session = False
 
     def _dispatch_step(self, *, step: str, agent: str, state: dict, round_ctx: dict) -> dict:
+        state = self._ensure_round_exists(state, round_ctx)
         adapter = self.adapters[agent]
         sandbox = self._codex_sandbox()
         extra = self.round_extra_context
@@ -1097,9 +1136,10 @@ class DebateReviewOrchestrator:
     def _route_step1_checkpoint(self, checkpoint: dict, round_ctx: dict) -> str:
         response = checkpoint["response"]
         if not checkpoint["progress"]["rebuttals_done"] and response.get("rebuttal_responses"):
+            state = self._load_state()
             decisions = _normalize_rebuttal_responses(
                 response["rebuttal_responses"],
-                self.cli.show(self.state_file),
+                build_pending_rebuttals(state, round_ctx["round"]),
             )
             self.cli.resolve_rebuttals(
                 self.state_file,
@@ -1182,7 +1222,16 @@ class DebateReviewOrchestrator:
 
     def _route_step3_checkpoint(self, checkpoint: dict, round_ctx: dict) -> str:
         response = checkpoint["response"]
-        decisions = response.get("rebuttal_decisions", []) + response.get("cross_finding_evaluations", [])
+        state = self._load_state()
+        rebuttal_decisions = _normalize_rebuttal_responses(
+            response.get("rebuttal_decisions", []),
+            build_cross_rebuttals(state, round_ctx["round"]),
+        )
+        cross_finding_evaluations = _normalize_rebuttal_responses(
+            response.get("cross_finding_evaluations", []),
+            build_cross_findings(state, round_ctx["round"]),
+        )
+        decisions = rebuttal_decisions + cross_finding_evaluations
         if decisions and not checkpoint["progress"]["decisions_done"]:
             self.cli.resolve_rebuttals(
                 self.state_file,
