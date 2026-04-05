@@ -387,6 +387,78 @@ def test_dispatch_step_persistent_records_trace_metadata(monkeypatch, tmp_path):
     assert [span["name"] for span in trace["command_spans"]] == ["build_prompt", "send_message"]
 
 
+def test_dispatch_step_persistent_rehydrates_missing_round_with_subprocess_cli(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    checkpoint_path = tmp_path / "checkpoint.json"
+    monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    state = _sample_state(agent_mode="persistent")
+    state["current_round"] = 1
+    state["rounds"] = []
+    init_round(state, round_num=1, lead_agent="cc", synced_head_sha=state["head"]["last_observed_pr_sha"])
+    state["persistent_agents"]["cc_agent_id"] = "cc-session-1"
+    state_file = tmp_path / "state.json"
+    state_file.write_text(json.dumps(state))
+
+    stub_root = tmp_path / "py-stubs"
+    stub_root.mkdir()
+    (stub_root / "yaml.py").write_text(
+        "class YAMLError(Exception):\n"
+        "    pass\n\n"
+        "def safe_load(_stream):\n"
+        "    return {}\n"
+    )
+    wrapper = tmp_path / "debate-review-wrapper"
+    wrapper.write_text(
+        "#!/bin/sh\n"
+        f"export PYTHONPATH='{stub_root}:{SKILL_ROOT}/lib${{PYTHONPATH:+:$PYTHONPATH}}'\n"
+        f"exec '{os.sys.executable}' '{orchestrator_module._debate_review_bin(SKILL_ROOT)}' \"$@\"\n"
+    )
+    wrapper.chmod(0o755)
+
+    cli = orchestrator_module.SubprocessDebateCli(str(wrapper))
+    cc = ScriptedAdapter(
+        "cc",
+        send=[{
+            "rebuttal_responses": [],
+            "withdrawals": [],
+            "findings": [],
+            "verdict": "no_findings_mergeable",
+        }],
+    )
+    orchestrator = DebateReviewOrchestrator(
+        cli=cli,
+        adapters={"codex": ScriptedAdapter("codex"), "cc": cc},
+        skill_root=SKILL_ROOT,
+        config={"codex_sandbox": "danger-full-access"},
+        cleanup_worktree=False,
+    )
+    orchestrator.state_file = str(state_file)
+
+    checkpoint = orchestrator._dispatch_and_checkpoint(
+        step="step1",
+        agent="cc",
+        state=json.loads(state_file.read_text()),
+        round_ctx={
+            "round": 1,
+            "lead_agent": "cc",
+            "cross_verifier": "codex",
+            "worktree_path": f"{state['repo_root']}/.worktrees/debate-pr-{state['pr_number']}",
+            "head_branch": state["head"]["pr_branch_name"],
+            "synced_head_sha": state["head"]["last_observed_pr_sha"],
+        },
+    )
+
+    saved = json.loads(state_file.read_text())
+    assert checkpoint["response"]["verdict"] == "no_findings_mergeable"
+    assert saved["rounds"][0]["round"] == 1
+    assert "step1_lead_review" in saved["rounds"][0]["step_traces"]
+    prompt_file = saved["rounds"][0]["step_traces"]["step1_lead_review"]["runtime_artifacts"]["prompt_file"]
+    assert prompt_file.startswith(str(tmp_path))
+
+
 def test_route_step3_checkpoint_resumes_remaining_phases(monkeypatch, tmp_path):
     import debate_review.orchestrator as orchestrator_module
 
@@ -675,6 +747,76 @@ def test_route_step1_checkpoint_ignores_non_owner_withdrawal_error(monkeypatch, 
     assert cli.state["issues"][issue["issue_id"]]["consensus_status"] == "open"
 
 
+def test_route_step1_checkpoint_normalizes_issue_id_rebuttal_responses(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    checkpoint_path = tmp_path / "checkpoint.json"
+    monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
+
+    state = _sample_state(agent_mode="legacy")
+    init_round(state, round_num=1, synced_head_sha=state["head"]["last_observed_pr_sha"])
+    issue = upsert_issue(
+        state,
+        agent="cc",
+        round_num=1,
+        severity="warning",
+        criterion=6,
+        file="src/app.py",
+        line=1,
+        anchor="line1",
+        message="unused variable x",
+    )
+    report_id = issue["report_id"]
+
+    cli = FakeCli(state, state_file=str(tmp_path / "state.json"))
+    orchestrator = DebateReviewOrchestrator(
+        cli=cli,
+        adapters={"codex": ScriptedAdapter("codex"), "cc": ScriptedAdapter("cc")},
+        skill_root=SKILL_ROOT,
+        config={"codex_sandbox": "danger-full-access"},
+        cleanup_worktree=False,
+    )
+    orchestrator.state_file = cli.state_file
+
+    checkpoint = {
+        "step": "step1",
+        "round": 1,
+        "agent": "codex",
+        "response": {
+            "rebuttal_responses": [{
+                "issue_id": issue["issue_id"],
+                "action": "maintain",
+                "reason": "still reproducible",
+            }],
+            "withdrawals": [],
+            "findings": [],
+            "verdict": "has_findings",
+        },
+        "progress": {
+            "rebuttals_done": False,
+            "withdrawals_done": 0,
+            "findings_done": 0,
+            "verdict_done": False,
+        },
+    }
+
+    next_step = orchestrator._route_step1_checkpoint(checkpoint, {
+        "round": 1,
+        "lead_agent": "codex",
+        "cross_verifier": "cc",
+        "worktree_path": "/tmp/repo/.worktrees/debate-pr-123",
+        "head_branch": "feat/test",
+    })
+
+    assert next_step == "step2"
+    assert checkpoint["progress"]["rebuttals_done"] is True
+    assert state["rounds"][0]["step1"]["rebuttal_responses"] == [{
+        "report_id": report_id,
+        "decision": "maintain",
+        "reason": "still reproducible",
+    }]
+
+
 def test_route_step1_checkpoint_raises_on_unexpected_withdrawal_error(monkeypatch, tmp_path):
     import debate_review.orchestrator as orchestrator_module
 
@@ -928,6 +1070,7 @@ def test_terminal_still_runs_follow_through_when_post_comment_fails(monkeypatch,
 
     assert cli.mark_failed_calls == []
     assert cli.state["status"] == "consensus_reached"
+    assert not checkpoint_path.exists(), "checkpoint must be cleared even when post_comment fails"
 
 
 def test_mark_failed_still_runs_follow_through_when_post_comment_fails(monkeypatch, tmp_path):
@@ -1311,6 +1454,7 @@ def test_cleanup_worktree_skips_dry_run(monkeypatch, tmp_path):
 from debate_review.orchestrator import (
     _extract_json_from_text,
     _normalize_cross_verifications,
+    _normalize_rebuttal_responses,
     _normalize_withdrawals,
     _parse_json_object,
     _unwrap_cc_result,
@@ -1401,6 +1545,14 @@ def test_normalize_cross_verifications_already_correct():
     state = {"issues": {}}
     raw = [{"report_id": "rpt_001", "decision": "accept"}]
     assert _normalize_cross_verifications(raw, state) == raw
+
+
+def test_normalize_rebuttal_responses_issue_id_and_action():
+    state = {"issues": {"isu_001": {"reports": [{"report_id": "rpt_001"}]}}}
+    raw = [{"issue_id": "isu_001", "action": "maintain", "reason": "still valid"}]
+    result = _normalize_rebuttal_responses(raw, state)
+    assert result[0]["report_id"] == "rpt_001"
+    assert result[0]["decision"] == "maintain"
 
 
 def test_normalize_withdrawals_strings():

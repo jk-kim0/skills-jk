@@ -365,6 +365,32 @@ def _normalize_cross_verifications(verifications: list, state: dict) -> list:
     return normalized
 
 
+def _normalize_rebuttal_responses(responses: list, state: dict) -> list:
+    """Normalize agent rebuttal responses to CLI-expected format.
+
+    Agents may return {issue_id, action} instead of {report_id, decision}.
+    """
+    issue_to_report: dict[str, str] = {}
+    for issue_id, issue in state.get("issues", {}).items():
+        reports = issue.get("reports", [])
+        if reports:
+            issue_to_report[issue_id] = reports[-1]["report_id"]
+
+    normalized = []
+    for response in responses:
+        entry = dict(response)
+        if "report_id" not in entry and "issue_id" in entry:
+            report_id = issue_to_report.get(entry["issue_id"])
+            if report_id:
+                entry["report_id"] = report_id
+        if "decision" not in entry and "action" in entry:
+            entry["decision"] = entry["action"]
+        if "decision" not in entry and "verdict" in entry:
+            entry["decision"] = entry["verdict"]
+        normalized.append(entry)
+    return normalized
+
+
 def _normalize_withdrawals(withdrawals: list) -> list:
     """Normalize withdrawal entries — agents may send plain strings or dicts."""
     normalized = []
@@ -1071,11 +1097,15 @@ class DebateReviewOrchestrator:
     def _route_step1_checkpoint(self, checkpoint: dict, round_ctx: dict) -> str:
         response = checkpoint["response"]
         if not checkpoint["progress"]["rebuttals_done"] and response.get("rebuttal_responses"):
+            decisions = _normalize_rebuttal_responses(
+                response["rebuttal_responses"],
+                self.cli.show(self.state_file),
+            )
             self.cli.resolve_rebuttals(
                 self.state_file,
                 round_num=round_ctx["round"],
                 step="1a",
-                decisions=response["rebuttal_responses"],
+                decisions=decisions,
             )
             checkpoint["progress"]["rebuttals_done"] = True
             self._save_checkpoint(checkpoint)
@@ -1431,9 +1461,9 @@ class DebateReviewOrchestrator:
             comment_error = exc
 
         self._follow_through(state)
+        self._clear_checkpoint()
         if comment_error is not None:
             raise TerminalActionError(str(comment_error)) from comment_error
-        self._clear_checkpoint()
         try:
             self._cleanup_worktree(state)
         except Exception:
