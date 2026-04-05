@@ -519,11 +519,27 @@ The agent already pushed in its response. The orchestrator verifies:
 
 The CLI queries the actual PR HEAD and verifies it matches the commit SHA.
 
-If push verification fails, the orchestrator retries the push:
+If push verification fails, first check whether the commit is already on the remote branch before retrying:
 
 ```bash
-git -C "$WORKTREE_PATH" push origin "HEAD:$HEAD_BRANCH"
+git -C "$WORKTREE_PATH" fetch origin
+if git -C "$WORKTREE_PATH" branch -r --contains "$COMMIT_SHA" | grep -q "origin/$HEAD_BRANCH"; then
+  # Already pushed by the agent — retry Phase 3 verification only
+  "$DEBATE_REVIEW_BIN" record-application \
+    --state-file "$STATE_FILE" \
+    --round "$CURRENT_ROUND" \
+    --verify-push
+else
+  # Not yet on remote — push using HEAD refspec (works in detached HEAD worktrees)
+  git -C "$WORKTREE_PATH" push origin "HEAD:$HEAD_BRANCH"
+  "$DEBATE_REVIEW_BIN" record-application \
+    --state-file "$STATE_FILE" \
+    --round "$CURRENT_ROUND" \
+    --verify-push
+fi
 ```
+
+**Note:** In detached HEAD worktrees, always use `HEAD:$HEAD_BRANCH` refspec instead of bare branch names. Do NOT retry push if the agent already pushed successfully — verify with `git branch -r --contains` first.
 
 ---
 
