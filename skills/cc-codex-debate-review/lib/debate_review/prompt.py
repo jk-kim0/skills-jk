@@ -11,6 +11,7 @@ from .context import (
     build_lead_reports,
     build_open_issues,
     build_pending_rebuttals,
+    build_potential_applicable_issues,
 )
 
 _PROMPTS_DIR = os.path.join(os.path.expanduser("~"), ".claude", "debate-state", "prompts")
@@ -113,6 +114,9 @@ def build_step_message(state, step, round_num, skill_root, extra=None, state_fil
         )
         placeholders["{APPLICABLE_ISSUES_JSON}"] = json.dumps(
             build_applicable_issues(state), ensure_ascii=False, indent=2
+        )
+        placeholders["{POTENTIAL_APPLICABLE_ISSUES_JSON}"] = json.dumps(
+            build_potential_applicable_issues(state, round_num), ensure_ascii=False, indent=2
         )
         placeholders["{WORKTREE_PATH}"] = _worktree_path(state)
         placeholders["{DEBATE_REVIEW_BIN}"] = _debate_review_bin(skill_root)
