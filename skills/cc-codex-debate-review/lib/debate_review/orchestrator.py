@@ -889,6 +889,28 @@ class DebateReviewOrchestrator:
         if result.returncode != 0:
             raise OrchestrationError(f"worktree cleanup failed: {result.stderr.strip()}")
 
+    def _ensure_round_exists(self, state: dict, round_ctx: dict) -> dict:
+        round_num = round_ctx["round"]
+        if any(round_.get("round") == round_num for round_ in state.get("rounds", [])):
+            return state
+
+        synced_head_sha = (
+            state.get("head", {}).get("synced_worktree_sha")
+            or state.get("journal", {}).get("post_sync_head_sha")
+            or state.get("head", {}).get("last_observed_pr_sha")
+        )
+        if not synced_head_sha:
+            raise OrchestrationError(
+                f"Cannot initialize missing round {round_num}: synced HEAD SHA unavailable"
+            )
+
+        self.cli.init_round(
+            self.state_file,
+            round_num=round_num,
+            synced_head_sha=synced_head_sha,
+        )
+        return self._load_state()
+
     def _ensure_persistent_agents(self, state: dict, next_step: str) -> None:
         if state.get("agent_mode") != "persistent":
             return
@@ -926,6 +948,7 @@ class DebateReviewOrchestrator:
             self.fresh_session = False
 
     def _dispatch_step(self, *, step: str, agent: str, state: dict, round_ctx: dict) -> dict:
+        state = self._ensure_round_exists(state, round_ctx)
         adapter = self.adapters[agent]
         sandbox = self._codex_sandbox()
         extra = self.round_extra_context
