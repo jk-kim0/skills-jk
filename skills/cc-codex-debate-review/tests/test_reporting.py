@@ -846,13 +846,21 @@ def test_generate_sessions_report_returns_empty_when_state_dir_is_missing(tmp_pa
 
 
 def test_classify_cc_invocation():
-    assert _classify_cc_invocation({}) == "unknown"
-    assert _classify_cc_invocation({"persistent_agents": {}}) == "unknown"
-    assert _classify_cc_invocation({"persistent_agents": {"cc_agent_id": None}}) == "unknown"
-    assert _classify_cc_invocation({"persistent_agents": {"cc_agent_id": "a885e6c9e21155bb9"}}) == "agent-tool"
-    assert _classify_cc_invocation({"persistent_agents": {"cc_agent_id": "cc-debate-agent"}}) == "agent-tool"
-    assert _classify_cc_invocation({"persistent_agents": {"cc_agent_id": "760929c7-1b95-4382-93f0-2b956c"}}) == "subprocess"
-    assert _classify_cc_invocation({"persistent_agents": {"cc_session_id": "7efd8d9d-c877-4045-a819-c20fe9"}}) == "subprocess"
+    # Missing agent_mode defaults to "legacy" → "agent-tool"
+    assert _classify_cc_invocation({}) == "agent-tool"
+    assert _classify_cc_invocation({"persistent_agents": {}}) == "agent-tool"
+    assert _classify_cc_invocation({"persistent_agents": {"cc_agent_id": None}}) == "agent-tool"
+    # Explicit legacy → "agent-tool"
+    assert _classify_cc_invocation({"agent_mode": "legacy", "persistent_agents": {"cc_agent_id": "a885e6c9e21155bb9"}}) == "agent-tool"
+    assert _classify_cc_invocation({"agent_mode": "legacy", "persistent_agents": {"cc_agent_id": "cc-debate-agent"}}) == "agent-tool"
+    # Persistent with UUID handle → "subprocess"
+    assert _classify_cc_invocation({"agent_mode": "persistent", "persistent_agents": {"cc_agent_id": "760929c7-1b95-4382-93f0-2b956c"}}) == "subprocess"
+    assert _classify_cc_invocation({"agent_mode": "persistent", "persistent_agents": {"cc_session_id": "7efd8d9d-c877-4045-a819-c20fe9"}}) == "subprocess"
+    # Persistent with non-UUID handle → "agent-tool"
+    assert _classify_cc_invocation({"agent_mode": "persistent", "persistent_agents": {"cc_agent_id": "a885e6c9e21155bb9"}}) == "agent-tool"
+    # Persistent without handle → "unknown"
+    assert _classify_cc_invocation({"agent_mode": "persistent", "persistent_agents": {}}) == "unknown"
+    assert _classify_cc_invocation({"agent_mode": "persistent"}) == "unknown"
 
 
 def test_session_summary_includes_agent_mode_and_cc_invocation_type(tmp_path):
