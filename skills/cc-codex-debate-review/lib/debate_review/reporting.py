@@ -584,7 +584,7 @@ def _classify_cc_invocation(state: dict) -> str:
     - 'agent-tool': persistent session with old API-based Agent tool handle
     - 'unknown': no persistent agent or unrecognizable format
     """
-    if state.get("agent_mode") == "legacy":
+    if state.get("agent_mode", "legacy") == "legacy":
         return "agent-tool"
 
     pa = state.get("persistent_agents", {})

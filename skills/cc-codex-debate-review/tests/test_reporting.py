@@ -947,3 +947,37 @@ def test_legacy_session_without_handles_is_classified_as_agent_tool(tmp_path):
     session = next(s for s in report["sessions"] if s["pr_number"] == 502)
     assert session["cc_invocation_type"] == "agent-tool"
     assert report["stats_by_invocation"]["agent-tool"]["session_count"] == 1
+
+
+def test_missing_agent_mode_key_defaults_to_agent_tool(tmp_path):
+    """State files without agent_mode key should default to legacy → agent-tool."""
+    state_dir = tmp_path / "debate-state"
+    state_dir.mkdir()
+
+    state = create_initial_state(
+        repo="owner/repo",
+        repo_root="/tmp/repo",
+        pr_number=503,
+        is_fork=False,
+        head_sha="abc503",
+        pr_branch_name="feat/old",
+        agent_mode="legacy",
+    )
+    # Simulate real old state files that lack the agent_mode key entirely
+    del state["agent_mode"]
+    state["started_at"] = "2026-04-03T00:00:00+00:00"
+    state["finished_at"] = "2026-04-03T00:10:00+00:00"
+    state["status"] = "consensus_reached"
+    state["final_outcome"] = "consensus"
+    save_state(state, str(state_dir / "owner-repo-503.json"))
+
+    report = generate_sessions_report(
+        state_dir=state_dir,
+        claude_projects_root=tmp_path / "cp",
+        codex_sessions_root=tmp_path / "cs",
+    )
+
+    session = next(s for s in report["sessions"] if s["pr_number"] == 503)
+    assert session["agent_mode"] == "legacy"
+    assert session["cc_invocation_type"] == "agent-tool"
+    assert report["stats_by_invocation"]["agent-tool"]["session_count"] == 1

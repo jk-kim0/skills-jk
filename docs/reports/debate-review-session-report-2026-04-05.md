@@ -1,128 +1,128 @@
 # Debate Review Session Report
 
-- Generated at: 2026-04-05T13:30:00.827170+00:00
-- Sessions: 71
-- Completed: 67
-- In progress: 4
+- Generated at: 2026-04-05T14:50:06.140102+00:00
+- Sessions: 74
+- Completed: 69
+- In progress: 5
 
 ## Findings
 
-- **Excluded Population**: session 통계에서는 dry-run 3개, in-progress 4개를 제외했습니다. round 통계에서는 completed_at 누락 254개를 제외했습니다.
-- **Step-Level Coverage**: 통계 대상 completed round 86개 중 step 정보가 있는 round는 72개, agent breakdown이 있는 round는 55개입니다.
-- **Slowest Median Step**: step2_cross_review의 median은 151.6초로, 집계된 step 중 가장 깁니다.
-- **Cross-Reviewer Split**: step2_cross_review median은 CC 2810.9초, Codex 83.0초로 cross-review 분포가 agent별로 크게 갈립니다.
-- **Lead Agent Comparison**: Lead round median은 CC 82.6초, Codex 213.9초이며 Codex 쪽이 더 느립니다.
+- **Excluded Population**: session 통계에서는 dry-run 3개, in-progress 5개를 제외했습니다. round 통계에서는 completed_at 누락 255개를 제외했습니다.
+- **Step-Level Coverage**: 통계 대상 completed round 90개 중 step 정보가 있는 round는 76개, agent breakdown이 있는 round는 58개입니다.
+- **Slowest Median Step**: step2_cross_review의 median은 145.9초로, 집계된 step 중 가장 깁니다.
+- **Cross-Reviewer Split**: step2_cross_review median은 CC 2152.0초, Codex 79.1초로 cross-review 분포가 agent별로 크게 갈립니다.
+- **Lead Agent Comparison**: Lead round median은 CC 81.9초, Codex 213.9초이며 Codex 쪽이 더 느립니다.
 - **Longest Session**: jk-kim0/skills-jk#173 세션이 66342.3초로 가장 길었습니다.
 
 ## Population
 
 | Population | Total | Included | Excluded Dry Run | Excluded In Progress | Excluded Missing Completed At |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Sessions | 71 | 67 | 3 | 4 | - |
-| Rounds | 340 | 86 | 0 | 0 | 254 |
-| Steps | 321 | 321 | 0 | 0 | 0 |
+| Sessions | 74 | 69 | 3 | 5 | - |
+| Rounds | 346 | 90 | 0 | 2 | 255 |
+| Steps | 345 | 337 | 0 | 8 | 0 |
 
 _Sessions do not use the Excluded Missing Completed At column; session inclusion is based on `finished_at`._
 
 ## Statistics
 
-- Coverage (rounds with steps): 72 / 86
-- Coverage (rounds with breakdown): 55 / 86
+- Coverage (rounds with steps): 76 / 90
+- Coverage (rounds with breakdown): 58 / 90
 
 ### Completed Session And Round Wall-Clock Durations
 
 | Metric | Count | Min | 25% | Median | 75% | Max | Average |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Sessions | 67 | 13.9 | 726.1 | 1514.0 | 2145.1 | 66342.3 | 3371.4 |
-| Rounds | 86 | 15.9 | 51.2 | 117.2 | 326.0 | 1886.7 | 260.2 |
+| Sessions | 69 | 0.3 | 694.9 | 1385.0 | 2138.7 | 66342.3 | 3284.5 |
+| Rounds | 90 | 15.9 | 49.1 | 114.2 | 326.0 | 1886.7 | 256.6 |
 
 ### Completed Step Wall-Clock Durations
 
 | Metric | Count | Min | 25% | Median | 75% | Max | Average |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| step0_sync | 43 | 0.2 | 41.1 | 58.7 | 129.2 | 432.0 | 96.4 |
-| step1_lead_review | 150 | 0.1 | 21.6 | 107.3 | 156.7 | 1365.4 | 112.4 |
-| step2_cross_review | 43 | 0.9 | 66.0 | 151.6 | 410.5 | 9725.0 | 1250.2 |
-| step3_lead_apply | 42 | 5.4 | 15.5 | 76.3 | 126.8 | 1580.9 | 132.8 |
-| step4_settle | 43 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
+| step0_sync | 47 | 0.2 | 35.5 | 52.8 | 109.0 | 432.0 | 90.0 |
+| step1_lead_review | 153 | 0.1 | 21.8 | 106.9 | 157.1 | 1365.4 | 111.9 |
+| step2_cross_review | 46 | 0.0 | 49.9 | 145.9 | 229.8 | 9725.0 | 1171.8 |
+| step3_lead_apply | 44 | 1.2 | 15.2 | 76.3 | 132.7 | 1580.9 | 133.6 |
+| step4_settle | 47 | 0.0 | 0.0 | 0.0 | 0.0 | 90.3 | 1.9 |
 
 ### Completed Step Wall-Clock Durations By Agent
 
 | Metric | Count | Min | 25% | Median | 75% | Max | Average |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| step1_lead_review / cc | 17 | 0.1 | 3.7 | 3.9 | 9.4 | 201.3 | 30.2 |
-| step1_lead_review / codex | 133 | 0.1 | 31.4 | 115.8 | 161.5 | 1365.4 | 122.9 |
-| step2_cross_review / cc | 17 | 100.4 | 216.3 | 2810.9 | 4618.7 | 9725.0 | 3015.7 |
-| step2_cross_review / codex | 26 | 0.9 | 34.1 | 83.0 | 147.2 | 230.8 | 95.9 |
-| step3_lead_apply / cc | 3 | 5.4 | 7.0 | 8.5 | 8.5 | 8.5 | 7.5 |
-| step3_lead_apply / codex | 39 | 5.6 | 18.1 | 85.3 | 137.8 | 1580.9 | 142.4 |
+| step1_lead_review / cc | 18 | 0.1 | 3.7 | 4.3 | 25.6 | 201.3 | 30.2 |
+| step1_lead_review / codex | 135 | 0.1 | 32.9 | 115.8 | 161.8 | 1365.4 | 122.8 |
+| step2_cross_review / cc | 18 | 94.8 | 211.6 | 2152.0 | 4568.4 | 9725.0 | 2853.4 |
+| step2_cross_review / codex | 28 | 0.0 | 32.4 | 79.1 | 144.7 | 230.8 | 90.8 |
+| step3_lead_apply / cc | 4 | 1.2 | 4.4 | 7.0 | 8.5 | 8.5 | 5.9 |
+| step3_lead_apply / codex | 40 | 5.6 | 18.3 | 85.4 | 148.4 | 1580.9 | 146.4 |
 
 ### Completed Step Active Durations
 
 | Metric | Count | Min | 25% | Median | 75% | Max | Average |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| step1_lead_review | 130 | 8.1 | 46.1 | 120.9 | 166.4 | 1365.4 | 131.8 |
-| step2_cross_review | 36 | 0.9 | 40.6 | 130.7 | 1822.5 | 9725.0 | 1445.7 |
-| step3_lead_apply | 39 | 9.3 | 75.7 | 112.8 | 163.6 | 1580.9 | 177.8 |
+| step1_lead_review | 132 | 8.1 | 45.5 | 120.9 | 167.6 | 1365.4 | 131.5 |
+| step2_cross_review | 37 | 0.9 | 40.8 | 117.9 | 1493.1 | 9725.0 | 1407.9 |
+| step3_lead_apply | 40 | 9.3 | 75.8 | 115.4 | 163.6 | 1580.9 | 176.9 |
 
 ### Completed Step Active Durations By Agent
 
 | Metric | Count | Min | 25% | Median | 75% | Max | Average |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| step1_lead_review / codex | 130 | 8.1 | 46.1 | 120.9 | 166.4 | 1365.4 | 131.8 |
+| step1_lead_review / codex | 132 | 8.1 | 45.5 | 120.9 | 167.6 | 1365.4 | 131.5 |
 | step2_cross_review / cc | 10 | 1493.1 | 3845.8 | 4518.2 | 5472.2 | 9725.0 | 4961.9 |
-| step2_cross_review / codex | 26 | 0.9 | 34.1 | 69.3 | 147.2 | 230.8 | 93.3 |
-| step3_lead_apply / codex | 39 | 9.3 | 75.7 | 112.8 | 163.6 | 1580.9 | 177.8 |
+| step2_cross_review / codex | 27 | 0.9 | 35.3 | 56.3 | 145.9 | 230.8 | 91.6 |
+| step3_lead_apply / codex | 40 | 9.3 | 75.8 | 115.4 | 163.6 | 1580.9 | 176.9 |
 
 ### Completed Lead Agent Round Wall-Clock Durations
 
 | Metric | Count | Min | 25% | Median | 75% | Max | Average |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Cc | 37 | 15.9 | 43.3 | 82.6 | 156.6 | 412.1 | 120.0 |
-| Codex | 49 | 29.4 | 56.9 | 213.9 | 521.7 | 1886.7 | 366.1 |
+| Cc | 39 | 15.9 | 41.5 | 81.9 | 156.2 | 412.1 | 115.2 |
+| Codex | 51 | 29.4 | 55.6 | 213.9 | 523.9 | 1886.7 | 364.7 |
 
 ## Statistics By CC Invocation Type
 
 ### Subprocess (`claude -p`)
 
-- Sessions: 11 (completed: 11)
-- Rounds included: 36
+- Sessions: 13 (completed: 12)
+- Rounds included: 40
 
 ### Subprocess (`claude -p`) — Session And Round Durations
 
 | Metric | Count | Min | 25% | Median | 75% | Max | Average |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Sessions | 11 | 272.5 | 594.7 | 690.6 | 955.3 | 1848.7 | 820.2 |
-| Rounds | 36 | 25.7 | 51.4 | 103.4 | 337.4 | 1184.7 | 225.1 |
+| Sessions | 12 | 272.5 | 629.2 | 718.4 | 928.3 | 1848.7 | 814.0 |
+| Rounds | 40 | 22.5 | 48.2 | 85.8 | 337.4 | 1184.7 | 220.5 |
 
 ### Subprocess (`claude -p`) — Step Durations By Agent
 
 | Metric | Count | Min | 25% | Median | 75% | Max | Average |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| step1_lead_review / cc | 13 | 0.1 | 3.8 | 4.8 | 67.8 | 201.3 | 38.9 |
-| step1_lead_review / codex | 21 | 0.1 | 3.7 | 5.8 | 106.9 | 230.0 | 61.1 |
-| step2_cross_review / cc | 7 | 100.4 | 152.3 | 210.0 | 221.6 | 590.3 | 235.5 |
-| step2_cross_review / codex | 4 | 22.9 | 62.5 | 84.8 | 125.2 | 219.1 | 102.9 |
-| step3_lead_apply / cc | 3 | 5.4 | 7.0 | 8.5 | 8.5 | 8.5 | 7.5 |
-| step3_lead_apply / codex | 11 | 5.6 | 13.7 | 17.6 | 26.0 | 453.3 | 68.8 |
+| step1_lead_review / cc | 14 | 0.1 | 3.8 | 5.8 | 58.6 | 201.3 | 38.3 |
+| step1_lead_review / codex | 23 | 0.1 | 3.7 | 34.4 | 118.4 | 230.0 | 65.8 |
+| step2_cross_review / cc | 8 | 94.8 | 138.8 | 181.5 | 218.9 | 590.3 | 217.9 |
+| step2_cross_review / codex | 6 | 0.0 | 29.1 | 61.8 | 89.4 | 219.1 | 76.6 |
+| step3_lead_apply / cc | 4 | 1.2 | 4.4 | 7.0 | 8.5 | 8.5 | 5.9 |
+| step3_lead_apply / codex | 12 | 5.6 | 14.1 | 18.1 | 64.2 | 453.3 | 88.4 |
 
 ### Subprocess (`claude -p`) — Lead Agent Round Durations
 
 | Metric | Count | Min | 25% | Median | 75% | Max | Average |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Cc | 15 | 25.7 | 42.1 | 53.6 | 160.8 | 329.6 | 109.1 |
-| Codex | 21 | 36.7 | 54.3 | 193.7 | 526.0 | 1184.7 | 308.0 |
+| Cc | 17 | 22.5 | 40.7 | 51.6 | 117.1 | 329.6 | 99.5 |
+| Codex | 23 | 35.1 | 53.6 | 193.7 | 527.1 | 1184.7 | 310.0 |
 
 ### Agent Tool (old API)
 
-- Sessions: 17 (completed: 17)
+- Sessions: 56 (completed: 55)
 - Rounds included: 47
 
 ### Agent Tool (old API) — Session And Round Durations
 
 | Metric | Count | Min | 25% | Median | 75% | Max | Average |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Sessions | 17 | 284.6 | 1054.2 | 1385.0 | 2135.3 | 66342.3 | 5532.8 |
+| Sessions | 55 | 13.9 | 901.0 | 1861.0 | 2501.8 | 66342.3 | 3937.7 |
 | Rounds | 47 | 15.9 | 62.7 | 155.9 | 330.4 | 1886.7 | 298.3 |
 
 ### Agent Tool (old API) — Step Durations By Agent
@@ -130,8 +130,9 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 | Metric | Count | Min | 25% | Median | 75% | Max | Average |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | step1_lead_review / cc | 4 | 0.1 | 0.1 | 1.9 | 3.8 | 3.8 | 1.9 |
-| step1_lead_review / codex | 44 | 0.1 | 20.6 | 38.5 | 117.4 | 1365.4 | 89.6 |
-| step2_cross_review / codex | 12 | 22.1 | 30.1 | 38.8 | 62.8 | 117.9 | 52.3 |
+| step1_lead_review / codex | 111 | 0.1 | 47.5 | 121.1 | 173.6 | 1365.4 | 135.7 |
+| step2_cross_review / cc | 10 | 1493.1 | 3845.8 | 4518.2 | 5472.2 | 9725.0 | 4961.9 |
+| step2_cross_review / codex | 22 | 0.9 | 34.1 | 83.0 | 147.2 | 230.8 | 94.6 |
 | step3_lead_apply / codex | 28 | 9.3 | 73.6 | 104.2 | 148.4 | 1580.9 | 171.3 |
 
 ### Agent Tool (old API) — Lead Agent Round Durations
@@ -142,6 +143,139 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 | Codex | 26 | 33.0 | 78.0 | 250.1 | 494.1 | 1886.7 | 433.4 |
 
 ## Appendix
+
+### jk-kim0/skills-jk#191
+
+- Status: consensus_reached
+- Outcome: consensus
+- Dry run: False
+- Agent mode: persistent
+- CC invocation: subprocess
+- Stats eligibility: yes
+- Wall clock: 746.1s
+- Active: 422.6s
+
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | 61.5s | 196.6s | 94.8s | 303.1s | 0.0s | 626.1s |
+| 2 | cc | 21.3s | skip | 47.8s | 1.2s | 0.0s | 22.5s |
+| 3 | codex | 0.3s | 34.4s | skip | skip | 0.0s | 35.1s |
+| 4 | cc | 0.3s | 31.0s | 0.0s | skip | 90.3s | 31.7s |
+#### Round 1
+
+- Lead agent: codex
+- Stats eligibility: yes
+- Wall clock: 626.1s
+- Active: 341.0s
+
+| Step | Wall Clock (s) | Active (s) | Agent | Local File | Local Git | GitHub/API | Unattributed |
+| --- | ---: | ---: | --- | ---: | ---: | ---: | ---: |
+| step0_sync | 61.5 | None |  |  |  |  |  |
+| step1_lead_review | 196.6 | 196.2 | codex | 3.2 | 1.7 | 0.4 | 189.3 |
+| step2_cross_review | 94.8 | None | cc |  |  |  |  |
+| step3_lead_apply | 303.1 | 144.8 | codex | 2.3 | 1.8 | 0.0 | 139.4 |
+| step4_settle | 0.0 | None |  |  |  |  |  |
+
+#### Round 2
+
+- Lead agent: cc
+- Stats eligibility: yes
+- Wall clock: 22.5s
+- Active: 47.8s
+
+| Step | Wall Clock (s) | Active (s) | Agent | Local File | Local Git | GitHub/API | Unattributed |
+| --- | ---: | ---: | --- | ---: | ---: | ---: | ---: |
+| step0_sync | 21.3 | None |  |  |  |  |  |
+| step2_cross_review | 47.8 | 47.8 | codex | 0.3 | 0.1 | 0.0 | 47.3 |
+| step3_lead_apply | 1.2 | None | cc |  |  |  |  |
+| step4_settle | 0.0 | None |  |  |  |  |  |
+
+#### Round 3
+
+- Lead agent: codex
+- Stats eligibility: yes
+- Wall clock: 35.1s
+- Active: 33.8s
+
+| Step | Wall Clock (s) | Active (s) | Agent | Local File | Local Git | GitHub/API | Unattributed |
+| --- | ---: | ---: | --- | ---: | ---: | ---: | ---: |
+| step0_sync | 0.3 | None |  |  |  |  |  |
+| step1_lead_review | 34.4 | 33.8 | codex | 0.4 | 0.5 | 0.3 | 31.5 |
+| step4_settle | 0.0 | None |  |  |  |  |  |
+
+#### Round 4
+
+- Lead agent: cc
+- Stats eligibility: yes
+- Wall clock: 31.7s
+- Active: Nones
+
+| Step | Wall Clock (s) | Active (s) | Agent | Local File | Local Git | GitHub/API | Unattributed |
+| --- | ---: | ---: | --- | ---: | ---: | ---: | ---: |
+| step0_sync | 0.3 | None |  |  |  |  |  |
+| step1_lead_review | 31.0 | None | cc |  |  |  |  |
+| step2_cross_review | 0.0 | None | codex |  |  |  |  |
+| step4_settle | 90.3 | None |  |  |  |  |  |
+
+
+### jk-kim0/skills-jk#190
+
+- Status: in_progress
+- Outcome: None
+- Dry run: False
+- Agent mode: persistent
+- CC invocation: subprocess
+- Stats eligibility: no (excluded from stats: in_progress)
+- Wall clock: 921.0s
+- Active: 315.1s
+
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | 285.9s | 121.7s | 199.2s | 6.8s | 0.0s | 613.5s |
+| 2 | cc | 105.3s | 52.7s | 123.0s | skip | skip | - |
+#### Round 1
+
+- Lead agent: codex
+- Stats eligibility: no (excluded from stats: in_progress)
+- Wall clock: 613.5s
+- Active: 286.5s
+
+| Step | Wall Clock (s) | Active (s) | Agent | Local File | Local Git | GitHub/API | Unattributed |
+| --- | ---: | ---: | --- | ---: | ---: | ---: | ---: |
+| step0_sync | 285.9 | None |  |  |  |  |  |
+| step1_lead_review | 121.7 | 107.1 | codex | 0.9 | 0.5 | 3.4 | 102.3 |
+| step2_cross_review | 199.2 | None | cc |  |  |  |  |
+| step3_lead_apply | 6.8 | 179.4 | codex | 0.8 | 4.5 | 1.8 | 163.5 |
+| step4_settle | 0.0 | None |  |  |  |  |  |
+
+#### Round 2
+
+- Lead agent: cc
+- Stats eligibility: no (excluded from stats: in_progress, missing_completed_at)
+- Wall clock: Nones
+- Active: 28.6s
+
+| Step | Wall Clock (s) | Active (s) | Agent | Local File | Local Git | GitHub/API | Unattributed |
+| --- | ---: | ---: | --- | ---: | ---: | ---: | ---: |
+| step0_sync | 105.3 | None |  |  |  |  |  |
+| step1_lead_review | 52.7 | None | cc |  |  |  |  |
+| step2_cross_review | 123.0 | 28.6 | codex | 0.2 | 0.1 | 0.0 | 28.2 |
+
+
+### querypie/querypie-docs#983
+
+- Status: failed
+- Outcome: error
+- Dry run: False
+- Agent mode: persistent
+- CC invocation: unknown
+- Stats eligibility: yes
+- Wall clock: 0.3s
+- Active: Nones
+
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| (no rounds) | | | | | | | |
 
 ### chequer-io/querypie-mono#16037
 
@@ -1278,7 +1412,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Agent mode: persistent
 - CC invocation: unknown
 - Stats eligibility: no (excluded from stats: dry_run, in_progress)
-- Wall clock: 165176.9s
+- Wall clock: 169982.2s
 - Active: Nones
 
 | Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
@@ -1424,7 +1558,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Agent mode: persistent
 - CC invocation: unknown
 - Stats eligibility: no (excluded from stats: dry_run, in_progress)
-- Wall clock: 169712.1s
+- Wall clock: 174517.4s
 - Active: Nones
 
 | Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
@@ -2051,7 +2185,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 1721.3s
 - Active: 523.1s
@@ -2161,7 +2295,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 2390.4s
 - Active: 670.2s
@@ -2335,7 +2469,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 1250.3s
 - Active: 249.1s
@@ -2385,7 +2519,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 14523.2s
 - Active: 6145.4s
@@ -2438,7 +2572,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Agent mode: invalid
 - CC invocation: unknown
 - Stats eligibility: no (excluded from stats: in_progress)
-- Wall clock: 327565.2s
+- Wall clock: 332370.5s
 - Active: Nones
 
 | Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
@@ -2451,7 +2585,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 2103.6s
 - Active: 575.8s
@@ -2573,7 +2707,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 235.1s
 - Active: 53.3s
@@ -2611,7 +2745,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 3522.8s
 - Active: 896.4s
@@ -2733,9 +2867,9 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: None
 - Dry run: True
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: no (excluded from stats: dry_run, in_progress)
-- Wall clock: 347727.0s
+- Wall clock: 352532.4s
 - Active: Nones
 
 | Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
@@ -2748,7 +2882,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 779.0s
 - Active: 10140.8s
@@ -2811,7 +2945,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 256.8s
 - Active: 110.2s
@@ -2849,7 +2983,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 1641.3s
 - Active: 615.7s
@@ -2923,7 +3057,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: stalled
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 1087.9s
 - Active: 409.1s
@@ -2985,7 +3119,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 230.7s
 - Active: 101.6s
@@ -3023,7 +3157,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 2572.1s
 - Active: 764.6s
@@ -3121,7 +3255,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 2733.8s
 - Active: 1322.8s
@@ -3219,7 +3353,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 1949.2s
 - Active: 398.9s
@@ -3269,7 +3403,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 3684.7s
 - Active: 711.0s
@@ -3367,7 +3501,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: error
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 13.9s
 - Active: Nones
@@ -3382,7 +3516,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: no_consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 7649.3s
 - Active: 998.6s
@@ -3516,7 +3650,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: stalled
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 2151.6s
 - Active: 3852.9s
@@ -3614,7 +3748,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 1861.0s
 - Active: 316.0s
@@ -3748,7 +3882,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 694.9s
 - Active: 8491.6s
@@ -3798,7 +3932,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 1016.5s
 - Active: 106.4s
@@ -3848,7 +3982,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 515.8s
 - Active: 155.5s
@@ -3886,7 +4020,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: no_consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 2138.7s
 - Active: 4417.7s
@@ -4020,7 +4154,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 1954.4s
 - Active: 490.2s
@@ -4094,7 +4228,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: error
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 757.4s
 - Active: 4940.3s
@@ -4145,7 +4279,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: no_consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 3544.3s
 - Active: Nones
@@ -4279,7 +4413,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 2119.7s
 - Active: 661.4s
@@ -4401,7 +4535,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 1514.0s
 - Active: 425.2s
@@ -4475,7 +4609,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: no_consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 2795.6s
 - Active: 4629.6s
@@ -4609,7 +4743,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 1865.4s
 - Active: 3033.8s
@@ -4731,7 +4865,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 211.3s
 - Active: 4172.0s
@@ -4769,7 +4903,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 5573.1s
 - Active: Nones
@@ -4867,7 +5001,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 229.7s
 - Active: Nones
@@ -4905,7 +5039,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: no_consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 12112.1s
 - Active: 171.1s
@@ -5039,7 +5173,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 1538.1s
 - Active: 148.5s
@@ -5137,7 +5271,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 2029.0s
 - Active: 1493.1s
@@ -5235,7 +5369,7 @@ _Sessions do not use the Excluded Missing Completed At column; session inclusion
 - Outcome: no_consensus
 - Dry run: False
 - Agent mode: legacy
-- CC invocation: unknown
+- CC invocation: agent-tool
 - Stats eligibility: yes
 - Wall clock: 29548.5s
 - Active: Nones
