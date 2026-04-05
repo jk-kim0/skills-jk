@@ -80,6 +80,15 @@ def _parse_json_object(output: str) -> dict:
     except json.JSONDecodeError:
         pass
 
+    candidate = _extract_json_from_text(text)
+    if candidate != text:
+        try:
+            parsed = json.loads(candidate)
+            if isinstance(parsed, dict):
+                return parsed
+        except json.JSONDecodeError:
+            pass
+
     for line in reversed([line.strip() for line in text.splitlines() if line.strip()]):
         try:
             parsed = json.loads(line)
@@ -253,7 +262,8 @@ class CodexAdapter(AgentAdapter):
 def _extract_json_from_text(text: str) -> str:
     """Extract JSON from text that may contain markdown fences or prose.
 
-    Handles: plain JSON, ```json {...} ```, and prose with embedded code blocks.
+    Handles: plain JSON, ```json {...} ```, prose with embedded code blocks,
+    and prose followed by a trailing JSON object.
     """
     import re
 
@@ -264,9 +274,20 @@ def _extract_json_from_text(text: str) -> str:
     except (json.JSONDecodeError, ValueError):
         pass
 
-    match = re.search(r"```(?:json)?\s*\n(.*?)```", stripped, re.DOTALL)
-    if match:
-        return match.group(1).strip()
+    decoder = json.JSONDecoder()
+    for index, char in enumerate(stripped):
+        if char != "{":
+            continue
+        try:
+            parsed, end = decoder.raw_decode(stripped[index:])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(parsed, dict) and not stripped[index + end :].strip():
+            return stripped[index : index + end]
+
+    matches = re.findall(r"```(?:json)?\s*\n(.*?)```", stripped, re.DOTALL)
+    if matches:
+        return matches[-1].strip()
 
     return stripped
 

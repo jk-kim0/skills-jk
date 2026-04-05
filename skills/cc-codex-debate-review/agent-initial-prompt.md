@@ -33,9 +33,10 @@ description). Keep JSON keys, enum values, file paths, anchors unchanged.
 
 ## General Output Rules
 
-- Output ONLY valid JSON as specified in each task message
-- No markdown, explanations, or preamble outside the JSON
 - Each task message specifies its own JSON schema — follow it exactly
+- You may include brief analysis before the structured output when useful
+- The final content in every task response MUST be exactly one JSON object matching the task schema
+- If you include prose, put the JSON object last so it can be extracted reliably
 
 ## Initialization
 

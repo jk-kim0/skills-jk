@@ -1149,6 +1149,7 @@ from debate_review.orchestrator import (
     _extract_json_from_text,
     _normalize_cross_verifications,
     _normalize_withdrawals,
+    _parse_json_object,
     _unwrap_cc_result,
 )
 
@@ -1179,9 +1180,42 @@ def test_extract_json_from_text_fenced():
     assert json.loads(_extract_json_from_text('```json\n{"a": 1}\n```')) == {"a": 1}
 
 
+def test_extract_json_from_text_returns_last_fenced_block():
+    text = '```json\n{"a": 1}\n```\n\n```json\n{"b": 2}\n```'
+    assert json.loads(_extract_json_from_text(text)) == {"b": 2}
+
+
 def test_extract_json_from_text_prose():
     text = "Here is the result:\n\n```json\n{\"b\": 2}\n```\n\nDone."
     assert json.loads(_extract_json_from_text(text)) == {"b": 2}
+
+
+def test_extract_json_from_text_prose_with_trailing_object():
+    text = 'Reasoning first.\n\n{"c": 3, "nested": {"ok": true}}'
+    assert json.loads(_extract_json_from_text(text)) == {"c": 3, "nested": {"ok": True}}
+
+
+def test_extract_json_from_text_prefers_trailing_object_over_fenced_example():
+    text = (
+        'Analysis first.\n\n```json\n{"example": true}\n```\n\n{\n'
+        '  "verdict": "has_findings",\n'
+        '  "findings": []\n'
+        "}"
+    )
+    assert json.loads(_extract_json_from_text(text)) == {
+        "verdict": "has_findings",
+        "findings": [],
+    }
+
+
+def test_parse_json_object_prose_with_fenced_json():
+    text = 'Applied the fix.\n\n```json\n{"applied_issues": ["isu_001"], "failed_issues": []}\n```'
+    assert _parse_json_object(text) == {"applied_issues": ["isu_001"], "failed_issues": []}
+
+
+def test_parse_json_object_prose_with_trailing_object():
+    text = 'Analysis complete.\n{"verdict": "has_findings", "findings": []}'
+    assert _parse_json_object(text) == {"verdict": "has_findings", "findings": []}
 
 
 def test_normalize_cross_verifications_issue_id_and_verdict():

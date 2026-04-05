@@ -70,7 +70,7 @@ Use `{OUTPUT_LANGUAGE}` for all user-facing JSON string values you generate, inc
 
 ## Output Format
 
-Output only valid JSON with the following structure:
+Return a response whose final content is a JSON object with the following structure:
 
 ```json
 {
@@ -100,4 +100,4 @@ Output only valid JSON with the following structure:
 
 {REVIEW_CRITERIA}
 
-Output only the JSON object above. No markdown, explanations, or preamble.
+You may include brief analysis before the structured output, but the final content must be the JSON object above. Do not put any text after the JSON object.
