@@ -296,6 +296,12 @@ def _normalize_withdrawals(withdrawals: list) -> list:
     return normalized
 
 
+def _is_non_owner_withdrawal_error(exc: OrchestrationError) -> bool:
+    """Return True only for the expected 'wrong owner' withdrawal failure."""
+    message = str(exc).lower()
+    return "cannot withdraw" in message and "opened by" in message
+
+
 class CcAdapter(AgentAdapter):
     def __init__(self):
         super().__init__(
@@ -1005,8 +1011,9 @@ class DebateReviewOrchestrator:
                     round_num=round_ctx["round"],
                     reason=item.get("reason", ""),
                 )
-            except OrchestrationError:
-                pass  # agent requested invalid withdrawal (e.g. not owner); skip
+            except OrchestrationError as exc:
+                if not _is_non_owner_withdrawal_error(exc):
+                    raise
             checkpoint["progress"]["withdrawals_done"] += 1
             self._save_checkpoint(checkpoint)
 
@@ -1053,8 +1060,9 @@ class DebateReviewOrchestrator:
                     round_num=round_ctx["round"],
                     reason=item.get("reason", ""),
                 )
-            except OrchestrationError:
-                pass  # agent requested invalid withdrawal; skip
+            except OrchestrationError as exc:
+                if not _is_non_owner_withdrawal_error(exc):
+                    raise
             checkpoint["progress"]["withdrawals_done"] += 1
             self._save_checkpoint(checkpoint)
 
@@ -1086,8 +1094,9 @@ class DebateReviewOrchestrator:
                     round_num=round_ctx["round"],
                     reason=item.get("reason", ""),
                 )
-            except OrchestrationError:
-                pass  # agent requested invalid withdrawal; skip
+            except OrchestrationError as exc:
+                if not _is_non_owner_withdrawal_error(exc):
+                    raise
             checkpoint["progress"]["withdrawals_done"] += 1
             self._save_checkpoint(checkpoint)
 

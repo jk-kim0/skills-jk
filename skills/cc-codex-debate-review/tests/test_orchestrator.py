@@ -11,7 +11,7 @@ from debate_review.application import (
 )
 from debate_review.cross_verification import record_cross_verification, resolve_rebuttals
 from debate_review.issue_ops import upsert_issue, withdraw_issue
-from debate_review.orchestrator import DebateReviewOrchestrator
+from debate_review.orchestrator import DebateReviewOrchestrator, OrchestrationError
 from debate_review.round_ops import init_round, record_verdict, settle_round
 from debate_review.state import create_initial_state, mark_failed
 
@@ -492,6 +492,133 @@ def test_route_step3_checkpoint_resumes_remaining_phases(monkeypatch, tmp_path):
     ]
     assert cli.state["issues"]["isu_001"]["application_commit_sha"] == "deadbeef"
     assert not checkpoint_path.exists()
+
+
+def test_route_step1_checkpoint_ignores_non_owner_withdrawal_error(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    checkpoint_path = tmp_path / "checkpoint.json"
+    monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
+
+    state = _sample_state(agent_mode="legacy")
+    init_round(state, round_num=1, synced_head_sha=state["head"]["last_observed_pr_sha"])
+    issue = upsert_issue(
+        state,
+        agent="cc",
+        round_num=1,
+        severity="warning",
+        criterion=6,
+        file="src/app.py",
+        line=1,
+        anchor="line1",
+        message="unused variable x",
+    )
+
+    class WrappingCli(FakeCli):
+        def withdraw_issue(self, _state_file, *, issue_id, agent, round_num, reason):
+            try:
+                return super().withdraw_issue(
+                    _state_file,
+                    issue_id=issue_id,
+                    agent=agent,
+                    round_num=round_num,
+                    reason=reason,
+                )
+            except ValueError as exc:
+                raise OrchestrationError(str(exc))
+
+    cli = WrappingCli(state, state_file=str(tmp_path / "state.json"))
+    orchestrator = DebateReviewOrchestrator(
+        cli=cli,
+        adapters={"codex": ScriptedAdapter("codex"), "cc": ScriptedAdapter("cc")},
+        skill_root=SKILL_ROOT,
+        config={"codex_sandbox": "danger-full-access"},
+        cleanup_worktree=False,
+    )
+    orchestrator.state_file = cli.state_file
+
+    checkpoint = {
+        "step": "step1",
+        "round": 1,
+        "agent": "codex",
+        "response": {
+            "rebuttal_responses": [],
+            "withdrawals": [{"issue_id": issue["issue_id"], "reason": "not mine"}],
+            "findings": [],
+            "verdict": "has_findings",
+        },
+        "progress": {
+            "rebuttals_done": False,
+            "withdrawals_done": 0,
+            "findings_done": 0,
+            "verdict_done": False,
+        },
+    }
+
+    next_step = orchestrator._route_step1_checkpoint(checkpoint, {
+        "round": 1,
+        "lead_agent": "codex",
+        "cross_verifier": "cc",
+        "worktree_path": "/tmp/repo/.worktrees/debate-pr-123",
+        "head_branch": "feat/test",
+    })
+
+    assert next_step == "step2"
+    assert checkpoint["progress"]["withdrawals_done"] == 1
+    assert cli.state["issues"][issue["issue_id"]]["consensus_status"] == "open"
+
+
+def test_route_step1_checkpoint_raises_on_unexpected_withdrawal_error(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    checkpoint_path = tmp_path / "checkpoint.json"
+    monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
+
+    state = _sample_state(agent_mode="legacy")
+    init_round(state, round_num=1, synced_head_sha=state["head"]["last_observed_pr_sha"])
+
+    class FailingCli(FakeCli):
+        def withdraw_issue(self, _state_file, *, issue_id, agent, round_num, reason):
+            raise OrchestrationError(f"Unknown issue ID: {issue_id}")
+
+    cli = FailingCli(state, state_file=str(tmp_path / "state.json"))
+    orchestrator = DebateReviewOrchestrator(
+        cli=cli,
+        adapters={"codex": ScriptedAdapter("codex"), "cc": ScriptedAdapter("cc")},
+        skill_root=SKILL_ROOT,
+        config={"codex_sandbox": "danger-full-access"},
+        cleanup_worktree=False,
+    )
+    orchestrator.state_file = cli.state_file
+
+    checkpoint = {
+        "step": "step1",
+        "round": 1,
+        "agent": "codex",
+        "response": {
+            "rebuttal_responses": [],
+            "withdrawals": [{"issue_id": "isu_999", "reason": "broken"}],
+            "findings": [],
+            "verdict": "has_findings",
+        },
+        "progress": {
+            "rebuttals_done": False,
+            "withdrawals_done": 0,
+            "findings_done": 0,
+            "verdict_done": False,
+        },
+    }
+
+    with pytest.raises(OrchestrationError, match="Unknown issue ID: isu_999"):
+        orchestrator._route_step1_checkpoint(checkpoint, {
+            "round": 1,
+            "lead_agent": "codex",
+            "cross_verifier": "cc",
+            "worktree_path": "/tmp/repo/.worktrees/debate-pr-123",
+            "head_branch": "feat/test",
+        })
+
+    assert checkpoint["progress"]["withdrawals_done"] == 0
 
 
 def test_orchestrator_marks_failed_and_posts_comment_on_dispatch_error(monkeypatch, tmp_path):
