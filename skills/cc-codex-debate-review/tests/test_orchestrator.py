@@ -30,7 +30,6 @@ class FakeCli:
         self.build_prompt_calls = []
         self.record_step_trace_calls = []
         self.create_failure_issue_calls = []
-        self.update_pr_status_calls = []
 
     def init_session(self, **_kwargs):
         result = {
@@ -147,10 +146,6 @@ class FakeCli:
         if outcome not in ("error", "stalled"):
             return {"action": "skipped", "reason": "not failed"}
         return {"action": "created", "url": "https://github.com/owner/repo/issues/99"}
-
-    def update_pr_status(self, _state_file):
-        self.update_pr_status_calls.append(True)
-        return {"action": "updated", "label": "[debate: consensus]"}
 
     def build_prompt(self, _state_file, *, agent, step, round_num=None, extra=None):
         self.build_prompt_calls.append((agent, step, round_num, extra))
@@ -522,39 +517,8 @@ def test_orchestrator_marks_failed_and_posts_comment_on_dispatch_error(monkeypat
     assert cli.state["status"] == "failed"
 
 
-def test_terminal_calls_update_pr_status(monkeypatch, tmp_path):
-    """_terminal() should call update_pr_status after post_comment."""
-    import debate_review.orchestrator as orchestrator_module
-
-    checkpoint_path = tmp_path / "checkpoint.json"
-    monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
-
-    state = _sample_state(agent_mode="legacy")
-    cli = FakeCli(state, state_file=str(tmp_path / "state.json"))
-    codex = ScriptedAdapter(
-        "codex",
-        legacy=[{"rebuttal_responses": [], "withdrawals": [], "findings": [], "verdict": "no_findings_mergeable"}],
-    )
-    cc = ScriptedAdapter(
-        "cc",
-        legacy=[{"rebuttal_responses": [], "withdrawals": [], "findings": [], "verdict": "no_findings_mergeable"}],
-    )
-
-    orchestrator = DebateReviewOrchestrator(
-        cli=cli,
-        adapters={"codex": codex, "cc": cc},
-        skill_root=SKILL_ROOT,
-        config={"codex_sandbox": "danger-full-access"},
-        cleanup_worktree=False,
-    )
-
-    orchestrator.run(repo="owner/repo", pr_number=123)
-
-    assert cli.update_pr_status_calls == [True]
-
-
-def test_mark_failed_calls_create_failure_issue_and_update_pr_status(monkeypatch, tmp_path):
-    """_mark_failed() should call create_failure_issue and update_pr_status."""
+def test_mark_failed_calls_create_failure_issue(monkeypatch, tmp_path):
+    """_mark_failed() should call create_failure_issue."""
     import debate_review.orchestrator as orchestrator_module
 
     checkpoint_path = tmp_path / "checkpoint.json"
@@ -579,7 +543,6 @@ def test_mark_failed_calls_create_failure_issue_and_update_pr_status(monkeypatch
         orchestrator.run(repo="owner/repo", pr_number=123)
 
     assert cli.create_failure_issue_calls == [True]
-    assert cli.update_pr_status_calls == [True]
 
 
 def test_follow_through_errors_do_not_propagate(monkeypatch, tmp_path):
@@ -593,10 +556,10 @@ def test_follow_through_errors_do_not_propagate(monkeypatch, tmp_path):
     cli = FakeCli(state, state_file=str(tmp_path / "state.json"))
 
     # Override follow-through to raise
-    def exploding_update(_state_file):
+    def exploding_create(_state_file):
         raise RuntimeError("gh API down")
 
-    cli.update_pr_status = exploding_update
+    cli.create_failure_issue = exploding_create
 
     codex = ScriptedAdapter(
         "codex",
@@ -666,7 +629,6 @@ def test_terminal_still_runs_follow_through_when_post_comment_fails(monkeypatch,
     with pytest.raises(RuntimeError, match="comment failed"):
         orchestrator.run(repo="owner/repo", pr_number=123)
 
-    assert cli.update_pr_status_calls
     assert cli.mark_failed_calls == []
     assert cli.state["status"] == "consensus_reached"
 
@@ -702,7 +664,6 @@ def test_mark_failed_still_runs_follow_through_when_post_comment_fails(monkeypat
         orchestrator.run(repo="owner/repo", pr_number=123)
 
     assert cli.create_failure_issue_calls == [True]
-    assert cli.update_pr_status_calls == [True]
 
 
 def test_terminal_cleanup_failure_does_not_override_terminal_result(monkeypatch, tmp_path):
@@ -740,7 +701,6 @@ def test_terminal_cleanup_failure_does_not_override_terminal_result(monkeypatch,
     assert result["result"] == "consensus_reached"
     assert cli.state["final_outcome"] == "consensus"
     assert cli.state["status"] == "consensus_reached"
-    assert cli.update_pr_status_calls == [True]
 
 
 def test_cleanup_worktree_skips_dry_run(monkeypatch, tmp_path):

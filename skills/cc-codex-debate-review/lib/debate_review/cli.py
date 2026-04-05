@@ -23,7 +23,7 @@ from debate_review.round_ops import init_round, record_verdict, settle_round
 from debate_review.comment import post_comment
 from debate_review.sync import sync_head
 from debate_review.error_log import save_error_log
-from debate_review.follow_through import create_failure_issue, update_pr_status, cleanup_worktree
+from debate_review.follow_through import create_failure_issue, cleanup_worktree
 from debate_review.state import (
     append_ledger,
     StateCorruptedError,
@@ -171,10 +171,6 @@ def build_parser() -> argparse.ArgumentParser:
     # create-failure-issue subcommand
     p_cfi = subparsers.add_parser("create-failure-issue", help="Create GitHub issue on failure/stall")
     p_cfi.add_argument("--state-file", required=True)
-
-    # update-pr-status subcommand
-    p_ups = subparsers.add_parser("update-pr-status", help="Add debate result label to PR title")
-    p_ups.add_argument("--state-file", required=True)
 
     # cleanup-worktree subcommand
     p_cw = subparsers.add_parser("cleanup-worktree", help="Remove debate worktree")
@@ -696,14 +692,6 @@ def cmd_create_failure_issue(args):
     print(json.dumps(result))
 
 
-def cmd_update_pr_status(args):
-    state = load_state(args.state_file)
-    if state is None:
-        _error_exit(f"No state file found at {args.state_file}")
-    result = update_pr_status(state)
-    print(json.dumps(result))
-
-
 def cmd_cleanup_worktree(args):
     state = load_state(args.state_file)
     if state is None:
@@ -775,7 +763,6 @@ def main():
         "build-prompt": cmd_build_prompt,
         "report-sessions": cmd_report_sessions,
         "create-failure-issue": cmd_create_failure_issue,
-        "update-pr-status": cmd_update_pr_status,
         "cleanup-worktree": cmd_cleanup_worktree,
         "test-error": cmd_test_error,
         "mark-failed": cmd_mark_failed,

@@ -8,7 +8,6 @@ from debate_review.state import create_initial_state, save_state
 from debate_review.cli import main
 from debate_review.follow_through import (
     create_failure_issue,
-    update_pr_status,
     cleanup_worktree,
 )
 
@@ -146,152 +145,6 @@ class TestCreateFailureIssue:
         assert "#42" in title
 
 
-# --- update_pr_status ---
-
-class TestUpdatePrStatus:
-    def _mock_gh_json_title(self, title="Fix stuff"):
-        def mock(*args):
-            return {"title": title}
-        return mock
-
-    def test_consensus_adds_label(self):
-        state = _consensus_state()
-        edited = []
-
-        def mock_gh(*args):
-            edited.append(args)
-            return ""
-
-        result = update_pr_status(state, _gh=mock_gh, _gh_json=self._mock_gh_json_title())
-        assert result["action"] == "updated"
-        assert result["label"] == "[debate: consensus]"
-        args = edited[0]
-        assert "pr" in args
-        assert "edit" in args
-
-    def test_failed_adds_label(self):
-        state = _failed_state()
-        edited = []
-
-        def mock_gh(*args):
-            edited.append(args)
-            return ""
-
-        result = update_pr_status(state, _gh=mock_gh, _gh_json=self._mock_gh_json_title())
-        assert result["action"] == "updated"
-        assert result["label"] == "[debate: failed]"
-
-    def test_max_rounds_adds_label(self):
-        state = _max_rounds_state()
-        edited = []
-
-        def mock_gh(*args):
-            edited.append(args)
-            return ""
-
-        result = update_pr_status(state, _gh=mock_gh, _gh_json=self._mock_gh_json_title())
-        assert result["action"] == "updated"
-        assert result["label"] == "[debate: no consensus]"
-
-    def test_stalled_adds_label(self):
-        state = _stalled_state()
-        edited = []
-
-        def mock_gh(*args):
-            edited.append(args)
-            return ""
-
-        result = update_pr_status(state, _gh=mock_gh, _gh_json=self._mock_gh_json_title())
-        assert result["action"] == "updated"
-        assert result["label"] == "[debate: stalled]"
-
-    def test_in_progress_skips(self):
-        state = create_initial_state(
-            repo="owner/repo", repo_root="/tmp/repo", pr_number=42,
-            is_fork=False, head_sha="abc1234def5678",
-            pr_branch_name="feat/test", max_rounds=10,
-        )
-        result = update_pr_status(state)
-        assert result["action"] == "skipped"
-        assert "not terminal" in result["reason"]
-
-    def test_dry_run_skips(self):
-        state = _consensus_state()
-        state["dry_run"] = True
-        result = update_pr_status(state)
-        assert result["action"] == "dry_run"
-
-    def test_does_not_duplicate_label(self):
-        """If title already has the label, skip."""
-        state = _consensus_state()
-
-        def mock_gh_json(*args):
-            return {"title": "[debate: consensus] Fix stuff"}
-
-        result = update_pr_status(state, _gh_json=mock_gh_json)
-        assert result["action"] == "skipped"
-        assert "already" in result["reason"]
-
-    def test_edits_title_via_gh(self):
-        state = _consensus_state()
-        edited = []
-
-        def mock_gh_json(*args):
-            return {"title": "Fix stuff"}
-
-        def mock_gh(*args):
-            edited.append(args)
-            return ""
-
-        result = update_pr_status(state, _gh=mock_gh, _gh_json=mock_gh_json)
-        assert result["action"] == "updated"
-        args = edited[0]
-        title_idx = list(args).index("--title") + 1
-        assert args[title_idx] == "[debate: consensus] Fix stuff"
-
-    def test_strips_old_label_before_adding_new(self):
-        """If title already has a different debate label, strip it first."""
-        state = _consensus_state()
-        edited = []
-
-        def mock_gh_json(*args):
-            return {"title": "[debate: failed] Fix stuff"}
-
-        def mock_gh(*args):
-            edited.append(args)
-            return ""
-
-        result = update_pr_status(state, _gh=mock_gh, _gh_json=mock_gh_json)
-        assert result["action"] == "updated"
-        args = edited[0]
-        title_idx = list(args).index("--title") + 1
-        assert args[title_idx] == "[debate: consensus] Fix stuff"
-        assert "[debate: failed]" not in args[title_idx]
-
-    def test_gh_json_failure_returns_error(self):
-        state = _consensus_state()
-
-        def mock_gh_json(*args):
-            raise RuntimeError("GraphQL: not found")
-
-        result = update_pr_status(state, _gh_json=mock_gh_json)
-        assert result["action"] == "error"
-        assert "Failed to fetch PR title" in result["reason"]
-
-    def test_gh_edit_failure_returns_error(self):
-        state = _consensus_state()
-
-        def mock_gh_json(*args):
-            return {"title": "Fix stuff"}
-
-        def mock_gh(*args):
-            raise RuntimeError("GraphQL: Resource not accessible")
-
-        result = update_pr_status(state, _gh=mock_gh, _gh_json=mock_gh_json)
-        assert result["action"] == "error"
-        assert "Failed to update PR title" in result["reason"]
-
-
 # --- cleanup_worktree ---
 
 class TestCleanupWorktree:
@@ -389,17 +242,6 @@ class TestCLIFollowThrough:
         _run_cli(monkeypatch, ["create-failure-issue", "--state-file", path])
         out = json.loads(capsys.readouterr().out)
         assert out["action"] == "dry_run"
-
-    def test_update_pr_status_cli_dry_run(self, monkeypatch, capsys, tmp_path):
-        state = _consensus_state()
-        state["dry_run"] = True
-        path = str(tmp_path / "state.json")
-        save_state(state, path)
-
-        _run_cli(monkeypatch, ["update-pr-status", "--state-file", path])
-        out = json.loads(capsys.readouterr().out)
-        assert out["action"] == "dry_run"
-        assert out["label"] == "[debate: consensus]"
 
     def test_cleanup_worktree_cli_not_exists(self, monkeypatch, capsys, tmp_path):
         state = create_initial_state(
