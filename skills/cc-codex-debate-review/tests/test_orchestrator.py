@@ -768,6 +768,12 @@ def test_route_step1_checkpoint_normalizes_issue_id_rebuttal_responses(monkeypat
         message="unused variable x",
     )
     report_id = issue["report_id"]
+    state["rounds"][0]["step3"]["rebuttals"] = [{
+        "report_id": report_id,
+        "issue_id": issue["issue_id"],
+        "reason": "please re-check",
+    }]
+    init_round(state, round_num=2, synced_head_sha=state["head"]["last_observed_pr_sha"])
 
     cli = FakeCli(state, state_file=str(tmp_path / "state.json"))
     orchestrator = DebateReviewOrchestrator(
@@ -781,7 +787,7 @@ def test_route_step1_checkpoint_normalizes_issue_id_rebuttal_responses(monkeypat
 
     checkpoint = {
         "step": "step1",
-        "round": 1,
+        "round": 2,
         "agent": "codex",
         "response": {
             "rebuttal_responses": [{
@@ -802,7 +808,7 @@ def test_route_step1_checkpoint_normalizes_issue_id_rebuttal_responses(monkeypat
     }
 
     next_step = orchestrator._route_step1_checkpoint(checkpoint, {
-        "round": 1,
+        "round": 2,
         "lead_agent": "codex",
         "cross_verifier": "cc",
         "worktree_path": "/tmp/repo/.worktrees/debate-pr-123",
@@ -811,11 +817,185 @@ def test_route_step1_checkpoint_normalizes_issue_id_rebuttal_responses(monkeypat
 
     assert next_step == "step2"
     assert checkpoint["progress"]["rebuttals_done"] is True
-    assert state["rounds"][0]["step1"]["rebuttal_responses"] == [{
+    assert state["rounds"][1]["step1"]["rebuttal_responses"] == [{
         "report_id": report_id,
         "decision": "maintain",
         "reason": "still reproducible",
     }]
+
+
+def test_route_step1_checkpoint_maps_issue_id_to_pending_rebuttal_report(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    checkpoint_path = tmp_path / "checkpoint.json"
+    monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
+
+    state = _sample_state(agent_mode="legacy")
+    init_round(state, round_num=1, synced_head_sha=state["head"]["last_observed_pr_sha"])
+    issue = upsert_issue(
+        state,
+        agent="cc",
+        round_num=1,
+        severity="warning",
+        criterion=6,
+        file="src/app.py",
+        line=1,
+        anchor="line1",
+        message="unused variable x",
+    )
+    original_report_id = issue["report_id"]
+    init_round(state, round_num=2, synced_head_sha=state["head"]["last_observed_pr_sha"])
+    state["rounds"][0]["step3"]["rebuttals"] = [{
+        "report_id": original_report_id,
+        "issue_id": issue["issue_id"],
+        "reason": "please re-check",
+    }]
+    appended = upsert_issue(
+        state,
+        agent="codex",
+        round_num=2,
+        severity="warning",
+        criterion=6,
+        file="src/app.py",
+        line=1,
+        anchor="line1",
+        message="unused variable x",
+    )
+    assert appended["report_id"] != original_report_id
+
+    cli = FakeCli(state, state_file=str(tmp_path / "state.json"))
+    orchestrator = DebateReviewOrchestrator(
+        cli=cli,
+        adapters={"codex": ScriptedAdapter("codex"), "cc": ScriptedAdapter("cc")},
+        skill_root=SKILL_ROOT,
+        config={"codex_sandbox": "danger-full-access"},
+        cleanup_worktree=False,
+    )
+    orchestrator.state_file = cli.state_file
+
+    checkpoint = {
+        "step": "step1",
+        "round": 2,
+        "agent": "codex",
+        "response": {
+            "rebuttal_responses": [{
+                "issue_id": issue["issue_id"],
+                "action": "withdraw",
+                "reason": "agree with rebuttal",
+            }],
+            "withdrawals": [],
+            "findings": [],
+            "verdict": "has_findings",
+        },
+        "progress": {
+            "rebuttals_done": False,
+            "withdrawals_done": 0,
+            "findings_done": 0,
+            "verdict_done": False,
+        },
+    }
+
+    orchestrator._route_step1_checkpoint(checkpoint, {
+        "round": 2,
+        "lead_agent": "codex",
+        "cross_verifier": "cc",
+        "worktree_path": "/tmp/repo/.worktrees/debate-pr-123",
+        "head_branch": "feat/test",
+    })
+
+    assert state["rounds"][1]["step1"]["rebuttal_responses"] == [{
+        "report_id": original_report_id,
+        "decision": "withdraw",
+        "reason": "agree with rebuttal",
+    }]
+
+
+def test_route_step3_checkpoint_normalizes_issue_id_decisions(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    checkpoint_path = tmp_path / "checkpoint.json"
+    monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
+
+    state = _sample_state(agent_mode="legacy")
+    init_round(state, round_num=1, synced_head_sha=state["head"]["last_observed_pr_sha"])
+    lead = upsert_issue(
+        state,
+        agent="codex",
+        round_num=1,
+        severity="warning",
+        criterion=6,
+        file="src/app.py",
+        line=1,
+        anchor="line1",
+        message="unused variable x",
+    )
+    cross = upsert_issue(
+        state,
+        agent="cc",
+        round_num=1,
+        severity="warning",
+        criterion=14,
+        file="tests/test_app.py",
+        line=10,
+        anchor="missing_test",
+        message="missing regression test",
+    )
+    record_cross_verification(
+        state,
+        round_num=1,
+        verifications=[{"report_id": lead["report_id"], "decision": "rebut", "reason": "not reproducible"}],
+    )
+
+    cli = FakeCli(state, state_file=str(tmp_path / "state.json"))
+    orchestrator = DebateReviewOrchestrator(
+        cli=cli,
+        adapters={"codex": ScriptedAdapter("codex"), "cc": ScriptedAdapter("cc")},
+        skill_root=SKILL_ROOT,
+        config={"codex_sandbox": "danger-full-access"},
+        cleanup_worktree=False,
+    )
+    orchestrator.state_file = cli.state_file
+
+    checkpoint = {
+        "step": "step3",
+        "round": 1,
+        "agent": "codex",
+        "response": {
+            "rebuttal_decisions": [{
+                "issue_id": lead["issue_id"],
+                "action": "withdraw",
+                "reason": "agree with rebuttal",
+            }],
+            "cross_finding_evaluations": [{
+                "issue_id": cross["issue_id"],
+                "action": "accept",
+                "reason": "valid issue",
+            }],
+            "withdrawals": [],
+            "application_result": {
+                "applied_issues": [],
+                "failed_issues": [],
+            },
+        },
+        "progress": {
+            "withdrawals_done": 0,
+            "decisions_done": False,
+            "phase1_done": False,
+            "phase2_done": False,
+            "phase3_done": False,
+        },
+    }
+
+    orchestrator._route_step3_checkpoint(checkpoint, {
+        "round": 1,
+        "lead_agent": "codex",
+        "cross_verifier": "cc",
+        "worktree_path": "/tmp/repo/.worktrees/debate-pr-123",
+        "head_branch": "feat/test",
+    })
+
+    assert state["rounds"][0]["step3"]["withdrawn_report_ids"] == [lead["report_id"]]
+    assert state["rounds"][0]["step3"]["accepted_report_ids"] == [cross["report_id"]]
 
 
 def test_route_step1_checkpoint_raises_on_unexpected_withdrawal_error(monkeypatch, tmp_path):
@@ -1551,20 +1731,22 @@ def test_normalize_cross_verifications_already_correct():
 def test_normalize_rebuttal_responses_issue_id_and_action():
     state = {"issues": {"isu_001": {"reports": [{"report_id": "rpt_001"}]}}}
     raw = [{"issue_id": "isu_001", "action": "maintain", "reason": "still valid"}]
-    result = _normalize_rebuttal_responses(raw, state)
+    result = _normalize_rebuttal_responses(raw, [{"issue_id": "isu_001", "report_id": "rpt_001"}])
     assert result[0]["report_id"] == "rpt_001"
     assert result[0]["decision"] == "maintain"
 
 
-def test_normalize_rebuttal_responses_skips_multi_report_issue():
-    state = {"issues": {"isu_001": {"reports": [
-        {"report_id": "rpt_001"},
-        {"report_id": "rpt_002"},
-    ]}}}
-    raw = [{"issue_id": "isu_001", "action": "withdraw", "reason": "resolved"}]
-    result = _normalize_rebuttal_responses(raw, state)
-    assert "report_id" not in result[0]
-    assert result[0]["decision"] == "withdraw"
+def test_normalize_rebuttal_responses_prefers_candidate_report_over_latest_state():
+    state = {
+        "issues": {
+            "isu_001": {
+                "reports": [{"report_id": "rpt_001"}, {"report_id": "rpt_002"}],
+            }
+        }
+    }
+    raw = [{"issue_id": "isu_001", "action": "withdraw"}]
+    result = _normalize_rebuttal_responses(raw, [{"issue_id": "isu_001", "report_id": "rpt_001"}])
+    assert result[0]["report_id"] == "rpt_001"
 
 
 def test_normalize_withdrawals_strings():

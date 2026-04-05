@@ -70,6 +70,15 @@ def test_legacy_and_persistent_step3_both_have_withdrawals():
     assert "withdrawals" in persistent, "Persistent Step 3 prompt missing withdrawals"
 
 
+def test_persistent_step_prompts_require_report_id_for_rebuttal_decisions():
+    root = Path(__file__).resolve().parents[1]
+    step1 = (root / "prompt-step-1.md").read_text()
+    step3 = (root / "prompt-step-3.md").read_text()
+
+    assert "Use the provided `report_id`" in step1
+    assert "Use the provided `report_id`" in step3
+
+
 def test_skill_doc_step3_routing_includes_withdrawals():
     """SKILL.md Step 3 routing should mention withdraw-issue processing."""
     skill_path = Path(__file__).resolve().parents[1] / "SKILL.md"
