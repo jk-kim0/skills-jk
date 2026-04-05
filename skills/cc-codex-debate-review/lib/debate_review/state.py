@@ -133,12 +133,10 @@ def determine_next_step(state) -> dict:
         verdict = step1.get("verdict")
         if verdict is None:
             result["next_step"] = "step1"
-        elif round_data.get("clean_pass"):
-            result["next_step"] = "step4"
-            result["resume_context"] = {"clean_pass": True}
         else:
+            # Even on clean pass, proceed to step2 for cross-verifier confirmation
             result["next_step"] = "step2"
-            result["resume_context"] = {"clean_pass": False}
+            result["resume_context"] = {"clean_pass": round_data.get("clean_pass", False)}
     elif step == "step2_cross_review":
         result["next_step"] = "step3"
     elif step == "step3_lead_apply":
