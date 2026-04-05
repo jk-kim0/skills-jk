@@ -645,6 +645,63 @@ def test_orchestrator_marks_failed_and_posts_comment_on_dispatch_error(monkeypat
     assert cli.state["status"] == "failed"
 
 
+def test_dispatch_and_checkpoint_aborts_progress_on_error(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    checkpoint_path = tmp_path / "checkpoint.json"
+    monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
+
+    state = _sample_state(agent_mode="legacy")
+    cli = FakeCli(state, state_file=str(tmp_path / "state.json"))
+    orchestrator = DebateReviewOrchestrator(
+        cli=cli,
+        adapters={"codex": ScriptedAdapter("codex"), "cc": ScriptedAdapter("cc")},
+        skill_root=SKILL_ROOT,
+        config={"codex_sandbox": "danger-full-access"},
+        cleanup_worktree=False,
+    )
+    orchestrator.state_file = cli.state_file
+
+    class RecordingProgress:
+        def __init__(self):
+            self.started = 0
+            self.aborted = 0
+
+        def step_start(self, *_args):
+            self.started += 1
+
+        def step_done(self, *_args):
+            raise AssertionError("step_done should not be called on dispatch error")
+
+        def abort_step(self):
+            self.aborted += 1
+
+    progress = RecordingProgress()
+    orchestrator.progress = progress
+    monkeypatch.setattr(
+        orchestrator,
+        "_dispatch_step",
+        lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("dispatch failed")),
+    )
+
+    with pytest.raises(RuntimeError, match="dispatch failed"):
+        orchestrator._dispatch_and_checkpoint(
+            step="step1",
+            agent="codex",
+            state=state,
+            round_ctx={
+                "round": 1,
+                "lead_agent": "codex",
+                "cross_verifier": "cc",
+                "worktree_path": "/tmp/repo/.worktrees/debate-pr-123",
+                "head_branch": "feat/test",
+            },
+        )
+
+    assert progress.started == 1
+    assert progress.aborted == 1
+
+
 def test_mark_failed_calls_create_failure_issue(monkeypatch, tmp_path):
     """_mark_failed() should call create_failure_issue."""
     import debate_review.orchestrator as orchestrator_module
@@ -792,6 +849,235 @@ def test_mark_failed_still_runs_follow_through_when_post_comment_fails(monkeypat
         orchestrator.run(repo="owner/repo", pr_number=123)
 
     assert cli.create_failure_issue_calls == [True]
+
+
+def test_run_final_progress_treats_recommended_as_resolved(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    checkpoint_path = tmp_path / "checkpoint.json"
+    monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
+
+    state = _sample_state(agent_mode="legacy")
+    state["is_fork"] = True
+    state["issues"]["isu_001"] = {
+        "issue_id": "isu_001",
+        "issue_key": "criterion:13|file:src/app.py|anchor:line1|kind:incorrect_algorithm",
+        "opened_by": "codex",
+        "introduced_in_round": 1,
+        "criterion": 13,
+        "file": "src/app.py",
+        "line": 1,
+        "anchor": "line1",
+        "severity": "warning",
+        "consensus_status": "accepted",
+        "application_status": "recommended",
+        "accepted_by": ["cc", "codex"],
+        "rejected_by": [],
+        "applied_by": None,
+        "application_commit_sha": None,
+        "consensus_reason": None,
+        "reports": [
+            {
+                "report_id": "rpt_001",
+                "agent": "codex",
+                "round": 1,
+                "severity": "warning",
+                "message": "recommend this fix",
+                "reported_at": "2026-04-04T00:00:00+00:00",
+                "status": "open",
+            }
+        ],
+        "created_at": "2026-04-04T00:00:00+00:00",
+        "updated_at": "2026-04-04T00:00:00+00:00",
+    }
+    cli = FakeCli(state, state_file=str(tmp_path / "state.json"))
+    codex = ScriptedAdapter(
+        "codex",
+        legacy=[{"rebuttal_responses": [], "withdrawals": [], "findings": [], "verdict": "no_findings_mergeable"}],
+    )
+    cc = ScriptedAdapter(
+        "cc",
+        legacy=[{"rebuttal_responses": [], "withdrawals": [], "findings": [], "verdict": "no_findings_mergeable"}],
+    )
+
+    class RecordingProgress:
+        def __init__(self):
+            self.final_calls = []
+
+        def round_start(self, *_args):
+            pass
+
+        def step_start(self, *_args):
+            pass
+
+        def step_done(self, *_args):
+            pass
+
+        def step_skip(self, *_args):
+            pass
+
+        def debate_content(self, *_args):
+            pass
+
+        def settle(self, *_args, **_kwargs):
+            pass
+
+        def final_result(self, outcome, rounds, duration, *, applied, withdrawn, unresolved):
+            self.final_calls.append(
+                {
+                    "outcome": outcome,
+                    "rounds": rounds,
+                    "duration": duration,
+                    "applied": applied,
+                    "withdrawn": withdrawn,
+                    "unresolved": unresolved,
+                }
+            )
+
+    orchestrator = DebateReviewOrchestrator(
+        cli=cli,
+        adapters={"codex": codex, "cc": cc},
+        skill_root=SKILL_ROOT,
+        config={"codex_sandbox": "danger-full-access"},
+        cleanup_worktree=False,
+    )
+    progress = RecordingProgress()
+    orchestrator.progress = progress
+
+    result = orchestrator.run(repo="owner/repo", pr_number=123)
+
+    assert result["result"] == "consensus_reached"
+    assert progress.final_calls[-1]["unresolved"] == 0
+
+
+def test_run_resumed_step4_announces_round_start(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    checkpoint_path = tmp_path / "checkpoint.json"
+    monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
+
+    state = _sample_state(agent_mode="legacy")
+    state["max_rounds"] = 1
+    init_round(state, round_num=1, synced_head_sha=state["head"]["last_observed_pr_sha"])
+    record_verdict(state, round_num=1, verdict="no_findings_mergeable")
+    state["journal"]["step"] = "step1_lead_review"
+
+    cli = FakeCli(state, state_file=str(tmp_path / "state.json"), init_status="resumed", next_step="step4")
+
+    class RecordingProgress:
+        def __init__(self):
+            self.round_calls = []
+
+        def round_start(self, round_num, lead, cross):
+            self.round_calls.append((round_num, lead, cross))
+
+        def step_start(self, *_args):
+            pass
+
+        def step_done(self, *_args):
+            pass
+
+        def step_skip(self, *_args):
+            pass
+
+        def debate_content(self, *_args):
+            pass
+
+        def settle(self, *_args, **_kwargs):
+            pass
+
+        def final_result(self, *_args, **_kwargs):
+            pass
+
+    orchestrator = DebateReviewOrchestrator(
+        cli=cli,
+        adapters={"codex": ScriptedAdapter("codex"), "cc": ScriptedAdapter("cc")},
+        skill_root=SKILL_ROOT,
+        config={"codex_sandbox": "danger-full-access"},
+        cleanup_worktree=False,
+    )
+    progress = RecordingProgress()
+    orchestrator.progress = progress
+
+    result = orchestrator.run(repo="owner/repo", pr_number=123)
+
+    assert result["result"] == "max_rounds_exceeded"
+    assert progress.round_calls == [(1, "codex", "cc")]
+
+
+def test_run_resumed_checkpoint_replays_step_summary(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    checkpoint_path = tmp_path / "checkpoint.json"
+    monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
+
+    state = _sample_state(agent_mode="legacy")
+    state["max_rounds"] = 1
+    init_round(state, round_num=1, synced_head_sha=state["head"]["last_observed_pr_sha"])
+
+    checkpoint_path.write_text(json.dumps({
+        "step": "step1",
+        "round": 1,
+        "agent": "codex",
+        "response": {
+            "rebuttal_responses": [],
+            "withdrawals": [],
+            "findings": [],
+            "verdict": "no_findings_mergeable",
+        },
+        "progress": {
+            "rebuttals_done": False,
+            "findings_done": 0,
+            "withdrawals_done": 0,
+            "verdict_done": False,
+        },
+    }))
+
+    cli = FakeCli(state, state_file=str(tmp_path / "state.json"), init_status="resumed", next_step="step1")
+
+    class RecordingProgress:
+        def __init__(self):
+            self.round_calls = []
+            self.step_done_calls = []
+            self.content_calls = []
+
+        def round_start(self, round_num, lead, cross):
+            self.round_calls.append((round_num, lead, cross))
+
+        def step_start(self, *_args):
+            pass
+
+        def step_done(self, step, agent, action, elapsed, summary=""):
+            self.step_done_calls.append((step, agent, action, elapsed, summary))
+
+        def step_skip(self, *_args):
+            pass
+
+        def debate_content(self, lines):
+            self.content_calls.append(lines)
+
+        def settle(self, *_args, **_kwargs):
+            pass
+
+        def final_result(self, *_args, **_kwargs):
+            pass
+
+    orchestrator = DebateReviewOrchestrator(
+        cli=cli,
+        adapters={"codex": ScriptedAdapter("codex"), "cc": ScriptedAdapter("cc")},
+        skill_root=SKILL_ROOT,
+        config={"codex_sandbox": "danger-full-access"},
+        cleanup_worktree=False,
+    )
+    progress = RecordingProgress()
+    orchestrator.progress = progress
+
+    result = orchestrator.run(repo="owner/repo", pr_number=123)
+
+    assert result["result"] == "max_rounds_exceeded"
+    assert progress.round_calls == [(1, "codex", "cc")]
+    assert progress.step_done_calls[0][:3] == ("Step1", "codex", "lead review")
+    assert progress.content_calls[0][-1] == "verdict: no_findings_mergeable"
 
 
 def test_terminal_cleanup_failure_does_not_override_terminal_result(monkeypatch, tmp_path):
