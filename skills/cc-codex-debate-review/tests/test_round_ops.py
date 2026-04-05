@@ -521,3 +521,40 @@ def test_settle_populates_debate_ledger(sample_state):
     assert entry["issue_id"] == issue_id
     assert entry["status"] == "withdrawn"
     assert entry["round"] == 1
+
+
+def test_record_verdict_auto_corrects_contradictory_has_findings(sample_state, capsys):
+    """has_findings with no new findings and all issues resolved → auto-correct to no_findings_mergeable (#208)."""
+    # Simulate: issues from earlier rounds are all resolved
+    sample_state["issues"]["isu_001"] = {
+        "issue_id": "isu_001", "issue_key": "k1",
+        "opened_by": "codex", "introduced_in_round": 1,
+        "criterion": 1, "file": "src/a.py", "line": 10, "anchor": "foo",
+        "severity": "warning", "consensus_status": "accepted",
+        "application_status": "applied", "accepted_by": ["codex", "cc"],
+        "rejected_by": [], "applied_by": "codex", "application_commit_sha": "abc",
+        "consensus_reason": None,
+        "reports": [{"report_id": "rpt_001", "agent": "codex", "round": 1,
+                     "severity": "warning", "message": "test",
+                     "reported_at": "2026-03-30T00:00:00+00:00", "status": "open"}],
+        "created_at": "2026-03-30T00:00:00+00:00", "updated_at": "2026-03-30T00:00:00+00:00",
+    }
+    # New round with no new findings — step1.report_ids is empty
+    init_round(sample_state, round_num=4, lead_agent="cc", synced_head_sha="abc")
+    # Agent says has_findings but step1 has no report_ids and no open issues
+    result = record_verdict(sample_state, round_num=4, verdict="has_findings")
+    assert result["verdict"] == "no_findings_mergeable"
+    assert result["clean_pass"] is True
+    err = capsys.readouterr().err
+    assert "Auto-correcting" in err
+
+
+def test_record_verdict_has_findings_with_open_issues_is_not_corrected(sample_state):
+    """has_findings is valid when open issues exist, even without new findings."""
+    from debate_review.issue_ops import upsert_issue
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    upsert_issue(sample_state, agent="codex", round_num=1, severity="warning",
+                 criterion=3, file="src/a.py", line=1, anchor="x", message="test")
+    result = record_verdict(sample_state, round_num=1, verdict="has_findings")
+    assert result["verdict"] == "has_findings"
+    assert result["clean_pass"] is False
