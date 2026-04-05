@@ -1153,7 +1153,8 @@ When `DRY_RUN=false`, the `error_log` field in the `mark-failed` response contai
 When a CLI command, external command, or script fails and a retry with corrected arguments succeeds:
 
 1. **Do not skip reporting.** "Retry succeeded" does not mean the error is resolved — it means the orchestrator made a mistake that will recur.
-2. Create a GitHub issue in the skill repo:
+2. If `DRY_RUN=true`, do not create a GitHub issue. Keep the retry-success error in local output/logs only, then continue orchestration normally.
+3. Otherwise, create a GitHub issue in the skill repo:
    ```bash
    SKILL_REPO=$(git -C "$SKILL_ROOT" remote get-url origin | sed -E 's#(ssh://git@github.com/|git@github.com:|https://github.com/)##; s#\.git$##')
    env -u GITHUB_TOKEN -u GH_TOKEN gh issue create \
@@ -1173,7 +1174,7 @@ When a CLI command, external command, or script fails and a retry with corrected
    EOF
    )"
    ```
-3. Continue orchestration normally (do not call `mark-failed` for retry-success cases).
+4. Continue orchestration normally (do not call `mark-failed` for retry-success cases).
 
 **This rule applies to all error types:** wrong CLI arguments, missing required flags, incorrect subcommand names, data structure assumptions (e.g., treating a list as a dict), and script parse errors.
 
