@@ -579,10 +579,14 @@ def _sum_active_seconds(items: list[dict]) -> float | None:
 def _classify_cc_invocation(state: dict) -> str:
     """Classify CC invocation type from persistent_agents handle format.
 
+    - 'agent-tool': legacy mode sessions (old API-based Agent tool subagent)
     - 'subprocess': UUID-format handle (claude -p --resume), after PR #178
-    - 'agent-tool': old API-based Agent tool subagent
+    - 'agent-tool': persistent session with old API-based Agent tool handle
     - 'unknown': no persistent agent or unrecognizable format
     """
+    if state.get("agent_mode") == "legacy":
+        return "agent-tool"
+
     pa = state.get("persistent_agents", {})
     handle = pa.get("cc_agent_id") or pa.get("cc_session_id") or ""
     handle = str(handle)

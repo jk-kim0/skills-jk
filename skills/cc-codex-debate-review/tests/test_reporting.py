@@ -917,3 +917,33 @@ def test_session_summary_includes_agent_mode_and_cc_invocation_type(tmp_path):
     assert "Agent Tool (old API)" in markdown
     assert "Agent mode: persistent" in markdown
     assert "CC invocation: subprocess" in markdown
+
+
+def test_legacy_session_without_handles_is_classified_as_agent_tool(tmp_path):
+    state_dir = tmp_path / "debate-state"
+    state_dir.mkdir()
+
+    state = create_initial_state(
+        repo="owner/repo",
+        repo_root="/tmp/repo",
+        pr_number=502,
+        is_fork=False,
+        head_sha="abc502",
+        pr_branch_name="feat/legacy",
+        agent_mode="legacy",
+    )
+    state["started_at"] = "2026-04-03T00:00:00+00:00"
+    state["finished_at"] = "2026-04-03T00:10:00+00:00"
+    state["status"] = "consensus_reached"
+    state["final_outcome"] = "consensus"
+    save_state(state, str(state_dir / "owner-repo-502.json"))
+
+    report = generate_sessions_report(
+        state_dir=state_dir,
+        claude_projects_root=tmp_path / "cp",
+        codex_sessions_root=tmp_path / "cs",
+    )
+
+    session = next(s for s in report["sessions"] if s["pr_number"] == 502)
+    assert session["cc_invocation_type"] == "agent-tool"
+    assert report["stats_by_invocation"]["agent-tool"]["session_count"] == 1
