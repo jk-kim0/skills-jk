@@ -576,6 +576,25 @@ def _sum_active_seconds(items: list[dict]) -> float | None:
     return round(sum(active_values), 1)
 
 
+def _classify_cc_invocation(state: dict) -> str:
+    """Classify CC invocation type from persistent_agents handle format.
+
+    - 'subprocess': UUID-format handle (claude -p --resume), after PR #178
+    - 'agent-tool': old API-based Agent tool subagent
+    - 'unknown': no persistent agent or unrecognizable format
+    """
+    pa = state.get("persistent_agents", {})
+    handle = pa.get("cc_agent_id") or pa.get("cc_session_id") or ""
+    handle = str(handle)
+    if not handle or handle == "None":
+        return "unknown"
+    # UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (subprocess)
+    import re
+    if re.match(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]", handle):
+        return "subprocess"
+    return "agent-tool"
+
+
 def _mark_stats_eligibility(
     *,
     dry_run: bool,
@@ -843,6 +862,9 @@ def generate_sessions_report(
         session_finished = explicit_finished_at is not None
         session_include, session_reasons = _mark_stats_eligibility(dry_run=dry_run, in_progress=not session_finished)
 
+        agent_mode = state.get("agent_mode", "legacy")
+        cc_invocation_type = _classify_cc_invocation(state)
+
         session_wall_clock = _seconds(started_at, finished_at)
         session_summary = {
             "state_file": str(state_path),
@@ -851,6 +873,8 @@ def generate_sessions_report(
             "status": state.get("status"),
             "final_outcome": state.get("final_outcome"),
             "dry_run": dry_run,
+            "agent_mode": agent_mode,
+            "cc_invocation_type": cc_invocation_type,
             "started_at": _to_iso(started_at),
             "finished_at": _to_iso(explicit_finished_at),
             "wall_clock_seconds": session_wall_clock,
@@ -922,6 +946,18 @@ def generate_sessions_report(
     stats = _build_stats(sessions)
     findings = _build_findings(sessions, stats, coverage, populations)
 
+    # Build per-invocation-type stats
+    stats_by_invocation: dict[str, dict] = {}
+    for inv_type in ("subprocess", "agent-tool"):
+        filtered = [s for s in sessions if s.get("cc_invocation_type") == inv_type]
+        if filtered:
+            stats_by_invocation[inv_type] = {
+                "session_count": len(filtered),
+                "completed": sum(1 for s in filtered if s.get("finished_at")),
+                "stats": _build_stats(filtered),
+                "populations": _build_populations(filtered),
+            }
+
     return {
         "generated_at": _to_iso(now),
         "totals": {
@@ -932,6 +968,7 @@ def generate_sessions_report(
         "populations": populations,
         "coverage": coverage,
         "stats": stats,
+        "stats_by_invocation": stats_by_invocation,
         "findings": findings,
         "sessions": sessions,
     }
@@ -1030,6 +1067,40 @@ def render_sessions_report_markdown(report: dict) -> str:
             )
         )
 
+    # Per-invocation-type stats
+    stats_by_inv = report.get("stats_by_invocation", {})
+    if stats_by_inv:
+        lines.extend(["## Statistics By CC Invocation Type", ""])
+        for inv_type, inv_data in stats_by_inv.items():
+            inv_stats = inv_data["stats"]
+            inv_pops = inv_data["populations"]
+            label = "Subprocess (`claude -p`)" if inv_type == "subprocess" else "Agent Tool (old API)"
+            lines.extend([
+                f"### {label}",
+                "",
+                f"- Sessions: {inv_data['session_count']} (completed: {inv_data['completed']})",
+                f"- Rounds included: {inv_pops['rounds']['included_in_wall_clock_stats']}",
+                "",
+            ])
+            lines.extend(
+                _render_stats_rows(
+                    f"{label} — Session And Round Durations",
+                    {
+                        "Sessions": inv_stats["session_wall_clock_seconds"],
+                        "Rounds": inv_stats["round_wall_clock_seconds"],
+                    },
+                )
+            )
+            if inv_stats.get("step_wall_clock_seconds_by_agent"):
+                lines.extend(_render_stats_rows(f"{label} — Step Durations By Agent", inv_stats["step_wall_clock_seconds_by_agent"]))
+            if inv_stats.get("lead_agent_round_wall_clock_seconds"):
+                lines.extend(
+                    _render_stats_rows(
+                        f"{label} — Lead Agent Round Durations",
+                        {agent.capitalize(): s for agent, s in inv_stats["lead_agent_round_wall_clock_seconds"].items()},
+                    )
+                )
+
     lines.extend(["## Appendix", ""])
     for session in report.get("sessions", []):
         session_stats_line = "yes"
@@ -1042,6 +1113,8 @@ def render_sessions_report_markdown(report: dict) -> str:
                 f"- Status: {session.get('status')}",
                 f"- Outcome: {session.get('final_outcome')}",
                 f"- Dry run: {session.get('dry_run')}",
+                f"- Agent mode: {session.get('agent_mode', 'legacy')}",
+                f"- CC invocation: {session.get('cc_invocation_type', 'unknown')}",
                 f"- Stats eligibility: {session_stats_line}",
                 f"- Wall clock: {session.get('wall_clock_seconds')}s",
                 f"- Active: {session.get('agent_active_seconds')}s",

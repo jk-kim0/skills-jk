@@ -1,6 +1,7 @@
 import json
 
 from debate_review.reporting import (
+    _classify_cc_invocation,
     _mark_stats_eligibility,
     _stats,
     generate_sessions_report,
@@ -842,3 +843,77 @@ def test_generate_sessions_report_returns_empty_when_state_dir_is_missing(tmp_pa
 
     assert report["totals"]["sessions"] == 0
     assert report["sessions"] == []
+
+
+def test_classify_cc_invocation():
+    assert _classify_cc_invocation({}) == "unknown"
+    assert _classify_cc_invocation({"persistent_agents": {}}) == "unknown"
+    assert _classify_cc_invocation({"persistent_agents": {"cc_agent_id": None}}) == "unknown"
+    assert _classify_cc_invocation({"persistent_agents": {"cc_agent_id": "a885e6c9e21155bb9"}}) == "agent-tool"
+    assert _classify_cc_invocation({"persistent_agents": {"cc_agent_id": "cc-debate-agent"}}) == "agent-tool"
+    assert _classify_cc_invocation({"persistent_agents": {"cc_agent_id": "760929c7-1b95-4382-93f0-2b956c"}}) == "subprocess"
+    assert _classify_cc_invocation({"persistent_agents": {"cc_session_id": "7efd8d9d-c877-4045-a819-c20fe9"}}) == "subprocess"
+
+
+def test_session_summary_includes_agent_mode_and_cc_invocation_type(tmp_path):
+    state_dir = tmp_path / "debate-state"
+    state_dir.mkdir()
+
+    state = create_initial_state(
+        repo="owner/repo",
+        repo_root="/tmp/repo",
+        pr_number=500,
+        is_fork=False,
+        head_sha="abc500",
+        pr_branch_name="feat/inv",
+        agent_mode="persistent",
+    )
+    state["persistent_agents"]["cc_agent_id"] = "760929c7-1b95-4382-93f0-2b956c"
+    state["started_at"] = "2026-04-05T00:00:00+00:00"
+    state["finished_at"] = "2026-04-05T00:05:00+00:00"
+    state["status"] = "consensus_reached"
+    state["final_outcome"] = "consensus"
+    save_state(state, str(state_dir / "owner-repo-500.json"))
+
+    state2 = create_initial_state(
+        repo="owner/repo",
+        repo_root="/tmp/repo",
+        pr_number=501,
+        is_fork=False,
+        head_sha="abc501",
+        pr_branch_name="feat/old",
+        agent_mode="legacy",
+    )
+    state2["persistent_agents"]["cc_agent_id"] = "a885e6c9e21155bb9"
+    state2["started_at"] = "2026-04-04T00:00:00+00:00"
+    state2["finished_at"] = "2026-04-04T00:10:00+00:00"
+    state2["status"] = "consensus_reached"
+    state2["final_outcome"] = "consensus"
+    save_state(state2, str(state_dir / "owner-repo-501.json"))
+
+    report = generate_sessions_report(
+        state_dir=state_dir,
+        claude_projects_root=tmp_path / "cp",
+        codex_sessions_root=tmp_path / "cs",
+    )
+
+    session_500 = next(s for s in report["sessions"] if s["pr_number"] == 500)
+    assert session_500["agent_mode"] == "persistent"
+    assert session_500["cc_invocation_type"] == "subprocess"
+
+    session_501 = next(s for s in report["sessions"] if s["pr_number"] == 501)
+    assert session_501["agent_mode"] == "legacy"
+    assert session_501["cc_invocation_type"] == "agent-tool"
+
+    assert "stats_by_invocation" in report
+    assert "subprocess" in report["stats_by_invocation"]
+    assert "agent-tool" in report["stats_by_invocation"]
+    assert report["stats_by_invocation"]["subprocess"]["session_count"] == 1
+    assert report["stats_by_invocation"]["agent-tool"]["session_count"] == 1
+
+    markdown = render_sessions_report_markdown(report)
+    assert "Statistics By CC Invocation Type" in markdown
+    assert "Subprocess (`claude -p`)" in markdown
+    assert "Agent Tool (old API)" in markdown
+    assert "Agent mode: persistent" in markdown
+    assert "CC invocation: subprocess" in markdown
