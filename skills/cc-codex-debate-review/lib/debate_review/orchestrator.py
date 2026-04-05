@@ -274,10 +274,6 @@ def _extract_json_from_text(text: str) -> str:
     except (json.JSONDecodeError, ValueError):
         pass
 
-    matches = re.findall(r"```(?:json)?\s*\n(.*?)```", stripped, re.DOTALL)
-    if matches:
-        return matches[-1].strip()
-
     decoder = json.JSONDecoder()
     for index, char in enumerate(stripped):
         if char != "{":
@@ -288,6 +284,10 @@ def _extract_json_from_text(text: str) -> str:
             continue
         if isinstance(parsed, dict) and not stripped[index + end :].strip():
             return stripped[index : index + end]
+
+    matches = re.findall(r"```(?:json)?\s*\n(.*?)```", stripped, re.DOTALL)
+    if matches:
+        return matches[-1].strip()
 
     return stripped
 
