@@ -1,4 +1,5 @@
 import copy
+import json
 import os
 
 import pytest
@@ -10,7 +11,7 @@ from debate_review.application import (
 )
 from debate_review.cross_verification import record_cross_verification, resolve_rebuttals
 from debate_review.issue_ops import upsert_issue, withdraw_issue
-from debate_review.orchestrator import DebateReviewOrchestrator
+from debate_review.orchestrator import DebateReviewOrchestrator, OrchestrationError
 from debate_review.round_ops import init_round, record_verdict, settle_round
 from debate_review.state import create_initial_state, mark_failed
 
@@ -488,6 +489,133 @@ def test_route_step3_checkpoint_resumes_remaining_phases(monkeypatch, tmp_path):
     assert not checkpoint_path.exists()
 
 
+def test_route_step1_checkpoint_ignores_non_owner_withdrawal_error(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    checkpoint_path = tmp_path / "checkpoint.json"
+    monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
+
+    state = _sample_state(agent_mode="legacy")
+    init_round(state, round_num=1, synced_head_sha=state["head"]["last_observed_pr_sha"])
+    issue = upsert_issue(
+        state,
+        agent="cc",
+        round_num=1,
+        severity="warning",
+        criterion=6,
+        file="src/app.py",
+        line=1,
+        anchor="line1",
+        message="unused variable x",
+    )
+
+    class WrappingCli(FakeCli):
+        def withdraw_issue(self, _state_file, *, issue_id, agent, round_num, reason):
+            try:
+                return super().withdraw_issue(
+                    _state_file,
+                    issue_id=issue_id,
+                    agent=agent,
+                    round_num=round_num,
+                    reason=reason,
+                )
+            except ValueError as exc:
+                raise OrchestrationError(str(exc))
+
+    cli = WrappingCli(state, state_file=str(tmp_path / "state.json"))
+    orchestrator = DebateReviewOrchestrator(
+        cli=cli,
+        adapters={"codex": ScriptedAdapter("codex"), "cc": ScriptedAdapter("cc")},
+        skill_root=SKILL_ROOT,
+        config={"codex_sandbox": "danger-full-access"},
+        cleanup_worktree=False,
+    )
+    orchestrator.state_file = cli.state_file
+
+    checkpoint = {
+        "step": "step1",
+        "round": 1,
+        "agent": "codex",
+        "response": {
+            "rebuttal_responses": [],
+            "withdrawals": [{"issue_id": issue["issue_id"], "reason": "not mine"}],
+            "findings": [],
+            "verdict": "has_findings",
+        },
+        "progress": {
+            "rebuttals_done": False,
+            "withdrawals_done": 0,
+            "findings_done": 0,
+            "verdict_done": False,
+        },
+    }
+
+    next_step = orchestrator._route_step1_checkpoint(checkpoint, {
+        "round": 1,
+        "lead_agent": "codex",
+        "cross_verifier": "cc",
+        "worktree_path": "/tmp/repo/.worktrees/debate-pr-123",
+        "head_branch": "feat/test",
+    })
+
+    assert next_step == "step2"
+    assert checkpoint["progress"]["withdrawals_done"] == 1
+    assert cli.state["issues"][issue["issue_id"]]["consensus_status"] == "open"
+
+
+def test_route_step1_checkpoint_raises_on_unexpected_withdrawal_error(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    checkpoint_path = tmp_path / "checkpoint.json"
+    monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
+
+    state = _sample_state(agent_mode="legacy")
+    init_round(state, round_num=1, synced_head_sha=state["head"]["last_observed_pr_sha"])
+
+    class FailingCli(FakeCli):
+        def withdraw_issue(self, _state_file, *, issue_id, agent, round_num, reason):
+            raise OrchestrationError(f"Unknown issue ID: {issue_id}")
+
+    cli = FailingCli(state, state_file=str(tmp_path / "state.json"))
+    orchestrator = DebateReviewOrchestrator(
+        cli=cli,
+        adapters={"codex": ScriptedAdapter("codex"), "cc": ScriptedAdapter("cc")},
+        skill_root=SKILL_ROOT,
+        config={"codex_sandbox": "danger-full-access"},
+        cleanup_worktree=False,
+    )
+    orchestrator.state_file = cli.state_file
+
+    checkpoint = {
+        "step": "step1",
+        "round": 1,
+        "agent": "codex",
+        "response": {
+            "rebuttal_responses": [],
+            "withdrawals": [{"issue_id": "isu_999", "reason": "broken"}],
+            "findings": [],
+            "verdict": "has_findings",
+        },
+        "progress": {
+            "rebuttals_done": False,
+            "withdrawals_done": 0,
+            "findings_done": 0,
+            "verdict_done": False,
+        },
+    }
+
+    with pytest.raises(OrchestrationError, match="Unknown issue ID: isu_999"):
+        orchestrator._route_step1_checkpoint(checkpoint, {
+            "round": 1,
+            "lead_agent": "codex",
+            "cross_verifier": "cc",
+            "worktree_path": "/tmp/repo/.worktrees/debate-pr-123",
+            "head_branch": "feat/test",
+        })
+
+    assert checkpoint["progress"]["withdrawals_done"] == 0
+
+
 def test_orchestrator_marks_failed_and_posts_comment_on_dispatch_error(monkeypatch, tmp_path):
     import debate_review.orchestrator as orchestrator_module
 
@@ -727,3 +855,77 @@ def test_cleanup_worktree_skips_dry_run(monkeypatch, tmp_path):
     monkeypatch.setattr(orchestrator_module.subprocess, "run", fail_if_called)
 
     orchestrator._cleanup_worktree(state)
+
+
+# --- Agent response normalization tests ---
+
+from debate_review.orchestrator import (
+    _extract_json_from_text,
+    _normalize_cross_verifications,
+    _normalize_withdrawals,
+    _unwrap_cc_result,
+)
+
+
+def test_unwrap_cc_result_plain_json():
+    inner = json.dumps({"verdict": "no_findings_mergeable", "findings": []})
+    wrapper = json.dumps({"type": "result", "result": inner})
+    assert _unwrap_cc_result(wrapper) == {"verdict": "no_findings_mergeable", "findings": []}
+
+
+def test_unwrap_cc_result_markdown_fenced_json():
+    inner = '```json\n{"verdict": "has_findings", "findings": []}\n```'
+    wrapper = json.dumps({"type": "result", "result": inner})
+    assert _unwrap_cc_result(wrapper)["verdict"] == "has_findings"
+
+
+def test_unwrap_cc_result_prose_with_embedded_json():
+    inner = 'Some explanation.\n\n```json\n{"verdict": "has_findings", "findings": []}\n```'
+    wrapper = json.dumps({"type": "result", "result": inner})
+    assert _unwrap_cc_result(wrapper)["verdict"] == "has_findings"
+
+
+def test_extract_json_from_text_plain():
+    assert _extract_json_from_text('{"a": 1}') == '{"a": 1}'
+
+
+def test_extract_json_from_text_fenced():
+    assert json.loads(_extract_json_from_text('```json\n{"a": 1}\n```')) == {"a": 1}
+
+
+def test_extract_json_from_text_prose():
+    text = "Here is the result:\n\n```json\n{\"b\": 2}\n```\n\nDone."
+    assert json.loads(_extract_json_from_text(text)) == {"b": 2}
+
+
+def test_normalize_cross_verifications_issue_id_and_verdict():
+    state = {"issues": {"isu_001": {"reports": [{"report_id": "rpt_001"}]}}}
+    raw = [{"issue_id": "isu_001", "verdict": "rebut", "reason": "disagree"}]
+    result = _normalize_cross_verifications(raw, state)
+    assert result[0]["report_id"] == "rpt_001"
+    assert result[0]["decision"] == "rebut"
+
+
+def test_normalize_cross_verifications_already_correct():
+    state = {"issues": {}}
+    raw = [{"report_id": "rpt_001", "decision": "accept"}]
+    assert _normalize_cross_verifications(raw, state) == raw
+
+
+def test_normalize_withdrawals_strings():
+    assert _normalize_withdrawals(["isu_001", "isu_002"]) == [
+        {"issue_id": "isu_001", "reason": ""},
+        {"issue_id": "isu_002", "reason": ""},
+    ]
+
+
+def test_normalize_withdrawals_dicts():
+    items = [{"issue_id": "isu_001", "reason": "no longer relevant"}]
+    assert _normalize_withdrawals(items) == items
+
+
+def test_normalize_withdrawals_mixed():
+    items = ["isu_001", {"issue_id": "isu_002", "reason": "duplicate"}]
+    result = _normalize_withdrawals(items)
+    assert result[0] == {"issue_id": "isu_001", "reason": ""}
+    assert result[1] == {"issue_id": "isu_002", "reason": "duplicate"}

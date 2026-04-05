@@ -220,22 +220,86 @@ class CodexAdapter(AgentAdapter):
         )
 
 
+def _extract_json_from_text(text: str) -> str:
+    """Extract JSON from text that may contain markdown fences or prose.
+
+    Handles: plain JSON, ```json {...} ```, and prose with embedded code blocks.
+    """
+    import re
+
+    stripped = text.strip()
+    try:
+        json.loads(stripped)
+        return stripped
+    except (json.JSONDecodeError, ValueError):
+        pass
+
+    match = re.search(r"```(?:json)?\s*\n(.*?)```", stripped, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+
+    return stripped
+
+
 def _unwrap_cc_result(output: str) -> dict:
     """Unwrap Claude Code --output-format json wrapper to extract agent response.
 
     Claude Code wraps the agent's text in {"type":"result","result":"<json-string>",...}.
+    The inner result may be plain JSON, markdown-fenced, or prose with embedded JSON.
     """
     wrapper = _parse_json_object(output)
     if wrapper.get("type") == "result" and "result" in wrapper:
         inner = wrapper["result"]
         if isinstance(inner, str):
+            candidate = _extract_json_from_text(inner)
             try:
-                parsed = json.loads(inner)
+                parsed = json.loads(candidate)
                 if isinstance(parsed, dict):
                     return parsed
             except json.JSONDecodeError:
                 pass
     return wrapper
+
+
+def _normalize_cross_verifications(verifications: list, state: dict) -> list:
+    """Normalize agent cross-verification responses to CLI-expected format.
+
+    Agents may return {issue_id, verdict} instead of {report_id, decision}.
+    """
+    issue_to_report: dict[str, str] = {}
+    for issue_id, issue in state.get("issues", {}).items():
+        reports = issue.get("reports", [])
+        if reports:
+            issue_to_report[issue_id] = reports[-1]["report_id"]
+
+    normalized = []
+    for v in verifications:
+        entry = dict(v)
+        if "report_id" not in entry and "issue_id" in entry:
+            report_id = issue_to_report.get(entry["issue_id"])
+            if report_id:
+                entry["report_id"] = report_id
+        if "decision" not in entry and "verdict" in entry:
+            entry["decision"] = entry["verdict"]
+        normalized.append(entry)
+    return normalized
+
+
+def _normalize_withdrawals(withdrawals: list) -> list:
+    """Normalize withdrawal entries — agents may send plain strings or dicts."""
+    normalized = []
+    for item in withdrawals:
+        if isinstance(item, str):
+            normalized.append({"issue_id": item, "reason": ""})
+        elif isinstance(item, dict):
+            normalized.append(item)
+    return normalized
+
+
+def _is_non_owner_withdrawal_error(exc: OrchestrationError) -> bool:
+    """Return True only for the expected 'wrong owner' withdrawal failure."""
+    message = str(exc).lower()
+    return "cannot withdraw" in message and "opened by" in message
 
 
 class CcAdapter(AgentAdapter):
@@ -933,16 +997,20 @@ class DebateReviewOrchestrator:
             checkpoint["progress"]["rebuttals_done"] = True
             self._save_checkpoint(checkpoint)
 
-        withdrawals = response.get("withdrawals", [])
+        withdrawals = _normalize_withdrawals(response.get("withdrawals", []))
         done = checkpoint["progress"]["withdrawals_done"]
         for item in withdrawals[done:]:
-            self.cli.withdraw_issue(
-                self.state_file,
-                issue_id=item["issue_id"],
-                agent=round_ctx["lead_agent"],
-                round_num=round_ctx["round"],
-                reason=item["reason"],
-            )
+            try:
+                self.cli.withdraw_issue(
+                    self.state_file,
+                    issue_id=item["issue_id"],
+                    agent=round_ctx["lead_agent"],
+                    round_num=round_ctx["round"],
+                    reason=item.get("reason", ""),
+                )
+            except OrchestrationError as exc:
+                if not _is_non_owner_withdrawal_error(exc):
+                    raise
             checkpoint["progress"]["withdrawals_done"] += 1
             self._save_checkpoint(checkpoint)
 
@@ -966,24 +1034,32 @@ class DebateReviewOrchestrator:
     def _route_step2_checkpoint(self, checkpoint: dict, round_ctx: dict) -> str:
         response = checkpoint["response"]
         if not checkpoint["progress"]["verifications_done"]:
+            state = self._load_state()
+            verifications = _normalize_cross_verifications(
+                response.get("cross_verifications", []), state,
+            )
             self.cli.record_cross_verification(
                 self.state_file,
                 round_num=round_ctx["round"],
-                verifications=response.get("cross_verifications", []),
+                verifications=verifications,
             )
             checkpoint["progress"]["verifications_done"] = True
             self._save_checkpoint(checkpoint)
 
-        withdrawals = response.get("withdrawals", [])
+        withdrawals = _normalize_withdrawals(response.get("withdrawals", []))
         done = checkpoint["progress"]["withdrawals_done"]
         for item in withdrawals[done:]:
-            self.cli.withdraw_issue(
-                self.state_file,
-                issue_id=item["issue_id"],
-                agent=round_ctx["cross_verifier"],
-                round_num=round_ctx["round"],
-                reason=item["reason"],
-            )
+            try:
+                self.cli.withdraw_issue(
+                    self.state_file,
+                    issue_id=item["issue_id"],
+                    agent=round_ctx["cross_verifier"],
+                    round_num=round_ctx["round"],
+                    reason=item.get("reason", ""),
+                )
+            except OrchestrationError as exc:
+                if not _is_non_owner_withdrawal_error(exc):
+                    raise
             checkpoint["progress"]["withdrawals_done"] += 1
             self._save_checkpoint(checkpoint)
 
@@ -1004,16 +1080,20 @@ class DebateReviewOrchestrator:
             checkpoint["progress"]["decisions_done"] = True
             self._save_checkpoint(checkpoint)
 
-        withdrawals = response.get("withdrawals", [])
+        withdrawals = _normalize_withdrawals(response.get("withdrawals", []))
         done = checkpoint["progress"]["withdrawals_done"]
         for item in withdrawals[done:]:
-            self.cli.withdraw_issue(
-                self.state_file,
-                issue_id=item["issue_id"],
-                agent=round_ctx["lead_agent"],
-                round_num=round_ctx["round"],
-                reason=item["reason"],
-            )
+            try:
+                self.cli.withdraw_issue(
+                    self.state_file,
+                    issue_id=item["issue_id"],
+                    agent=round_ctx["lead_agent"],
+                    round_num=round_ctx["round"],
+                    reason=item.get("reason", ""),
+                )
+            except OrchestrationError as exc:
+                if not _is_non_owner_withdrawal_error(exc):
+                    raise
             checkpoint["progress"]["withdrawals_done"] += 1
             self._save_checkpoint(checkpoint)
 
