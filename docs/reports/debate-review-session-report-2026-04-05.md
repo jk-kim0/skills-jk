@@ -1,130 +1,156 @@
 # Debate Review Session Report
 
-- Generated at: 2026-04-04T16:25:12.866351+00:00
-- Sessions: 65
-- Completed: 59
-- In progress: 6
+- Generated at: 2026-04-05T10:07:14.745754+00:00
+- Sessions: 66
+- Completed: 62
+- In progress: 4
 
 ## Findings
 
-- **Excluded Population**: session 통계에서는 dry-run 3개, in-progress 6개를 제외했습니다. round 통계에서는 completed_at 누락 256개를 제외했습니다.
-- **Step-Level Coverage**: 통계 대상 completed round 59개 중 step 정보가 있는 round는 44개, agent breakdown이 있는 round는 38개입니다.
+- **Excluded Population**: session 통계에서는 dry-run 3개, in-progress 4개를 제외했습니다. round 통계에서는 completed_at 누락 254개를 제외했습니다.
+- **Step-Level Coverage**: 통계 대상 completed round 69개 중 step 정보가 있는 round는 55개, agent breakdown이 있는 round는 45개입니다.
 - **Slowest Median Step**: step2_cross_review의 median은 148.5초로, 집계된 step 중 가장 깁니다.
-- **Cross-Reviewer Split**: step2_cross_review median은 CC 4518.2초, Codex 83.6초로 cross-review 분포가 agent별로 크게 갈립니다.
-- **Lead Agent Comparison**: Lead round median은 CC 82.6초, Codex 231.4초이며 Codex 쪽이 더 느립니다.
+- **Cross-Reviewer Split**: step2_cross_review median은 CC 4294.9초, Codex 82.4초로 cross-review 분포가 agent별로 크게 갈립니다.
+- **Lead Agent Comparison**: Lead round median은 CC 90.6초, Codex 213.9초이며 Codex 쪽이 더 느립니다.
 - **Longest Session**: jk-kim0/skills-jk#173 세션이 66342.3초로 가장 길었습니다.
 
 ## Population
 
 | Population | Total | Included | Excluded Dry Run | Excluded In Progress | Excluded Missing Completed At |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Sessions | 65 | 59 | 3 | 6 | - |
-| Rounds | 315 | 59 | 0 | 2 | 256 |
-| Steps | 222 | 215 | 0 | 7 | 0 |
+| Sessions | 66 | 62 | 3 | 4 | - |
+| Rounds | 323 | 69 | 0 | 0 | 254 |
+| Steps | 258 | 258 | 0 | 0 | 0 |
+
+_Sessions do not use the Excluded Missing Completed At column; session inclusion is based on `finished_at`._
 
 ## Statistics
 
-- Coverage (rounds with steps): 44 / 59
-- Coverage (rounds with breakdown): 38 / 59
+- Coverage (rounds with steps): 55 / 69
+- Coverage (rounds with breakdown): 45 / 69
 
 ### Completed Session And Round Wall-Clock Durations
 
-| Metric | Count | Min | Max | Average | Median |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Sessions | 59 | 13.9 | 66342.3 | 3712.2 | 1721.3 |
-| Rounds | 59 | 15.9 | 1886.7 | 276.2 | 117.4 |
+| Metric | Count | Min | 25% | Median | 75% | Max | Average |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Sessions | 62 | 13.9 | 765.3 | 1681.3 | 2330.7 | 66342.3 | 3582.8 |
+| Rounds | 69 | 15.9 | 53.6 | 117.4 | 310.3 | 1886.7 | 273.8 |
 
 ### Completed Step Wall-Clock Durations
 
-| Metric | Count | Min | Max | Average | Median |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| step0_sync | 14 | 28.1 | 123.4 | 69.3 | 63.6 |
-| step1_lead_review | 122 | 0.1 | 1365.4 | 127.5 | 119.0 |
-| step2_cross_review | 33 | 0.9 | 9725.0 | 1573.3 | 148.5 |
-| step3_lead_apply | 32 | 9.3 | 1580.9 | 157.1 | 97.2 |
-| step4_settle | 14 | 0.0 | 0.0 | 0.0 | 0.0 |
+| Metric | Count | Min | 25% | Median | 75% | Max | Average |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| step0_sync | 26 | 0.2 | 40.1 | 66.4 | 98.8 | 432.0 | 94.1 |
+| step1_lead_review | 133 | 0.1 | 29.8 | 115.8 | 161.5 | 1365.4 | 121.3 |
+| step2_cross_review | 37 | 0.9 | 40.8 | 148.5 | 1493.1 | 9725.0 | 1425.9 |
+| step3_lead_apply | 36 | 5.4 | 24.1 | 88.5 | 148.4 | 1580.9 | 153.1 |
+| step4_settle | 26 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
 
 ### Completed Step Wall-Clock Durations By Agent
 
-| Metric | Count | Min | Max | Average | Median |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| step1_lead_review / cc | 4 | 0.1 | 3.8 | 1.9 | 1.9 |
-| step1_lead_review / codex | 118 | 0.1 | 1365.4 | 131.8 | 120.9 |
-| step2_cross_review / cc | 10 | 1493.1 | 9725.0 | 4961.9 | 4518.2 |
-| step2_cross_review / codex | 23 | 0.9 | 230.8 | 100.0 | 83.6 |
-| step3_lead_apply / codex | 32 | 9.3 | 1580.9 | 157.1 | 97.2 |
+| Metric | Count | Min | 25% | Median | 75% | Max | Average |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| step1_lead_review / cc | 10 | 0.1 | 3.7 | 4.2 | 52.5 | 116.5 | 29.0 |
+| step1_lead_review / codex | 123 | 0.1 | 41.4 | 120.7 | 166.6 | 1365.4 | 128.8 |
+| step2_cross_review / cc | 12 | 151.6 | 2481.4 | 4294.9 | 4910.5 | 9725.0 | 4196.7 |
+| step2_cross_review / codex | 25 | 0.9 | 33.0 | 82.4 | 148.5 | 230.8 | 96.0 |
+| step3_lead_apply / cc | 2 | 5.4 | 6.2 | 7.0 | 7.7 | 8.5 | 7.0 |
+| step3_lead_apply / codex | 34 | 9.3 | 41.1 | 97.2 | 149.4 | 1580.9 | 161.7 |
 
 ### Completed Step Active Durations
 
-| Metric | Count | Min | Max | Average | Median |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| step1_lead_review | 116 | 8.1 | 1365.4 | 136.5 | 121.1 |
-| step2_cross_review | 33 | 0.9 | 9725.0 | 1573.3 | 148.5 |
-| step3_lead_apply | 32 | 9.3 | 1580.9 | 157.1 | 97.2 |
+| Metric | Count | Min | 25% | Median | 75% | Max | Average |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| step1_lead_review | 121 | 8.1 | 49.1 | 121.1 | 172.7 | 1365.4 | 135.3 |
+| step2_cross_review | 35 | 0.9 | 40.4 | 143.4 | 2152.0 | 9725.0 | 1485.6 |
+| step3_lead_apply | 34 | 9.3 | 70.0 | 109.0 | 157.9 | 1580.9 | 181.2 |
 
 ### Completed Step Active Durations By Agent
 
-| Metric | Count | Min | Max | Average | Median |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| step1_lead_review / codex | 116 | 8.1 | 1365.4 | 136.5 | 121.1 |
-| step2_cross_review / cc | 10 | 1493.1 | 9725.0 | 4961.9 | 4518.2 |
-| step2_cross_review / codex | 23 | 0.9 | 230.8 | 100.0 | 83.6 |
-| step3_lead_apply / codex | 32 | 9.3 | 1580.9 | 157.1 | 97.2 |
+| Metric | Count | Min | 25% | Median | 75% | Max | Average |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| step1_lead_review / codex | 121 | 8.1 | 49.1 | 121.1 | 172.7 | 1365.4 | 135.3 |
+| step2_cross_review / cc | 10 | 1493.1 | 3845.8 | 4518.2 | 5472.2 | 9725.0 | 4961.9 |
+| step2_cross_review / codex | 25 | 0.9 | 33.0 | 82.4 | 148.5 | 230.8 | 95.1 |
+| step3_lead_apply / codex | 34 | 9.3 | 70.0 | 109.0 | 157.9 | 1580.9 | 181.2 |
 
 ### Completed Lead Agent Round Wall-Clock Durations
 
-| Metric | Count | Min | Max | Average | Median |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Cc | 25 | 15.9 | 412.1 | 118.5 | 82.6 |
-| Codex | 34 | 29.4 | 1886.7 | 392.1 | 231.4 |
+| Metric | Count | Min | 25% | Median | 75% | Max | Average |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Cc | 30 | 15.9 | 48.9 | 90.6 | 156.4 | 412.1 | 123.1 |
+| Codex | 39 | 29.4 | 64.4 | 213.9 | 487.8 | 1886.7 | 389.7 |
 
 ## Appendix
 
-### chequer-io/deck#783
+### jk-kim0/skills-jk#182
 
-- Status: in_progress
-- Outcome: None
+- Status: consensus_reached
+- Outcome: consensus
 - Dry run: False
-- Stats eligibility: no (excluded from stats: in_progress, missing_completed_at)
-- Wall clock: 104.1s
-- Active: 533.0s
+- Stats eligibility: yes
+- Wall clock: 892.2s
+- Active: 137.8s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | 141.1s | 0.1s | skip | skip | 0.0s | 141.2s |
+| 2 | cc | 73.1s | 67.8s | 75.7s | 5.4s | 0.0s | 222.0s |
+| 3 | codex | 308.8s | 0.1s | skip | skip | 0.0s | 308.9s |
+| 4 | cc | 46.9s | 6.7s | skip | skip | 0.0s | 53.6s |
 #### Round 1
 
 - Lead agent: codex
-- Stats eligibility: no (excluded from stats: in_progress, missing_completed_at)
-- Wall clock: Nones
-- Active: 533.0s
+- Stats eligibility: yes
+- Wall clock: 141.2s
+- Active: 72.2s
 
 | Step | Wall Clock (s) | Active (s) | Agent | Local File | Local Git | GitHub/API | Unattributed |
 | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: |
-| step0_sync | 12.5 | None |  |  |  |  |  |
-| step1_lead_review | 86.7 | 79.7 | codex | 3.0 | 1.6 | 0.3 | 74.9 |
-| step3_lead_apply | 453.3 | 453.3 | codex | 1.6 | 3.0 | 6.2 | 270.8 |
+| step0_sync | 141.1 | None |  |  |  |  |  |
+| step1_lead_review | 0.1 | 72.2 | codex | 1.1 | 0.5 | 3.1 | 67.1 |
+| step4_settle | 0.0 | None |  |  |  |  |  |
 
+#### Round 2
 
-### jk-kim0/skills-jk#179
+- Lead agent: cc
+- Stats eligibility: yes
+- Wall clock: 222.0s
+- Active: 53.6s
 
-- Status: in_progress
-- Outcome: None
-- Dry run: False
-- Stats eligibility: no (excluded from stats: in_progress, missing_completed_at)
-- Wall clock: 463.2s
-- Active: 260.4s
+| Step | Wall Clock (s) | Active (s) | Agent | Local File | Local Git | GitHub/API | Unattributed |
+| --- | ---: | ---: | --- | ---: | ---: | ---: | ---: |
+| step0_sync | 73.1 | None |  |  |  |  |  |
+| step1_lead_review | 67.8 | None | cc |  |  |  |  |
+| step2_cross_review | 75.7 | 53.6 | codex | 0.8 | 0.0 | 0.0 | 52.8 |
+| step3_lead_apply | 5.4 | None | cc |  |  |  |  |
+| step4_settle | 0.0 | None |  |  |  |  |  |
 
-#### Round 1
+#### Round 3
 
 - Lead agent: codex
-- Stats eligibility: no (excluded from stats: in_progress, missing_completed_at)
-- Wall clock: Nones
-- Active: 260.4s
+- Stats eligibility: yes
+- Wall clock: 308.9s
+- Active: 12.0s
 
 | Step | Wall Clock (s) | Active (s) | Agent | Local File | Local Git | GitHub/API | Unattributed |
 | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: |
-| step0_sync | 208.9 | None |  |  |  |  |  |
-| step1_lead_review | 75.8 | 133.9 | codex | 3.9 | 0.0 | 3.9 | 125.7 |
-| step2_cross_review | 151.6 | None | cc |  |  |  |  |
-| step3_lead_apply | 13.8 | 126.5 | codex | 1.0 | 4.2 | 2.1 | 118.1 |
+| step0_sync | 308.8 | None |  |  |  |  |  |
+| step1_lead_review | 0.1 | 12.0 | codex | 0.2 | 0.0 | 0.0 | 11.8 |
+| step4_settle | 0.0 | None |  |  |  |  |  |
+
+#### Round 4
+
+- Lead agent: cc
+- Stats eligibility: yes
+- Wall clock: 53.6s
+- Active: Nones
+
+| Step | Wall Clock (s) | Active (s) | Agent | Local File | Local Git | GitHub/API | Unattributed |
+| --- | ---: | ---: | --- | ---: | ---: | ---: | ---: |
+| step0_sync | 46.9 | None |  |  |  |  |  |
+| step1_lead_review | 6.7 | None | cc |  |  |  |  |
+| step4_settle | 0.0 | None |  |  |  |  |  |
 
 
 ### querypie/querypie-docs#979
@@ -133,43 +159,166 @@
 - Outcome: consensus
 - Dry run: False
 - Stats eligibility: yes
-- Wall clock: 591.5s
-- Active: 218.3s
+- Wall clock: 1848.7s
+- Active: 903.3s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | 432.0s | 143.9s | 590.3s | 18.5s | 0.0s | 1184.7s |
+| 2 | cc | 163.9s | 82.7s | 22.9s | 8.5s | 0.0s | 255.0s |
+| 3 | codex | 31.0s | 5.7s | skip | skip | 0.0s | 36.7s |
+| 4 | cc | 26.3s | 3.7s | skip | skip | 0.0s | 30.0s |
 #### Round 1
 
 - Lead agent: codex
 - Stats eligibility: yes
-- Wall clock: 378.9s
-- Active: 112.8s
+- Wall clock: 1184.7s
+- Active: 866.7s
 
 | Step | Wall Clock (s) | Active (s) | Agent | Local File | Local Git | GitHub/API | Unattributed |
 | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: |
-| step1_lead_review | 95.1 | 95.1 | codex | 1.8 | 0.3 | 3.3 | 88.1 |
-| step3_lead_apply | 17.7 | 17.7 | codex | 0.0 | 0.2 | 0.0 | 17.5 |
+| step0_sync | 432.0 | None |  |  |  |  |  |
+| step1_lead_review | 143.9 | 295.5 | codex | 4.2 | 0.1 | 5.6 | 280.9 |
+| step2_cross_review | 590.3 | None | cc |  |  |  |  |
+| step3_lead_apply | 18.5 | 571.2 | codex | 2.1 | 2.9 | 84.2 | 457.2 |
+| step4_settle | 0.0 | None |  |  |  |  |  |
 
 #### Round 2
 
 - Lead agent: cc
 - Stats eligibility: yes
-- Wall clock: 38.5s
-- Active: Nones
+- Wall clock: 255.0s
+- Active: 22.9s
 
 | Step | Wall Clock (s) | Active (s) | Agent | Local File | Local Git | GitHub/API | Unattributed |
 | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: |
-| (no step-level data) |  |  |  |  |  |  |  |
+| step0_sync | 163.9 | None |  |  |  |  |  |
+| step1_lead_review | 82.7 | None | cc |  |  |  |  |
+| step2_cross_review | 22.9 | 22.9 | codex | 0.0 | 0.2 | 0.0 | 22.3 |
+| step3_lead_apply | 8.5 | None | cc |  |  |  |  |
+| step4_settle | 0.0 | None |  |  |  |  |  |
 
 #### Round 3
 
 - Lead agent: codex
 - Stats eligibility: yes
-- Wall clock: 126.8s
-- Active: 105.5s
+- Wall clock: 36.7s
+- Active: 13.7s
 
 | Step | Wall Clock (s) | Active (s) | Agent | Local File | Local Git | GitHub/API | Unattributed |
 | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: |
-| step0_sync | 123.4 | None |  |  |  |  |  |
-| step1_lead_review | 3.4 | 105.5 | codex | 1.1 | 0.1 | 0.0 | 103.8 |
+| step0_sync | 31.0 | None |  |  |  |  |  |
+| step1_lead_review | 5.7 | 13.7 | codex | 0.0 | 0.1 | 0.0 | 12.6 |
+| step4_settle | 0.0 | None |  |  |  |  |  |
+
+#### Round 4
+
+- Lead agent: cc
+- Stats eligibility: yes
+- Wall clock: 30.0s
+- Active: Nones
+
+| Step | Wall Clock (s) | Active (s) | Agent | Local File | Local Git | GitHub/API | Unattributed |
+| --- | ---: | ---: | --- | ---: | ---: | ---: | ---: |
+| step0_sync | 26.3 | None |  |  |  |  |  |
+| step1_lead_review | 3.7 | None | cc |  |  |  |  |
+| step4_settle | 0.0 | None |  |  |  |  |  |
+
+
+### chequer-io/deck#783
+
+- Status: consensus_reached
+- Outcome: consensus
+- Dry run: False
+- Stats eligibility: yes
+- Wall clock: 303.3s
+- Active: 613.6s
+
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | 17.2s | 160.8s | skip | 453.3s | 0.0s | 178.3s |
+| 2 | cc | 0.2s | 116.5s | skip | skip | 0.0s | 117.1s |
+#### Round 1
+
+- Lead agent: codex
+- Stats eligibility: yes
+- Wall clock: 178.3s
+- Active: 613.6s
+
+| Step | Wall Clock (s) | Active (s) | Agent | Local File | Local Git | GitHub/API | Unattributed |
+| --- | ---: | ---: | --- | ---: | ---: | ---: | ---: |
+| step0_sync | 17.2 | None |  |  |  |  |  |
+| step1_lead_review | 160.8 | 160.3 | codex | 2.8 | 1.4 | 0.3 | 154.7 |
+| step3_lead_apply | 453.3 | 453.3 | codex | 1.6 | 3.0 | 6.2 | 270.8 |
+| step4_settle | 0.0 | None |  |  |  |  |  |
+
+#### Round 2
+
+- Lead agent: cc
+- Stats eligibility: yes
+- Wall clock: 117.1s
+- Active: Nones
+
+| Step | Wall Clock (s) | Active (s) | Agent | Local File | Local Git | GitHub/API | Unattributed |
+| --- | ---: | ---: | --- | ---: | ---: | ---: | ---: |
+| step0_sync | 0.2 | None |  |  |  |  |  |
+| step1_lead_review | 116.5 | None | cc |  |  |  |  |
+| step4_settle | 0.0 | None |  |  |  |  |  |
+
+
+### jk-kim0/skills-jk#179
+
+- Status: consensus_reached
+- Outcome: consensus
+- Dry run: False
+- Stats eligibility: yes
+- Wall clock: 666.1s
+- Active: 305.2s
+
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | 208.9s | 75.8s | 151.6s | 17.6s | 0.0s | 453.9s |
+| 2 | cc | 85.0s | 4.7s | skip | skip | 0.0s | 89.7s |
+| 3 | codex | 64.3s | 5.8s | skip | skip | 0.0s | 70.1s |
+#### Round 1
+
+- Lead agent: codex
+- Stats eligibility: yes
+- Wall clock: 453.9s
+- Active: 260.4s
+
+| Step | Wall Clock (s) | Active (s) | Agent | Local File | Local Git | GitHub/API | Unattributed |
+| --- | ---: | ---: | --- | ---: | ---: | ---: | ---: |
+| step0_sync | 208.9 | None |  |  |  |  |  |
+| step1_lead_review | 75.8 | 133.9 | codex | 3.9 | 0.0 | 3.9 | 125.7 |
+| step2_cross_review | 151.6 | None | cc |  |  |  |  |
+| step3_lead_apply | 17.6 | 126.5 | codex | 1.0 | 4.2 | 2.1 | 118.1 |
+| step4_settle | 0.0 | None |  |  |  |  |  |
+
+#### Round 2
+
+- Lead agent: cc
+- Stats eligibility: yes
+- Wall clock: 89.7s
+- Active: Nones
+
+| Step | Wall Clock (s) | Active (s) | Agent | Local File | Local Git | GitHub/API | Unattributed |
+| --- | ---: | ---: | --- | ---: | ---: | ---: | ---: |
+| step0_sync | 85.0 | None |  |  |  |  |  |
+| step1_lead_review | 4.7 | None | cc |  |  |  |  |
+| step4_settle | 0.0 | None |  |  |  |  |  |
+
+#### Round 3
+
+- Lead agent: codex
+- Stats eligibility: yes
+- Wall clock: 70.1s
+- Active: 44.8s
+
+| Step | Wall Clock (s) | Active (s) | Agent | Local File | Local Git | GitHub/API | Unattributed |
+| --- | ---: | ---: | --- | ---: | ---: | ---: | ---: |
+| step0_sync | 64.3 | None |  |  |  |  |  |
+| step1_lead_review | 5.8 | 44.8 | codex | 0.2 | 0.0 | 2.9 | 41.7 |
 | step4_settle | 0.0 | None |  |  |  |  |  |
 
 
@@ -182,6 +331,11 @@
 - Wall clock: 901.3s
 - Active: 666.7s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 230.0s | skip | 160.5s | skip | 716.7s |
+| 2 | cc | skip | skip | 219.1s | skip | skip | 81.9s |
+| 3 | codex | 52.8s | 0.1s | skip | 19.8s | 0.0s | 52.9s |
 #### Round 1
 
 - Lead agent: codex
@@ -229,6 +383,11 @@
 - Wall clock: 663.7s
 - Active: 225.2s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 162.2s | skip | 32.1s | skip | 526.0s |
+| 2 | cc | skip | skip | skip | skip | skip | 40.7s |
+| 3 | codex | 58.7s | 0.1s | skip | skip | 0.0s | 58.8s |
 #### Round 1
 
 - Lead agent: codex
@@ -275,6 +434,15 @@
 - Wall clock: 1054.2s
 - Active: 538.2s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 116.5s | skip | 124.1s | skip | 399.6s |
+| 2 | cc | skip | skip | skip | skip | skip | 33.6s |
+| 3 | codex | skip | 49.3s | skip | 91.5s | skip | 213.9s |
+| 4 | cc | skip | skip | skip | skip | skip | 25.5s |
+| 5 | codex | skip | 31.4s | skip | 75.4s | skip | 160.7s |
+| 6 | cc | skip | skip | skip | skip | skip | 15.9s |
+| 7 | codex | 82.3s | 29.1s | skip | skip | 0.0s | 111.4s |
 #### Round 1
 
 - Lead agent: codex
@@ -367,6 +535,10 @@
 - Wall clock: 284.6s
 - Active: 61.0s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 61.0s | skip | skip | skip | 168.7s |
+| 2 | cc | 87.7s | 3.8s | skip | skip | 0.0s | 91.5s |
 #### Round 1
 
 - Lead agent: codex
@@ -401,6 +573,14 @@
 - Wall clock: 1264.5s
 - Active: 596.0s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 120.1s | skip | 112.8s | skip | 521.7s |
+| 2 | cc | skip | skip | 56.3s | skip | skip | 68.5s |
+| 3 | codex | skip | 76.7s | skip | 75.9s | skip | 248.8s |
+| 4 | cc | skip | skip | 29.4s | skip | skip | 178.2s |
+| 5 | codex | skip | 21.8s | skip | 103.0s | skip | 44.7s |
+| 6 | cc | 100.5s | 3.8s | skip | skip | 0.0s | 104.4s |
 #### Round 1
 
 - Lead agent: codex
@@ -482,6 +662,16 @@
 - Wall clock: 66342.3s
 - Active: 566.7s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 87.6s | skip | skip | skip | - |
+| 2 | cc | skip | skip | 117.9s | skip | skip | 412.1s |
+| 3 | codex | skip | 43.4s | skip | 118.1s | skip | 315.1s |
+| 4 | cc | skip | skip | 37.6s | skip | skip | 233.8s |
+| 5 | codex | skip | 41.7s | skip | 76.8s | skip | 251.3s |
+| 6 | cc | skip | skip | 22.1s | skip | skip | 155.9s |
+| 7 | codex | skip | 21.5s | skip | skip | skip | 34.5s |
+| 8 | cc | 42.0s | 0.1s | skip | skip | 0.0s | 42.1s |
 #### Round 1
 
 - Lead agent: codex
@@ -584,6 +774,11 @@
 - Wall clock: 785.6s
 - Active: 304.8s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 148.1s | skip | 127.7s | skip | 552.4s |
+| 2 | cc | skip | skip | skip | skip | skip | 156.6s |
+| 3 | codex | 46.3s | 0.1s | skip | skip | 0.0s | 46.4s |
 #### Round 1
 
 - Lead agent: codex
@@ -630,6 +825,11 @@
 - Wall clock: 287.3s
 - Active: Nones
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | skip | skip | skip | skip | 171.7s |
+| 2 | cc | skip | skip | skip | skip | skip | 48.9s |
+| 3 | codex | 29.3s | 0.1s | skip | skip | 0.0s | 29.4s |
 #### Round 1
 
 - Lead agent: codex
@@ -671,10 +871,13 @@
 - Status: in_progress
 - Outcome: None
 - Dry run: True
-- Stats eligibility: no (excluded from stats: dry_run, in_progress, missing_completed_at)
-- Wall clock: 89288.9s
+- Stats eligibility: no (excluded from stats: dry_run, in_progress)
+- Wall clock: 153010.8s
 - Active: Nones
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| (no rounds) | | | | | | | |
 
 ### querypie/querypie-docs#978
 
@@ -685,6 +888,13 @@
 - Wall clock: 1890.8s
 - Active: 888.9s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 143.2s | skip | 472.2s | skip | 1010.8s |
+| 2 | cc | skip | skip | 40.8s | skip | skip | 271.7s |
+| 3 | codex | skip | 11.4s | skip | 211.2s | skip | 310.3s |
+| 4 | cc | skip | skip | skip | skip | skip | 48.9s |
+| 5 | codex | 28.1s | 4.9s | skip | skip | 0.0s | 33.0s |
 #### Round 1
 
 - Lead agent: codex
@@ -754,6 +964,11 @@
 - Wall clock: 644.4s
 - Active: 188.8s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 97.4s | skip | 68.2s | skip | 411.3s |
+| 2 | cc | skip | skip | skip | skip | skip | 76.5s |
+| 3 | codex | 39.5s | 3.9s | skip | skip | 0.0s | 43.4s |
 #### Round 1
 
 - Lead agent: codex
@@ -796,10 +1011,13 @@
 - Status: in_progress
 - Outcome: None
 - Dry run: True
-- Stats eligibility: no (excluded from stats: dry_run, in_progress, missing_completed_at)
-- Wall clock: 93824.1s
+- Stats eligibility: no (excluded from stats: dry_run, in_progress)
+- Wall clock: 157546.0s
 - Active: Nones
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| (no rounds) | | | | | | | |
 
 ### chequer-io/deck#773
 
@@ -810,6 +1028,11 @@
 - Wall clock: 2135.3s
 - Active: 414.3s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 129.6s | skip | 150.0s | skip | 1886.7s |
+| 2 | cc | skip | skip | skip | skip | skip | 95.3s |
+| 3 | codex | 68.6s | 4.1s | skip | 85.6s | 0.0s | 72.7s |
 #### Round 1
 
 - Lead agent: codex
@@ -857,6 +1080,13 @@
 - Wall clock: 2431.4s
 - Active: 1598.6s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 17.7s | skip | 1580.9s | skip | 1813.3s |
+| 2 | cc | skip | skip | skip | skip | skip | 82.6s |
+| 3 | codex | skip | skip | skip | skip | skip | 345.7s |
+| 4 | cc | skip | skip | skip | skip | skip | 39.9s |
+| 5 | codex | 93.7s | 0.1s | skip | skip | 0.0s | 93.7s |
 #### Round 1
 
 - Lead agent: codex
@@ -925,6 +1155,14 @@
 - Wall clock: 2910.1s
 - Active: 1706.7s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 131.8s | skip | 112.5s | skip | 619.5s |
+| 2 | cc | skip | skip | skip | skip | skip | 107.7s |
+| 3 | codex | skip | 1365.4s | skip | 25.5s | skip | 1502.0s |
+| 4 | cc | skip | skip | 30.4s | skip | skip | 395.5s |
+| 5 | codex | skip | 41.1s | skip | skip | skip | 56.9s |
+| 6 | cc | 117.4s | 0.1s | skip | skip | 0.0s | 117.4s |
 #### Round 1
 
 - Lead agent: codex
@@ -1005,6 +1243,11 @@
 - Wall clock: 760.7s
 - Active: 333.0s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 140.5s | skip | 147.8s | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
+| 3 | codex | skip | 44.7s | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -1049,6 +1292,11 @@
 - Wall clock: 1135.1s
 - Active: 155.0s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 13.5s | skip | 105.5s | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
+| 3 | codex | skip | 36.0s | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -1093,6 +1341,11 @@
 - Wall clock: 2094.8s
 - Active: 330.0s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 120.7s | skip | 163.6s | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
+| 3 | codex | skip | 45.7s | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -1137,6 +1390,13 @@
 - Wall clock: 1267.8s
 - Active: 396.9s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 135.0s | skip | 197.4s | skip | - |
+| 2 | cc | skip | skip | 28.3s | skip | skip | - |
+| 3 | codex | skip | 8.1s | skip | 15.1s | skip | - |
+| 4 | cc | skip | skip | skip | skip | skip | - |
+| 5 | codex | skip | 13.0s | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -1204,6 +1464,12 @@
 - Wall clock: 1385.0s
 - Active: 548.8s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 138.0s | skip | 366.1s | skip | - |
+| 2 | cc | skip | skip | 33.0s | skip | skip | - |
+| 3 | codex | skip | 11.7s | skip | skip | skip | - |
+| 4 | cc | skip | skip | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -1259,6 +1525,15 @@
 - Wall clock: 1754.4s
 - Active: 550.9s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 268.8s | skip | 85.3s | skip | - |
+| 2 | cc | skip | skip | 40.0s | skip | skip | - |
+| 3 | codex | skip | 27.0s | skip | 9.3s | skip | - |
+| 4 | cc | skip | skip | skip | skip | skip | - |
+| 5 | codex | skip | 30.5s | skip | 68.0s | skip | - |
+| 6 | cc | skip | skip | skip | skip | skip | - |
+| 7 | codex | skip | 22.0s | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -1349,6 +1624,16 @@
 - Wall clock: 1721.3s
 - Active: 523.1s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 245.2s | skip | skip | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
+| 3 | codex | skip | 94.1s | skip | skip | skip | - |
+| 4 | cc | skip | skip | skip | skip | skip | - |
+| 5 | codex | skip | 61.8s | skip | skip | skip | - |
+| 6 | cc | skip | skip | 0.9s | skip | skip | - |
+| 7 | codex | skip | 121.1s | skip | skip | skip | - |
+| 8 | cc | skip | skip | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -1447,6 +1732,15 @@
 - Wall clock: 2390.4s
 - Active: 670.2s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 172.7s | skip | skip | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
+| 3 | codex | skip | 202.5s | skip | skip | skip | - |
+| 4 | cc | skip | skip | skip | skip | skip | - |
+| 5 | codex | skip | 133.5s | skip | skip | skip | - |
+| 6 | cc | skip | skip | skip | skip | skip | - |
+| 7 | codex | skip | 161.5s | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -1534,6 +1828,13 @@
 - Wall clock: 5915.9s
 - Active: 304.6s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 28.7s | skip | 15.2s | skip | - |
+| 2 | cc | skip | skip | 109.1s | skip | skip | - |
+| 3 | codex | skip | 29.8s | skip | 11.3s | skip | - |
+| 4 | cc | skip | skip | 82.4s | skip | skip | - |
+| 5 | codex | skip | 28.1s | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -1601,6 +1902,11 @@
 - Wall clock: 1250.3s
 - Active: 249.1s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 124.9s | skip | skip | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
+| 3 | codex | skip | 124.2s | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -1644,6 +1950,11 @@
 - Wall clock: 14523.2s
 - Active: 6145.4s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 16.3s | skip | skip | skip | - |
+| 2 | cc | skip | skip | 182.9s | skip | skip | - |
+| 3 | codex | skip | 193.1s | 5753.1s | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -1684,10 +1995,13 @@
 - Status: in_progress
 - Outcome: None
 - Dry run: False
-- Stats eligibility: no (excluded from stats: in_progress, missing_completed_at)
-- Wall clock: 251677.2s
+- Stats eligibility: no (excluded from stats: in_progress)
+- Wall clock: 315399.1s
 - Active: Nones
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| (no rounds) | | | | | | | |
 
 ### querypie/querypie-docs#970
 
@@ -1698,6 +2012,17 @@
 - Wall clock: 2103.6s
 - Active: 575.8s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 98.4s | skip | skip | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
+| 3 | codex | skip | 90.6s | skip | skip | skip | - |
+| 4 | cc | skip | skip | skip | skip | skip | - |
+| 5 | codex | skip | 112.5s | skip | skip | skip | - |
+| 6 | cc | skip | skip | skip | skip | skip | - |
+| 7 | codex | skip | 274.3s | skip | skip | skip | - |
+| 8 | cc | skip | skip | skip | skip | skip | - |
+| 9 | codex | skip | skip | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -1807,6 +2132,10 @@
 - Wall clock: 235.1s
 - Active: 53.3s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 53.3s | skip | skip | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -1839,6 +2168,17 @@
 - Wall clock: 3522.8s
 - Active: 896.4s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 164.2s | skip | skip | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
+| 3 | codex | skip | 215.5s | skip | skip | skip | - |
+| 4 | cc | skip | skip | skip | skip | skip | - |
+| 5 | codex | skip | 198.8s | skip | skip | skip | - |
+| 6 | cc | skip | skip | skip | skip | skip | - |
+| 7 | codex | skip | 122.9s | skip | skip | skip | - |
+| 8 | cc | skip | skip | skip | skip | skip | - |
+| 9 | codex | skip | 195.0s | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -1944,10 +2284,13 @@
 - Status: in_progress
 - Outcome: None
 - Dry run: True
-- Stats eligibility: no (excluded from stats: dry_run, in_progress, missing_completed_at)
-- Wall clock: 271839.1s
+- Stats eligibility: no (excluded from stats: dry_run, in_progress)
+- Wall clock: 335561.0s
 - Active: Nones
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| (no rounds) | | | | | | | |
 
 ### chequer-io/deck#760
 
@@ -1958,6 +2301,12 @@
 - Wall clock: 779.0s
 - Active: 10140.8s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 97.0s | skip | skip | skip | - |
+| 2 | cc | skip | skip | 193.7s | skip | skip | - |
+| 3 | codex | skip | 125.1s | 9725.0s | skip | skip | - |
+| 4 | cc | skip | skip | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -2013,6 +2362,10 @@
 - Wall clock: 256.8s
 - Active: 110.2s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 110.2s | skip | skip | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -2045,6 +2398,13 @@
 - Wall clock: 1641.3s
 - Active: 615.7s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 205.5s | skip | skip | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
+| 3 | codex | skip | 99.4s | skip | skip | skip | - |
+| 4 | cc | skip | skip | skip | skip | skip | - |
+| 5 | codex | skip | 310.8s | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -2110,6 +2470,12 @@
 - Wall clock: 1087.9s
 - Active: 409.1s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 217.8s | skip | skip | skip | - |
+| 2 | cc | skip | skip | 83.6s | skip | skip | - |
+| 3 | codex | skip | 107.7s | skip | skip | skip | - |
+| 4 | cc | skip | skip | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -2164,6 +2530,10 @@
 - Wall clock: 230.7s
 - Active: 101.6s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 101.6s | skip | skip | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -2196,6 +2566,15 @@
 - Wall clock: 2572.1s
 - Active: 764.6s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 174.5s | skip | skip | skip | - |
+| 2 | cc | skip | skip | 143.4s | skip | skip | - |
+| 3 | codex | skip | 128.2s | skip | skip | skip | - |
+| 4 | cc | skip | skip | skip | skip | skip | - |
+| 5 | codex | skip | 118.0s | skip | skip | skip | - |
+| 6 | cc | skip | skip | skip | skip | skip | - |
+| 7 | codex | skip | 200.5s | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -2283,6 +2662,15 @@
 - Wall clock: 2733.8s
 - Active: 1322.8s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 234.7s | skip | skip | skip | - |
+| 2 | cc | skip | skip | 230.8s | skip | skip | - |
+| 3 | codex | skip | 273.4s | skip | skip | skip | - |
+| 4 | cc | skip | skip | skip | skip | skip | - |
+| 5 | codex | skip | 266.7s | skip | skip | skip | - |
+| 6 | cc | skip | skip | skip | skip | skip | - |
+| 7 | codex | skip | 317.2s | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -2370,6 +2758,11 @@
 - Wall clock: 1949.2s
 - Active: 398.9s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 283.6s | skip | skip | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
+| 3 | codex | skip | 115.3s | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -2413,6 +2806,15 @@
 - Wall clock: 3684.7s
 - Active: 711.0s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 158.5s | skip | skip | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
+| 3 | codex | skip | 266.3s | skip | skip | skip | - |
+| 4 | cc | skip | skip | skip | skip | skip | - |
+| 5 | codex | skip | 140.5s | skip | skip | skip | - |
+| 6 | cc | skip | skip | skip | skip | skip | - |
+| 7 | codex | skip | 145.7s | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -2500,6 +2902,9 @@
 - Wall clock: 13.9s
 - Active: Nones
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| (no rounds) | | | | | | | |
 
 ### chequer-io/querypie-mono#15962
 
@@ -2510,6 +2915,18 @@
 - Wall clock: 7649.3s
 - Active: 998.6s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 182.9s | skip | skip | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
+| 3 | codex | skip | skip | skip | skip | skip | - |
+| 4 | cc | skip | skip | skip | skip | skip | - |
+| 5 | codex | skip | 263.9s | skip | skip | skip | - |
+| 6 | cc | skip | skip | skip | skip | skip | - |
+| 7 | codex | skip | 309.4s | skip | skip | skip | - |
+| 8 | cc | skip | skip | skip | skip | skip | - |
+| 9 | codex | skip | 242.4s | skip | skip | skip | - |
+| 10 | cc | skip | skip | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -2630,6 +3047,15 @@
 - Wall clock: 2151.6s
 - Active: 3852.9s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 115.8s | skip | skip | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
+| 3 | codex | skip | skip | 3737.1s | skip | skip | - |
+| 4 | cc | skip | skip | skip | skip | skip | - |
+| 5 | codex | skip | skip | skip | skip | skip | - |
+| 6 | cc | skip | skip | skip | skip | skip | - |
+| 7 | codex | skip | skip | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -2717,6 +3143,18 @@
 - Wall clock: 1861.0s
 - Active: 316.0s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 114.1s | skip | skip | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
+| 3 | codex | skip | 114.9s | skip | skip | skip | - |
+| 4 | cc | skip | skip | skip | skip | skip | - |
+| 5 | codex | skip | skip | skip | skip | skip | - |
+| 6 | cc | skip | skip | skip | skip | skip | - |
+| 7 | codex | skip | skip | skip | skip | skip | - |
+| 8 | cc | skip | skip | 87.0s | skip | skip | - |
+| 9 | codex | skip | skip | skip | skip | skip | - |
+| 10 | cc | skip | skip | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -2837,6 +3275,11 @@
 - Wall clock: 694.9s
 - Active: 8491.6s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 230.0s | skip | skip | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
+| 3 | codex | skip | skip | 8261.6s | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -2880,6 +3323,11 @@
 - Wall clock: 1016.5s
 - Active: 106.4s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 106.4s | skip | skip | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
+| 3 | codex | skip | skip | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -2923,6 +3371,10 @@
 - Wall clock: 515.8s
 - Active: 155.5s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 155.5s | skip | skip | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -2955,6 +3407,18 @@
 - Wall clock: 2138.7s
 - Active: 4417.7s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | skip | skip | skip | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
+| 3 | codex | skip | skip | 4417.7s | skip | skip | - |
+| 4 | cc | skip | skip | skip | skip | skip | - |
+| 5 | codex | skip | skip | skip | skip | skip | - |
+| 6 | cc | skip | skip | skip | skip | skip | - |
+| 7 | codex | skip | skip | skip | skip | skip | - |
+| 8 | cc | skip | skip | skip | skip | skip | - |
+| 9 | codex | skip | skip | skip | skip | skip | - |
+| 10 | cc | skip | skip | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -3075,6 +3539,13 @@
 - Wall clock: 1954.4s
 - Active: 490.2s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 277.7s | skip | skip | skip | - |
+| 2 | cc | skip | skip | 212.5s | skip | skip | - |
+| 3 | codex | skip | skip | skip | skip | skip | - |
+| 4 | cc | skip | skip | skip | skip | skip | - |
+| 5 | codex | skip | skip | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -3140,6 +3611,11 @@
 - Wall clock: 757.4s
 - Active: 4940.3s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 169.1s | skip | skip | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
+| 3 | codex | skip | 152.5s | 4618.7s | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -3184,6 +3660,18 @@
 - Wall clock: 3544.3s
 - Active: Nones
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | skip | skip | skip | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
+| 3 | codex | skip | skip | skip | skip | skip | - |
+| 4 | cc | skip | skip | skip | skip | skip | - |
+| 5 | codex | skip | skip | skip | skip | skip | - |
+| 6 | cc | skip | skip | skip | skip | skip | - |
+| 7 | codex | skip | skip | skip | skip | skip | - |
+| 8 | cc | skip | skip | skip | skip | skip | - |
+| 9 | codex | skip | skip | skip | skip | skip | - |
+| 10 | cc | skip | skip | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -3304,6 +3792,17 @@
 - Wall clock: 2119.7s
 - Active: 661.4s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 144.5s | skip | skip | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
+| 3 | codex | skip | 126.6s | skip | skip | skip | - |
+| 4 | cc | skip | skip | skip | skip | skip | - |
+| 5 | codex | skip | 157.1s | skip | skip | skip | - |
+| 6 | cc | skip | skip | skip | skip | skip | - |
+| 7 | codex | skip | 100.5s | skip | skip | skip | - |
+| 8 | cc | skip | skip | skip | skip | skip | - |
+| 9 | codex | skip | 132.7s | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -3413,6 +3912,13 @@
 - Wall clock: 1514.0s
 - Active: 425.2s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 121.1s | skip | skip | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
+| 3 | codex | skip | 177.4s | skip | skip | skip | - |
+| 4 | cc | skip | skip | skip | skip | skip | - |
+| 5 | codex | skip | 126.7s | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -3478,6 +3984,18 @@
 - Wall clock: 2795.6s
 - Active: 4629.6s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | skip | skip | skip | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
+| 3 | codex | skip | skip | skip | skip | skip | - |
+| 4 | cc | skip | skip | skip | skip | skip | - |
+| 5 | codex | skip | skip | 4629.6s | skip | skip | - |
+| 6 | cc | skip | skip | skip | skip | skip | - |
+| 7 | codex | skip | skip | skip | skip | skip | - |
+| 8 | cc | skip | skip | skip | skip | skip | - |
+| 9 | codex | skip | skip | skip | skip | skip | - |
+| 10 | cc | skip | skip | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -3598,6 +4116,17 @@
 - Wall clock: 1865.4s
 - Active: 3033.8s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | 222.9s | skip | skip | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
+| 3 | codex | skip | skip | skip | skip | skip | - |
+| 4 | cc | skip | skip | skip | skip | skip | - |
+| 5 | codex | skip | skip | skip | skip | skip | - |
+| 6 | cc | skip | skip | skip | skip | skip | - |
+| 7 | codex | skip | skip | skip | skip | skip | - |
+| 8 | cc | skip | skip | skip | skip | skip | - |
+| 9 | codex | skip | skip | 2810.9s | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -3707,6 +4236,10 @@
 - Wall clock: 211.3s
 - Active: 4172.0s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | skip | 4172.0s | skip | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -3739,6 +4272,15 @@
 - Wall clock: 5573.1s
 - Active: Nones
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | skip | skip | skip | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
+| 3 | codex | skip | skip | skip | skip | skip | - |
+| 4 | cc | skip | skip | skip | skip | skip | - |
+| 5 | codex | skip | skip | skip | skip | skip | - |
+| 6 | cc | skip | skip | skip | skip | skip | - |
+| 7 | codex | skip | skip | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -3826,6 +4368,10 @@
 - Wall clock: 229.7s
 - Active: Nones
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | skip | skip | skip | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -3858,6 +4404,18 @@
 - Wall clock: 12112.1s
 - Active: 171.1s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | skip | skip | skip | skip | - |
+| 2 | cc | skip | skip | 171.1s | skip | skip | - |
+| 3 | codex | skip | skip | skip | skip | skip | - |
+| 4 | cc | skip | skip | skip | skip | skip | - |
+| 5 | codex | skip | skip | skip | skip | skip | - |
+| 6 | cc | skip | skip | skip | skip | skip | - |
+| 7 | codex | skip | skip | skip | skip | skip | - |
+| 8 | cc | skip | skip | skip | skip | skip | - |
+| 9 | codex | skip | skip | skip | skip | skip | - |
+| 10 | cc | skip | skip | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -3978,6 +4536,15 @@
 - Wall clock: 1538.1s
 - Active: 148.5s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | skip | skip | skip | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
+| 3 | codex | skip | skip | skip | skip | skip | - |
+| 4 | cc | skip | skip | 148.5s | skip | skip | - |
+| 5 | codex | skip | skip | skip | skip | skip | - |
+| 6 | cc | skip | skip | skip | skip | skip | - |
+| 7 | codex | skip | skip | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -4065,6 +4632,15 @@
 - Wall clock: 2029.0s
 - Active: 1493.1s
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | skip | 1493.1s | skip | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
+| 3 | codex | skip | skip | skip | skip | skip | - |
+| 4 | cc | skip | skip | skip | skip | skip | - |
+| 5 | codex | skip | skip | skip | skip | skip | - |
+| 6 | cc | skip | skip | skip | skip | skip | - |
+| 7 | codex | skip | skip | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
@@ -4152,6 +4728,18 @@
 - Wall clock: 29548.5s
 - Active: Nones
 
+| Round | Lead | Step0 | Step1 | Step2 | Step3 | Step4 | Total |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | codex | skip | skip | skip | skip | skip | - |
+| 2 | cc | skip | skip | skip | skip | skip | - |
+| 3 | codex | skip | skip | skip | skip | skip | - |
+| 4 | cc | skip | skip | skip | skip | skip | - |
+| 5 | codex | skip | skip | skip | skip | skip | - |
+| 6 | cc | skip | skip | skip | skip | skip | - |
+| 7 | codex | skip | skip | skip | skip | skip | - |
+| 8 | cc | skip | skip | skip | skip | skip | - |
+| 9 | codex | skip | skip | skip | skip | skip | - |
+| 10 | cc | skip | skip | skip | skip | skip | - |
 #### Round 1
 
 - Lead agent: codex
