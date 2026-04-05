@@ -833,6 +833,53 @@ def test_cli_init_failed_session_with_checkpoint_applies_resume_migrations(monke
     assert saved["rounds"][0]["step_traces"] == {}
 
 
+def test_cli_init_new_head_archives_old_state_and_clears_stale_checkpoint(monkeypatch, capsys, tmp_path):
+    state = create_initial_state(
+        repo="owner/repo",
+        repo_root="/tmp/repo",
+        pr_number=795,
+        is_fork=False,
+        head_sha="old123",
+        pr_branch_name="feat/test",
+        agent_mode="persistent",
+    )
+    state["status"] = "completed"
+    state["final_outcome"] = "consensus_reached"
+    state["finished_at"] = "2026-04-05T00:00:00+00:00"
+    state["head"]["terminal_sha"] = "old123"
+    path = tmp_path / "completed-state.json"
+    save_state(state, str(path))
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    checkpoint_dir = tmp_path / ".claude" / "debate-state" / "orchestrator"
+    checkpoint_dir.mkdir(parents=True)
+    checkpoint_path = checkpoint_dir / f"{path.name}.checkpoint.json"
+    checkpoint_path.write_text('{"step":"step1","round":1,"agent":"cc","response":{},"progress":{}}')
+
+    monkeypatch.setattr("debate_review.cli.state_file_path", lambda *args: str(path))
+    monkeypatch.setattr(
+        "debate_review.cli.gh_json",
+        lambda *args: {
+            "headRefName": "feat/test",
+            "headRefOid": "new456",
+            "headRepositoryOwner": {"login": "owner"},
+        },
+    )
+
+    _run_cli(monkeypatch, [
+        "init", "--repo", "owner/repo", "--pr", "795",
+    ])
+    result = json.loads(capsys.readouterr().out)
+    assert result["status"] == "created"
+    assert result["current_round"] == 1
+
+    saved = load_state(str(path))
+    assert saved["status"] == "in_progress"
+    assert saved["head"]["last_observed_pr_sha"] == "new456"
+    assert not checkpoint_path.exists()
+    assert (tmp_path / "completed-state.json.old123.archived").exists()
+
+
 def test_cli_record_agent_sessions_persists_identifiers(monkeypatch, capsys, tmp_path):
     state = create_initial_state(
         repo="owner/repo",

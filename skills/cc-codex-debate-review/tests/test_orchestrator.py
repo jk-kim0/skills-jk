@@ -489,6 +489,118 @@ def test_route_step3_checkpoint_resumes_remaining_phases(monkeypatch, tmp_path):
     assert not checkpoint_path.exists()
 
 
+def test_route_step3_checkpoint_recovers_commit_sha_from_local_head(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    checkpoint_path = tmp_path / "checkpoint.json"
+    monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
+    monkeypatch.setattr(
+        orchestrator_module,
+        "_run_command",
+        lambda command, *, cwd=None, stdin_text=None: "cafebabe12345678\n" if command == "git rev-parse HEAD" else "",
+    )
+
+    state = _sample_state(agent_mode="persistent")
+    init_round(state, round_num=1, synced_head_sha=state["head"]["last_observed_pr_sha"])
+    state["issues"]["isu_001"] = {
+        "issue_id": "isu_001",
+        "issue_key": "criterion:6|file:src/app.py|anchor:line1|kind:unused_variable",
+        "opened_by": "codex",
+        "introduced_in_round": 1,
+        "criterion": 6,
+        "file": "src/app.py",
+        "line": 1,
+        "anchor": "line1",
+        "severity": "warning",
+        "consensus_status": "accepted",
+        "application_status": "pending",
+        "accepted_by": ["cc", "codex"],
+        "rejected_by": [],
+        "applied_by": None,
+        "application_commit_sha": None,
+        "consensus_reason": None,
+        "reports": [
+            {
+                "report_id": "rpt_001",
+                "agent": "codex",
+                "round": 1,
+                "severity": "warning",
+                "message": "unused variable x",
+                "reported_at": "2026-04-04T00:00:00+00:00",
+                "status": "open",
+            }
+        ],
+        "created_at": "2026-04-04T00:00:00+00:00",
+        "updated_at": "2026-04-04T00:00:00+00:00",
+    }
+
+    cli = FakeCli(state, state_file=str(tmp_path / "state.json"), init_status="resumed", next_step="step3")
+    orchestrator = DebateReviewOrchestrator(
+        cli=cli,
+        adapters={"codex": ScriptedAdapter("codex"), "cc": ScriptedAdapter("cc")},
+        skill_root=SKILL_ROOT,
+        config={"codex_sandbox": "danger-full-access"},
+        cleanup_worktree=False,
+    )
+    orchestrator.state_file = cli.state_file
+
+    checkpoint = {
+        "step": "step3",
+        "round": 1,
+        "agent": "codex",
+        "response": {
+            "rebuttal_decisions": [],
+            "cross_finding_evaluations": [],
+            "application_result": {
+                "applied_issues": ["isu_001"],
+                "failed_issues": [],
+            },
+        },
+        "progress": {
+            "withdrawals_done": 0,
+            "decisions_done": True,
+            "phase1_done": False,
+            "phase2_done": False,
+            "phase3_done": False,
+        },
+    }
+
+    next_step = orchestrator._route_step3_checkpoint(checkpoint, {
+        "round": 1,
+        "lead_agent": "codex",
+        "cross_verifier": "cc",
+        "worktree_path": "/tmp/repo/.worktrees/debate-pr-123",
+        "head_branch": "feat/test",
+    })
+
+    assert next_step == "step4"
+    assert cli.record_application_calls == [
+        {
+            "round": 1,
+            "applied_issues": ["isu_001"],
+            "failed_issues": [],
+            "commit_sha": None,
+            "verify_push": False,
+        },
+        {
+            "round": 1,
+            "applied_issues": None,
+            "failed_issues": None,
+            "commit_sha": "cafebabe12345678",
+            "verify_push": False,
+        },
+        {
+            "round": 1,
+            "applied_issues": None,
+            "failed_issues": None,
+            "commit_sha": None,
+            "verify_push": True,
+        },
+    ]
+    assert cli.state["issues"]["isu_001"]["application_commit_sha"] == "cafebabe12345678"
+    assert not checkpoint_path.exists()
+
+
 def test_route_step1_checkpoint_ignores_non_owner_withdrawal_error(monkeypatch, tmp_path):
     import debate_review.orchestrator as orchestrator_module
 
@@ -1078,6 +1190,57 @@ def test_run_resumed_checkpoint_replays_step_summary(monkeypatch, tmp_path):
     assert progress.round_calls == [(1, "codex", "cc")]
     assert progress.step_done_calls[0][:3] == ("Step1", "codex", "lead review")
     assert progress.content_calls[0][-1] == "verdict: no_findings_mergeable"
+
+
+def test_process_pending_checkpoint_clears_stale_head_checkpoint(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    checkpoint_path = tmp_path / "checkpoint.json"
+    monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
+
+    state = _sample_state(agent_mode="legacy")
+    state["max_rounds"] = 1
+    init_round(state, round_num=1, synced_head_sha=state["head"]["last_observed_pr_sha"])
+
+    checkpoint_path.write_text(json.dumps({
+        "step": "step1",
+        "round": 1,
+        "head_sha": "stale999",
+        "agent": "codex",
+        "response": {
+            "rebuttal_responses": [],
+            "withdrawals": [],
+            "findings": [],
+            "verdict": "no_findings_mergeable",
+        },
+        "progress": {
+            "rebuttals_done": False,
+            "findings_done": 0,
+            "withdrawals_done": 0,
+            "verdict_done": False,
+        },
+    }))
+
+    cli = FakeCli(state, state_file=str(tmp_path / "state.json"), init_status="resumed", next_step="step1")
+    orchestrator = DebateReviewOrchestrator(
+        cli=cli,
+        adapters={"codex": ScriptedAdapter("codex"), "cc": ScriptedAdapter("cc")},
+        skill_root=SKILL_ROOT,
+        config={"codex_sandbox": "danger-full-access"},
+        cleanup_worktree=False,
+    )
+    orchestrator.state_file = cli.state_file
+
+    next_step = orchestrator._process_pending_checkpoint(state, {
+        "round": 1,
+        "lead_agent": "codex",
+        "cross_verifier": "cc",
+        "worktree_path": "/tmp/repo/.worktrees/debate-pr-123",
+        "head_branch": "feat/test",
+    })
+
+    assert next_step is None
+    assert not checkpoint_path.exists()
 
 
 def test_terminal_cleanup_failure_does_not_override_terminal_result(monkeypatch, tmp_path):

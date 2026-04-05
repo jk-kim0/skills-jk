@@ -254,6 +254,12 @@ def _orchestrator_checkpoint_path(state_file: str) -> str:
     return os.path.join(os.path.expanduser("~"), ".claude", "debate-state", "orchestrator", f"{state_name}.checkpoint.json")
 
 
+def _clear_orchestrator_checkpoint(state_file: str) -> None:
+    checkpoint_path = _orchestrator_checkpoint_path(state_file)
+    if os.path.exists(checkpoint_path):
+        os.remove(checkpoint_path)
+
+
 def _migrate_resumed_state(existing: dict, *, language: str) -> bool:
     needs_save = False
     if "language" not in existing:
@@ -309,6 +315,7 @@ def cmd_init(args):
     existing = load_state(state_path)
 
     if existing is None:
+        _clear_orchestrator_checkpoint(state_path)
         agent_mode = _validate_agent_mode(config_agent_mode)
         state = create_initial_state(
             repo=repo,
@@ -357,6 +364,7 @@ def cmd_init(args):
             archive_sha = existing_sha[:8]
             archive_path = f"{state_path}.{archive_sha}.archived"
             shutil.copy2(state_path, archive_path)
+            _clear_orchestrator_checkpoint(state_path)
             agent_mode = _validate_agent_mode(config_agent_mode)
             state = create_initial_state(
                 repo=repo,

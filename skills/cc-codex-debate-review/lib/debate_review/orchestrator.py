@@ -69,6 +69,32 @@ def _clear_checkpoint(state_file: str) -> None:
         os.remove(path)
 
 
+def _state_head_sha(state: dict) -> str | None:
+    head = state.get("head", {})
+    return (
+        head.get("synced_worktree_sha")
+        or head.get("last_observed_pr_sha")
+        or head.get("terminal_sha")
+    )
+
+
+def _round_synced_head_sha(state: dict, round_num: int) -> str | None:
+    for round_ in state.get("rounds", []):
+        if round_.get("round") == round_num:
+            return round_.get("synced_head_sha")
+    return _state_head_sha(state)
+
+
+def _recover_commit_sha_from_worktree(*, state: dict, round_num: int, worktree_path: str) -> str | None:
+    head_sha = _run_command("git rev-parse HEAD", cwd=worktree_path).strip()
+    if not head_sha:
+        return None
+    synced_head_sha = _round_synced_head_sha(state, round_num)
+    if synced_head_sha and head_sha == synced_head_sha:
+        return None
+    return head_sha
+
+
 def _parse_json_object(output: str) -> dict:
     text = output.strip()
     if not text:
@@ -759,7 +785,7 @@ class DebateReviewOrchestrator:
     def _clear_checkpoint(self) -> None:
         _clear_checkpoint(self.state_file)
 
-    def _make_step_checkpoint(self, *, step: str, round_num: int, agent: str, response: dict) -> dict:
+    def _make_step_checkpoint(self, *, step: str, round_num: int, agent: str, response: dict, state: dict) -> dict:
         progress = {}
         if step == "step1":
             progress = {
@@ -785,6 +811,7 @@ class DebateReviewOrchestrator:
         return {
             "step": step,
             "round": round_num,
+            "head_sha": _state_head_sha(state),
             "agent": agent,
             "response": response,
             "progress": progress,
@@ -1150,6 +1177,14 @@ class DebateReviewOrchestrator:
         state = self._load_state()
         needs_push = not state.get("is_fork") and not state.get("dry_run")
         if applied and needs_push and not commit_sha:
+            commit_sha = _recover_commit_sha_from_worktree(
+                state=state,
+                round_num=round_ctx["round"],
+                worktree_path=round_ctx["worktree_path"],
+            )
+            if commit_sha:
+                app["commit_sha"] = commit_sha
+        if applied and needs_push and not commit_sha:
             raise OrchestrationError("step3 application_result is missing commit_sha for applied issues")
 
         if commit_sha and not checkpoint["progress"]["phase2_done"]:
@@ -1206,6 +1241,7 @@ class DebateReviewOrchestrator:
             round_num=round_ctx["round"],
             agent=agent,
             response=response,
+            state=state,
         )
         self._save_checkpoint(checkpoint)
         self._report_step_done(step, step_label, agent, action, elapsed, response)
@@ -1276,6 +1312,10 @@ class DebateReviewOrchestrator:
     def _process_pending_checkpoint(self, state: dict, round_ctx: dict) -> str | None:
         checkpoint = self._checkpoint()
         if not checkpoint:
+            return None
+        checkpoint_head_sha = checkpoint.get("head_sha")
+        if checkpoint_head_sha and checkpoint_head_sha != _state_head_sha(state):
+            self._clear_checkpoint()
             return None
         if checkpoint.get("round") != round_ctx["round"]:
             self._clear_checkpoint()
