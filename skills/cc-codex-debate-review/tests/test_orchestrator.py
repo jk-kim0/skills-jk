@@ -457,6 +457,7 @@ def test_dispatch_step_persistent_rehydrates_missing_round_with_subprocess_cli(m
     assert "step1_lead_review" in saved["rounds"][0]["step_traces"]
     prompt_file = saved["rounds"][0]["step_traces"]["step1_lead_review"]["runtime_artifacts"]["prompt_file"]
     assert prompt_file.startswith(str(tmp_path))
+    assert saved["rounds"][0]["step_traces"]["step1_lead_review"]["agent"] == "cc"
 
 
 def test_route_step3_checkpoint_resumes_remaining_phases(monkeypatch, tmp_path):
