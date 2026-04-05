@@ -1358,17 +1358,6 @@ def test_e2e_code_apply_and_push_verify(monkeypatch, tmp_path):
         ],
     )
 
-    # We need to capture the issue_id after upsert so step3 can reference it.
-    # Monkey-patch codex.legacy to fill in applied_issues dynamically.
-    original_run_legacy = codex.run_legacy
-
-    def patched_run_legacy(prompt, *, worktree_path, sandbox):
-        response = original_run_legacy(prompt, worktree_path=worktree_path, sandbox=sandbox)
-        # After step1 upsert, fill step3 and step2 with correct issue_id
-        if "findings" in response and response.get("verdict") == "has_findings":
-            pass  # step1 — issue_id not known yet
-        return response
-
     # After R1 step1, we need to know the issue_id for step2 cross_verifications
     # and step3 applied_issues. Use a wrapper on FakeCli to intercept.
     original_upsert = cli.upsert_issue
@@ -1490,10 +1479,10 @@ def test_e2e_fork_recommendation_path(monkeypatch, tmp_path):
 
 
 def test_e2e_supersede_by_external_push(monkeypatch, tmp_path):
-    """External push detected during sync_head → extra context injected."""
+    """External push detected during sync_head → extra context injected into prompt."""
     _patch_checkpoint(monkeypatch, tmp_path)
 
-    state = _sample_state(agent_mode="legacy")
+    state = _sample_state(agent_mode="persistent")
     new_sha = "external_push_sha_999"
 
     class ExternalPushCli(FakeCli):
@@ -1521,9 +1510,9 @@ def test_e2e_supersede_by_external_push(monkeypatch, tmp_path):
 
     cli = ExternalPushCli(state, state_file=str(tmp_path / "state.json"))
 
-    # Both rounds clean pass
-    codex = ScriptedAdapter("codex", legacy=[_CLEAN_PASS])
-    cc = ScriptedAdapter("cc", legacy=[_CLEAN_PASS])
+    # Both rounds clean pass (persistent mode)
+    codex = ScriptedAdapter("codex", send=[_CLEAN_PASS])
+    cc = ScriptedAdapter("cc", send=[_CLEAN_PASS])
 
     orchestrator = DebateReviewOrchestrator(
         cli=cli,
@@ -1536,11 +1525,14 @@ def test_e2e_supersede_by_external_push(monkeypatch, tmp_path):
     result = orchestrator.run(repo="owner/repo", pr_number=123)
 
     assert result["result"] == "consensus_reached"
-    # Verify the build_prompt was called with extra context containing external push info
-    # (The orchestrator passes extra via round_extra_context to _build_legacy_prompt)
-    # After round 1 external push, round_extra_context is set, then cleared after settle
-    # The prompt for step1 in round 1 should have had the extra context
-    # We can verify by checking the orchestrator picked up the external change
+    # Round 1 step1 build_prompt should have received extra context with the new SHA.
+    # FakeCli.build_prompt_calls records (agent, step, round_num, extra).
+    # In legacy mode, extra is passed through _build_legacy_prompt which appends it to the prompt.
+    # The orchestrator sets round_extra_context when external_change is True.
+    round1_prompt_calls = [c for c in cli.build_prompt_calls if c[2] == 1]
+    assert any(c[3] is not None and new_sha in c[3] for c in round1_prompt_calls), (
+        f"Expected extra context with SHA {new_sha} in round 1 prompt calls, got: {round1_prompt_calls}"
+    )
 
 
 def test_e2e_persistent_recovery_after_agent_loss(monkeypatch, tmp_path):
@@ -1584,6 +1576,13 @@ def test_e2e_persistent_recovery_after_agent_loss(monkeypatch, tmp_path):
     assert len(cc.create_calls) == 1
     # Recovery was recorded: agent sessions updated with new handle
     assert len(cli.record_agent_sessions_calls) >= 2
+    # Verify the recovered session handle was actually used in send_message.
+    # ScriptedAdapter.send_calls records (session_id, message, worktree_path).
+    # The second create returns "codex-session-2", which must be used for the retry.
+    codex_send_session_ids = [call[0] for call in codex.send_calls]
+    assert "codex-session-2" in codex_send_session_ids, (
+        f"Expected recovery handle 'codex-session-2' in send_calls, got: {codex_send_session_ids}"
+    )
 
 
 def test_e2e_terminal_comment_no_comment_and_dry_run(monkeypatch, tmp_path):
