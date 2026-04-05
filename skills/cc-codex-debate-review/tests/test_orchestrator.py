@@ -1556,6 +1556,17 @@ def test_normalize_rebuttal_responses_issue_id_and_action():
     assert result[0]["decision"] == "maintain"
 
 
+def test_normalize_rebuttal_responses_skips_multi_report_issue():
+    state = {"issues": {"isu_001": {"reports": [
+        {"report_id": "rpt_001"},
+        {"report_id": "rpt_002"},
+    ]}}}
+    raw = [{"issue_id": "isu_001", "action": "withdraw", "reason": "resolved"}]
+    result = _normalize_rebuttal_responses(raw, state)
+    assert "report_id" not in result[0]
+    assert result[0]["decision"] == "withdraw"
+
+
 def test_normalize_withdrawals_strings():
     assert _normalize_withdrawals(["isu_001", "isu_002"]) == [
         {"issue_id": "isu_001", "reason": ""},

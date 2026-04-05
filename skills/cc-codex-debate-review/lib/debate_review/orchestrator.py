@@ -369,12 +369,14 @@ def _normalize_rebuttal_responses(responses: list, state: dict) -> list:
     """Normalize agent rebuttal responses to CLI-expected format.
 
     Agents may return {issue_id, action} instead of {report_id, decision}.
+    Only maps issue_id when the issue has exactly one report to avoid
+    resolving the wrong report in multi-report issues.
     """
     issue_to_report: dict[str, str] = {}
     for issue_id, issue in state.get("issues", {}).items():
         reports = issue.get("reports", [])
-        if reports:
-            issue_to_report[issue_id] = reports[-1]["report_id"]
+        if len(reports) == 1:
+            issue_to_report[issue_id] = reports[0]["report_id"]
 
     normalized = []
     for response in responses:
@@ -1205,7 +1207,10 @@ class DebateReviewOrchestrator:
 
     def _route_step3_checkpoint(self, checkpoint: dict, round_ctx: dict) -> str:
         response = checkpoint["response"]
-        decisions = response.get("rebuttal_decisions", []) + response.get("cross_finding_evaluations", [])
+        decisions = _normalize_rebuttal_responses(
+            response.get("rebuttal_decisions", []) + response.get("cross_finding_evaluations", []),
+            self.cli.show(self.state_file),
+        )
         if decisions and not checkpoint["progress"]["decisions_done"]:
             self.cli.resolve_rebuttals(
                 self.state_file,
