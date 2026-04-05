@@ -96,9 +96,7 @@ def test_timer_ticks(monkeypatch):
     buf = io.StringIO()
     pr = ProgressReporter(file=buf)
     monkeypatch.setattr(pr, "TICK_INTERVAL", 0.1)
-    pr._step_label = "[Step1] codex lead review"
-    pr._step_start = time.monotonic()
-    pr._start_timer()
+    pr.step_start("Step1", "codex", "lead review")
     time.sleep(0.35)
     pr._stop_timer()
     output = buf.getvalue()
@@ -113,6 +111,33 @@ def test_step_done_stops_timer():
     pr.step_start("Step1", "codex", "review")
     pr.step_done("Step1", "codex", "review", 5.0)
     assert pr._timer is None
+
+
+def test_step_done_during_tick_does_not_reschedule(monkeypatch):
+    buf = io.StringIO()
+    pr = ProgressReporter(file=buf)
+    pr._step_label = "[Step1] codex lead review"
+    pr._step_start = time.monotonic()
+    pr._running = True
+    pr._token = 1
+
+    wrote_tick = {"seen": False}
+    original_write = pr._write
+
+    def write_and_stop(text):
+        original_write(text)
+        if "..." in text and "(" in text and not wrote_tick["seen"]:
+            wrote_tick["seen"] = True
+            pr.step_done("Step1", "codex", "lead review", 5.0)
+
+    monkeypatch.setattr(pr, "_write", write_and_stop)
+
+    try:
+        pr._tick()
+        assert pr._timer is None
+    finally:
+        if pr._timer is not None:
+            pr._timer.cancel()
 
 
 # ── format_step1 ──

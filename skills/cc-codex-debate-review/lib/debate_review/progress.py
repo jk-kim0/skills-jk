@@ -30,6 +30,8 @@ class ProgressReporter:
         self._step_label: str = ""
         self._step_start: float = 0.0
         self._lock = threading.Lock()
+        self._running = False
+        self._token = 0
 
     def _write(self, text: str) -> None:
         self._file.write(text + "\n")
@@ -45,10 +47,15 @@ class ProgressReporter:
         self._write(f"\n── Round {round_num} (lead: {lead}) " + "─" * 40)
 
     def step_start(self, step: str, agent: str, action: str) -> None:
+        self._stop_timer()
         self._step_label = f"[{step}] {agent} {action}"
         self._step_start = time.monotonic()
+        with self._lock:
+            self._running = True
+            self._token += 1
+            token = self._token
         self._write(f"{self._step_label}...")
-        self._start_timer()
+        self._start_timer(token)
 
     def step_done(self, step: str, agent: str, action: str, elapsed: float, summary: str = "") -> None:
         self._stop_timer()
@@ -56,6 +63,9 @@ class ProgressReporter:
         if summary:
             line += f" — {summary}"
         self._write(line)
+
+    def abort_step(self) -> None:
+        self._stop_timer()
 
     def step_skip(self, step: str, reason: str = "clean pass") -> None:
         self._write(f"[{step}] skip ({reason})")
@@ -83,24 +93,33 @@ class ProgressReporter:
 
     # ── timer ──
 
-    def _start_timer(self) -> None:
-        self._stop_timer()
-        self._timer = threading.Timer(self.TICK_INTERVAL, self._tick)
-        self._timer.daemon = True
-        self._timer.start()
-
-    def _tick(self) -> None:
+    def _start_timer(self, token: int | None = None) -> None:
         with self._lock:
+            active_token = self._token if token is None else token
+            if not self._running or active_token != self._token:
+                return
+            timer = threading.Timer(self.TICK_INTERVAL, self._tick, args=(active_token,))
+            timer.daemon = True
+            self._timer = timer
+        timer.start()
+
+    def _tick(self, token: int | None = None) -> None:
+        with self._lock:
+            active_token = self._token if token is None else token
+            if not self._running or active_token != self._token:
+                return
             elapsed = time.monotonic() - self._step_start
-            self._write(f"{self._step_label}... ({_format_elapsed(elapsed)})")
-        self._timer = threading.Timer(self.TICK_INTERVAL, self._tick)
-        self._timer.daemon = True
-        self._timer.start()
+            line = f"{self._step_label}... ({_format_elapsed(elapsed)})"
+        self._write(line)
+        self._start_timer(active_token)
 
     def _stop_timer(self) -> None:
-        if self._timer is not None:
-            self._timer.cancel()
+        with self._lock:
+            self._running = False
+            timer = self._timer
             self._timer = None
+        if timer is not None:
+            timer.cancel()
 
 
 # ── debate content formatters ──

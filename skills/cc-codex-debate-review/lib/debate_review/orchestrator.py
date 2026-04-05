@@ -1087,7 +1087,11 @@ class DebateReviewOrchestrator:
         step_label = step.replace("step", "Step")
         self.progress.step_start(step_label, agent, action)
         t0 = time.monotonic()
-        response = self._dispatch_step(step=step, agent=agent, state=state, round_ctx=round_ctx)
+        try:
+            response = self._dispatch_step(step=step, agent=agent, state=state, round_ctx=round_ctx)
+        except Exception:
+            self.progress.abort_step()
+            raise
         elapsed = time.monotonic() - t0
         checkpoint = self._make_step_checkpoint(
             step=step,
@@ -1374,7 +1378,15 @@ class DebateReviewOrchestrator:
                     issues = state.get("issues", {})
                     applied = sum(1 for i in issues.values() if i.get("application_status") == "applied")
                     withdrawn = sum(1 for i in issues.values() if i.get("consensus_status") == "withdrawn")
-                    unresolved = len(issues) - applied - withdrawn
+                    unresolved = sum(
+                        1
+                        for i in issues.values()
+                        if i.get("consensus_status") == "open"
+                        or (
+                            i.get("consensus_status") == "accepted"
+                            and i.get("application_status") not in ("applied", "recommended")
+                        )
+                    )
                     self.progress.final_result(
                         summary["outcome"],
                         summary.get("total_rounds", state["current_round"]),
