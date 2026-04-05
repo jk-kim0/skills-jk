@@ -1097,6 +1097,40 @@ Progress is handled by `ProgressReporter` in `lib/debate_review/progress.py`. Th
 | Agent mode | Config `agent_mode`: `persistent` (default) or `legacy` |
 | Code application | Mandatory when `DRY_RUN=false` and `IS_FORK=false` |
 
+### CLI Argument Quick Reference
+
+#### `build-prompt`
+
+| Argument | Values | Required |
+|----------|--------|----------|
+| `--state-file` | path | always |
+| `--agent` | `cc`, `codex` | always |
+| `--step` | `init`, `1`, `2`, `3` | always |
+| `--round` | integer (e.g., `1`) | required for step `1`, `2`, `3` (not for `init`) |
+| `--extra` | string | optional |
+
+**Common mistakes:** `--step lead-review` ✗, `--step step1` ✗, `--step Step1` ✗ → correct value is `1`. Only `init`, `1`, `2`, `3` are valid.
+
+#### Subcommand Names (exact spelling)
+
+| Correct | Wrong (common errors) |
+|---------|-----------------------|
+| `settle-round` | `settle` ✗ |
+| `init-round` | `init-round` ✓ |
+| `build-prompt` | `build-prompt` ✓ |
+| `record-cross-verification` | `record-cross-verify` ✗ |
+| `resolve-rebuttals` | `resolve-rebuttal` ✗ |
+| `record-application` | `record-apply` ✗ |
+| `build-commit-message` | `build-commit-msg` ✗ |
+
+#### State JSON Structure
+
+| Field | Type | Note |
+|-------|------|------|
+| `rounds` | **array** (not dict) | Access by index: `rounds[0]`, not `rounds.keys()` |
+| `issues` | **dict** | Keyed by issue ID: `issues["isu_001"]` |
+| `debate_ledger` | **array** | Append-only list of ledger entries |
+
 ## Error Handling & Bug Reporting
 
 When a CLI command or external command fails during orchestration, the orchestrator records the failure via `mark-failed`. In normal runs this terminates the session and is followed by a bug report. In `DRY_RUN=true`, `mark-failed` returns a dry-run response and does not mutate state or write an error log.
@@ -1160,6 +1194,40 @@ When `DRY_RUN=false`, the `error_log` field in the `mark-failed` response contai
 
 **Do not silently retry or ignore errors.** Every failure must go through `mark-failed`. When `DRY_RUN=false`, also file the bug report before session termination.
 
+### Retry-Success Error Reporting
+
+**Even when a retry succeeds, the original error must be reported.** The orchestrator has a known tendency to treat errors as "resolved" after a successful retry, suppressing the report. This causes the same mistakes to repeat across sessions because no record exists.
+
+**Rule: Every error → GitHub issue, regardless of retry outcome.**
+
+When a CLI command, external command, or script fails and a retry with corrected arguments succeeds:
+
+1. **Do not skip reporting.** "Retry succeeded" does not mean the error is resolved — it means the orchestrator made a mistake that will recur.
+2. If `DRY_RUN=true`, do not create a GitHub issue. Keep the retry-success error in local output/logs only, then continue orchestration normally.
+3. Otherwise, create a GitHub issue in the skill repo:
+   ```bash
+   SKILL_REPO=$(git -C "$SKILL_ROOT" remote get-url origin | sed -E 's#(ssh://git@github.com/|git@github.com:|https://github.com/)##; s#\.git$##')
+   env -u GITHUB_TOKEN -u GH_TOKEN gh issue create \
+     --repo "$SKILL_REPO" \
+     --title "bug(debate-review): $FAILED_COMMAND - retried with $CORRECTED_COMMAND" \
+     --body "$(cat <<EOF
+   ## Error (retry succeeded)
+
+   - **Failed command**: \`$FAILED_COMMAND\`
+   - **Error**: \`$ERROR_MESSAGE\`
+   - **Corrected command**: \`$CORRECTED_COMMAND\`
+   - **PR**: $REPO#$PR_NUMBER (round $CURRENT_ROUND)
+
+   ## Why this matters
+
+   The same argument/subcommand mistake will recur in future sessions because the orchestrator does not learn across sessions. This issue exists to track the pattern and prevent recurrence.
+   EOF
+   )"
+   ```
+4. Continue orchestration normally (do not call `mark-failed` for retry-success cases).
+
+**This rule applies to all error types:** wrong CLI arguments, missing required flags, incorrect subcommand names, data structure assumptions (e.g., treating a list as a dict), and script parse errors.
+
 ### Testing the Error Reporting Pipeline
 
 Use the `test-error` subcommand to verify the error reporting pipeline works end-to-end. This command intentionally raises a RuntimeError, simulating a real CLI failure.
@@ -1184,3 +1252,8 @@ The orchestrator must handle this failure exactly like a real error — capture 
 - **Skipping code application**: When `DRY_RUN=false` and `IS_FORK=false`, code application is mandatory for accepted issues. Recording all issues as `failed-issues` without attempting fixes creates an infinite loop. The agent must either apply fixes or escalate to the user.
 - **Treating debate review as review-only**: The skill is a review + fix system, not a comment-only reviewer. If only review comments are needed, use `DRY_RUN=true` in config.
 - **Ignoring errors**: Every failure must go through `mark-failed`; when `DRY_RUN=false`, also produce a bug report before session termination
+- **Suppressing retry-success errors**: Even when a retry with corrected arguments succeeds, the original error must be reported as a GitHub issue. "Retry succeeded" ≠ "resolved" — the same mistake will recur in future sessions
+- **Using wrong `--step` values**: Only `init`, `1`, `2`, `3` are valid for `build-prompt --step`. Not `step1`, `lead-review`, `Step1`, etc.
+- **Omitting `--round` for step 1/2/3**: `build-prompt --round` is required for steps `1`, `2`, `3`
+- **Misspelling subcommands**: Use exact names — `settle-round` (not `settle`), `record-cross-verification` (not `record-cross-verify`)
+- **Assuming `rounds` is a dict**: `state.rounds` is an **array** (list), not a dict. Access by index, not by `.keys()`

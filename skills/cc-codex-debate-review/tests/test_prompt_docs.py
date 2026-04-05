@@ -93,3 +93,13 @@ def test_skill_doc_open_issues_excludes_recommended_fork_items():
         "`OPEN_ISSUES_JSON` | `show --json` → issues where `consensus_status` is `open` "
         "or (`accepted` and `application_status` not in (`applied`, `recommended`)) |"
     ) in skill
+
+
+def test_retry_success_error_reporting_skips_issue_creation_in_dry_run():
+    skill_path = Path(__file__).resolve().parents[1] / "SKILL.md"
+    skill = skill_path.read_text()
+    start = skill.index("### Retry-Success Error Reporting")
+    end = skill.index("### Testing the Error Reporting Pipeline")
+    section = skill[start:end]
+
+    assert "If `DRY_RUN=true`, do not create a GitHub issue" in section
