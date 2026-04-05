@@ -964,3 +964,46 @@ def test_cli_withdraw_issue(monkeypatch, capsys, state_path):
 
     state = load_state(state_path)
     assert state["issues"][issue_id]["consensus_status"] == "withdrawn"
+
+
+def test_cli_init_recognizes_agent_commit_sha_in_terminal_state(monkeypatch, capsys, tmp_path):
+    """init should NOT archive when PR HEAD matches a known agent commit SHA (#204)."""
+    agent_commit = "deadbeef1234"
+    state = create_initial_state(
+        repo="owner/repo",
+        repo_root="/tmp/repo",
+        pr_number=796,
+        is_fork=False,
+        head_sha="old123",
+        pr_branch_name="feat/test",
+    )
+    init_round(state, round_num=1, lead_agent="codex", synced_head_sha="old123")
+    # Simulate agent push recorded in step3
+    state["rounds"][0]["step3"]["commit_sha"] = agent_commit
+    state["status"] = "consensus_reached"
+    state["final_outcome"] = "consensus"
+    state["finished_at"] = "2026-04-05T00:00:00+00:00"
+    state["head"]["terminal_sha"] = "old123"
+    path = tmp_path / "agent-push-state.json"
+    save_state(state, str(path))
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setattr("debate_review.cli.state_file_path", lambda *args: str(path))
+    monkeypatch.setattr(
+        "debate_review.cli.gh_json",
+        lambda *args: {
+            "headRefName": "feat/test",
+            "headRefOid": agent_commit,  # PR HEAD is agent's commit
+            "headRepositoryOwner": {"login": "owner"},
+        },
+    )
+
+    _run_cli(monkeypatch, [
+        "init", "--repo", "owner/repo", "--pr", "796",
+    ])
+    result = json.loads(capsys.readouterr().out)
+    # Should recognize agent commit and NOT archive → "already completed"
+    assert "error" in result
+    assert "already completed" in result["error"]
+    # State file should NOT be archived
+    assert not list(tmp_path.glob("*.archived"))
