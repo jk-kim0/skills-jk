@@ -121,6 +121,14 @@ def settle_round(state, *, round_num) -> dict:
     issues = state["issues"]
     is_fork = state.get("is_fork", False)
 
+    # Defensive: ensure consensus_status matches accepted_by.
+    # If both agents accepted but consensus_status is still "open", fix it.
+    for issue in issues.values():
+        if (issue["consensus_status"] == "open"
+                and set(issue.get("accepted_by", [])) >= {"cc", "codex"}):
+            issue["consensus_status"] = "accepted"
+            issue["consensus_reason"] = None
+
     # Calculate unresolved_issue_ids
     unresolved_issue_ids = []
     for iid, issue in issues.items():
