@@ -7,7 +7,7 @@
 - persistent mode 설계 설명은 [2026-04-01-debate-review-persistent-agent-design.md](./2026-04-01-debate-review-persistent-agent-design.md)에 있다.
 - 이 문서는 현재 시점의 debate-review completion backlog만 관리한다.
 
-## 현재 체크포인트 (2026-04-04)
+## 현재 체크포인트 (2026-04-06)
 
 현재 `main`에는 아래 기반이 이미 구현돼 있다.
 
@@ -82,30 +82,49 @@
 - ~~CLI subcommand routing 자동화~~ ✅
 - ~~terminal 시 comment / cleanup 호출까지 연결~~ ✅
 
-### Workstream C: Operational follow-through automation ⏳
+### Workstream C: Operational follow-through automation ✅
 
-`#170` (merged) — CLI 명령 구현, `#172` (open) — orchestrator 통합.
+`#170` (merged) — CLI 명령 구현, `#172` (merged) — orchestrator 통합.
 
 - ~~`mark-failed` 후 GitHub issue 생성용 CLI 추가~~ → `create-failure-issue` ✅
-- ~~final state 후 PR title 갱신용 CLI 추가~~ → `update-pr-status` ✅
+- ~~final state 후 PR title 갱신용 CLI 추가~~ → `update-pr-status` → `#182`에서 의도적 제거 (premature)
 - ~~worktree cleanup CLI 추가~~ → `cleanup-worktree` ✅
-- ⏳ orchestrator `_terminal()` / `_mark_failed()` / `_cleanup_worktree()` 연동 → `#172` (open)
-- CI / runtime status 추적 → orchestrator의 checkpoint 시스템으로 대체
+- ~~orchestrator `_terminal()` / `_mark_failed()` / `_cleanup_worktree()` 연동~~ → `#172` ✅
+- ~~CI / runtime status 추적~~ → orchestrator의 checkpoint 시스템으로 대체 ✅
 
-### Workstream D: E2E verification
+### Workstream D: E2E verification ✅
 
-- clean pass consensus
-- same-repo code apply
-- fork recommendation path
-- supersede by external push
-- persistent resume / recovery
-- terminal comment dedupe
+`#195` (merged) — E2E 시나리오 테스트 6건 추가.
 
-## 현재 우선순위
+- ~~clean pass consensus~~ ✅
+- ~~same-repo code apply~~ ✅
+- ~~fork recommendation path~~ ✅
+- ~~supersede by external push~~ ✅
+- ~~persistent resume / recovery~~ ✅
+- ~~terminal comment dedupe~~ ✅
 
-1. ~~`#161` 해소로 persistent initialization 복구~~ ✅
-2. ~~persistent prompt / state routing parity 복구~~ ✅
-3. ~~repo-owned orchestration path 정리~~ ✅
-4. failure / cleanup / PR update 자동화 마무리 (`#172` open)
-5. end-to-end verification 보강
-6. legacy 제거와 문서 정리
+### E2E 검증에서 발견된 런타임 이슈 (추가 수정)
+
+`#193` (closed) — E2E에서 드러난 오케스트레이터 복원성 문제 5건 모두 해결.
+
+- ~~Cross-review alias normalization 보강~~ → `#191` ✅
+- ~~Same-head checkpoint recovery migration 보강~~ → `#191` ✅
+- ~~Prose + trailing structured JSON 허용~~ → `#192` ✅
+- ~~Missing `commit_sha` 복구 경로~~ → `#194` ✅
+- ~~Stale checkpoint identity/cleanup 보강~~ → `#194` ✅
+
+## Completion Status (2026-04-06)
+
+**모든 Completion Criteria 충족. 이 backlog는 완료 상태다.**
+
+| # | 기준 | 상태 |
+|---|------|------|
+| 1 | repo-owned orchestration path | ✅ `#171` |
+| 2 | persistent 경로 최신 schema 일치 | ✅ `#191`, `#192`, `#194` |
+| 3 | resume / recovery / supersede / terminal 자동화 | ✅ |
+| 4 | 운영 절차 코드화 | ✅ `#172` |
+| 5 | 핵심 시나리오 E2E 테스트 | ✅ `#195` (347 tests) |
+
+## Future Work (별도 backlog)
+
+- legacy mode 제거: `agent_mode="legacy"` 코드 경로, legacy 전용 프롬프트 3개, 테스트 40곳+ 리팩토링 필요. persistent가 기본이므로 기능적 필요는 없으나, 코드 복잡도 감소를 위해 별도 리팩토링 PR로 진행 가능.
