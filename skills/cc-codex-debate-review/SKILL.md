@@ -18,8 +18,8 @@ CC is the orchestrator. Both CC and Codex are invoked as sub-agents using the sa
 ```
 CC (orchestrator)
   ├─ $DEBATE_REVIEW_BIN <subcommand>  → state management (CLI)
-  ├─ codex exec < agent-*.md          → Codex sub-agent (odd lead, even cross)
-  └─ claude -p < agent-*.md           → CC sub-agent (even lead, odd cross)
+  ├─ codex exec/resume < prompt files → Codex sub-agent (odd lead, even cross)
+  └─ claude -p/--resume < prompt files → CC sub-agent (even lead, odd cross)
 ```
 
 ## When to Use
@@ -36,7 +36,7 @@ All paths below are relative to the `cc-codex-debate-review/` directory.
 | CLI | `./bin/debate-review` |
 | Config file | `./config.yml` |
 | Review criteria | `./review-criteria.md` |
-| Agent prompts | `./agent-*.md` |
+| Prompt templates | `./agent-initial-prompt.md`, `./prompt-step-*.md` |
 
 ### Prerequisites
 
@@ -635,9 +635,9 @@ All of this information is available in the orchestrator's `run()` return value:
 
 ---
 
-## Review Context + Placeholder Construction
+## build-context Reference
 
-Use `build-context` to generate all state-derived placeholder data for agent prompts:
+`build-context` is still available for inspecting state-derived review data, but it is not part of the normal persistent-agent prompt flow. For actual agent dispatch, use `build-prompt` as described in the step sections below.
 
 ```bash
 CTX=$("$DEBATE_REVIEW_BIN" build-context --state-file "$STATE_FILE" --round "$CURRENT_ROUND")
@@ -645,17 +645,17 @@ CTX=$("$DEBATE_REVIEW_BIN" build-context --state-file "$STATE_FILE" --round "$CU
 
 The output JSON includes:
 
-| Field | Placeholder | Description |
-|-------|------------|-------------|
-| `open_issues` | `{OPEN_ISSUES}` | Unresolved issues (JSON array) |
-| `debate_ledger` | `{DEBATE_LEDGER}` | Cumulative conclusion record (text) |
-| `pending_rebuttals` | `{PENDING_REBUTTALS}` | Previous round rebuttals (JSON array) |
-| `lead_reports` | `{LEAD_REPORTS}` | Current round lead findings (JSON array) |
-| `cross_rebuttals` | `{CROSS_REBUTTALS}` | Current round cross rebuttals (JSON array) |
-| `cross_findings` | `{CROSS_FINDINGS}` | Current round cross new findings (JSON array) |
-| `applicable_issues` | `{APPLICABLE_ISSUES}` | Issues ready for code application (JSON array) |
+| Field | Description |
+|-------|-------------|
+| `open_issues` | Unresolved issues (JSON array) |
+| `debate_ledger` | Cumulative conclusion record (text) |
+| `pending_rebuttals` | Previous round rebuttals (JSON array) |
+| `lead_reports` | Current round lead findings (JSON array) |
+| `cross_rebuttals` | Current round cross rebuttals (JSON array) |
+| `cross_findings` | Current round cross new findings (JSON array) |
+| `applicable_issues` | Issues ready for code application (JSON array) |
 
-The orchestrator adds non-state data: `{REVIEW_CRITERIA}`, `{REPO}`, `{PR_NUMBER}`, `{ROUND}`, `{WORKTREE_PATH}`, `{HEAD_BRANCH}`, `{OUTPUT_LANGUAGE}`. Agents obtain PR metadata and diff directly from the repo.
+Use this command for debugging or ad hoc inspection. Do not build step prompts from these fields manually unless you are deliberately debugging the prompt pipeline.
 
 ---
 
