@@ -31,6 +31,18 @@ Before reporting a finding, check the Debate Ledger:
 
 ### Output
 
+Each `cross_verifications` entry must use `report_id` and `decision`:
+
 ```json
-{"cross_verifications": [...], "withdrawals": [...], "findings": [...]}
-```
+{
+  "cross_verifications": [
+    {"report_id": "rpt_001", "decision": "accept", "reason": "..."},
+    {"report_id": "rpt_002", "decision": "rebut", "reason": "..."}
+  ],
+  "withdrawals": [
+    {"issue_id": "isu_001", "reason": "..."}
+  ],
+  "findings": [
+    {"severity": "...", "criterion": 0, "file": "...", "line": 0, "anchor": "...", "message": "..."}
+  ]
+}
