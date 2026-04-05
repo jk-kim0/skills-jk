@@ -1,13 +1,6 @@
 from pathlib import Path
 
 
-def test_agent_lead_response_prompt_passes_applied_issues_to_build_commit_message():
-    prompt_path = Path(__file__).resolve().parents[1] / "agent-lead-response-prompt.md"
-    prompt = prompt_path.read_text()
-
-    assert "build-commit-message" in prompt
-    assert "--applied-issues" in prompt
-
 
 def test_agent_initial_prompt_exists_and_has_required_placeholders():
     prompt_path = Path(__file__).resolve().parents[1] / "agent-initial-prompt.md"
@@ -60,14 +53,6 @@ def test_all_step_prompts_include_withdrawals_in_output_schema():
             f"{step_file} missing withdrawals in output schema"
         )
 
-
-def test_legacy_and_persistent_step3_both_have_withdrawals():
-    """Both legacy and persistent Step 3 prompts should include withdrawals."""
-    root = Path(__file__).resolve().parents[1]
-    legacy = (root / "agent-lead-response-prompt.md").read_text()
-    persistent = (root / "prompt-step-3.md").read_text()
-    assert "withdrawals" in legacy, "Legacy Step 3 prompt missing withdrawals"
-    assert "withdrawals" in persistent, "Persistent Step 3 prompt missing withdrawals"
 
 
 def test_persistent_step_prompts_require_report_id_for_rebuttal_decisions():

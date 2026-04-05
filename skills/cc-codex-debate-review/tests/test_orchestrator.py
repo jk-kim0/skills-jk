@@ -41,7 +41,6 @@ class FakeCli:
             "dry_run": self.state["dry_run"],
             "codex_sandbox": "danger-full-access",
             "language": self.state.get("language", "en"),
-            "agent_mode": self.state["agent_mode"],
         }
         if self.init_status == "resumed":
             result["next_step"] = self.next_step
@@ -206,19 +205,11 @@ class FakeCli:
 
 
 class ScriptedAdapter:
-    def __init__(self, name, *, legacy=None, send=None):
+    def __init__(self, name, *, send=None):
         self.name = name
-        self.legacy = list(legacy or [])
         self.send = list(send or [])
         self.create_calls = []
-        self.run_calls = []
         self.send_calls = []
-
-    def run_legacy(self, prompt, *, worktree_path, sandbox):
-        self.run_calls.append((prompt, worktree_path, sandbox))
-        if not self.legacy:
-            raise AssertionError(f"{self.name} legacy queue exhausted")
-        return self.legacy.pop(0)
 
     def create_session(self, prompt, *, worktree_path, sandbox):
         self.create_calls.append((prompt, worktree_path, sandbox))
@@ -231,7 +222,7 @@ class ScriptedAdapter:
         return self.send.pop(0)
 
 
-def _sample_state(agent_mode="legacy"):
+def _sample_state():
     state = create_initial_state(
         repo="owner/repo",
         repo_root="/tmp/repo",
@@ -240,46 +231,9 @@ def _sample_state(agent_mode="legacy"):
         head_sha="abc1234def5678",
         pr_branch_name="feat/test",
         max_rounds=3,
-        agent_mode=agent_mode,
     )
     return state
 
-
-def test_orchestrator_run_legacy_clean_pass_consensus(monkeypatch, tmp_path):
-    import debate_review.orchestrator as orchestrator_module
-
-    checkpoint_path = tmp_path / "checkpoint.json"
-    monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
-
-    state = _sample_state(agent_mode="legacy")
-    cli = FakeCli(state, state_file=str(tmp_path / "state.json"))
-    codex = ScriptedAdapter(
-        "codex",
-        legacy=[{"rebuttal_responses": [], "withdrawals": [], "findings": [], "verdict": "no_findings_mergeable"}],
-    )
-    cc = ScriptedAdapter(
-        "cc",
-        legacy=[{"rebuttal_responses": [], "withdrawals": [], "findings": [], "verdict": "no_findings_mergeable"}],
-    )
-
-    orchestrator = DebateReviewOrchestrator(
-        cli=cli,
-        adapters={"codex": codex, "cc": cc},
-        skill_root=SKILL_ROOT,
-        config={"codex_sandbox": "danger-full-access"},
-        no_comment=False,
-        cleanup_worktree=False,
-    )
-
-    result = orchestrator.run(repo="owner/repo", pr_number=123)
-
-    assert result["result"] == "consensus_reached"
-    assert cli.state["status"] == "consensus_reached"
-    assert cli.state["final_outcome"] == "consensus"
-    assert cli.post_comment_calls == [False]
-    assert len(codex.run_calls) == 1
-    assert len(cc.run_calls) == 1
-    assert not checkpoint_path.exists()
 
 
 def test_orchestrator_run_persistent_recovers_missing_handles(monkeypatch, tmp_path):
@@ -288,7 +242,7 @@ def test_orchestrator_run_persistent_recovers_missing_handles(monkeypatch, tmp_p
     checkpoint_path = tmp_path / "checkpoint.json"
     monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
 
-    state = _sample_state(agent_mode="persistent")
+    state = _sample_state()
     cli = FakeCli(state, state_file=str(tmp_path / "state.json"))
     codex = ScriptedAdapter(
         "codex",
@@ -328,7 +282,7 @@ def test_dispatch_step_persistent_records_trace_metadata(monkeypatch, tmp_path):
     checkpoint_path = tmp_path / "checkpoint.json"
     monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
 
-    state = _sample_state(agent_mode="persistent")
+    state = _sample_state()
     init_round(state, round_num=1, lead_agent="cc", synced_head_sha=state["head"]["last_observed_pr_sha"])
     state["persistent_agents"]["cc_agent_id"] = "cc-session-1"
     state["persistent_agents"]["codex_session_id"] = "codex-session-1"
@@ -466,7 +420,7 @@ def test_route_step3_checkpoint_resumes_remaining_phases(monkeypatch, tmp_path):
     checkpoint_path = tmp_path / "checkpoint.json"
     monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
 
-    state = _sample_state(agent_mode="persistent")
+    state = _sample_state()
     init_round(state, round_num=1, synced_head_sha=state["head"]["last_observed_pr_sha"])
     state["issues"]["isu_001"] = {
         "issue_id": "isu_001",
@@ -573,7 +527,7 @@ def test_route_step3_checkpoint_recovers_commit_sha_from_local_head(monkeypatch,
         lambda command, *, cwd=None, stdin_text=None: "cafebabe12345678\n" if command == "git rev-parse HEAD" else "",
     )
 
-    state = _sample_state(agent_mode="persistent")
+    state = _sample_state()
     init_round(state, round_num=1, synced_head_sha=state["head"]["last_observed_pr_sha"])
     state["issues"]["isu_001"] = {
         "issue_id": "isu_001",
@@ -680,7 +634,7 @@ def test_route_step1_checkpoint_ignores_non_owner_withdrawal_error(monkeypatch, 
     checkpoint_path = tmp_path / "checkpoint.json"
     monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
 
-    state = _sample_state(agent_mode="legacy")
+    state = _sample_state()
     init_round(state, round_num=1, synced_head_sha=state["head"]["last_observed_pr_sha"])
     issue = upsert_issue(
         state,
@@ -1004,7 +958,7 @@ def test_route_step1_checkpoint_raises_on_unexpected_withdrawal_error(monkeypatc
     checkpoint_path = tmp_path / "checkpoint.json"
     monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
 
-    state = _sample_state(agent_mode="legacy")
+    state = _sample_state()
     init_round(state, round_num=1, synced_head_sha=state["head"]["last_observed_pr_sha"])
 
     class FailingCli(FakeCli):
@@ -1057,11 +1011,11 @@ def test_orchestrator_marks_failed_and_posts_comment_on_dispatch_error(monkeypat
     checkpoint_path = tmp_path / "checkpoint.json"
     monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
 
-    state = _sample_state(agent_mode="legacy")
+    state = _sample_state()
     cli = FakeCli(state, state_file=str(tmp_path / "state.json"))
 
     class FailingAdapter(ScriptedAdapter):
-        def run_legacy(self, prompt, *, worktree_path, sandbox):
+        def send_message(self, session_id, message, *, worktree_path):
             raise RuntimeError("agent dispatch failed")
 
     orchestrator = DebateReviewOrchestrator(
@@ -1086,7 +1040,7 @@ def test_dispatch_and_checkpoint_aborts_progress_on_error(monkeypatch, tmp_path)
     checkpoint_path = tmp_path / "checkpoint.json"
     monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
 
-    state = _sample_state(agent_mode="legacy")
+    state = _sample_state()
     cli = FakeCli(state, state_file=str(tmp_path / "state.json"))
     orchestrator = DebateReviewOrchestrator(
         cli=cli,
@@ -1144,11 +1098,11 @@ def test_mark_failed_calls_create_failure_issue(monkeypatch, tmp_path):
     checkpoint_path = tmp_path / "checkpoint.json"
     monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
 
-    state = _sample_state(agent_mode="legacy")
+    state = _sample_state()
     cli = FakeCli(state, state_file=str(tmp_path / "state.json"))
 
     class FailingAdapter(ScriptedAdapter):
-        def run_legacy(self, prompt, *, worktree_path, sandbox):
+        def send_message(self, session_id, message, *, worktree_path):
             raise RuntimeError("agent dispatch failed")
 
     orchestrator = DebateReviewOrchestrator(
@@ -1172,7 +1126,7 @@ def test_follow_through_errors_do_not_propagate(monkeypatch, tmp_path):
     checkpoint_path = tmp_path / "checkpoint.json"
     monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
 
-    state = _sample_state(agent_mode="legacy")
+    state = _sample_state()
     cli = FakeCli(state, state_file=str(tmp_path / "state.json"))
 
     # Override follow-through to raise
@@ -1183,11 +1137,11 @@ def test_follow_through_errors_do_not_propagate(monkeypatch, tmp_path):
 
     codex = ScriptedAdapter(
         "codex",
-        legacy=[{"rebuttal_responses": [], "withdrawals": [], "findings": [], "verdict": "no_findings_mergeable"}],
+        send=[{"rebuttal_responses": [], "withdrawals": [], "findings": [], "verdict": "no_findings_mergeable"}],
     )
     cc = ScriptedAdapter(
         "cc",
-        legacy=[{"rebuttal_responses": [], "withdrawals": [], "findings": [], "verdict": "no_findings_mergeable"}],
+        send=[{"rebuttal_responses": [], "withdrawals": [], "findings": [], "verdict": "no_findings_mergeable"}],
     )
 
     orchestrator = DebateReviewOrchestrator(
@@ -1206,7 +1160,7 @@ def test_follow_through_errors_do_not_propagate(monkeypatch, tmp_path):
 def test_build_adapters_cc_has_default_commands_in_persistent_mode():
     from debate_review.orchestrator import CcAdapter, _build_adapters
 
-    config = {"agent_mode": "persistent"}
+    config = {}
 
     adapters = _build_adapters(config)
     cc = adapters["cc"]
@@ -1221,7 +1175,7 @@ def test_terminal_still_runs_follow_through_when_post_comment_fails(monkeypatch,
     checkpoint_path = tmp_path / "checkpoint.json"
     monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
 
-    state = _sample_state(agent_mode="legacy")
+    state = _sample_state()
 
     class CommentFailingCli(FakeCli):
         def post_comment(self, _state_file, *, no_comment):
@@ -1231,11 +1185,11 @@ def test_terminal_still_runs_follow_through_when_post_comment_fails(monkeypatch,
     cli = CommentFailingCli(state, state_file=str(tmp_path / "state.json"))
     codex = ScriptedAdapter(
         "codex",
-        legacy=[{"rebuttal_responses": [], "withdrawals": [], "findings": [], "verdict": "no_findings_mergeable"}],
+        send=[{"rebuttal_responses": [], "withdrawals": [], "findings": [], "verdict": "no_findings_mergeable"}],
     )
     cc = ScriptedAdapter(
         "cc",
-        legacy=[{"rebuttal_responses": [], "withdrawals": [], "findings": [], "verdict": "no_findings_mergeable"}],
+        send=[{"rebuttal_responses": [], "withdrawals": [], "findings": [], "verdict": "no_findings_mergeable"}],
     )
 
     orchestrator = DebateReviewOrchestrator(
@@ -1260,7 +1214,7 @@ def test_mark_failed_still_runs_follow_through_when_post_comment_fails(monkeypat
     checkpoint_path = tmp_path / "checkpoint.json"
     monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
 
-    state = _sample_state(agent_mode="legacy")
+    state = _sample_state()
 
     class CommentFailingCli(FakeCli):
         def post_comment(self, _state_file, *, no_comment):
@@ -1270,7 +1224,7 @@ def test_mark_failed_still_runs_follow_through_when_post_comment_fails(monkeypat
     cli = CommentFailingCli(state, state_file=str(tmp_path / "state.json"))
 
     class FailingAdapter(ScriptedAdapter):
-        def run_legacy(self, prompt, *, worktree_path, sandbox):
+        def send_message(self, session_id, message, *, worktree_path):
             raise RuntimeError("agent dispatch failed")
 
     orchestrator = DebateReviewOrchestrator(
@@ -1293,7 +1247,7 @@ def test_run_final_progress_treats_recommended_as_resolved(monkeypatch, tmp_path
     checkpoint_path = tmp_path / "checkpoint.json"
     monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
 
-    state = _sample_state(agent_mode="legacy")
+    state = _sample_state()
     state["is_fork"] = True
     state["issues"]["isu_001"] = {
         "issue_id": "isu_001",
@@ -1329,11 +1283,11 @@ def test_run_final_progress_treats_recommended_as_resolved(monkeypatch, tmp_path
     cli = FakeCli(state, state_file=str(tmp_path / "state.json"))
     codex = ScriptedAdapter(
         "codex",
-        legacy=[{"rebuttal_responses": [], "withdrawals": [], "findings": [], "verdict": "no_findings_mergeable"}],
+        send=[{"rebuttal_responses": [], "withdrawals": [], "findings": [], "verdict": "no_findings_mergeable"}],
     )
     cc = ScriptedAdapter(
         "cc",
-        legacy=[{"rebuttal_responses": [], "withdrawals": [], "findings": [], "verdict": "no_findings_mergeable"}],
+        send=[{"rebuttal_responses": [], "withdrawals": [], "findings": [], "verdict": "no_findings_mergeable"}],
     )
 
     class RecordingProgress:
@@ -1392,7 +1346,7 @@ def test_run_resumed_step4_announces_round_start(monkeypatch, tmp_path):
     checkpoint_path = tmp_path / "checkpoint.json"
     monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
 
-    state = _sample_state(agent_mode="legacy")
+    state = _sample_state()
     state["max_rounds"] = 1
     init_round(state, round_num=1, synced_head_sha=state["head"]["last_observed_pr_sha"])
     record_verdict(state, round_num=1, verdict="no_findings_mergeable")
@@ -1447,7 +1401,7 @@ def test_run_resumed_checkpoint_replays_step_summary(monkeypatch, tmp_path):
     checkpoint_path = tmp_path / "checkpoint.json"
     monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
 
-    state = _sample_state(agent_mode="legacy")
+    state = _sample_state()
     state["max_rounds"] = 1
     init_round(state, round_num=1, synced_head_sha=state["head"]["last_observed_pr_sha"])
 
@@ -1522,7 +1476,7 @@ def test_process_pending_checkpoint_clears_stale_head_checkpoint(monkeypatch, tm
     checkpoint_path = tmp_path / "checkpoint.json"
     monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
 
-    state = _sample_state(agent_mode="legacy")
+    state = _sample_state()
     state["max_rounds"] = 1
     init_round(state, round_num=1, synced_head_sha=state["head"]["last_observed_pr_sha"])
 
@@ -1573,15 +1527,15 @@ def test_terminal_cleanup_failure_does_not_override_terminal_result(monkeypatch,
     checkpoint_path = tmp_path / "checkpoint.json"
     monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
 
-    state = _sample_state(agent_mode="legacy")
+    state = _sample_state()
     cli = FakeCli(state, state_file=str(tmp_path / "state.json"))
     codex = ScriptedAdapter(
         "codex",
-        legacy=[{"rebuttal_responses": [], "withdrawals": [], "findings": [], "verdict": "no_findings_mergeable"}],
+        send=[{"rebuttal_responses": [], "withdrawals": [], "findings": [], "verdict": "no_findings_mergeable"}],
     )
     cc = ScriptedAdapter(
         "cc",
-        legacy=[{"rebuttal_responses": [], "withdrawals": [], "findings": [], "verdict": "no_findings_mergeable"}],
+        send=[{"rebuttal_responses": [], "withdrawals": [], "findings": [], "verdict": "no_findings_mergeable"}],
     )
 
     orchestrator = DebateReviewOrchestrator(
@@ -1607,7 +1561,7 @@ def test_terminal_cleanup_failure_does_not_override_terminal_result(monkeypatch,
 def test_cleanup_worktree_skips_dry_run(monkeypatch, tmp_path):
     import debate_review.orchestrator as orchestrator_module
 
-    state = _sample_state(agent_mode="legacy")
+    state = _sample_state()
     state["dry_run"] = True
     worktree_path = tmp_path / ".worktrees" / "debate-pr-123"
     worktree_path.mkdir(parents=True)
@@ -1787,7 +1741,7 @@ def test_e2e_clean_pass_consensus_persistent(monkeypatch, tmp_path):
     """Persistent mode: both agents clean pass over 2 rounds → consensus."""
     _patch_checkpoint(monkeypatch, tmp_path)
 
-    state = _sample_state(agent_mode="persistent")
+    state = _sample_state()
     cli = FakeCli(state, state_file=str(tmp_path / "state.json"))
     # Round 1: codex leads (step1), Round 2: cc leads (step1)
     codex = ScriptedAdapter("codex", send=[_CLEAN_PASS])
@@ -1819,7 +1773,7 @@ def test_e2e_code_apply_and_push_verify(monkeypatch, tmp_path):
     """Same-repo: issue found → accepted → code applied → push verified → consensus."""
     _patch_checkpoint(monkeypatch, tmp_path)
 
-    state = _sample_state(agent_mode="legacy")
+    state = _sample_state()
     cli = FakeCli(state, state_file=str(tmp_path / "state.json"))
 
     finding = {
@@ -1839,7 +1793,7 @@ def test_e2e_code_apply_and_push_verify(monkeypatch, tmp_path):
     # Round 3 (codex leads): step1 — codex clean pass
     codex = ScriptedAdapter(
         "codex",
-        legacy=[
+        send=[
             # R1 step1: lead review
             {"rebuttal_responses": [], "withdrawals": [], "findings": [finding], "verdict": "has_findings"},
             # R1 step3: lead response — apply code
@@ -1859,7 +1813,7 @@ def test_e2e_code_apply_and_push_verify(monkeypatch, tmp_path):
     )
     cc = ScriptedAdapter(
         "cc",
-        legacy=[
+        send=[
             # R1 step2: cross-verify — accept
             {"cross_verifications": [], "withdrawals": [], "findings": []},
             # R2 step1: clean pass
@@ -1876,12 +1830,12 @@ def test_e2e_code_apply_and_push_verify(monkeypatch, tmp_path):
         result = original_upsert(state_file, agent=agent, round_num=round_num, finding=finding, confirm_reopen=confirm_reopen)
         captured_issue_ids.append(result["issue_id"])
         # Patch the pending step2 and step3 responses with the real issue/report IDs
-        if cc.legacy and "cross_verifications" in cc.legacy[0]:
-            cc.legacy[0]["cross_verifications"] = [
+        if cc.send and "cross_verifications" in cc.send[0]:
+            cc.send[0]["cross_verifications"] = [
                 {"report_id": result["report_id"], "decision": "accept"}
             ]
-        if len(codex.legacy) >= 1 and "application_result" in codex.legacy[0]:
-            codex.legacy[0]["application_result"]["applied_issues"] = [result["issue_id"]]
+        if len(codex.send) >= 1 and "application_result" in codex.send[0]:
+            codex.send[0]["application_result"]["applied_issues"] = [result["issue_id"]]
         return result
 
     cli.upsert_issue = capturing_upsert
@@ -1915,7 +1869,7 @@ def test_e2e_fork_recommendation_path(monkeypatch, tmp_path):
     """Fork PR: issue accepted → recommended (no push) → consensus."""
     _patch_checkpoint(monkeypatch, tmp_path)
 
-    state = _sample_state(agent_mode="legacy")
+    state = _sample_state()
     state["is_fork"] = True
     cli = FakeCli(state, state_file=str(tmp_path / "state.json"))
 
@@ -1934,7 +1888,7 @@ def test_e2e_fork_recommendation_path(monkeypatch, tmp_path):
     # Round 3: codex leads, clean pass
     codex = ScriptedAdapter(
         "codex",
-        legacy=[
+        send=[
             {"rebuttal_responses": [], "withdrawals": [], "findings": [finding], "verdict": "has_findings"},
             # step3: no code applied (fork recommendation)
             {
@@ -1948,7 +1902,7 @@ def test_e2e_fork_recommendation_path(monkeypatch, tmp_path):
     )
     cc = ScriptedAdapter(
         "cc",
-        legacy=[
+        send=[
             {"cross_verifications": [], "withdrawals": [], "findings": []},
             _CLEAN_PASS,
         ],
@@ -1961,8 +1915,8 @@ def test_e2e_fork_recommendation_path(monkeypatch, tmp_path):
     def capturing_upsert(state_file, *, agent, round_num, finding, confirm_reopen=False):
         result = original_upsert(state_file, agent=agent, round_num=round_num, finding=finding, confirm_reopen=confirm_reopen)
         captured_issue_ids.append(result["issue_id"])
-        if cc.legacy and "cross_verifications" in cc.legacy[0]:
-            cc.legacy[0]["cross_verifications"] = [
+        if cc.send and "cross_verifications" in cc.send[0]:
+            cc.send[0]["cross_verifications"] = [
                 {"report_id": result["report_id"], "decision": "accept"}
             ]
         return result
@@ -1991,7 +1945,7 @@ def test_e2e_supersede_by_external_push(monkeypatch, tmp_path):
     """External push detected during sync_head → extra context injected into prompt."""
     _patch_checkpoint(monkeypatch, tmp_path)
 
-    state = _sample_state(agent_mode="persistent")
+    state = _sample_state()
     new_sha = "external_push_sha_999"
 
     class ExternalPushCli(FakeCli):
@@ -2036,7 +1990,6 @@ def test_e2e_supersede_by_external_push(monkeypatch, tmp_path):
     assert result["result"] == "consensus_reached"
     # Round 1 step1 build_prompt should have received extra context with the new SHA.
     # FakeCli.build_prompt_calls records (agent, step, round_num, extra).
-    # In legacy mode, extra is passed through _build_legacy_prompt which appends it to the prompt.
     # The orchestrator sets round_extra_context when external_change is True.
     round1_prompt_calls = [c for c in cli.build_prompt_calls if c[2] == 1]
     assert any(c[3] is not None and new_sha in c[3] for c in round1_prompt_calls), (
@@ -2048,7 +2001,7 @@ def test_e2e_persistent_recovery_after_agent_loss(monkeypatch, tmp_path):
     """Persistent mode: send_message fails → recovery via create_session → consensus."""
     _patch_checkpoint(monkeypatch, tmp_path)
 
-    state = _sample_state(agent_mode="persistent")
+    state = _sample_state()
     cli = FakeCli(state, state_file=str(tmp_path / "state.json"))
 
     class FailOnceThenSucceed(ScriptedAdapter):
@@ -2099,10 +2052,10 @@ def test_e2e_terminal_comment_no_comment_and_dry_run(monkeypatch, tmp_path):
     _patch_checkpoint(monkeypatch, tmp_path)
 
     # Test 1: no_comment=True
-    state1 = _sample_state(agent_mode="legacy")
+    state1 = _sample_state()
     cli1 = FakeCli(state1, state_file=str(tmp_path / "state1.json"))
-    codex1 = ScriptedAdapter("codex", legacy=[_CLEAN_PASS])
-    cc1 = ScriptedAdapter("cc", legacy=[_CLEAN_PASS])
+    codex1 = ScriptedAdapter("codex", send=[_CLEAN_PASS])
+    cc1 = ScriptedAdapter("cc", send=[_CLEAN_PASS])
 
     orchestrator1 = DebateReviewOrchestrator(
         cli=cli1,
@@ -2118,11 +2071,11 @@ def test_e2e_terminal_comment_no_comment_and_dry_run(monkeypatch, tmp_path):
     assert cli1.post_comment_calls == [True]
 
     # Test 2: dry_run=True
-    state2 = _sample_state(agent_mode="legacy")
+    state2 = _sample_state()
     state2["dry_run"] = True
     cli2 = FakeCli(state2, state_file=str(tmp_path / "state2.json"))
-    codex2 = ScriptedAdapter("codex", legacy=[_CLEAN_PASS])
-    cc2 = ScriptedAdapter("cc", legacy=[_CLEAN_PASS])
+    codex2 = ScriptedAdapter("codex", send=[_CLEAN_PASS])
+    cc2 = ScriptedAdapter("cc", send=[_CLEAN_PASS])
 
     orchestrator2 = DebateReviewOrchestrator(
         cli=cli2,

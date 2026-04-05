@@ -40,7 +40,6 @@ def create_initial_state(
     pr_branch_name,
     max_rounds=10,
     language="en",
-    agent_mode="legacy",
     dry_run=False,
 ) -> dict:
     now = datetime.now(timezone.utc).isoformat()
@@ -52,7 +51,6 @@ def create_initial_state(
         "dry_run": dry_run,
         "max_rounds": max_rounds,
         "language": language,
-        "agent_mode": agent_mode,
         "persistent_agents": default_persistent_agents(),
         "status": "in_progress",
         "current_round": 1,

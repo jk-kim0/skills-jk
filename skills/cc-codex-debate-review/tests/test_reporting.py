@@ -27,7 +27,6 @@ def test_generate_sessions_report_uses_state_trace_and_cc_subagent_breakdown(tmp
         is_fork=False,
         head_sha="abc123",
         pr_branch_name="feat/report",
-        agent_mode="persistent",
     )
     init_round(state, round_num=1, lead_agent="cc", synced_head_sha="abc123")
     record_step_timing(state, "step0_sync", timestamp="2026-04-04T00:00:00+00:00")
@@ -172,7 +171,6 @@ def test_generate_sessions_report_uses_completed_population_for_stats_and_split_
         is_fork=False,
         head_sha="abc456",
         pr_branch_name="feat/findings",
-        agent_mode="persistent",
     )
     state["started_at"] = "2026-04-04T00:00:00+00:00"
     state["finished_at"] = "2026-04-04T00:10:00+00:00"
@@ -375,7 +373,6 @@ def test_generate_sessions_report_uses_completed_population_for_stats_and_split_
         is_fork=False,
         head_sha="abc457",
         pr_branch_name="feat/dry-run",
-        agent_mode="persistent",
         dry_run=True,
     )
     dry_run_state["started_at"] = "2026-04-04T01:00:00+00:00"
@@ -390,7 +387,6 @@ def test_generate_sessions_report_uses_completed_population_for_stats_and_split_
         is_fork=False,
         head_sha="abc458",
         pr_branch_name="feat/in-progress",
-        agent_mode="persistent",
     )
     in_progress_state["started_at"] = "2026-04-04T02:00:00+00:00"
     init_round(in_progress_state, round_num=1, lead_agent="codex", synced_head_sha="abc458")
@@ -468,7 +464,6 @@ def test_stats_include_quartiles_and_markdown_uses_requested_column_order(tmp_pa
         is_fork=False,
         head_sha="abc999",
         pr_branch_name="feat/quartiles",
-        agent_mode="persistent",
     )
     state["started_at"] = "2026-04-04T00:00:00+00:00"
     state["finished_at"] = "2026-04-04T00:10:00+00:00"
@@ -531,7 +526,6 @@ def test_population_table_explains_session_missing_completed_at_column(tmp_path)
         is_fork=False,
         head_sha="abc1001",
         pr_branch_name="feat/population-note",
-        agent_mode="persistent",
     )
     state["started_at"] = "2026-04-04T00:00:00+00:00"
     state["finished_at"] = "2026-04-04T00:05:00+00:00"
@@ -564,7 +558,6 @@ def test_generate_sessions_report_uses_trace_session_handle_for_codex_matching(t
         is_fork=False,
         head_sha="abc789",
         pr_branch_name="feat/recovery",
-        agent_mode="persistent",
     )
     state["persistent_agents"]["codex_session_id"] = "session-new"
     init_round(state, round_num=1, lead_agent="codex", synced_head_sha="abc789")
@@ -701,7 +694,6 @@ def test_build_final_summary_includes_pr_url_and_round_timings():
         is_fork=False,
         head_sha="abc123",
         pr_branch_name="feat/test",
-        agent_mode="persistent",
     )
     state["started_at"] = "2026-04-04T00:00:00+00:00"
     state["finished_at"] = "2026-04-04T00:05:30+00:00"
@@ -739,7 +731,6 @@ def test_export_debate_markdown_creates_file(tmp_path):
         is_fork=False,
         head_sha="abc123",
         pr_branch_name="feat/test",
-        agent_mode="persistent",
     )
     state["started_at"] = "2026-04-04T00:00:00+00:00"
     state["finished_at"] = "2026-04-04T00:03:00+00:00"
@@ -772,7 +763,6 @@ def test_export_debate_markdown_uses_latest_issue_message(tmp_path):
         is_fork=False,
         head_sha="abc123",
         pr_branch_name="feat/test",
-        agent_mode="persistent",
     )
     state["final_outcome"] = "consensus"
     state["issues"]["isu_001"] = {
@@ -846,24 +836,18 @@ def test_generate_sessions_report_returns_empty_when_state_dir_is_missing(tmp_pa
 
 
 def test_classify_cc_invocation():
-    # Missing agent_mode defaults to "legacy" → "agent-tool"
-    assert _classify_cc_invocation({}) == "agent-tool"
-    assert _classify_cc_invocation({"persistent_agents": {}}) == "agent-tool"
-    assert _classify_cc_invocation({"persistent_agents": {"cc_agent_id": None}}) == "agent-tool"
-    # Explicit legacy → "agent-tool"
-    assert _classify_cc_invocation({"agent_mode": "legacy", "persistent_agents": {"cc_agent_id": "a885e6c9e21155bb9"}}) == "agent-tool"
-    assert _classify_cc_invocation({"agent_mode": "legacy", "persistent_agents": {"cc_agent_id": "cc-debate-agent"}}) == "agent-tool"
-    # Persistent with UUID handle → "subprocess"
-    assert _classify_cc_invocation({"agent_mode": "persistent", "persistent_agents": {"cc_agent_id": "760929c7-1b95-4382-93f0-2b956c"}}) == "subprocess"
-    assert _classify_cc_invocation({"agent_mode": "persistent", "persistent_agents": {"cc_session_id": "7efd8d9d-c877-4045-a819-c20fe9"}}) == "subprocess"
-    # Persistent with non-UUID handle → "agent-tool"
-    assert _classify_cc_invocation({"agent_mode": "persistent", "persistent_agents": {"cc_agent_id": "a885e6c9e21155bb9"}}) == "agent-tool"
-    # Persistent without handle → "unknown"
-    assert _classify_cc_invocation({"agent_mode": "persistent", "persistent_agents": {}}) == "unknown"
-    assert _classify_cc_invocation({"agent_mode": "persistent"}) == "unknown"
+    # No persistent_agents → "unknown"
+    assert _classify_cc_invocation({}) == "unknown"
+    assert _classify_cc_invocation({"persistent_agents": {}}) == "unknown"
+    assert _classify_cc_invocation({"persistent_agents": {"cc_agent_id": None}}) == "unknown"
+    # UUID handle → "subprocess"
+    assert _classify_cc_invocation({"persistent_agents": {"cc_agent_id": "760929c7-1b95-4382-93f0-2b956c"}}) == "subprocess"
+    assert _classify_cc_invocation({"persistent_agents": {"cc_session_id": "7efd8d9d-c877-4045-a819-c20fe9"}}) == "subprocess"
+    # Non-UUID handle → "agent-tool"
+    assert _classify_cc_invocation({"persistent_agents": {"cc_agent_id": "a885e6c9e21155bb9"}}) == "agent-tool"
 
 
-def test_session_summary_includes_agent_mode_and_cc_invocation_type(tmp_path):
+def test_session_summary_includes_cc_invocation_type(tmp_path):
     state_dir = tmp_path / "debate-state"
     state_dir.mkdir()
 
@@ -874,7 +858,6 @@ def test_session_summary_includes_agent_mode_and_cc_invocation_type(tmp_path):
         is_fork=False,
         head_sha="abc500",
         pr_branch_name="feat/inv",
-        agent_mode="persistent",
     )
     state["persistent_agents"]["cc_agent_id"] = "760929c7-1b95-4382-93f0-2b956c"
     state["started_at"] = "2026-04-05T00:00:00+00:00"
@@ -883,22 +866,6 @@ def test_session_summary_includes_agent_mode_and_cc_invocation_type(tmp_path):
     state["final_outcome"] = "consensus"
     save_state(state, str(state_dir / "owner-repo-500.json"))
 
-    state2 = create_initial_state(
-        repo="owner/repo",
-        repo_root="/tmp/repo",
-        pr_number=501,
-        is_fork=False,
-        head_sha="abc501",
-        pr_branch_name="feat/old",
-        agent_mode="legacy",
-    )
-    state2["persistent_agents"]["cc_agent_id"] = "a885e6c9e21155bb9"
-    state2["started_at"] = "2026-04-04T00:00:00+00:00"
-    state2["finished_at"] = "2026-04-04T00:10:00+00:00"
-    state2["status"] = "consensus_reached"
-    state2["final_outcome"] = "consensus"
-    save_state(state2, str(state_dir / "owner-repo-501.json"))
-
     report = generate_sessions_report(
         state_dir=state_dir,
         claude_projects_root=tmp_path / "cp",
@@ -906,86 +873,13 @@ def test_session_summary_includes_agent_mode_and_cc_invocation_type(tmp_path):
     )
 
     session_500 = next(s for s in report["sessions"] if s["pr_number"] == 500)
-    assert session_500["agent_mode"] == "persistent"
     assert session_500["cc_invocation_type"] == "subprocess"
-
-    session_501 = next(s for s in report["sessions"] if s["pr_number"] == 501)
-    assert session_501["agent_mode"] == "legacy"
-    assert session_501["cc_invocation_type"] == "agent-tool"
 
     assert "stats_by_invocation" in report
     assert "subprocess" in report["stats_by_invocation"]
-    assert "agent-tool" in report["stats_by_invocation"]
     assert report["stats_by_invocation"]["subprocess"]["session_count"] == 1
-    assert report["stats_by_invocation"]["agent-tool"]["session_count"] == 1
 
     markdown = render_sessions_report_markdown(report)
     assert "Statistics By CC Invocation Type" in markdown
     assert "Subprocess (`claude -p`)" in markdown
-    assert "Agent Tool (old API)" in markdown
-    assert "Agent mode: persistent" in markdown
     assert "CC invocation: subprocess" in markdown
-
-
-def test_legacy_session_without_handles_is_classified_as_agent_tool(tmp_path):
-    state_dir = tmp_path / "debate-state"
-    state_dir.mkdir()
-
-    state = create_initial_state(
-        repo="owner/repo",
-        repo_root="/tmp/repo",
-        pr_number=502,
-        is_fork=False,
-        head_sha="abc502",
-        pr_branch_name="feat/legacy",
-        agent_mode="legacy",
-    )
-    state["started_at"] = "2026-04-03T00:00:00+00:00"
-    state["finished_at"] = "2026-04-03T00:10:00+00:00"
-    state["status"] = "consensus_reached"
-    state["final_outcome"] = "consensus"
-    save_state(state, str(state_dir / "owner-repo-502.json"))
-
-    report = generate_sessions_report(
-        state_dir=state_dir,
-        claude_projects_root=tmp_path / "cp",
-        codex_sessions_root=tmp_path / "cs",
-    )
-
-    session = next(s for s in report["sessions"] if s["pr_number"] == 502)
-    assert session["cc_invocation_type"] == "agent-tool"
-    assert report["stats_by_invocation"]["agent-tool"]["session_count"] == 1
-
-
-def test_missing_agent_mode_key_defaults_to_agent_tool(tmp_path):
-    """State files without agent_mode key should default to legacy → agent-tool."""
-    state_dir = tmp_path / "debate-state"
-    state_dir.mkdir()
-
-    state = create_initial_state(
-        repo="owner/repo",
-        repo_root="/tmp/repo",
-        pr_number=503,
-        is_fork=False,
-        head_sha="abc503",
-        pr_branch_name="feat/old",
-        agent_mode="legacy",
-    )
-    # Simulate real old state files that lack the agent_mode key entirely
-    del state["agent_mode"]
-    state["started_at"] = "2026-04-03T00:00:00+00:00"
-    state["finished_at"] = "2026-04-03T00:10:00+00:00"
-    state["status"] = "consensus_reached"
-    state["final_outcome"] = "consensus"
-    save_state(state, str(state_dir / "owner-repo-503.json"))
-
-    report = generate_sessions_report(
-        state_dir=state_dir,
-        claude_projects_root=tmp_path / "cp",
-        codex_sessions_root=tmp_path / "cs",
-    )
-
-    session = next(s for s in report["sessions"] if s["pr_number"] == 503)
-    assert session["agent_mode"] == "legacy"
-    assert session["cc_invocation_type"] == "agent-tool"
-    assert report["stats_by_invocation"]["agent-tool"]["session_count"] == 1

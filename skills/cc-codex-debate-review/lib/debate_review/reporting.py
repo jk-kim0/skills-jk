@@ -579,14 +579,10 @@ def _sum_active_seconds(items: list[dict]) -> float | None:
 def _classify_cc_invocation(state: dict) -> str:
     """Classify CC invocation type from persistent_agents handle format.
 
-    - 'agent-tool': legacy mode sessions (old API-based Agent tool subagent)
-    - 'subprocess': UUID-format handle (claude -p --resume), after PR #178
+    - 'subprocess': UUID-format handle (claude -p --resume)
     - 'agent-tool': persistent session with old API-based Agent tool handle
     - 'unknown': no persistent agent or unrecognizable format
     """
-    if state.get("agent_mode", "legacy") == "legacy":
-        return "agent-tool"
-
     pa = state.get("persistent_agents", {})
     handle = pa.get("cc_agent_id") or pa.get("cc_session_id") or ""
     handle = str(handle)
@@ -866,7 +862,6 @@ def generate_sessions_report(
         session_finished = explicit_finished_at is not None
         session_include, session_reasons = _mark_stats_eligibility(dry_run=dry_run, in_progress=not session_finished)
 
-        agent_mode = state.get("agent_mode", "legacy")
         cc_invocation_type = _classify_cc_invocation(state)
 
         session_wall_clock = _seconds(started_at, finished_at)
@@ -877,7 +872,6 @@ def generate_sessions_report(
             "status": state.get("status"),
             "final_outcome": state.get("final_outcome"),
             "dry_run": dry_run,
-            "agent_mode": agent_mode,
             "cc_invocation_type": cc_invocation_type,
             "started_at": _to_iso(started_at),
             "finished_at": _to_iso(explicit_finished_at),
@@ -1117,7 +1111,6 @@ def render_sessions_report_markdown(report: dict) -> str:
                 f"- Status: {session.get('status')}",
                 f"- Outcome: {session.get('final_outcome')}",
                 f"- Dry run: {session.get('dry_run')}",
-                f"- Agent mode: {session.get('agent_mode', 'legacy')}",
                 f"- CC invocation: {session.get('cc_invocation_type', 'unknown')}",
                 f"- Stats eligibility: {session_stats_line}",
                 f"- Wall clock: {session.get('wall_clock_seconds')}s",
