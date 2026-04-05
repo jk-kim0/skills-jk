@@ -19,7 +19,7 @@ from debate_review.state import (
 def test_create_initial_state_has_required_fields(sample_state):
     required_top_level = [
         "repo", "repo_root", "pr_number", "is_fork", "dry_run",
-        "max_rounds", "language", "agent_mode", "persistent_agents", "status", "current_round", "head", "journal",
+        "max_rounds", "language", "persistent_agents", "status", "current_round", "head", "journal",
         "issues", "rounds", "final_comment_tag", "final_comment_id",
         "started_at", "finished_at", "final_outcome",
     ]
@@ -52,7 +52,6 @@ def test_create_initial_state_values(sample_state):
     assert sample_state["dry_run"] is False
     assert sample_state["max_rounds"] == 10
     assert sample_state["language"] == "en"
-    assert sample_state["agent_mode"] == "legacy"
     assert sample_state["persistent_agents"] == {
         "cc_agent_id": None,
         "codex_session_id": None,
@@ -140,7 +139,6 @@ def test_load_config_default_reads_bundled_config(monkeypatch):
         "max_rounds": 10,
         "codex_sandbox": "danger-full-access",
         "language": "en",
-        "agent_mode": "persistent",
     }
 
 

@@ -533,201 +533,9 @@ def test_cli_init_persists_language_from_config(monkeypatch, capsys, tmp_path):
     result = json.loads(capsys.readouterr().out)
     assert result["language"] == "ko"
     assert result["codex_sandbox"] == "danger-full-access"
-    assert result["agent_mode"] == "persistent"
     state = load_state(result["state_file"])
     assert state["language"] == "ko"
     assert state["max_rounds"] == 7
-
-
-def test_cli_init_agent_mode_from_config(monkeypatch, capsys, tmp_path):
-    config_path = tmp_path / "config.yml"
-    config_path.write_text("agent_mode: persistent\n")
-    monkeypatch.setenv("HOME", str(tmp_path))
-    monkeypatch.setattr(
-        "debate_review.cli.gh_json",
-        lambda *args: {
-            "headRefName": "feat/test",
-            "headRefOid": "abc123",
-            "headRepositoryOwner": {"login": "owner"},
-        },
-    )
-
-    _run_cli(monkeypatch, [
-        "init", "--repo", "owner/repo", "--pr", "456",
-        "--config", str(config_path),
-    ])
-    result = json.loads(capsys.readouterr().out)
-    assert result["agent_mode"] == "persistent"
-
-
-def test_cli_init_agent_mode_cli_override(monkeypatch, capsys, tmp_path):
-    """--agent-mode CLI flag overrides config value."""
-    config_path = tmp_path / "config.yml"
-    config_path.write_text("agent_mode: legacy\n")
-    monkeypatch.setenv("HOME", str(tmp_path))
-    monkeypatch.setattr(
-        "debate_review.cli.gh_json",
-        lambda *args: {
-            "headRefName": "feat/test",
-            "headRefOid": "abc123",
-            "headRepositoryOwner": {"login": "owner"},
-        },
-    )
-
-    _run_cli(monkeypatch, [
-        "init", "--repo", "owner/repo", "--pr", "457",
-        "--config", str(config_path),
-        "--agent-mode", "persistent",
-    ])
-    result = json.loads(capsys.readouterr().out)
-    assert result["agent_mode"] == "persistent"
-    state = load_state(result["state_file"])
-    assert state["agent_mode"] == "persistent"
-
-
-def test_cli_init_agent_mode_cli_override_rejected_when_invalid(monkeypatch, capsys, tmp_path):
-    """--agent-mode rejects invalid values via argparse choices."""
-    monkeypatch.setattr(sys, "argv", [
-        "debate-review",
-        "init", "--repo", "owner/repo", "--pr", "458",
-        "--agent-mode", "bogus",
-    ])
-    with pytest.raises(SystemExit) as exc_info:
-        main()
-    assert exc_info.value.code == 2  # argparse exits with 2 for invalid choices
-
-
-def test_cli_init_rejects_invalid_agent_mode(monkeypatch, capsys, tmp_path):
-    config_path = tmp_path / "config.yml"
-    config_path.write_text("agent_mode: invalid\n")
-    monkeypatch.setattr(
-        "debate_review.cli.gh_json",
-        lambda *args: {
-            "headRefName": "feat/test",
-            "headRefOid": "abc123",
-            "headRepositoryOwner": {"login": "owner"},
-        },
-    )
-    monkeypatch.setattr(sys, "argv", [
-        "debate-review",
-        "init",
-        "--repo", "owner/repo",
-        "--pr", "456",
-        "--config", str(config_path),
-    ])
-
-    with pytest.raises(SystemExit) as exc_info:
-        main()
-
-    assert exc_info.value.code == 1
-    result = json.loads(capsys.readouterr().out)
-    assert result["error"] == "Invalid agent_mode: invalid. Expected one of: legacy, persistent"
-
-
-def test_cli_init_resumed_session_preserves_state_agent_mode(monkeypatch, capsys, tmp_path):
-    config_path = tmp_path / "config.yml"
-    config_path.write_text("agent_mode: legacy\n")
-    state = create_initial_state(
-        repo="owner/repo",
-        repo_root="/tmp/repo",
-        pr_number=789,
-        is_fork=False,
-        head_sha="abc123",
-        pr_branch_name="feat/test",
-        agent_mode="persistent",
-    )
-    path = tmp_path / "existing-state.json"
-    save_state(state, str(path))
-
-    monkeypatch.setattr("debate_review.cli.state_file_path", lambda *args: str(path))
-    monkeypatch.setattr(
-        "debate_review.cli.gh_json",
-        lambda *args: {
-            "headRefName": "feat/test",
-            "headRefOid": "abc123",
-            "headRepositoryOwner": {"login": "owner"},
-        },
-    )
-
-    _run_cli(monkeypatch, [
-        "init", "--repo", "owner/repo", "--pr", "789",
-        "--config", str(config_path),
-    ])
-    result = json.loads(capsys.readouterr().out)
-    assert result["status"] == "resumed"
-    assert result["agent_mode"] == "persistent"
-    assert load_state(str(path))["agent_mode"] == "persistent"
-
-
-def test_cli_init_resumed_session_ignores_invalid_config_agent_mode(monkeypatch, capsys, tmp_path):
-    config_path = tmp_path / "config.yml"
-    config_path.write_text("agent_mode: invalid\n")
-    state = create_initial_state(
-        repo="owner/repo",
-        repo_root="/tmp/repo",
-        pr_number=790,
-        is_fork=False,
-        head_sha="abc123",
-        pr_branch_name="feat/test",
-        agent_mode="persistent",
-    )
-    path = tmp_path / "existing-state.json"
-    save_state(state, str(path))
-
-    monkeypatch.setattr("debate_review.cli.state_file_path", lambda *args: str(path))
-    monkeypatch.setattr(
-        "debate_review.cli.gh_json",
-        lambda *args: {
-            "headRefName": "feat/test",
-            "headRefOid": "abc123",
-            "headRepositoryOwner": {"login": "owner"},
-        },
-    )
-
-    _run_cli(monkeypatch, [
-        "init", "--repo", "owner/repo", "--pr", "790",
-        "--config", str(config_path),
-    ])
-    result = json.loads(capsys.readouterr().out)
-    assert result["status"] == "resumed"
-    assert result["agent_mode"] == "persistent"
-    assert load_state(str(path))["agent_mode"] == "persistent"
-
-
-def test_cli_init_resumed_legacy_session_without_agent_mode_migrates_to_legacy(monkeypatch, capsys, tmp_path):
-    config_path = tmp_path / "config.yml"
-    config_path.write_text("agent_mode: persistent\n")
-    state = create_initial_state(
-        repo="owner/repo",
-        repo_root="/tmp/repo",
-        pr_number=792,
-        is_fork=False,
-        head_sha="abc123",
-        pr_branch_name="feat/test",
-        agent_mode="legacy",
-    )
-    state.pop("agent_mode")
-    path = tmp_path / "existing-state.json"
-    save_state(state, str(path))
-
-    monkeypatch.setattr("debate_review.cli.state_file_path", lambda *args: str(path))
-    monkeypatch.setattr(
-        "debate_review.cli.gh_json",
-        lambda *args: {
-            "headRefName": "feat/test",
-            "headRefOid": "abc123",
-            "headRepositoryOwner": {"login": "owner"},
-        },
-    )
-
-    _run_cli(monkeypatch, [
-        "init", "--repo", "owner/repo", "--pr", "792",
-        "--config", str(config_path),
-    ])
-    result = json.loads(capsys.readouterr().out)
-    assert result["status"] == "resumed"
-    assert result["agent_mode"] == "legacy"
-    assert load_state(str(path))["agent_mode"] == "legacy"
 
 
 def test_cli_init_failed_session_with_checkpoint_resumes_same_head(monkeypatch, capsys, tmp_path):
@@ -738,7 +546,6 @@ def test_cli_init_failed_session_with_checkpoint_resumes_same_head(monkeypatch, 
         is_fork=False,
         head_sha="abc123",
         pr_branch_name="feat/test",
-        agent_mode="persistent",
     )
     state["status"] = "failed"
     state["final_outcome"] = "error"
@@ -786,7 +593,6 @@ def test_cli_init_failed_session_with_checkpoint_applies_resume_migrations(monke
         is_fork=False,
         head_sha="abc123",
         pr_branch_name="feat/test",
-        agent_mode="persistent",
     )
     init_round(state, round_num=1, lead_agent="codex", synced_head_sha="abc123")
     state["status"] = "failed"
@@ -842,7 +648,6 @@ def test_cli_init_consensus_session_with_stale_checkpoint_rejects(monkeypatch, c
         is_fork=False,
         head_sha="abc123",
         pr_branch_name="feat/test",
-        agent_mode="persistent",
     )
     state["status"] = "consensus_reached"
     state["final_outcome"] = "consensus"
@@ -884,7 +689,6 @@ def test_cli_init_new_head_archives_old_state_and_clears_stale_checkpoint(monkey
         is_fork=False,
         head_sha="old123",
         pr_branch_name="feat/test",
-        agent_mode="persistent",
     )
     state["status"] = "completed"
     state["final_outcome"] = "consensus_reached"
@@ -931,7 +735,6 @@ def test_cli_record_agent_sessions_persists_identifiers(monkeypatch, capsys, tmp
         is_fork=False,
         head_sha="abc123",
         pr_branch_name="feat/test",
-        agent_mode="persistent",
     )
     path = tmp_path / "agent-state.json"
     save_state(state, str(path))

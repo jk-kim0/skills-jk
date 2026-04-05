@@ -9,7 +9,6 @@ from datetime import datetime
 
 from debate_review.config import load_config
 from debate_review.context import (
-    build_context,
     build_cross_findings,
     build_cross_rebuttals,
     build_debate_ledger_text,
@@ -249,7 +248,6 @@ def _extract_dispatch_metadata(response: dict) -> dict:
 @dataclass
 class AgentAdapter:
     name: str
-    legacy_command: str | None
     create_command: str | None
     send_command: str | None
 
@@ -261,11 +259,6 @@ class AgentAdapter:
             codex_sandbox=sandbox,
             session_id=session_id,
         )
-
-    def run_legacy(self, prompt: str, *, worktree_path: str, sandbox: str) -> dict:
-        command = self._format(self.legacy_command, sandbox=sandbox)
-        output = _run_command(command, cwd=worktree_path, stdin_text=prompt)
-        return _parse_json_object(output)
 
     def create_session(self, prompt: str, *, worktree_path: str, sandbox: str) -> str:
         command = self._format(self.create_command, sandbox=sandbox)
@@ -282,7 +275,6 @@ class CodexAdapter(AgentAdapter):
     def __init__(self):
         super().__init__(
             name="codex",
-            legacy_command="codex exec -s {sandbox} -",
             create_command="codex exec --json -s {sandbox} -",
             send_command="codex exec resume {session_id} -",
         )
@@ -428,15 +420,9 @@ class CcAdapter(AgentAdapter):
     def __init__(self):
         super().__init__(
             name="cc",
-            legacy_command="claude -p --dangerously-skip-permissions --output-format json",
             create_command="claude -p --dangerously-skip-permissions --output-format stream-json --verbose",
             send_command="claude -p --dangerously-skip-permissions --resume {session_id} --output-format json",
         )
-
-    def run_legacy(self, prompt: str, *, worktree_path: str, sandbox: str) -> dict:
-        command = self._format(self.legacy_command, sandbox=sandbox)
-        output = _run_command(command, cwd=worktree_path, stdin_text=prompt)
-        return _unwrap_cc_result(output)
 
     def send_message(self, session_id: str, message: str, *, worktree_path: str) -> dict:
         command = self._format(self.send_command, session_id=session_id)
@@ -474,7 +460,6 @@ class SubprocessDebateCli:
         config_path: str | None,
         repo_root: str | None,
         dry_run: bool,
-        agent_mode: str | None,
     ) -> dict:
         args = ["init", "--repo", repo, "--pr", str(pr_number)]
         if config_path:
@@ -483,8 +468,6 @@ class SubprocessDebateCli:
             args.extend(["--repo-root", repo_root])
         if dry_run:
             args.append("--dry-run")
-        if agent_mode:
-            args.extend(["--agent-mode", agent_mode])
         return self._run_json(*args)
 
     def show(self, state_file: str) -> dict:
@@ -704,71 +687,9 @@ def _round_context(state: dict) -> dict:
     }
 
 
-def _render_template(template: str, placeholders: dict[str, str]) -> str:
-    rendered = template
-    for key, value in placeholders.items():
-        rendered = rendered.replace(key, value)
-    return rendered
-
-
 def _json_text(payload) -> str:
     return json.dumps(payload, ensure_ascii=False, indent=2)
 
-
-def _build_legacy_prompt(*, skill_root: str, state: dict, state_file: str, round_ctx: dict, step: str, extra: str | None) -> str:
-    context = build_context(state, round_ctx["round"])
-    review_criteria = _read_file(os.path.join(skill_root, "review-criteria.md"))
-
-    if step == "1":
-        template_name = "agent-lead-review-prompt.md"
-        placeholders = {
-            "{REPO}": state["repo"],
-            "{PR_NUMBER}": str(state["pr_number"]),
-            "{ROUND}": str(round_ctx["round"]),
-            "{WORKTREE_PATH}": round_ctx["worktree_path"],
-            "{DEBATE_LEDGER}": context["debate_ledger"],
-            "{OPEN_ISSUES}": _json_text(context["open_issues"]),
-            "{PENDING_REBUTTALS}": _json_text(context["pending_rebuttals"]),
-            "{OUTPUT_LANGUAGE}": state.get("language", "en"),
-            "{REVIEW_CRITERIA}": review_criteria,
-        }
-    elif step == "2":
-        template_name = "agent-cross-verify-prompt.md"
-        placeholders = {
-            "{REPO}": state["repo"],
-            "{PR_NUMBER}": str(state["pr_number"]),
-            "{ROUND}": str(round_ctx["round"]),
-            "{WORKTREE_PATH}": round_ctx["worktree_path"],
-            "{DEBATE_LEDGER}": context["debate_ledger"],
-            "{LEAD_AGENT_ID}": round_ctx["lead_agent"],
-            "{LEAD_REPORTS}": _json_text(context["lead_reports"]),
-            "{OUTPUT_LANGUAGE}": state.get("language", "en"),
-            "{REVIEW_CRITERIA}": review_criteria,
-        }
-    elif step == "3":
-        template_name = "agent-lead-response-prompt.md"
-        placeholders = {
-            "{REPO}": state["repo"],
-            "{PR_NUMBER}": str(state["pr_number"]),
-            "{ROUND}": str(round_ctx["round"]),
-            "{WORKTREE_PATH}": round_ctx["worktree_path"],
-            "{HEAD_BRANCH}": round_ctx["head_branch"],
-            "{DEBATE_REVIEW_BIN}": _debate_review_bin(skill_root),
-            "{STATE_FILE}": state_file,
-            "{DEBATE_LEDGER}": context["debate_ledger"],
-            "{CROSS_REBUTTALS}": _json_text(context["cross_rebuttals"]),
-            "{CROSS_FINDINGS}": _json_text(context["cross_findings"]),
-            "{APPLICABLE_ISSUES}": _json_text(context["applicable_issues"]),
-            "{OUTPUT_LANGUAGE}": state.get("language", "en"),
-            "{REVIEW_CRITERIA}": review_criteria,
-        }
-    else:
-        raise OrchestrationError(f"Unknown legacy step: {step}")
-
-    rendered = _render_template(_read_file(os.path.join(skill_root, template_name)), placeholders)
-    if extra:
-        rendered += f"\n\n## Additional Context\n\n{extra}"
-    return rendered
 
 
 def _recovery_prompt(*, skill_root: str, state: dict, next_step: str) -> str:
@@ -794,16 +715,12 @@ def _skip_reopen(new_message: str, existing_reports: list[dict]) -> bool:
     return False
 
 
-def _validate_runtime_commands(*, agent_name: str, agent_mode: str, adapter: AgentAdapter) -> None:
+def _validate_runtime_commands(*, agent_name: str, adapter: AgentAdapter) -> None:
     required_fields = []
-    if agent_mode == "persistent":
-        if not adapter.create_command:
-            required_fields.append("persistent_create_command")
-        if not adapter.send_command:
-            required_fields.append("persistent_send_command")
-    else:
-        if not adapter.legacy_command:
-            required_fields.append("legacy_command")
+    if not adapter.create_command:
+        required_fields.append("persistent_create_command")
+    if not adapter.send_command:
+        required_fields.append("persistent_send_command")
 
     if not required_fields:
         return
@@ -811,7 +728,7 @@ def _validate_runtime_commands(*, agent_name: str, agent_mode: str, adapter: Age
     fields = ", ".join(required_fields)
     override_path = os.path.expanduser("~/.claude/debate-review-config.yml")
     raise OrchestrationError(
-        f"{agent_name} runtime commands are not configured for agent_mode={agent_mode}: "
+        f"{agent_name} runtime commands are not configured: "
         f"missing {fields}. Set orchestrator.agents.{agent_name}.* in config.yml or {override_path}."
     )
 
@@ -928,8 +845,6 @@ class DebateReviewOrchestrator:
         return self._load_state()
 
     def _ensure_persistent_agents(self, state: dict, next_step: str) -> None:
-        if state.get("agent_mode") != "persistent":
-            return
         sessions = state.get("persistent_agents", {})
         cc_handle = sessions.get("cc_agent_id")
         codex_handle = sessions.get("codex_session_id")
@@ -969,147 +884,136 @@ class DebateReviewOrchestrator:
         sandbox = self._codex_sandbox()
         extra = self.round_extra_context
 
-        if state.get("agent_mode") == "persistent":
-            self._ensure_persistent_agents(state, next_step=step)
-            trace_step = _trace_step_name(step)
-            step_started_at = utc_now_iso()
+        self._ensure_persistent_agents(state, next_step=step)
+        trace_step = _trace_step_name(step)
+        step_started_at = utc_now_iso()
 
-            prompt_started = utc_now_iso()
-            prompt_clock = time.monotonic()
-            prompt_result = self.cli.build_prompt(
-                self.state_file,
-                agent=agent,
-                step=step[-1],
-                round_num=round_ctx["round"],
-                extra=extra,
-            )
-            prompt_completed = utc_now_iso()
-            prompt_span = {
-                "name": "build_prompt",
-                "started_at": prompt_started,
-                "completed_at": prompt_completed,
-                "duration_seconds": round(time.monotonic() - prompt_clock, 3),
+        prompt_started = utc_now_iso()
+        prompt_clock = time.monotonic()
+        prompt_result = self.cli.build_prompt(
+            self.state_file,
+            agent=agent,
+            step=step[-1],
+            round_num=round_ctx["round"],
+            extra=extra,
+        )
+        prompt_completed = utc_now_iso()
+        prompt_span = {
+            "name": "build_prompt",
+            "started_at": prompt_started,
+            "completed_at": prompt_completed,
+            "duration_seconds": round(time.monotonic() - prompt_clock, 3),
+            "status": "ok",
+        }
+        message = _read_file(prompt_result["message_file"])
+        os.remove(prompt_result["message_file"])
+        sessions = self._load_state()["persistent_agents"]
+        handle_key = "cc_agent_id" if agent == "cc" else "codex_session_id"
+        handle = sessions.get(handle_key)
+        self.cli.record_step_trace(
+            self.state_file,
+            round_num=round_ctx["round"],
+            step_name=trace_step,
+            agent=agent,
+            started_at=step_started_at,
+            patch={
+                "persistent_session": {"handle_key": handle_key, "handle": handle},
+                "runtime_artifacts": {
+                    "prompt_file": prompt_result["prompt_file"],
+                    "message_file": prompt_result["message_file"],
+                },
+                "command_spans": [prompt_span],
+            },
+        )
+        try:
+            send_started = utc_now_iso()
+            send_clock = time.monotonic()
+            response = adapter.send_message(handle, message, worktree_path=round_ctx["worktree_path"])
+            send_completed = utc_now_iso()
+            send_span = {
+                "name": "send_message",
+                "started_at": send_started,
+                "completed_at": send_completed,
+                "duration_seconds": round(time.monotonic() - send_clock, 3),
                 "status": "ok",
             }
-            message = _read_file(prompt_result["message_file"])
-            os.remove(prompt_result["message_file"])
-            sessions = self._load_state()["persistent_agents"]
-            handle_key = "cc_agent_id" if agent == "cc" else "codex_session_id"
-            handle = sessions.get(handle_key)
+            dispatch = _extract_dispatch_metadata(response)
+            patch = {"command_spans": [send_span], "dispatch": dispatch}
+            if dispatch.get("subagent_log_path"):
+                patch["runtime_artifacts"] = {"subagent_log_path": dispatch["subagent_log_path"]}
             self.cli.record_step_trace(
                 self.state_file,
                 round_num=round_ctx["round"],
                 step_name=trace_step,
-                agent=agent,
-                started_at=step_started_at,
+                completed_at=send_completed,
+                patch=patch,
+            )
+            return response
+        except OrchestrationError as exc:
+            failed_completed = utc_now_iso()
+            failed_span = {
+                "name": "send_message",
+                "started_at": send_started,
+                "completed_at": failed_completed,
+                "duration_seconds": round(time.monotonic() - send_clock, 3),
+                "status": "error",
+                "error": str(exc),
+            }
+            self.cli.record_step_trace(
+                self.state_file,
+                round_num=round_ctx["round"],
+                step_name=trace_step,
+                patch={"command_spans": [failed_span], "dispatch": {"send_error": str(exc)}},
+            )
+            prompt = _recovery_prompt(skill_root=self.skill_root, state=self._load_state(), next_step=step)
+            create_started = utc_now_iso()
+            create_clock = time.monotonic()
+            new_handle = adapter.create_session(prompt, worktree_path=round_ctx["worktree_path"], sandbox=sandbox)
+            create_completed = utc_now_iso()
+            create_span = {
+                "name": "create_session",
+                "started_at": create_started,
+                "completed_at": create_completed,
+                "duration_seconds": round(time.monotonic() - create_clock, 3),
+                "status": "ok",
+            }
+            if agent == "cc":
+                self.cli.record_agent_sessions(self.state_file, cc_agent_id=new_handle, codex_session_id=None)
+            else:
+                self.cli.record_agent_sessions(self.state_file, cc_agent_id=None, codex_session_id=new_handle)
+            self.cli.record_step_trace(
+                self.state_file,
+                round_num=round_ctx["round"],
+                step_name=trace_step,
                 patch={
-                    "persistent_session": {"handle_key": handle_key, "handle": handle},
-                    "runtime_artifacts": {
-                        "prompt_file": prompt_result["prompt_file"],
-                        "message_file": prompt_result["message_file"],
-                    },
-                    "command_spans": [prompt_span],
+                    "command_spans": [create_span],
+                    "persistent_session": {"handle_key": handle_key, "handle": new_handle},
                 },
             )
-            try:
-                send_started = utc_now_iso()
-                send_clock = time.monotonic()
-                response = adapter.send_message(handle, message, worktree_path=round_ctx["worktree_path"])
-                send_completed = utc_now_iso()
-                send_span = {
-                    "name": "send_message",
-                    "started_at": send_started,
-                    "completed_at": send_completed,
-                    "duration_seconds": round(time.monotonic() - send_clock, 3),
-                    "status": "ok",
-                }
-                dispatch = _extract_dispatch_metadata(response)
-                patch = {"command_spans": [send_span], "dispatch": dispatch}
-                if dispatch.get("subagent_log_path"):
-                    patch["runtime_artifacts"] = {"subagent_log_path": dispatch["subagent_log_path"]}
-                self.cli.record_step_trace(
-                    self.state_file,
-                    round_num=round_ctx["round"],
-                    step_name=trace_step,
-                    completed_at=send_completed,
-                    patch=patch,
-                )
-                return response
-            except OrchestrationError as exc:
-                failed_completed = utc_now_iso()
-                failed_span = {
-                    "name": "send_message",
-                    "started_at": send_started,
-                    "completed_at": failed_completed,
-                    "duration_seconds": round(time.monotonic() - send_clock, 3),
-                    "status": "error",
-                    "error": str(exc),
-                }
-                self.cli.record_step_trace(
-                    self.state_file,
-                    round_num=round_ctx["round"],
-                    step_name=trace_step,
-                    patch={"command_spans": [failed_span], "dispatch": {"send_error": str(exc)}},
-                )
-                prompt = _recovery_prompt(skill_root=self.skill_root, state=self._load_state(), next_step=step)
-                create_started = utc_now_iso()
-                create_clock = time.monotonic()
-                new_handle = adapter.create_session(prompt, worktree_path=round_ctx["worktree_path"], sandbox=sandbox)
-                create_completed = utc_now_iso()
-                create_span = {
-                    "name": "create_session",
-                    "started_at": create_started,
-                    "completed_at": create_completed,
-                    "duration_seconds": round(time.monotonic() - create_clock, 3),
-                    "status": "ok",
-                }
-                if agent == "cc":
-                    self.cli.record_agent_sessions(self.state_file, cc_agent_id=new_handle, codex_session_id=None)
-                else:
-                    self.cli.record_agent_sessions(self.state_file, cc_agent_id=None, codex_session_id=new_handle)
-                self.cli.record_step_trace(
-                    self.state_file,
-                    round_num=round_ctx["round"],
-                    step_name=trace_step,
-                    patch={
-                        "command_spans": [create_span],
-                        "persistent_session": {"handle_key": handle_key, "handle": new_handle},
-                    },
-                )
-                send_started = utc_now_iso()
-                send_clock = time.monotonic()
-                response = adapter.send_message(new_handle, message, worktree_path=round_ctx["worktree_path"])
-                send_completed = utc_now_iso()
-                send_span = {
-                    "name": "send_message",
-                    "started_at": send_started,
-                    "completed_at": send_completed,
-                    "duration_seconds": round(time.monotonic() - send_clock, 3),
-                    "status": "ok",
-                    "recovered": True,
-                }
-                dispatch = _extract_dispatch_metadata(response)
-                patch = {"command_spans": [send_span], "dispatch": dispatch}
-                if dispatch.get("subagent_log_path"):
-                    patch["runtime_artifacts"] = {"subagent_log_path": dispatch["subagent_log_path"]}
-                self.cli.record_step_trace(
-                    self.state_file,
-                    round_num=round_ctx["round"],
-                    step_name=trace_step,
-                    completed_at=send_completed,
-                    patch=patch,
-                )
-                return response
-
-        prompt = _build_legacy_prompt(
-            skill_root=self.skill_root,
-            state=state,
-            state_file=self.state_file,
-            round_ctx=round_ctx,
-            step=step[-1],
-            extra=extra,
-        )
-        return adapter.run_legacy(prompt, worktree_path=round_ctx["worktree_path"], sandbox=sandbox)
+            send_started = utc_now_iso()
+            send_clock = time.monotonic()
+            response = adapter.send_message(new_handle, message, worktree_path=round_ctx["worktree_path"])
+            send_completed = utc_now_iso()
+            send_span = {
+                "name": "send_message",
+                "started_at": send_started,
+                "completed_at": send_completed,
+                "duration_seconds": round(time.monotonic() - send_clock, 3),
+                "status": "ok",
+                "recovered": True,
+            }
+            dispatch = _extract_dispatch_metadata(response)
+            patch = {"command_spans": [send_span], "dispatch": dispatch}
+            if dispatch.get("subagent_log_path"):
+                patch["runtime_artifacts"] = {"subagent_log_path": dispatch["subagent_log_path"]}
+            self.cli.record_step_trace(
+                self.state_file,
+                round_num=round_ctx["round"],
+                step_name=trace_step,
+                completed_at=send_completed,
+                patch=patch,
+            )
+            return response
 
     def _route_findings(self, *, checkpoint: dict, agent: str, round_num: int) -> None:
         findings = checkpoint["response"].get("findings", [])
@@ -1551,7 +1455,6 @@ class DebateReviewOrchestrator:
         config_path: str | None = None,
         repo_root: str | None = None,
         dry_run: bool = False,
-        agent_mode: str | None = None,
     ) -> dict:
         current_command = "init"
         try:
@@ -1561,7 +1464,6 @@ class DebateReviewOrchestrator:
                 config_path=config_path,
                 repo_root=repo_root,
                 dry_run=dry_run,
-                agent_mode=agent_mode,
             )
             self.state_file = init_result["state_file"]
             self.fresh_session = init_result["status"] == "created"
@@ -1679,20 +1581,17 @@ class DebateReviewOrchestrator:
 def _build_adapters(config: dict) -> dict[str, AgentAdapter]:
     orch = config.get("orchestrator", {})
     agent_cfg = orch.get("agents", {}) if isinstance(orch, dict) else {}
-    agent_mode = str(config.get("agent_mode", "persistent"))
 
     def _from_cfg(name: str, defaults: AgentAdapter | None = None) -> AgentAdapter:
         cfg = agent_cfg.get(name, {}) if isinstance(agent_cfg, dict) else {}
         if defaults is not None:
             if not cfg:
                 return defaults
-            defaults.legacy_command = cfg.get("legacy_command", defaults.legacy_command)
             defaults.create_command = cfg.get("persistent_create_command", defaults.create_command)
             defaults.send_command = cfg.get("persistent_send_command", defaults.send_command)
             return defaults
         return AgentAdapter(
             name=name,
-            legacy_command=cfg.get("legacy_command"),
             create_command=cfg.get("persistent_create_command"),
             send_command=cfg.get("persistent_send_command"),
         )
@@ -1702,7 +1601,7 @@ def _build_adapters(config: dict) -> dict[str, AgentAdapter]:
         "cc": _from_cfg("cc", defaults=CcAdapter()),
     }
     for name, adapter in adapters.items():
-        _validate_runtime_commands(agent_name=name, agent_mode=agent_mode, adapter=adapter)
+        _validate_runtime_commands(agent_name=name, adapter=adapter)
     return adapters
 
 
@@ -1713,7 +1612,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--config", help="Path to config YAML")
     parser.add_argument("--repo-root", help="Override repo root")
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--agent-mode", choices=["legacy", "persistent"], default=None)
     parser.add_argument("--no-comment", action="store_true")
     parser.add_argument("--no-cleanup", action="store_true")
     return parser
@@ -1725,8 +1623,6 @@ def main() -> None:
 
     skill_root = _skill_root()
     config = load_config(args.config)
-    if args.agent_mode is not None:
-        config["agent_mode"] = args.agent_mode
     orchestrator = DebateReviewOrchestrator(
         cli=SubprocessDebateCli(_debate_review_bin(skill_root)),
         adapters=_build_adapters(config),
@@ -1741,6 +1637,5 @@ def main() -> None:
         config_path=args.config,
         repo_root=args.repo_root,
         dry_run=args.dry_run,
-        agent_mode=args.agent_mode,
     )
     print(json.dumps(result))

@@ -36,8 +36,6 @@ from debate_review.state import (
     state_file_path,
 )
 
-_ALLOWED_AGENT_MODES = ("legacy", "persistent")
-
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="debate-review")
@@ -51,13 +49,6 @@ def build_parser() -> argparse.ArgumentParser:
     init_parser.add_argument("--config", help="Path to config YAML")
     init_parser.add_argument("--max-rounds", type=int, help="Override max_rounds from config")
     init_parser.add_argument("--dry-run", action="store_true", help="Dry run mode")
-    init_parser.add_argument(
-        "--agent-mode",
-        choices=["legacy", "persistent"],
-        default=None,
-        help="Override agent_mode from config (legacy or persistent)",
-    )
-
     # show subcommand
     show_parser = subparsers.add_parser("show", help="Show debate-review state")
     show_parser.add_argument("--state-file", help="Path to state file")
@@ -202,12 +193,6 @@ def _error_exit(message):
     sys.exit(1)
 
 
-def _validate_agent_mode(agent_mode):
-    if agent_mode not in _ALLOWED_AGENT_MODES:
-        allowed = ", ".join(_ALLOWED_AGENT_MODES)
-        _error_exit(f"Invalid agent_mode: {agent_mode}. Expected one of: {allowed}")
-    return agent_mode
-
 
 def _dry_run_skip(state, *, command, **payload):
     result = {"action": "dry_run", "command": command, "current_round": state["current_round"]}
@@ -265,11 +250,6 @@ def _migrate_resumed_state(existing: dict, *, language: str) -> bool:
     if "language" not in existing:
         existing["language"] = language
         needs_save = True
-    if "agent_mode" not in existing:
-        existing["agent_mode"] = "legacy"
-        needs_save = True
-    else:
-        existing["agent_mode"] = _validate_agent_mode(str(existing["agent_mode"]))
     if ensure_persistent_agents(existing):
         needs_save = True
     rounds_before = json.dumps(existing.get("rounds", []), sort_keys=True)
@@ -306,17 +286,11 @@ def cmd_init(args):
     max_rounds = args.max_rounds if args.max_rounds is not None else config.get("max_rounds", 10)
     language = str(config.get("language", "en"))
     codex_sandbox = str(config.get("codex_sandbox", "danger-full-access"))
-    config_agent_mode = str(config.get("agent_mode", "persistent"))
-    if args.agent_mode is not None:
-        config_agent_mode = args.agent_mode
-    agent_mode = None
-
     state_path = state_file_path(repo, pr_number, dry_run)
     existing = load_state(state_path)
 
     if existing is None:
         _clear_orchestrator_checkpoint(state_path)
-        agent_mode = _validate_agent_mode(config_agent_mode)
         state = create_initial_state(
             repo=repo,
             repo_root=repo_root,
@@ -326,7 +300,6 @@ def cmd_init(args):
             pr_branch_name=head_ref_name,
             max_rounds=max_rounds,
             language=language,
-            agent_mode=agent_mode,
             dry_run=dry_run,
         )
         save_state(state, state_path)
@@ -365,7 +338,6 @@ def cmd_init(args):
             archive_path = f"{state_path}.{archive_sha}.archived"
             shutil.copy2(state_path, archive_path)
             _clear_orchestrator_checkpoint(state_path)
-            agent_mode = _validate_agent_mode(config_agent_mode)
             state = create_initial_state(
                 repo=repo,
                 repo_root=repo_root,
@@ -375,7 +347,6 @@ def cmd_init(args):
                 pr_branch_name=head_ref_name,
                 max_rounds=max_rounds,
                 language=language,
-                agent_mode=agent_mode,
                 dry_run=dry_run,
             )
             save_state(state, state_path)
@@ -390,7 +361,6 @@ def cmd_init(args):
         "dry_run": dry_run,
         "codex_sandbox": codex_sandbox,
         "language": existing.get("language", language) if result_status == "resumed" else language,
-        "agent_mode": existing["agent_mode"] if result_status == "resumed" else agent_mode,
     }
     if result_status == "resumed":
         resume_info = determine_next_step(existing)
@@ -404,8 +374,6 @@ def cmd_record_agent_sessions(args):
     state = load_state(args.state_file)
     if state is None:
         _error_exit(f"No state file found at {args.state_file}")
-    if state.get("agent_mode") != "persistent":
-        _error_exit("record-agent-sessions requires agent_mode=persistent")
     if args.cc_agent_id is None and args.codex_session_id is None:
         _error_exit("Must provide --cc-agent-id and/or --codex-session-id")
 
