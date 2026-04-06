@@ -1208,7 +1208,23 @@ class DebateReviewOrchestrator:
             send_started = utc_now_iso()
             send_clock = time.monotonic()
             recovery_runtime = build_runtime(send_started)
+            recovery_snapshot = None
             if recovery_runtime is not None:
+                recovery_snapshot = recovery_runtime["supervisor"].begin_recovery(
+                    "session_recreate",
+                    observed_at=create_completed,
+                    result="started",
+                    reconcile_summary=str(exc),
+                )
+                on_snapshot = recovery_runtime.get("on_snapshot")
+                if on_snapshot is not None:
+                    on_snapshot(recovery_snapshot)
+                self.cli.record_step_trace(
+                    self.state_file,
+                    round_num=round_ctx["round"],
+                    step_name=trace_step,
+                    patch={"supervision": recovery_snapshot},
+                )
                 response = adapter.send_message(
                     new_handle,
                     message,
@@ -1233,7 +1249,10 @@ class DebateReviewOrchestrator:
                 patch["runtime_artifacts"] = {"subagent_log_path": dispatch["subagent_log_path"]}
             if runtime_meta:
                 if runtime_meta.get("supervision"):
-                    patch["supervision"] = runtime_meta["supervision"]
+                    supervision = dict(runtime_meta["supervision"])
+                    if recovery_snapshot is not None:
+                        supervision.pop("recovery_attempts", None)
+                    patch["supervision"] = supervision
                 if runtime_meta.get("runtime_artifacts"):
                     patch.setdefault("runtime_artifacts", {})
                     patch["runtime_artifacts"].update(runtime_meta["runtime_artifacts"])
