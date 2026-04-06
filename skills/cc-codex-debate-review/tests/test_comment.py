@@ -226,3 +226,88 @@ def test_build_comment_error_includes_debate_summary():
     assert "Codex parse failure" in body
 
 
+# Test: _build_error includes Applied Fixes section
+def test_build_error_includes_applied_fixes():
+    state = create_initial_state(
+        repo="owner/repo", repo_root="/tmp/repo", pr_number=123,
+        is_fork=False, head_sha="abc123", pr_branch_name="feat/test",
+    )
+    state["status"] = "failed"
+    state["final_outcome"] = "error"
+    state["error_message"] = "timeout"
+    state["journal"]["round"] = 2
+    state["journal"]["step"] = "step3_apply"
+    state["issues"]["isu_001"] = {
+        "issue_id": "isu_001", "file": "src/foo.ts", "line": 10,
+        "consensus_status": "accepted",
+        "application_status": "applied",
+        "accepted_by": ["cc", "codex"],
+        "applied_by": "codex",
+        "reports": [
+            {"report_id": "rpt_001", "agent": "cc", "round": 1, "severity": "critical", "message": "Null check missing", "reported_at": "t"},
+        ],
+    }
+    body = build_comment_body(state)
+    assert "## Applied Fixes" in body
+    assert "src/foo.ts:10" in body
+    assert "reported by cc" in body
+    assert "applied by codex" in body
+    assert "Review stopped due to an error." in body
+
+
+# Test: _build_error includes Withdrawn Findings section
+def test_build_error_includes_withdrawn_findings():
+    state = create_initial_state(
+        repo="owner/repo", repo_root="/tmp/repo", pr_number=123,
+        is_fork=False, head_sha="abc123", pr_branch_name="feat/test",
+    )
+    state["status"] = "failed"
+    state["final_outcome"] = "error"
+    state["error_message"] = "timeout"
+    state["journal"]["round"] = 3
+    state["journal"]["step"] = "step2_cross_review"
+    state["issues"]["isu_001"] = {
+        "issue_id": "isu_001", "file": "src/bar.ts", "line": 5,
+        "consensus_status": "withdrawn",
+        "application_status": "not_applicable",
+        "accepted_by": [],
+        "applied_by": None,
+        "reports": [
+            {"report_id": "rpt_001", "agent": "codex", "round": 1, "severity": "warning", "message": "Unused variable", "reported_at": "t"},
+        ],
+    }
+    body = build_comment_body(state)
+    assert "## Withdrawn Findings" in body
+    assert "src/bar.ts:5" in body
+    assert "Unused variable" in body
+    assert "Review stopped due to an error." in body
+
+
+# Test: build_comment_body infers "consensus" from status
+def test_build_comment_body_infers_consensus_from_status():
+    state = create_initial_state(
+        repo="owner/repo", repo_root="/tmp/repo", pr_number=123,
+        is_fork=False, head_sha="abc123", pr_branch_name="feat/test",
+    )
+    state["status"] = "consensus_reached"
+    state["current_round"] = 2
+    # final_outcome is NOT set — should be inferred
+    body = build_comment_body(state)
+    assert "Consensus reached after 2 rounds." in body
+    assert "No actionable issues remain." in body
+
+
+# Test: build_comment_body infers "stalled" from status and uses _build_max_rounds
+def test_build_comment_body_infers_stalled_from_status():
+    state = create_initial_state(
+        repo="owner/repo", repo_root="/tmp/repo", pr_number=123,
+        is_fork=False, head_sha="abc123", pr_branch_name="feat/test",
+    )
+    state["status"] = "stalled"
+    state["max_rounds"] = 10
+    # final_outcome is NOT set — should be inferred as "stalled" and use max_rounds template
+    body = build_comment_body(state)
+    assert "Consensus was not reached after 10 rounds." in body
+    assert "Manual review required." in body
+
+
