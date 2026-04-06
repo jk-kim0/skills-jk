@@ -1,3 +1,5 @@
+import sys
+
 from debate_review.round_ops import _find_round
 
 
@@ -65,12 +67,22 @@ def record_cross_verification(state, *, round_num, verifications) -> dict:
     lead_agent = round_["lead_agent"]
     cross_verifier = "cc" if lead_agent == "codex" else "codex"
 
+    skipped = []
     for v in verifications:
         report_id = v["report_id"]
         decision = v["decision"]
         reason = v.get("reason", "")
 
-        issue_id, issue, _report = _find_issue_by_report_id(state, report_id)
+        try:
+            issue_id, issue, _report = _find_issue_by_report_id(state, report_id)
+        except ValueError:
+            print(
+                f"WARNING: skipping unknown report_id {report_id!r} "
+                f"(cross-verifier fabricated a report_id not in lead findings)",
+                file=sys.stderr,
+            )
+            skipped.append(report_id)
+            continue
 
         if decision == "accept":
             if report_id not in round_["step2"]["accepted_report_ids"]:
@@ -91,7 +103,10 @@ def record_cross_verification(state, *, round_num, verifications) -> dict:
                 "reason": reason,
             })
 
-    return {"round": round_num, "processed": len(verifications)}
+    result = {"round": round_num, "processed": len(verifications) - len(skipped)}
+    if skipped:
+        result["skipped_report_ids"] = skipped
+    return result
 
 
 def resolve_rebuttals(state, *, round_num, step, decisions) -> dict:

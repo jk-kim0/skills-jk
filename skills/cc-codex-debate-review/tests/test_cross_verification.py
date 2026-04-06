@@ -225,3 +225,21 @@ def test_withdraw_after_reopen_restores_previous_state():
     assert issue["applied_by"] == "codex"
     assert issue["application_commit_sha"] == "deadbeef"
     assert "pre_reopen_state" not in issue  # cleaned up after restore
+
+
+def test_record_cross_verification_skips_unknown_report_id(capsys):
+    """Unknown report_id should be skipped with a warning, not raise."""
+    state = _state_with_round_and_issues()
+    verifications = [
+        {"report_id": "rpt_001", "decision": "accept", "reason": "Valid"},
+        {"report_id": "rpt_phantom", "decision": "rebut", "reason": "Fabricated"},
+    ]
+    result = record_cross_verification(state, round_num=1, verifications=verifications)
+    assert result["processed"] == 1
+    assert result["skipped_report_ids"] == ["rpt_phantom"]
+    # rpt_001 should still be processed
+    assert state["issues"]["isu_001"]["consensus_status"] == "accepted"
+    # Warning should be printed to stderr
+    err = capsys.readouterr().err
+    assert "rpt_phantom" in err
+    assert "WARNING" in err
