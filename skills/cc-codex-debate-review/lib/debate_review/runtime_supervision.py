@@ -45,6 +45,7 @@ class StepSupervisor:
         self.status = "dispatching"
         self.last_event_at: str | None = None
         self.last_event_kind: str | None = None
+        self.last_stderr_at: str | None = None
         self.last_heartbeat_at: str | None = None
         self.last_strong_heartbeat_at: str | None = None
         self.heartbeat_source: str | None = None
@@ -77,6 +78,7 @@ class StepSupervisor:
 
     def on_stderr(self, line: str, *, observed_at: str) -> dict:
         if line:
+            self.last_stderr_at = observed_at
             self.last_heartbeat_at = observed_at
             self.heartbeat_source = "stderr_line"
             self.weak_heartbeat_count += 1
@@ -97,8 +99,13 @@ class StepSupervisor:
         thresholds = _THRESHOLDS.get(self.agent, _THRESHOLDS["codex"])
         reference = self.last_strong_heartbeat_at or self.started_at
         gap = _seconds_between(reference, now) or 0
+        stderr_gap = _seconds_between(self.last_stderr_at, now)
+        recent_stderr = stderr_gap is not None and stderr_gap <= thresholds.suspected
 
-        if gap > thresholds.hard:
+        if gap > 10 and recent_stderr:
+            self.status = "idle_but_alive"
+            self.stall_level = "none"
+        elif gap > thresholds.hard:
             self.status = "suspected_stall"
             self.stall_level = "hard"
         elif gap > thresholds.suspected:
@@ -141,6 +148,7 @@ class StepSupervisor:
             "last_event_at": self.last_event_at,
             "last_event_kind": self.last_event_kind,
             "last_event_age_seconds": _seconds_between(self.last_event_at, now),
+            "last_stderr_at": self.last_stderr_at,
             "last_heartbeat_at": self.last_heartbeat_at,
             "heartbeat_source": self.heartbeat_source,
             "stall_level": self.stall_level,
@@ -149,4 +157,3 @@ class StepSupervisor:
             "recovery_attempts": deepcopy(self.recovery_attempts),
         }
         return snapshot
-

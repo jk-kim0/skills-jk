@@ -98,3 +98,17 @@ def test_supervisor_treats_codex_command_activity_as_heartbeat():
     assert snapshot["status"] != "suspected_stall"
     assert snapshot["stall_level"] == "none"
     assert snapshot["last_event_kind"] == "tool_activity"
+
+
+def test_supervisor_treats_recent_stderr_activity_as_alive():
+    base = "2026-04-07T00:00:00+00:00"
+    supervisor = StepSupervisor(agent="cc", started_at=base)
+
+    supervisor.mark_process_started(observed_at=base)
+    supervisor.on_stderr("still working", observed_at=_plus(base, 110))
+    supervisor.on_process_alive(observed_at=_plus(base, 120))
+    supervisor.evaluate(now=_plus(base, 121))
+    snapshot = supervisor.snapshot(now=_plus(base, 121))
+
+    assert snapshot["status"] == "idle_but_alive"
+    assert snapshot["stall_level"] == "none"
