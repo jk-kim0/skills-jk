@@ -71,10 +71,11 @@ def record_verdict(state, *, round_num, verdict) -> dict:
         has_new_findings = bool(round_.get("step1", {}).get("report_ids"))
         open_issues = [i for i in state["issues"].values() if i["consensus_status"] == "open"]
         is_fork = state.get("is_fork", False)
+        excluded_statuses = {"applied", "recommended"} if is_fork else {"applied"}
         accepted_unresolved = [
             i for i in state["issues"].values()
             if i["consensus_status"] == "accepted"
-            and i["application_status"] not in ("applied", "recommended" if is_fork else "applied")
+            and i["application_status"] not in excluded_statuses
         ]
         if not has_new_findings and not open_issues and not accepted_unresolved and state["issues"]:
             print(
