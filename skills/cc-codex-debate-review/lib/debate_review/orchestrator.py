@@ -97,6 +97,16 @@ def _recover_commit_sha_from_worktree(*, state: dict, round_num: int, worktree_p
     return head_sha
 
 
+def _remote_branch_contains_commit(*, worktree_path: str, branch: str, commit_sha: str) -> bool:
+    _run_command("git fetch origin", cwd=worktree_path)
+    remote_branches = _run_command(
+        f"git branch -r --contains {commit_sha}",
+        cwd=worktree_path,
+    )
+    target = f"origin/{branch}"
+    return any(line.strip() == target for line in remote_branches.splitlines())
+
+
 def _parse_json_object(output: str) -> dict:
     text = output.strip()
     if not text:
@@ -1208,10 +1218,15 @@ class DebateReviewOrchestrator:
                     verify_push=True,
                 )
             except OrchestrationError:
-                _run_command(
-                    f"git push origin HEAD:{round_ctx['head_branch']}",
-                    cwd=round_ctx["worktree_path"],
-                )
+                if not _remote_branch_contains_commit(
+                    worktree_path=round_ctx["worktree_path"],
+                    branch=round_ctx["head_branch"],
+                    commit_sha=commit_sha,
+                ):
+                    _run_command(
+                        f"git push origin HEAD:{round_ctx['head_branch']}",
+                        cwd=round_ctx["worktree_path"],
+                    )
                 self.cli.record_application(
                     self.state_file,
                     round_num=round_ctx["round"],
