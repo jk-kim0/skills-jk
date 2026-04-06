@@ -29,6 +29,30 @@ def _build_debate_summary_lines(state):
     return lines
 
 
+def _unresolved_issues(state):
+    return [
+        issue
+        for issue in state["issues"].values()
+        if issue["consensus_status"] == "open"
+        or (
+            issue["consensus_status"] == "accepted"
+            and issue["application_status"] not in ("applied", "recommended")
+        )
+    ]
+
+
+def _append_unresolved_issue_section(lines, state):
+    unresolved = _unresolved_issues(state)
+    if not unresolved:
+        return
+
+    lines.append("")
+    lines.append("## Unresolved Issues")
+    for issue in unresolved:
+        msg = latest_report_message(issue)
+        lines.append(f"- {issue['file']}:{issue['line']} - {msg}")
+
+
 def _build_consensus(state, tag):
     """Template for consensus (same-repo and fork)."""
     is_fork = state.get("is_fork", False)
@@ -86,16 +110,25 @@ def _build_max_rounds(state, tag):
 
     lines.extend(_build_debate_summary_lines(state))
 
-    unresolved = [i for i in state["issues"].values()
-                  if i["consensus_status"] == "open"
-                  or (i["consensus_status"] == "accepted" and i["application_status"] not in ("applied", "recommended"))]
+    _append_unresolved_issue_section(lines, state)
 
-    if unresolved:
+    lines.append("")
+    lines.append("Manual review required.")
+    return "\n".join(lines)
+
+
+def _build_stalled(state, tag):
+    """Template for stalled review sessions."""
+    lines = [f"{tag} Review stalled after {state['current_round']} rounds."]
+
+    lines.extend(_build_debate_summary_lines(state))
+
+    _append_unresolved_issue_section(lines, state)
+
+    error_message = state.get("error_message")
+    if error_message:
         lines.append("")
-        lines.append("## Unresolved Issues")
-        for issue in unresolved:
-            msg = latest_report_message(issue)
-            lines.append(f"- {issue['file']}:{issue['line']} - {msg}")
+        lines.append(f"Reason: {error_message}")
 
     lines.append("")
     lines.append("Manual review required.")
@@ -106,8 +139,38 @@ def _build_error(state, tag):
     """Template 4: error."""
     journal = state["journal"]
     lines = [f"{tag} Review stopped due to an error."]
+    is_fork = state.get("is_fork", False)
 
     lines.extend(_build_debate_summary_lines(state))
+
+    # Show applied fixes even on error — they represent real code changes
+    fixes = [
+        issue
+        for issue in state["issues"].values()
+        if issue.get("application_status") == ("recommended" if is_fork else "applied")
+    ]
+    if fixes:
+        lines.append("")
+        lines.append("## Recommended Fixes" if is_fork else "## Applied Fixes")
+        for issue in fixes:
+            reporter = _first_reporter(issue)
+            msg = latest_report_message(issue)
+            if is_fork:
+                lines.append(f"- {issue['file']}:{issue['line']} - (reported by {reporter}) {msg}")
+            else:
+                applier = issue.get("applied_by", "unknown")
+                lines.append(
+                    f"- {issue['file']}:{issue['line']} - (reported by {reporter}, applied by {applier}) {msg}"
+                )
+
+    # Show withdrawn findings
+    withdrawn = [i for i in state["issues"].values() if i.get("consensus_status") == "withdrawn"]
+    if withdrawn:
+        lines.append("")
+        lines.append("## Withdrawn Findings")
+        for issue in withdrawn:
+            msg = latest_report_message(issue)
+            lines.append(f"- {issue['file']}:{issue['line']} - {msg}")
 
     lines.append("")
     lines.append(f"Round: {journal.get('round', '?')}")
@@ -123,10 +186,20 @@ def build_comment_body(state) -> str:
     tag = _make_tag(state)
     outcome = state.get("final_outcome")
 
+    if not outcome:
+        raise ValueError(
+            f"final_outcome is not set (status={state.get('status')!r}). "
+            "This indicates a bug in the upstream state machine — "
+            "settle_round or mark_failed should always set final_outcome "
+            "before post-comment is called."
+        )
+
     if outcome == "consensus":
         return _build_consensus(state, tag)
     elif outcome == "no_consensus":
         return _build_max_rounds(state, tag)
+    elif outcome == "stalled":
+        return _build_stalled(state, tag)
     else:
         return _build_error(state, tag)
 
