@@ -1066,3 +1066,40 @@ def test_cli_init_recognizes_agent_commit_sha_in_terminal_state(monkeypatch, cap
     assert "already completed" in result["error"]
     # State file should NOT be archived
     assert not list(tmp_path.glob("*.archived"))
+
+
+def test_cli_init_rejects_fork_pr(monkeypatch, capsys, tmp_path):
+    """init should reject fork PRs with an error."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setattr("debate_review.cli.state_file_path", lambda *args: str(tmp_path / "state.json"))
+    monkeypatch.setattr(
+        "debate_review.cli.gh_json",
+        lambda *args: {
+            "headRefName": "feat/test",
+            "headRefOid": "abc123",
+            "headRepositoryOwner": {"login": "fork-owner"},
+        },
+    )
+    _run_cli(monkeypatch, ["init", "--repo", "owner/repo", "--pr", "42"])
+    result = json.loads(capsys.readouterr().out)
+    assert "error" in result
+    assert "Fork PRs are not supported" in result["error"]
+
+
+def test_cli_init_rejects_same_owner_cross_repo_pr(monkeypatch, capsys, tmp_path):
+    """init should reject cross-repo PRs even when the owner matches."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setattr("debate_review.cli.state_file_path", lambda *args: str(tmp_path / "state.json"))
+    monkeypatch.setattr(
+        "debate_review.cli.gh_json",
+        lambda *args: {
+            "headRefName": "feat/test",
+            "headRefOid": "abc123",
+            "headRepositoryOwner": {"login": "owner"},
+            "headRepository": {"nameWithOwner": "owner/other-repo"},
+        },
+    )
+    _run_cli(monkeypatch, ["init", "--repo", "owner/repo", "--pr", "42"])
+    result = json.loads(capsys.readouterr().out)
+    assert "error" in result
+    assert "Fork PRs are not supported" in result["error"]

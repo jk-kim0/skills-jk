@@ -2,10 +2,10 @@ from debate_review.state import create_initial_state
 from debate_review.comment import build_comment_body, post_comment, _make_tag
 
 
-def _consensus_state(is_fork=False):
+def _consensus_state():
     state = create_initial_state(
         repo="owner/repo", repo_root="/tmp/repo", pr_number=123,
-        is_fork=is_fork, head_sha="abc123", pr_branch_name="feat/test",
+        is_fork=False, head_sha="abc123", pr_branch_name="feat/test",
     )
     state["status"] = "consensus_reached"
     state["final_outcome"] = "consensus"
@@ -13,9 +13,9 @@ def _consensus_state(is_fork=False):
     state["issues"]["isu_001"] = {
         "issue_id": "isu_001", "file": "src/foo.ts", "line": 42,
         "consensus_status": "accepted",
-        "application_status": "applied" if not is_fork else "recommended",
+        "application_status": "applied",
         "accepted_by": ["cc", "codex"],
-        "applied_by": "codex" if not is_fork else None,
+        "applied_by": "codex",
         "reports": [
             {"report_id": "rpt_001", "agent": "codex", "round": 1, "severity": "critical", "message": "Missing validation", "reported_at": "t"},
         ],
@@ -36,7 +36,7 @@ def _consensus_state(is_fork=False):
 
 # Test 1: Same-repo consensus template
 def test_build_comment_consensus_same_repo():
-    state = _consensus_state(is_fork=False)
+    state = _consensus_state()
     body = build_comment_body(state)
     assert body.startswith("[debate-review][sha:abc123]")
     assert "Consensus reached after 3 rounds." in body
@@ -49,17 +49,7 @@ def test_build_comment_consensus_same_repo():
     assert "Intentional design choice" in body
 
 
-# Test 2: Fork consensus template
-def test_build_comment_consensus_fork():
-    state = _consensus_state(is_fork=True)
-    body = build_comment_body(state)
-    assert "fork PR" in body
-    assert "## Recommended Fixes" in body
-    assert "reported by codex" in body
-    assert "## Withdrawn Findings" in body
-
-
-# Test 3: Max rounds template
+# Test 2: Max rounds template
 def test_build_comment_max_rounds():
     state = create_initial_state(
         repo="owner/repo", repo_root="/tmp/repo", pr_number=123,
@@ -172,7 +162,7 @@ def test_build_comment_no_issues():
 
 # Test: Debate Summary from ledger
 def test_build_comment_includes_debate_summary():
-    state = _consensus_state(is_fork=False)
+    state = _consensus_state()
     state["debate_ledger"] = [
         {"issue_id": "isu_001", "status": "accepted", "summary": "batch exit code — R1 raised, R1 consensus", "round": 1},
         {"issue_id": "isu_003", "status": "withdrawn", "summary": "KeyboardInterrupt — R1 raised, R5 withdraw", "round": 5},
@@ -185,7 +175,7 @@ def test_build_comment_includes_debate_summary():
 
 
 def test_build_comment_no_debate_summary_when_empty_ledger():
-    state = _consensus_state(is_fork=False)
+    state = _consensus_state()
     state["debate_ledger"] = []
     body = build_comment_body(state)
     assert "## Debate Summary" not in body
@@ -282,34 +272,6 @@ def test_build_error_includes_withdrawn_findings():
     assert "Unused variable" in body
     assert "Review stopped due to an error." in body
 
-
-# Test: fork PR error template includes recommended fixes
-def test_build_error_includes_recommended_fixes_for_fork():
-    state = create_initial_state(
-        repo="owner/repo", repo_root="/tmp/repo", pr_number=123,
-        is_fork=True, head_sha="abc123", pr_branch_name="feat/test",
-    )
-    state["status"] = "failed"
-    state["final_outcome"] = "error"
-    state["error_message"] = "timeout"
-    state["journal"]["round"] = 2
-    state["journal"]["step"] = "step3_apply"
-    state["issues"]["isu_001"] = {
-        "issue_id": "isu_001", "file": "src/foo.ts", "line": 10,
-        "consensus_status": "accepted",
-        "application_status": "recommended",
-        "accepted_by": ["cc", "codex"],
-        "applied_by": None,
-        "reports": [
-            {"report_id": "rpt_001", "agent": "cc", "round": 1, "severity": "warning", "message": "Fix needed", "reported_at": "t"},
-        ],
-    }
-    body = build_comment_body(state)
-    assert "## Recommended Fixes" in body
-    assert "src/foo.ts:10" in body
-    assert "reported by cc" in body
-    assert "applied by" not in body
-    assert "Review stopped due to an error." in body
 
 
 # Test: build_comment_body raises ValueError when final_outcome is not set

@@ -1189,7 +1189,7 @@ class DebateReviewOrchestrator:
             self._save_checkpoint(checkpoint)
 
         state = self._load_state()
-        needs_push = not state.get("is_fork") and not state.get("dry_run")
+        needs_push = not state.get("dry_run")
         if applied and needs_push and not commit_sha:
             commit_sha = _recover_commit_sha_from_worktree(
                 state=state,

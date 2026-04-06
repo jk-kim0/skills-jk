@@ -57,16 +57,7 @@ def test_record_cross_verification_rebut():
     assert round_["step2"]["rebuttals"][0]["issue_id"] == "isu_002"
 
 
-# Test 3: record_cross_verification — accept on fork PR sets application_status=recommended
-def test_record_cross_verification_accept_fork():
-    state = _state_with_round_and_issues()
-    state["is_fork"] = True
-    verifications = [{"report_id": "rpt_001", "decision": "accept", "reason": "Valid"}]
-    record_cross_verification(state, round_num=1, verifications=verifications)
-    assert state["issues"]["isu_001"]["application_status"] == "recommended"
-
-
-# Test 4: resolve_rebuttals step=1a — withdraw recalculates accepted_by
+# Test 3: resolve_rebuttals step=1a — withdraw recalculates accepted_by
 def test_resolve_rebuttals_step1a_withdraw():
     state = _state_with_round_and_issues()
     # Setup: issue has only one report from codex, accepted_by=["codex"]
