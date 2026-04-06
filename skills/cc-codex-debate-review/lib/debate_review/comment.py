@@ -102,6 +102,33 @@ def _build_max_rounds(state, tag):
     return "\n".join(lines)
 
 
+def _build_stalled(state, tag):
+    """Template for stalled review sessions."""
+    lines = [f"{tag} Review stalled after {state['current_round']} rounds."]
+
+    lines.extend(_build_debate_summary_lines(state))
+
+    unresolved = [i for i in state["issues"].values()
+                  if i["consensus_status"] == "open"
+                  or (i["consensus_status"] == "accepted" and i["application_status"] not in ("applied", "recommended"))]
+
+    if unresolved:
+        lines.append("")
+        lines.append("## Unresolved Issues")
+        for issue in unresolved:
+            msg = latest_report_message(issue)
+            lines.append(f"- {issue['file']}:{issue['line']} - {msg}")
+
+    error_message = state.get("error_message")
+    if error_message:
+        lines.append("")
+        lines.append(f"Reason: {error_message}")
+
+    lines.append("")
+    lines.append("Manual review required.")
+    return "\n".join(lines)
+
+
 def _build_error(state, tag):
     """Template 4: error."""
     journal = state["journal"]
@@ -160,7 +187,7 @@ def build_comment_body(state) -> str:
     elif outcome == "no_consensus":
         return _build_max_rounds(state, tag)
     elif outcome == "stalled":
-        return _build_max_rounds(state, tag)
+        return _build_stalled(state, tag)
     else:
         return _build_error(state, tag)
 

@@ -297,17 +297,19 @@ def test_build_comment_body_infers_consensus_from_status():
     assert "No actionable issues remain." in body
 
 
-# Test: build_comment_body infers "stalled" from status and uses _build_max_rounds
+# Test: build_comment_body infers "stalled" from status and uses stalled template
 def test_build_comment_body_infers_stalled_from_status():
     state = create_initial_state(
         repo="owner/repo", repo_root="/tmp/repo", pr_number=123,
         is_fork=False, head_sha="abc123", pr_branch_name="feat/test",
     )
     state["status"] = "stalled"
+    state["current_round"] = 2
+    state["error_message"] = "Stalled: 2 consecutive rounds with no progress"
     state["max_rounds"] = 10
-    # final_outcome is NOT set — should be inferred as "stalled" and use max_rounds template
+    # final_outcome is NOT set — should be inferred as "stalled"
     body = build_comment_body(state)
-    assert "Consensus was not reached after 10 rounds." in body
+    assert "Review stalled after 2 rounds." in body
+    assert "Stalled: 2 consecutive rounds with no progress" in body
+    assert "Consensus was not reached after 10 rounds." not in body
     assert "Manual review required." in body
-
-
