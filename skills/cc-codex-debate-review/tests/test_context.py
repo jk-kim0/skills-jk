@@ -197,6 +197,100 @@ def test_applicable_issues_dry_run_skips_code_application():
     assert result == []
 
 
+# --- build_potential_applicable_issues ---
+
+def test_potential_applicable_issues_includes_cross_verifier_findings():
+    """Cross-verifier's open findings should appear as potential applicable issues."""
+    from debate_review.context import build_potential_applicable_issues
+
+    state = _make_state()
+    init_round(state, round_num=1, synced_head_sha="abc123")
+    # Lead reports a finding
+    r1 = _add_finding(state, 1, agent="codex")
+    # Cross-verifier reports a new finding
+    r2 = _add_finding(state, 1, agent="cc", file="src/b.py", anchor="bar")
+    # Cross-verifier's finding is added to step2 (simulating upsert from step2)
+    round_ = state["rounds"][0]
+    round_["step2"]["report_ids"].append(r2["report_id"])
+    round_["step2"]["issue_ids_touched"].append(r2["issue_id"])
+
+    result = build_potential_applicable_issues(state, round_num=1)
+    issue_ids = [r["issue_id"] for r in result]
+    # Cross-verifier's issue (open, not yet consensus) should be included
+    assert r2["issue_id"] in issue_ids
+    # Lead's issue should NOT be included (not touched by cross-verifier)
+    assert r1["issue_id"] not in issue_ids
+
+
+def test_potential_applicable_issues_excludes_accepted():
+    """Issues already at consensus should not appear as potential."""
+    from debate_review.context import build_potential_applicable_issues
+
+    state = _make_state()
+    init_round(state, round_num=1, synced_head_sha="abc123")
+    # Lead reports a finding
+    _add_finding(state, 1, agent="codex")
+    # Cross-verifier reports its own finding (goes into step2)
+    r2 = _add_finding(state, 1, agent="cc", file="src/b.py", anchor="BAR", message="Cross issue")
+    round_ = state["rounds"][0]
+    round_["step2"]["report_ids"].append(r2["report_id"])
+    round_["step2"]["issue_ids_touched"].append(r2["issue_id"])
+    # Simulate consensus: both agents accepted → consensus_status = "accepted"
+    issue = state["issues"][r2["issue_id"]]
+    issue["accepted_by"] = ["cc", "codex"]
+    issue["consensus_status"] = "accepted"
+    result = build_potential_applicable_issues(state, round_num=1)
+    # Already accepted → should be in applicable_issues, not potential
+    assert result == []
+
+
+def test_potential_applicable_issues_ignores_non_cross_issue_ids_touched():
+    """Step2 bookkeeping must not leak lead-only issues into potential application."""
+    from debate_review.context import build_potential_applicable_issues
+
+    state = _make_state()
+    init_round(state, round_num=1, synced_head_sha="abc123")
+    lead = _add_finding(state, 1, agent="codex")
+    cross = _add_finding(state, 1, agent="cc", file="src/b.py", anchor="bar")
+
+    round_ = state["rounds"][0]
+    round_["step2"]["issue_ids_touched"].append(lead["issue_id"])
+    round_["step2"]["report_ids"].append(cross["report_id"])
+
+    result = build_potential_applicable_issues(state, round_num=1)
+    issue_ids = [entry["issue_id"] for entry in result]
+
+    assert cross["issue_id"] in issue_ids
+    assert lead["issue_id"] not in issue_ids
+
+
+def test_potential_applicable_issues_preserves_step2_report_order():
+    """Potential issues should be stable and follow step2 report order."""
+    from debate_review.context import build_potential_applicable_issues
+
+    state = _make_state()
+    init_round(state, round_num=1, synced_head_sha="abc123")
+    first = _add_finding(state, 1, agent="cc", file="src/a.py", anchor="a")
+    second = _add_finding(state, 1, agent="cc", file="src/b.py", anchor="b")
+    third = _add_finding(state, 1, agent="cc", file="src/c.py", anchor="c")
+
+    round_ = state["rounds"][0]
+    round_["step2"]["report_ids"] = [
+        third["report_id"],
+        first["report_id"],
+        second["report_id"],
+        first["report_id"],
+    ]
+
+    result = build_potential_applicable_issues(state, round_num=1)
+
+    assert [entry["issue_id"] for entry in result] == [
+        third["issue_id"],
+        first["issue_id"],
+        second["issue_id"],
+    ]
+
+
 # --- build_context (integration) ---
 
 def test_build_context_returns_all_keys():
