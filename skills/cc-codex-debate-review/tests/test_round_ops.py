@@ -18,7 +18,7 @@ def test_init_round_auto_lead_agent(sample_state):
     assert sample_state["rounds"][1]["lead_agent"] == "cc"  # even → cc
 
 
-def test_record_verdict_has_findings(sample_state):
+def test_record_verdict_auto_corrects_has_findings_without_issues(sample_state):
     init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
     result = record_verdict(sample_state, round_num=1, verdict="has_findings")
     assert result["clean_pass"] is True

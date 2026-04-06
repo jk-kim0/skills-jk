@@ -70,8 +70,7 @@ def record_verdict(state, *, round_num, verdict) -> dict:
     if verdict == "has_findings":
         has_new_findings = bool(round_.get("step1", {}).get("report_ids"))
         open_issues = [i for i in state["issues"].values() if i["consensus_status"] == "open"]
-        is_fork = state.get("is_fork", False)
-        excluded_statuses = {"applied", "recommended"} if is_fork else {"applied"}
+        excluded_statuses = {"applied"}
         accepted_unresolved = [
             i for i in state["issues"].values()
             if i["consensus_status"] == "accepted"
