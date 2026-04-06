@@ -2250,6 +2250,92 @@ def test_e2e_persistent_recovery_after_agent_loss(monkeypatch, tmp_path):
     )
 
 
+def test_dispatch_step_recovery_retries_codex_with_runtime(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    checkpoint_path = tmp_path / "checkpoint.json"
+    monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
+
+    state = _sample_state()
+    init_round(state, round_num=1, lead_agent="codex", synced_head_sha=state["head"]["last_observed_pr_sha"])
+    state["persistent_agents"]["cc_agent_id"] = "cc-session-1"
+    state["persistent_agents"]["codex_session_id"] = "codex-session-1"
+
+    cli = FakeCli(state, state_file=str(tmp_path / "state.json"))
+
+    class RuntimeRequiredCodexAdapter(CodexAdapter):
+        def __init__(self):
+            super().__init__()
+            self._should_fail_once = True
+            self.create_calls = []
+            self.send_calls = []
+
+        def create_session(self, prompt, *, worktree_path, sandbox):
+            self.create_calls.append((prompt, worktree_path, sandbox))
+            return f"codex-session-{len(self.create_calls) + 1}"
+
+        def send_message(self, session_id, message, *, worktree_path, runtime=None):
+            self.send_calls.append(
+                {
+                    "session_id": session_id,
+                    "runtime_present": runtime is not None,
+                }
+            )
+            if self._should_fail_once:
+                self._should_fail_once = False
+                raise OrchestrationError("codex session expired")
+            if runtime is None:
+                raise AssertionError("recovery retry must preserve runtime")
+            return {
+                "rebuttal_responses": [],
+                "withdrawals": [],
+                "findings": [],
+                "verdict": "no_findings_mergeable",
+                "_runtime": {
+                    "supervision": {
+                        "status": "completed",
+                        "last_event_kind": "turn_completed",
+                        "stall_level": "none",
+                    },
+                    "runtime_artifacts": {
+                        "stdout_event_log": str(tmp_path / "codex.stdout.jsonl"),
+                        "stderr_log": str(tmp_path / "codex.stderr.log"),
+                        "output_file": str(tmp_path / "codex.output.json"),
+                        "child_pid": 5252,
+                    },
+                },
+            }
+
+    codex = RuntimeRequiredCodexAdapter()
+    orchestrator = DebateReviewOrchestrator(
+        cli=cli,
+        adapters={"codex": codex, "cc": ScriptedAdapter("cc")},
+        skill_root=SKILL_ROOT,
+        config={"codex_sandbox": "danger-full-access"},
+        cleanup_worktree=False,
+    )
+    orchestrator.state_file = cli.state_file
+
+    round_ctx = {
+        "round": 1,
+        "lead_agent": "codex",
+        "cross_verifier": "cc",
+        "worktree_path": f"{state['repo_root']}/.worktrees/debate-pr-{state['pr_number']}",
+        "head_branch": state["head"]["pr_branch_name"],
+    }
+
+    checkpoint = orchestrator._dispatch_and_checkpoint(
+        step="step1",
+        agent="codex",
+        state=state,
+        round_ctx=round_ctx,
+    )
+
+    assert checkpoint["response"]["verdict"] == "no_findings_mergeable"
+    assert [call["runtime_present"] for call in codex.send_calls] == [True, True]
+    assert cli.state["persistent_agents"]["codex_session_id"] == "codex-session-2"
+
+
 def test_e2e_terminal_comment_no_comment_and_dry_run(monkeypatch, tmp_path):
     """Terminal: no_comment=True skips comment; dry_run=True also skips."""
     _patch_checkpoint(monkeypatch, tmp_path)

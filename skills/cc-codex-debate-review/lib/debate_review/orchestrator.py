@@ -1095,29 +1095,36 @@ class DebateReviewOrchestrator:
                 "command_spans": [prompt_span],
             },
         )
+        runtime_trace = None
+        if isinstance(adapter, AgentAdapter):
+            trace_state = self._load_state()
+            runtime_trace = next(
+                round_["step_traces"][trace_step]
+                for round_ in trace_state.get("rounds", [])
+                if round_.get("round") == round_ctx["round"]
+            )
+
+        def build_runtime(started_at: str) -> dict | None:
+            if runtime_trace is None:
+                return None
+            supervisor = StepSupervisor(agent=agent, started_at=started_at)
+            return {
+                "artifact_dir": _runtime_artifact_dir(self.state_file),
+                "step_id": runtime_trace["step_id"],
+                "dedupe_token": runtime_trace["dedupe_token"],
+                "supervisor": supervisor,
+                "on_snapshot": lambda snapshot: self.progress.step_status(
+                    snapshot["status"],
+                    last_event_kind=snapshot.get("last_event_kind"),
+                    last_event_age_seconds=snapshot.get("last_event_age_seconds"),
+                ),
+            }
+
         try:
             send_started = utc_now_iso()
             send_clock = time.monotonic()
-            runtime = None
-            if isinstance(adapter, AgentAdapter):
-                trace_state = self._load_state()
-                trace = next(
-                    round_["step_traces"][trace_step]
-                    for round_ in trace_state.get("rounds", [])
-                    if round_.get("round") == round_ctx["round"]
-                )
-                supervisor = StepSupervisor(agent=agent, started_at=step_started_at)
-                runtime = {
-                    "artifact_dir": _runtime_artifact_dir(self.state_file),
-                    "step_id": trace["step_id"],
-                    "dedupe_token": trace["dedupe_token"],
-                    "supervisor": supervisor,
-                    "on_snapshot": lambda snapshot: self.progress.step_status(
-                        snapshot["status"],
-                        last_event_kind=snapshot.get("last_event_kind"),
-                        last_event_age_seconds=snapshot.get("last_event_age_seconds"),
-                    ),
-                }
+            runtime = build_runtime(step_started_at)
+            if runtime is not None:
                 response = adapter.send_message(
                     handle,
                     message,
@@ -1196,7 +1203,16 @@ class DebateReviewOrchestrator:
             )
             send_started = utc_now_iso()
             send_clock = time.monotonic()
-            response = adapter.send_message(new_handle, message, worktree_path=round_ctx["worktree_path"])
+            recovery_runtime = build_runtime(send_started)
+            if recovery_runtime is not None:
+                response = adapter.send_message(
+                    new_handle,
+                    message,
+                    worktree_path=round_ctx["worktree_path"],
+                    runtime=recovery_runtime,
+                )
+            else:
+                response = adapter.send_message(new_handle, message, worktree_path=round_ctx["worktree_path"])
             send_completed = utc_now_iso()
             send_span = {
                 "name": "send_message",
@@ -1206,10 +1222,17 @@ class DebateReviewOrchestrator:
                 "status": "ok",
                 "recovered": True,
             }
+            runtime_meta = response.pop("_runtime", None) if isinstance(response, dict) else None
             dispatch = _extract_dispatch_metadata(response)
             patch = {"command_spans": [send_span], "dispatch": dispatch}
             if dispatch.get("subagent_log_path"):
                 patch["runtime_artifacts"] = {"subagent_log_path": dispatch["subagent_log_path"]}
+            if runtime_meta:
+                if runtime_meta.get("supervision"):
+                    patch["supervision"] = runtime_meta["supervision"]
+                if runtime_meta.get("runtime_artifacts"):
+                    patch.setdefault("runtime_artifacts", {})
+                    patch["runtime_artifacts"].update(runtime_meta["runtime_artifacts"])
             self.cli.record_step_trace(
                 self.state_file,
                 round_num=round_ctx["round"],
