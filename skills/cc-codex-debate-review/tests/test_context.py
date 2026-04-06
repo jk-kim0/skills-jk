@@ -237,6 +237,26 @@ def test_potential_applicable_issues_excludes_accepted():
     assert result == []
 
 
+def test_potential_applicable_issues_ignores_non_cross_issue_ids_touched():
+    """Step2 bookkeeping must not leak lead-only issues into potential application."""
+    from debate_review.context import build_potential_applicable_issues
+
+    state = _make_state()
+    init_round(state, round_num=1, synced_head_sha="abc123")
+    lead = _add_finding(state, 1, agent="codex")
+    cross = _add_finding(state, 1, agent="cc", file="src/b.py", anchor="bar")
+
+    round_ = state["rounds"][0]
+    round_["step2"]["issue_ids_touched"].append(lead["issue_id"])
+    round_["step2"]["report_ids"].append(cross["report_id"])
+
+    result = build_potential_applicable_issues(state, round_num=1)
+    issue_ids = [entry["issue_id"] for entry in result]
+
+    assert cross["issue_id"] in issue_ids
+    assert lead["issue_id"] not in issue_ids
+
+
 # --- build_context (integration) ---
 
 def test_build_context_returns_all_keys():

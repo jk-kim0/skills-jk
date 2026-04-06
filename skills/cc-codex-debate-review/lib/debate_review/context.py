@@ -269,8 +269,7 @@ def build_potential_applicable_issues(state, round_num):
     for r in state.get("rounds", []):
         if r["round"] == round_num:
             step2 = r.get("step2", {})
-            cross_issue_ids = set(step2.get("issue_ids_touched", []))
-            # Also include issues from cross-verifier's new findings (step2.report_ids)
+            cross_issue_ids = set()
             for rid in step2.get("report_ids", []):
                 rpt = _resolve_report(state, rid)
                 if rpt:
