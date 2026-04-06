@@ -11,13 +11,20 @@ from debate_review.application import (
 )
 from debate_review.cross_verification import record_cross_verification, resolve_rebuttals
 from debate_review.issue_ops import upsert_issue, withdraw_issue
-from debate_review.orchestrator import DebateReviewOrchestrator, OrchestrationError, SubprocessDebateCli
+from debate_review.orchestrator import (
+    CcAdapter,
+    CodexAdapter,
+    DebateReviewOrchestrator,
+    OrchestrationError,
+    SubprocessDebateCli,
+)
 from debate_review.round_ops import (
     init_round,
     mark_cross_verifier_clean_pass,
     record_verdict,
     settle_round,
 )
+from debate_review.runtime_supervision import StepSupervisor
 from debate_review.state import create_initial_state, mark_failed, save_state
 
 SKILL_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -348,6 +355,277 @@ def test_dispatch_step_persistent_records_trace_metadata(monkeypatch, tmp_path):
     assert trace["runtime_artifacts"]["subagent_log_path"] == str(output_real.resolve())
     assert trace["persistent_session"]["handle"] == "cc-session-1"
     assert [span["name"] for span in trace["command_spans"]] == ["build_prompt", "send_message"]
+
+
+def test_dispatch_step_records_runtime_supervision_summary(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    checkpoint_path = tmp_path / "checkpoint.json"
+    monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
+
+    state = _sample_state()
+    init_round(state, round_num=1, lead_agent="cc", synced_head_sha=state["head"]["last_observed_pr_sha"])
+    state["persistent_agents"]["cc_agent_id"] = "cc-session-1"
+    state["persistent_agents"]["codex_session_id"] = "codex-session-1"
+
+    cli = FakeCli(state, state_file=str(tmp_path / "state.json"))
+    cc = ScriptedAdapter(
+        "cc",
+        send=[{
+            "rebuttal_responses": [],
+            "withdrawals": [],
+            "findings": [],
+            "verdict": "no_findings_mergeable",
+            "_runtime": {
+                "supervision": {
+                    "status": "completed",
+                    "last_event_kind": "turn_completed",
+                    "stall_level": "none",
+                },
+                "runtime_artifacts": {
+                    "stdout_event_log": str(tmp_path / "stdout.jsonl"),
+                    "stderr_log": str(tmp_path / "stderr.log"),
+                },
+            },
+        }],
+    )
+    orchestrator = DebateReviewOrchestrator(
+        cli=cli,
+        adapters={"codex": ScriptedAdapter("codex"), "cc": cc},
+        skill_root=SKILL_ROOT,
+        config={"codex_sandbox": "danger-full-access"},
+        cleanup_worktree=False,
+    )
+    orchestrator.state_file = cli.state_file
+
+    round_ctx = {
+        "round": 1,
+        "lead_agent": "cc",
+        "cross_verifier": "codex",
+        "worktree_path": f"{state['repo_root']}/.worktrees/debate-pr-{state['pr_number']}",
+        "head_branch": state["head"]["pr_branch_name"],
+    }
+
+    orchestrator._dispatch_and_checkpoint(
+        step="step1",
+        agent="cc",
+        state=state,
+        round_ctx=round_ctx,
+    )
+
+    trace = cli.state["rounds"][0]["step_traces"]["step1_lead_review"]
+    assert trace["supervision"]["status"] == "completed"
+    assert trace["supervision"]["last_event_kind"] == "turn_completed"
+    assert trace["runtime_artifacts"]["stdout_event_log"] == str(tmp_path / "stdout.jsonl")
+
+
+def test_cc_adapter_send_message_streams_runtime_summary(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    def fake_run_stream(*, on_started, on_stdout_line, on_stderr_line, on_tick, **_kwargs):
+        on_started(4242)
+        on_stdout_line(json.dumps({"type": "system/init"}))
+        on_stdout_line(json.dumps({"type": "stream_event.message_start"}))
+        on_stdout_line(json.dumps({"type": "stream_event.content_block_delta", "delta": {"text": "partial"}}))
+        on_stdout_line(json.dumps({"type": "result", "result": '{"verdict":"no_findings_mergeable","findings":[]}'}))
+        return {
+            "returncode": 0,
+            "stdout_log_path": str(tmp_path / "cc.stdout.jsonl"),
+            "stderr_log_path": str(tmp_path / "cc.stderr.log"),
+            "child_pid": 4242,
+        }
+
+    monkeypatch.setattr(orchestrator_module, "_run_streaming_command", fake_run_stream)
+
+    snapshots = []
+    adapter = CcAdapter()
+    response = adapter.send_message(
+        "cc-session-1",
+        "message",
+        worktree_path=str(tmp_path),
+        runtime={
+            "artifact_dir": str(tmp_path),
+            "step_id": "round1-step1-lead-review-01",
+            "supervisor": StepSupervisor(agent="cc", started_at="2026-04-07T00:00:00+00:00"),
+            "on_snapshot": lambda snapshot: snapshots.append(snapshot),
+        },
+    )
+
+    assert response["verdict"] == "no_findings_mergeable"
+    assert any(snapshot["status"] == "thinking" for snapshot in snapshots)
+    assert response["_runtime"]["supervision"]["last_event_kind"] == "turn_completed"
+    assert response["_runtime"]["runtime_artifacts"]["child_pid"] == 4242
+
+
+def test_codex_adapter_send_message_reads_output_file(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    def fake_run_stream(*, output_file_path, on_started, on_stdout_line, on_stderr_line, on_tick, **_kwargs):
+        on_started(5252)
+        on_stdout_line(json.dumps({"type": "turn.started"}))
+        on_stdout_line(json.dumps({"type": "turn.completed"}))
+        output_file_path.write_text('{"verdict":"has_findings","findings":[]}')
+        return {
+            "returncode": 0,
+            "stdout_log_path": str(tmp_path / "codex.stdout.jsonl"),
+            "stderr_log_path": str(tmp_path / "codex.stderr.log"),
+            "child_pid": 5252,
+        }
+
+    monkeypatch.setattr(orchestrator_module, "_run_streaming_command", fake_run_stream)
+
+    adapter = CodexAdapter()
+    response = adapter.send_message(
+        "codex-session-1",
+        "message",
+        worktree_path=str(tmp_path),
+        runtime={
+            "artifact_dir": str(tmp_path),
+            "step_id": "round1-step2-cross-review-01",
+            "supervisor": StepSupervisor(agent="codex", started_at="2026-04-07T00:00:00+00:00"),
+            "on_snapshot": lambda _snapshot: None,
+        },
+    )
+
+    assert response["verdict"] == "has_findings"
+    assert response["_runtime"]["supervision"]["last_event_kind"] == "turn_completed"
+    assert response["_runtime"]["runtime_artifacts"]["output_file"].endswith(".output.json")
+
+
+def test_codex_adapter_send_message_prefers_output_file_over_intermediate_stdout(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    def fake_run_stream(*, output_file_path, on_started, on_stdout_line, on_stderr_line, on_tick, **_kwargs):
+        on_started(5252)
+        on_stdout_line(json.dumps({"type": "turn.started"}))
+        on_stdout_line(json.dumps({
+            "type": "item.completed",
+            "item": {
+                "type": "agent_message",
+                "text": '{"verdict":"has_findings","findings":[{"message":"stale"}]}',
+            },
+        }))
+        on_stdout_line(json.dumps({"type": "turn.completed"}))
+        output_file_path.write_text('{"verdict":"no_findings_mergeable","findings":[]}')
+        return {
+            "returncode": 0,
+            "stdout_log_path": str(tmp_path / "codex.stdout.jsonl"),
+            "stderr_log_path": str(tmp_path / "codex.stderr.log"),
+            "child_pid": 5252,
+        }
+
+    monkeypatch.setattr(orchestrator_module, "_run_streaming_command", fake_run_stream)
+
+    adapter = CodexAdapter()
+    response = adapter.send_message(
+        "codex-session-1",
+        "message",
+        worktree_path=str(tmp_path),
+        runtime={
+            "artifact_dir": str(tmp_path),
+            "step_id": "round1-step2-cross-review-01",
+            "supervisor": StepSupervisor(agent="codex", started_at="2026-04-07T00:00:00+00:00"),
+            "on_snapshot": lambda _snapshot: None,
+        },
+    )
+
+    assert response["verdict"] == "no_findings_mergeable"
+    assert response["findings"] == []
+
+
+def test_dispatch_step_uses_runtime_trace_even_when_step_trace_is_not_persisted(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    checkpoint_path = tmp_path / "checkpoint.json"
+    monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
+
+    state = _sample_state()
+    state["dry_run"] = True
+    init_round(state, round_num=1, lead_agent="codex", synced_head_sha=state["head"]["last_observed_pr_sha"])
+    state["persistent_agents"]["cc_agent_id"] = "cc-session-1"
+    state["persistent_agents"]["codex_session_id"] = "codex-session-1"
+
+    class NonPersistingTraceCli(FakeCli):
+        def record_step_trace(
+            self,
+            _state_file,
+            *,
+            round_num,
+            step_name,
+            agent=None,
+            started_at=None,
+            completed_at=None,
+            patch=None,
+        ):
+            self.record_step_trace_calls.append(
+                {
+                    "round": round_num,
+                    "step_name": step_name,
+                    "agent": agent,
+                    "started_at": started_at,
+                    "completed_at": completed_at,
+                    "patch": copy.deepcopy(patch),
+                }
+            )
+            attempt = 1
+            return {
+                "step": step_name,
+                "agent": agent or "codex",
+                "step_id": f"round{round_num}-{step_name.replace('_', '-')}-{attempt:02d}",
+                "dedupe_token": f"round{round_num}:{step_name}:round{round_num}-{step_name.replace('_', '-')}-{attempt:02d}",
+                "command_spans": [],
+            }
+
+    class RuntimeRequiredCodexAdapter(CodexAdapter):
+        def send_message(self, session_id, message, *, worktree_path, runtime=None):
+            if runtime is None:
+                raise AssertionError("runtime metadata should be available without persisted step trace")
+            return {
+                "rebuttal_responses": [],
+                "withdrawals": [],
+                "findings": [],
+                "verdict": "no_findings_mergeable",
+                "_runtime": {
+                    "supervision": {
+                        "status": "completed",
+                        "last_event_kind": "turn_completed",
+                        "stall_level": "none",
+                    },
+                    "runtime_artifacts": {
+                        "stdout_event_log": str(tmp_path / "codex.stdout.jsonl"),
+                        "stderr_log": str(tmp_path / "codex.stderr.log"),
+                        "output_file": str(tmp_path / "codex.output.json"),
+                        "child_pid": 5252,
+                    },
+                },
+            }
+
+    cli = NonPersistingTraceCli(state, state_file=str(tmp_path / "state.json"))
+    orchestrator = DebateReviewOrchestrator(
+        cli=cli,
+        adapters={"codex": RuntimeRequiredCodexAdapter(), "cc": ScriptedAdapter("cc")},
+        skill_root=SKILL_ROOT,
+        config={"codex_sandbox": "danger-full-access"},
+        cleanup_worktree=False,
+    )
+    orchestrator.state_file = cli.state_file
+
+    round_ctx = {
+        "round": 1,
+        "lead_agent": "codex",
+        "cross_verifier": "cc",
+        "worktree_path": f"{state['repo_root']}/.worktrees/debate-pr-{state['pr_number']}",
+        "head_branch": state["head"]["pr_branch_name"],
+    }
+
+    checkpoint = orchestrator._dispatch_and_checkpoint(
+        step="step1",
+        agent="codex",
+        state=state,
+        round_ctx=round_ctx,
+    )
+
+    assert checkpoint["response"]["verdict"] == "no_findings_mergeable"
 
 
 def test_dispatch_step_persistent_rehydrates_missing_round_with_subprocess_cli(monkeypatch, tmp_path):
@@ -2106,6 +2384,177 @@ def test_e2e_persistent_recovery_after_agent_loss(monkeypatch, tmp_path):
     assert "codex-session-2" in codex_send_session_ids, (
         f"Expected recovery handle 'codex-session-2' in send_calls, got: {codex_send_session_ids}"
     )
+
+
+def test_dispatch_step_recovery_retries_codex_with_runtime(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    checkpoint_path = tmp_path / "checkpoint.json"
+    monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
+
+    state = _sample_state()
+    init_round(state, round_num=1, lead_agent="codex", synced_head_sha=state["head"]["last_observed_pr_sha"])
+    state["persistent_agents"]["cc_agent_id"] = "cc-session-1"
+    state["persistent_agents"]["codex_session_id"] = "codex-session-1"
+
+    cli = FakeCli(state, state_file=str(tmp_path / "state.json"))
+
+    class RuntimeRequiredCodexAdapter(CodexAdapter):
+        def __init__(self):
+            super().__init__()
+            self._should_fail_once = True
+            self.create_calls = []
+            self.send_calls = []
+
+        def create_session(self, prompt, *, worktree_path, sandbox):
+            self.create_calls.append((prompt, worktree_path, sandbox))
+            return f"codex-session-{len(self.create_calls) + 1}"
+
+        def send_message(self, session_id, message, *, worktree_path, runtime=None):
+            self.send_calls.append(
+                {
+                    "session_id": session_id,
+                    "runtime_present": runtime is not None,
+                }
+            )
+            if self._should_fail_once:
+                self._should_fail_once = False
+                raise OrchestrationError("codex session expired")
+            if runtime is None:
+                raise AssertionError("recovery retry must preserve runtime")
+            return {
+                "rebuttal_responses": [],
+                "withdrawals": [],
+                "findings": [],
+                "verdict": "no_findings_mergeable",
+                "_runtime": {
+                    "supervision": {
+                        "status": "completed",
+                        "last_event_kind": "turn_completed",
+                        "stall_level": "none",
+                    },
+                    "runtime_artifacts": {
+                        "stdout_event_log": str(tmp_path / "codex.stdout.jsonl"),
+                        "stderr_log": str(tmp_path / "codex.stderr.log"),
+                        "output_file": str(tmp_path / "codex.output.json"),
+                        "child_pid": 5252,
+                    },
+                },
+            }
+
+    codex = RuntimeRequiredCodexAdapter()
+    orchestrator = DebateReviewOrchestrator(
+        cli=cli,
+        adapters={"codex": codex, "cc": ScriptedAdapter("cc")},
+        skill_root=SKILL_ROOT,
+        config={"codex_sandbox": "danger-full-access"},
+        cleanup_worktree=False,
+    )
+    orchestrator.state_file = cli.state_file
+
+    round_ctx = {
+        "round": 1,
+        "lead_agent": "codex",
+        "cross_verifier": "cc",
+        "worktree_path": f"{state['repo_root']}/.worktrees/debate-pr-{state['pr_number']}",
+        "head_branch": state["head"]["pr_branch_name"],
+    }
+
+    checkpoint = orchestrator._dispatch_and_checkpoint(
+        step="step1",
+        agent="codex",
+        state=state,
+        round_ctx=round_ctx,
+    )
+
+    assert checkpoint["response"]["verdict"] == "no_findings_mergeable"
+    assert [call["runtime_present"] for call in codex.send_calls] == [True, True]
+    assert cli.state["persistent_agents"]["codex_session_id"] == "codex-session-2"
+
+
+def test_dispatch_step_recovery_records_recovery_attempt_summary(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    checkpoint_path = tmp_path / "checkpoint.json"
+    monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
+
+    state = _sample_state()
+    init_round(state, round_num=1, lead_agent="codex", synced_head_sha=state["head"]["last_observed_pr_sha"])
+    state["persistent_agents"]["cc_agent_id"] = "cc-session-1"
+    state["persistent_agents"]["codex_session_id"] = "codex-session-1"
+
+    cli = FakeCli(state, state_file=str(tmp_path / "state.json"))
+
+    class RecoverySummaryCodexAdapter(CodexAdapter):
+        def __init__(self):
+            super().__init__()
+            self._should_fail_once = True
+            self.create_calls = []
+
+        def create_session(self, prompt, *, worktree_path, sandbox):
+            self.create_calls.append((prompt, worktree_path, sandbox))
+            return f"codex-session-{len(self.create_calls) + 1}"
+
+        def send_message(self, session_id, message, *, worktree_path, runtime=None):
+            if self._should_fail_once:
+                self._should_fail_once = False
+                raise OrchestrationError("codex session expired")
+            return {
+                "rebuttal_responses": [],
+                "withdrawals": [],
+                "findings": [],
+                "verdict": "no_findings_mergeable",
+                "_runtime": {
+                    "supervision": {
+                        "status": "completed",
+                        "last_event_kind": "turn_completed",
+                        "stall_level": "none",
+                        "recovery_attempts": [],
+                    },
+                    "runtime_artifacts": {
+                        "stdout_event_log": str(tmp_path / "codex.stdout.jsonl"),
+                        "stderr_log": str(tmp_path / "codex.stderr.log"),
+                        "output_file": str(tmp_path / "codex.output.json"),
+                        "child_pid": 5252,
+                    },
+                },
+            }
+
+    codex = RecoverySummaryCodexAdapter()
+    orchestrator = DebateReviewOrchestrator(
+        cli=cli,
+        adapters={"codex": codex, "cc": ScriptedAdapter("cc")},
+        skill_root=SKILL_ROOT,
+        config={"codex_sandbox": "danger-full-access"},
+        cleanup_worktree=False,
+    )
+    orchestrator.state_file = cli.state_file
+
+    round_ctx = {
+        "round": 1,
+        "lead_agent": "codex",
+        "cross_verifier": "cc",
+        "worktree_path": f"{state['repo_root']}/.worktrees/debate-pr-{state['pr_number']}",
+        "head_branch": state["head"]["pr_branch_name"],
+    }
+
+    orchestrator._dispatch_and_checkpoint(
+        step="step1",
+        agent="codex",
+        state=state,
+        round_ctx=round_ctx,
+    )
+
+    trace = cli.state["rounds"][0]["step_traces"]["step1_lead_review"]
+    assert trace["supervision"]["recovery_attempts"] == [
+        {
+            "kind": "session_recreate",
+            "started_at": trace["command_spans"][2]["completed_at"],
+            "completed_at": trace["command_spans"][2]["completed_at"],
+            "result": "started",
+            "reconcile_summary": "codex session expired",
+        }
+    ]
 
 
 def test_e2e_terminal_comment_no_comment_and_dry_run(monkeypatch, tmp_path):

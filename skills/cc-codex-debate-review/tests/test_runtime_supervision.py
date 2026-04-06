@@ -1,0 +1,114 @@
+"""Tests for runtime heartbeat and stall supervision."""
+
+from datetime import datetime, timedelta, timezone
+
+from debate_review.runtime_events import normalize_event
+from debate_review.runtime_supervision import StepSupervisor
+
+
+def _plus(base: str, seconds: int) -> str:
+    dt = datetime.fromisoformat(base)
+    return (dt + timedelta(seconds=seconds)).isoformat()
+
+
+def test_supervisor_transitions_from_awaiting_to_thinking():
+    base = "2026-04-07T00:00:00+00:00"
+    supervisor = StepSupervisor(agent="cc", started_at=base)
+
+    supervisor.mark_process_started(observed_at=base)
+    first = supervisor.snapshot(now=base)
+    assert first["status"] == "awaiting_first_event"
+
+    supervisor.on_event(
+        normalize_event(
+            "cc",
+            {"type": "stream_event.message_start"},
+            observed_at=_plus(base, 5),
+        )
+    )
+    snapshot = supervisor.snapshot(now=_plus(base, 5))
+
+    assert snapshot["status"] == "thinking"
+    assert snapshot["last_event_kind"] == "turn_started"
+    assert snapshot["stall_level"] == "none"
+
+
+def test_supervisor_marks_codex_suspected_stall_after_90s():
+    base = "2026-04-07T00:00:00+00:00"
+    supervisor = StepSupervisor(agent="codex", started_at=base)
+    supervisor.mark_process_started(observed_at=base)
+    supervisor.on_event(
+        normalize_event(
+            "codex",
+            {"type": "turn.started"},
+            observed_at=_plus(base, 1),
+        )
+    )
+
+    supervisor.evaluate(now=_plus(base, 92))
+    snapshot = supervisor.snapshot(now=_plus(base, 92))
+
+    assert snapshot["status"] == "suspected_stall"
+    assert snapshot["stall_level"] == "suspected"
+    assert snapshot["last_event_kind"] == "turn_started"
+
+
+def test_supervisor_records_recovery_attempt():
+    base = "2026-04-07T00:00:00+00:00"
+    supervisor = StepSupervisor(agent="cc", started_at=base)
+
+    supervisor.begin_recovery(
+        "session_recreate",
+        observed_at=_plus(base, 130),
+        result="started",
+        reconcile_summary="existing commit missing",
+    )
+    snapshot = supervisor.snapshot(now=_plus(base, 130))
+
+    assert snapshot["status"] == "recovering"
+    assert snapshot["recovery_attempts"][0]["kind"] == "session_recreate"
+    assert snapshot["recovery_attempts"][0]["reconcile_summary"] == "existing commit missing"
+
+
+def test_supervisor_treats_codex_command_activity_as_heartbeat():
+    base = "2026-04-07T00:00:00+00:00"
+    supervisor = StepSupervisor(agent="codex", started_at=base)
+    supervisor.mark_process_started(observed_at=base)
+    supervisor.on_event(
+        normalize_event(
+            "codex",
+            {"type": "turn.started"},
+            observed_at=_plus(base, 1),
+        )
+    )
+    supervisor.on_event(
+        normalize_event(
+            "codex",
+            {
+                "type": "item.started",
+                "item": {"type": "command_execution"},
+            },
+            observed_at=_plus(base, 95),
+        )
+    )
+
+    supervisor.evaluate(now=_plus(base, 181))
+    snapshot = supervisor.snapshot(now=_plus(base, 181))
+
+    assert snapshot["status"] != "suspected_stall"
+    assert snapshot["stall_level"] == "none"
+    assert snapshot["last_event_kind"] == "tool_activity"
+
+
+def test_supervisor_treats_recent_stderr_activity_as_alive():
+    base = "2026-04-07T00:00:00+00:00"
+    supervisor = StepSupervisor(agent="cc", started_at=base)
+
+    supervisor.mark_process_started(observed_at=base)
+    supervisor.on_stderr("still working", observed_at=_plus(base, 110))
+    supervisor.on_process_alive(observed_at=_plus(base, 120))
+    supervisor.evaluate(now=_plus(base, 121))
+    snapshot = supervisor.snapshot(now=_plus(base, 121))
+
+    assert snapshot["status"] == "idle_but_alive"
+    assert snapshot["stall_level"] == "none"

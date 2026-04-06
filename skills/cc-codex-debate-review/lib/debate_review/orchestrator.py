@@ -6,6 +6,7 @@ import subprocess
 import time
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 
 from debate_review.config import load_config
 from debate_review.context import (
@@ -24,6 +25,9 @@ from debate_review.progress import (
 )
 from debate_review.prompt import build_initial_prompt, prompt_file_path
 from debate_review.reporting import build_final_summary, export_debate_markdown
+from debate_review.runtime_events import extract_response_from_event, normalize_event
+from debate_review.runtime_stream import run_streaming_command
+from debate_review.runtime_supervision import StepSupervisor
 from debate_review.timing import utc_now_iso
 
 
@@ -181,6 +185,35 @@ def _run_command(command: str, *, cwd=None, stdin_text=None) -> str:
     return result.stdout
 
 
+def _run_streaming_command(
+    command: str,
+    *,
+    cwd=None,
+    stdin_text=None,
+    tick_interval=5.0,
+    on_started=None,
+    on_stdout_line=None,
+    on_stderr_line=None,
+    on_tick=None,
+    stdout_log_path=None,
+    stderr_log_path=None,
+    output_file_path=None,
+):
+    return run_streaming_command(
+        command,
+        cwd=cwd,
+        stdin_text=stdin_text,
+        tick_interval=tick_interval,
+        on_started=on_started,
+        on_stdout_line=on_stdout_line,
+        on_stderr_line=on_stderr_line,
+        on_tick=on_tick,
+        stdout_log_path=stdout_log_path,
+        stderr_log_path=stderr_log_path,
+        output_file_path=output_file_path,
+    )
+
+
 def _trace_step_name(step: str) -> str:
     return {
         "step1": "step1_lead_review",
@@ -280,13 +313,119 @@ class AgentAdapter:
         output = _run_command(command, cwd=worktree_path, stdin_text=message)
         return _parse_json_object(output)
 
+    def _stream_send_message(
+        self,
+        session_id: str,
+        message: str,
+        *,
+        worktree_path: str,
+        command: str,
+        runtime: dict,
+        output_file_path: Path | None = None,
+    ) -> dict:
+        artifact_dir = Path(runtime["artifact_dir"])
+        artifact_dir.mkdir(parents=True, exist_ok=True)
+        step_id = runtime["step_id"]
+        stdout_log_path = artifact_dir / f"{step_id}.{self.name}.stdout.jsonl"
+        stderr_log_path = artifact_dir / f"{step_id}.{self.name}.stderr.log"
+        supervisor: StepSupervisor = runtime["supervisor"]
+        on_snapshot = runtime.get("on_snapshot")
+        parsed_response = None
+
+        def emit_snapshot(snapshot: dict) -> None:
+            if on_snapshot is not None:
+                on_snapshot(snapshot)
+
+        def handle_started(pid: int) -> None:
+            emit_snapshot(supervisor.mark_process_started(observed_at=utc_now_iso()))
+
+        def handle_stdout_line(line: str) -> None:
+            nonlocal parsed_response
+            try:
+                raw_event = json.loads(line)
+            except json.JSONDecodeError:
+                return
+
+            event = normalize_event(self.name, raw_event, observed_at=utc_now_iso())
+            if event is not None:
+                emit_snapshot(supervisor.on_event(event))
+
+            response = extract_response_from_event(self.name, raw_event)
+            if response is not None:
+                parsed_response = response
+
+        def handle_stderr_line(line: str) -> None:
+            emit_snapshot(supervisor.on_stderr(line, observed_at=utc_now_iso()))
+
+        def handle_tick() -> None:
+            now = utc_now_iso()
+            snapshot = supervisor.on_process_alive(observed_at=now)
+            snapshot = supervisor.evaluate(now=now)
+            emit_snapshot(snapshot)
+            if snapshot["stall_level"] == "hard":
+                raise OrchestrationError(
+                    f"Hard stall detected while waiting for {self.name} session {session_id}"
+                )
+
+        result = _run_streaming_command(
+            command=command,
+            cwd=worktree_path,
+            stdin_text=message,
+            tick_interval=5.0,
+            on_started=handle_started,
+            on_stdout_line=handle_stdout_line,
+            on_stderr_line=handle_stderr_line,
+            on_tick=handle_tick,
+            stdout_log_path=str(stdout_log_path),
+            stderr_log_path=str(stderr_log_path),
+            output_file_path=output_file_path,
+        )
+
+        if result["returncode"] != 0:
+            raise OrchestrationError(
+                f"Command failed: {command}\nexit {result['returncode']}"
+            )
+
+        if output_file_path is not None and output_file_path.exists():
+            parsed_response = _read_json_file(str(output_file_path))
+
+        if parsed_response is None:
+            raise OrchestrationError(
+                f"Could not parse final JSON response from {self.name} runtime stream"
+            )
+
+        parsed_response["_runtime"] = {
+            "supervision": supervisor.snapshot(now=utc_now_iso()),
+            "runtime_artifacts": {
+                "stdout_event_log": str(stdout_log_path),
+                "stderr_log": str(stderr_log_path),
+                "output_file": str(output_file_path) if output_file_path is not None else None,
+                "child_pid": result["child_pid"],
+            },
+        }
+        return parsed_response
+
 
 class CodexAdapter(AgentAdapter):
     def __init__(self):
         super().__init__(
             name="codex",
             create_command="codex exec --json -s {sandbox} -",
-            send_command="codex exec resume {session_id} -",
+            send_command="codex exec resume --json {session_id} -",
+        )
+
+    def send_message(self, session_id: str, message: str, *, worktree_path: str, runtime: dict | None = None) -> dict:
+        if runtime is None:
+            return super().send_message(session_id, message, worktree_path=worktree_path)
+        output_file_path = Path(runtime["artifact_dir"]) / f"{runtime['step_id']}.{self.name}.output.json"
+        command = f"{self._format(self.send_command, session_id=session_id)} -o {shlex.quote(str(output_file_path))}"
+        return self._stream_send_message(
+            session_id,
+            message,
+            worktree_path=worktree_path,
+            command=command,
+            runtime=runtime,
+            output_file_path=output_file_path,
         )
 
 
@@ -427,16 +566,27 @@ def _is_non_owner_withdrawal_error(exc: OrchestrationError) -> bool:
 
 
 class CcAdapter(AgentAdapter):
+    _STREAM_FLAGS = " --output-format stream-json --verbose --include-partial-messages"
+
     def __init__(self):
         super().__init__(
             name="cc",
             create_command="claude -p --dangerously-skip-permissions --output-format stream-json --verbose",
-            send_command="claude -p --dangerously-skip-permissions --resume {session_id} --output-format json",
+            send_command="claude -p --dangerously-skip-permissions --output-format json --resume {session_id}",
         )
 
-    def send_message(self, session_id: str, message: str, *, worktree_path: str) -> dict:
-        command = self._format(self.send_command, session_id=session_id)
-        output = _run_command(command, cwd=worktree_path, stdin_text=message)
+    def send_message(self, session_id: str, message: str, *, worktree_path: str, runtime: dict | None = None) -> dict:
+        base_command = self._format(self.send_command, session_id=session_id)
+        if runtime is not None:
+            command = base_command + self._STREAM_FLAGS
+            return self._stream_send_message(
+                session_id,
+                message,
+                worktree_path=worktree_path,
+                command=command,
+                runtime=runtime,
+            )
+        output = _run_command(base_command, cwd=worktree_path, stdin_text=message)
         return _unwrap_cc_result(output)
 
 
@@ -708,6 +858,12 @@ def _json_text(payload) -> str:
     return json.dumps(payload, ensure_ascii=False, indent=2)
 
 
+def _runtime_artifact_dir(state_file: str) -> str:
+    path = os.path.join(os.path.dirname(state_file), "runtime")
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
 
 def _recovery_prompt(*, skill_root: str, state: dict, next_step: str) -> str:
     initial = build_initial_prompt(state, skill_root)
@@ -927,7 +1083,7 @@ class DebateReviewOrchestrator:
         sessions = self._load_state()["persistent_agents"]
         handle_key = "cc_agent_id" if agent == "cc" else "codex_session_id"
         handle = sessions.get(handle_key)
-        self.cli.record_step_trace(
+        trace = self.cli.record_step_trace(
             self.state_file,
             round_num=round_ctx["round"],
             step_name=trace_step,
@@ -942,10 +1098,49 @@ class DebateReviewOrchestrator:
                 "command_spans": [prompt_span],
             },
         )
+        def _load_runtime_trace() -> dict | None:
+            if not isinstance(adapter, AgentAdapter):
+                return None
+            trace_state = self._load_state()
+            return next(
+                (round_["step_traces"].get(trace_step)
+                 for round_ in trace_state.get("rounds", [])
+                 if round_.get("round") == round_ctx["round"]),
+                None,
+            )
+
+        def build_runtime(started_at: str, runtime_trace: dict | None = None) -> dict | None:
+            if not isinstance(adapter, AgentAdapter):
+                return None
+            runtime_trace = runtime_trace or _load_runtime_trace()
+            if runtime_trace is None:
+                return None
+            supervisor = StepSupervisor(agent=agent, started_at=started_at)
+            return {
+                "artifact_dir": _runtime_artifact_dir(self.state_file),
+                "step_id": runtime_trace["step_id"],
+                "dedupe_token": runtime_trace["dedupe_token"],
+                "supervisor": supervisor,
+                "on_snapshot": lambda snapshot: self.progress.step_status(
+                    snapshot["status"],
+                    last_event_kind=snapshot.get("last_event_kind"),
+                    last_event_age_seconds=snapshot.get("last_event_age_seconds"),
+                ),
+            }
+
         try:
             send_started = utc_now_iso()
             send_clock = time.monotonic()
-            response = adapter.send_message(handle, message, worktree_path=round_ctx["worktree_path"])
+            runtime = build_runtime(step_started_at, runtime_trace=trace)
+            if runtime is not None:
+                response = adapter.send_message(
+                    handle,
+                    message,
+                    worktree_path=round_ctx["worktree_path"],
+                    runtime=runtime,
+                )
+            else:
+                response = adapter.send_message(handle, message, worktree_path=round_ctx["worktree_path"])
             send_completed = utc_now_iso()
             send_span = {
                 "name": "send_message",
@@ -954,10 +1149,17 @@ class DebateReviewOrchestrator:
                 "duration_seconds": round(time.monotonic() - send_clock, 3),
                 "status": "ok",
             }
+            runtime_meta = response.pop("_runtime", None) if isinstance(response, dict) else None
             dispatch = _extract_dispatch_metadata(response)
             patch = {"command_spans": [send_span], "dispatch": dispatch}
             if dispatch.get("subagent_log_path"):
                 patch["runtime_artifacts"] = {"subagent_log_path": dispatch["subagent_log_path"]}
+            if runtime_meta:
+                if runtime_meta.get("supervision"):
+                    patch["supervision"] = runtime_meta["supervision"]
+                if runtime_meta.get("runtime_artifacts"):
+                    patch.setdefault("runtime_artifacts", {})
+                    patch["runtime_artifacts"].update(runtime_meta["runtime_artifacts"])
             self.cli.record_step_trace(
                 self.state_file,
                 round_num=round_ctx["round"],
@@ -1009,7 +1211,40 @@ class DebateReviewOrchestrator:
             )
             send_started = utc_now_iso()
             send_clock = time.monotonic()
-            response = adapter.send_message(new_handle, message, worktree_path=round_ctx["worktree_path"])
+            trace = self.cli.record_step_trace(
+                self.state_file,
+                round_num=round_ctx["round"],
+                step_name=trace_step,
+                agent=agent,
+                started_at=send_started,
+                patch={"persistent_session": {"handle_key": handle_key, "handle": new_handle}},
+            )
+            recovery_runtime = build_runtime(send_started, runtime_trace=trace)
+            recovery_snapshot = None
+            if recovery_runtime is not None:
+                recovery_snapshot = recovery_runtime["supervisor"].begin_recovery(
+                    "session_recreate",
+                    observed_at=create_completed,
+                    result="started",
+                    reconcile_summary=str(exc),
+                )
+                on_snapshot = recovery_runtime.get("on_snapshot")
+                if on_snapshot is not None:
+                    on_snapshot(recovery_snapshot)
+                self.cli.record_step_trace(
+                    self.state_file,
+                    round_num=round_ctx["round"],
+                    step_name=trace_step,
+                    patch={"supervision": recovery_snapshot},
+                )
+                response = adapter.send_message(
+                    new_handle,
+                    message,
+                    worktree_path=round_ctx["worktree_path"],
+                    runtime=recovery_runtime,
+                )
+            else:
+                response = adapter.send_message(new_handle, message, worktree_path=round_ctx["worktree_path"])
             send_completed = utc_now_iso()
             send_span = {
                 "name": "send_message",
@@ -1019,10 +1254,20 @@ class DebateReviewOrchestrator:
                 "status": "ok",
                 "recovered": True,
             }
+            runtime_meta = response.pop("_runtime", None) if isinstance(response, dict) else None
             dispatch = _extract_dispatch_metadata(response)
             patch = {"command_spans": [send_span], "dispatch": dispatch}
             if dispatch.get("subagent_log_path"):
                 patch["runtime_artifacts"] = {"subagent_log_path": dispatch["subagent_log_path"]}
+            if runtime_meta:
+                if runtime_meta.get("supervision"):
+                    supervision = dict(runtime_meta["supervision"])
+                    if recovery_snapshot is not None:
+                        supervision.pop("recovery_attempts", None)
+                    patch["supervision"] = supervision
+                if runtime_meta.get("runtime_artifacts"):
+                    patch.setdefault("runtime_artifacts", {})
+                    patch["runtime_artifacts"].update(runtime_meta["runtime_artifacts"])
             self.cli.record_step_trace(
                 self.state_file,
                 round_num=round_ctx["round"],
