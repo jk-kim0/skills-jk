@@ -29,6 +29,30 @@ def _build_debate_summary_lines(state):
     return lines
 
 
+def _unresolved_issues(state):
+    return [
+        issue
+        for issue in state["issues"].values()
+        if issue["consensus_status"] == "open"
+        or (
+            issue["consensus_status"] == "accepted"
+            and issue["application_status"] not in ("applied", "recommended")
+        )
+    ]
+
+
+def _append_unresolved_issue_section(lines, state):
+    unresolved = _unresolved_issues(state)
+    if not unresolved:
+        return
+
+    lines.append("")
+    lines.append("## Unresolved Issues")
+    for issue in unresolved:
+        msg = latest_report_message(issue)
+        lines.append(f"- {issue['file']}:{issue['line']} - {msg}")
+
+
 def _build_consensus(state, tag):
     """Template for consensus (same-repo and fork)."""
     is_fork = state.get("is_fork", False)
@@ -86,16 +110,7 @@ def _build_max_rounds(state, tag):
 
     lines.extend(_build_debate_summary_lines(state))
 
-    unresolved = [i for i in state["issues"].values()
-                  if i["consensus_status"] == "open"
-                  or (i["consensus_status"] == "accepted" and i["application_status"] not in ("applied", "recommended"))]
-
-    if unresolved:
-        lines.append("")
-        lines.append("## Unresolved Issues")
-        for issue in unresolved:
-            msg = latest_report_message(issue)
-            lines.append(f"- {issue['file']}:{issue['line']} - {msg}")
+    _append_unresolved_issue_section(lines, state)
 
     lines.append("")
     lines.append("Manual review required.")
@@ -108,16 +123,7 @@ def _build_stalled(state, tag):
 
     lines.extend(_build_debate_summary_lines(state))
 
-    unresolved = [i for i in state["issues"].values()
-                  if i["consensus_status"] == "open"
-                  or (i["consensus_status"] == "accepted" and i["application_status"] not in ("applied", "recommended"))]
-
-    if unresolved:
-        lines.append("")
-        lines.append("## Unresolved Issues")
-        for issue in unresolved:
-            msg = latest_report_message(issue)
-            lines.append(f"- {issue['file']}:{issue['line']} - {msg}")
+    _append_unresolved_issue_section(lines, state)
 
     error_message = state.get("error_message")
     if error_message:
@@ -133,21 +139,29 @@ def _build_error(state, tag):
     """Template 4: error."""
     journal = state["journal"]
     lines = [f"{tag} Review stopped due to an error."]
+    is_fork = state.get("is_fork", False)
 
     lines.extend(_build_debate_summary_lines(state))
 
     # Show applied fixes even on error — they represent real code changes
-    applied = [i for i in state["issues"].values() if i.get("application_status") == "applied"]
-    if applied:
+    fixes = [
+        issue
+        for issue in state["issues"].values()
+        if issue.get("application_status") == ("recommended" if is_fork else "applied")
+    ]
+    if fixes:
         lines.append("")
-        lines.append("## Applied Fixes")
-        for issue in applied:
+        lines.append("## Recommended Fixes" if is_fork else "## Applied Fixes")
+        for issue in fixes:
             reporter = _first_reporter(issue)
-            applier = issue.get("applied_by", "unknown")
             msg = latest_report_message(issue)
-            lines.append(
-                f"- {issue['file']}:{issue['line']} - (reported by {reporter}, applied by {applier}) {msg}"
-            )
+            if is_fork:
+                lines.append(f"- {issue['file']}:{issue['line']} - (reported by {reporter}) {msg}")
+            else:
+                applier = issue.get("applied_by", "unknown")
+                lines.append(
+                    f"- {issue['file']}:{issue['line']} - (reported by {reporter}, applied by {applier}) {msg}"
+                )
 
     # Show withdrawn findings
     withdrawn = [i for i in state["issues"].values() if i.get("consensus_status") == "withdrawn"]
