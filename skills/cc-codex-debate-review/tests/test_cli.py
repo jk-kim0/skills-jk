@@ -1086,6 +1086,28 @@ def test_cli_init_rejects_fork_pr(monkeypatch, capsys, tmp_path):
     assert "Fork PRs are not supported" in result["error"]
 
 
+def test_cli_init_accepts_bot_pr_with_empty_name_with_owner(monkeypatch, capsys, tmp_path):
+    """init should accept same-repo PRs where nameWithOwner is empty string (GitHub Actions bot)."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setattr("debate_review.cli.state_file_path", lambda *args: str(tmp_path / "state.json"))
+    monkeypatch.setattr(
+        "debate_review.cli.gh_json",
+        lambda *args: {
+            "headRefName": "feat/bot-pr",
+            "headRefOid": "abc123",
+            "headRepositoryOwner": {"login": "owner"},
+            "headRepository": {"nameWithOwner": ""},
+        },
+    )
+    monkeypatch.setattr("debate_review.cli._resolve_repo_root", lambda *args: str(tmp_path))
+    monkeypatch.setattr("debate_review.cli.load_config", lambda *args: {})
+    monkeypatch.setattr("debate_review.cli.save_state", lambda *args: None)
+    _run_cli(monkeypatch, ["init", "--repo", "owner/repo", "--pr", "42"])
+    result = json.loads(capsys.readouterr().out)
+    assert "error" not in result
+    assert result.get("status") == "created"
+
+
 def test_cli_init_rejects_same_owner_cross_repo_pr(monkeypatch, capsys, tmp_path):
     """init should reject cross-repo PRs even when the owner matches."""
     monkeypatch.setenv("HOME", str(tmp_path))
