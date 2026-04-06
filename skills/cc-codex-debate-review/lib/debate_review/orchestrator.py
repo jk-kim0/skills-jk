@@ -572,7 +572,7 @@ class CcAdapter(AgentAdapter):
         super().__init__(
             name="cc",
             create_command="claude -p --dangerously-skip-permissions --output-format stream-json --verbose",
-            send_command="claude -p --dangerously-skip-permissions --resume {session_id}",
+            send_command="claude -p --dangerously-skip-permissions --output-format json --resume {session_id}",
         )
 
     def send_message(self, session_id: str, message: str, *, worktree_path: str, runtime: dict | None = None) -> dict:
