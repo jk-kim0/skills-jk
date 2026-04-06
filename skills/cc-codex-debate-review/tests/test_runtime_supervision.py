@@ -69,3 +69,32 @@ def test_supervisor_records_recovery_attempt():
     assert snapshot["recovery_attempts"][0]["kind"] == "session_recreate"
     assert snapshot["recovery_attempts"][0]["reconcile_summary"] == "existing commit missing"
 
+
+def test_supervisor_treats_codex_command_activity_as_heartbeat():
+    base = "2026-04-07T00:00:00+00:00"
+    supervisor = StepSupervisor(agent="codex", started_at=base)
+    supervisor.mark_process_started(observed_at=base)
+    supervisor.on_event(
+        normalize_event(
+            "codex",
+            {"type": "turn.started"},
+            observed_at=_plus(base, 1),
+        )
+    )
+    supervisor.on_event(
+        normalize_event(
+            "codex",
+            {
+                "type": "item.started",
+                "item": {"type": "command_execution"},
+            },
+            observed_at=_plus(base, 95),
+        )
+    )
+
+    supervisor.evaluate(now=_plus(base, 181))
+    snapshot = supervisor.snapshot(now=_plus(base, 181))
+
+    assert snapshot["status"] != "suspected_stall"
+    assert snapshot["stall_level"] == "none"
+    assert snapshot["last_event_kind"] == "tool_activity"

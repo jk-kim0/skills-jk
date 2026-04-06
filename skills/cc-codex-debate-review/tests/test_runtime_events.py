@@ -60,3 +60,21 @@ def test_extract_response_from_codex_agent_message():
     assert response["verdict"] == "has_findings"
     assert response["findings"] == [{"severity": "warning"}]
 
+
+def test_normalize_codex_command_execution_activity():
+    event = normalize_event(
+        "codex",
+        {
+            "type": "item.started",
+            "item": {
+                "type": "command_execution",
+                "command": ["git", "status"],
+            },
+        },
+        observed_at="2026-04-07T00:00:07+00:00",
+    )
+
+    assert event["agent"] == "codex"
+    assert event["kind"] == "tool_activity"
+    assert event["display_status"] == "tool_activity"
+    assert event["heartbeat"] == "strong"

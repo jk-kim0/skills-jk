@@ -97,6 +97,7 @@ def normalize_event(agent: str, raw_event: dict, *, observed_at: str | None = No
     raw_type = _raw_type(raw_event)
 
     if agent == "codex":
+        item = raw_event.get("item", {})
         if raw_type == "thread.started":
             return {
                 "ts": observed_at,
@@ -123,7 +124,20 @@ def normalize_event(agent: str, raw_event: dict, *, observed_at: str | None = No
                 "heartbeat": "strong",
                 "meta": {},
             }
-        if raw_type == "item.completed" and raw_event.get("item", {}).get("type") == "agent_message":
+        if raw_type in {"item.started", "item.completed"} and item.get("type") == "command_execution":
+            return {
+                "ts": observed_at,
+                "agent": agent,
+                "phase": "stream",
+                "kind": "tool_activity",
+                "status": "active",
+                "display_status": "tool_activity",
+                "summary": item.get("type", "command_execution"),
+                "raw_type": raw_type,
+                "heartbeat": "strong",
+                "meta": {},
+            }
+        if raw_type == "item.completed" and item.get("type") == "agent_message":
             return {
                 "ts": observed_at,
                 "agent": agent,
@@ -260,4 +274,3 @@ def extract_response_from_event(agent: str, raw_event: dict) -> dict | None:
             return _parse_json_object(item.get("text"))
 
     return None
-
