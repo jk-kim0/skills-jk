@@ -121,6 +121,12 @@ def _collect_touched_issue_ids(round_):
     return touched
 
 
+def mark_cross_verifier_clean_pass(state, *, round_num):
+    """Mark that the cross-verifier also found no issues in this round."""
+    round_ = _find_round(state, round_num)
+    round_.setdefault("step2", {})["cross_verifier_clean_pass"] = True
+
+
 def settle_round(state, *, round_num) -> dict:
     round_ = _find_round(state, round_num)
     if round_["status"] != "active":

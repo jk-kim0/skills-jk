@@ -526,9 +526,8 @@ def cmd_settle_round(args):
     state["journal"]["step"] = "step4_settle"
     record_step_timing(state, "step4_settle")
     if args.cross_verifier_clean_pass:
-        from debate_review.round_ops import _find_round
-        round_ = _find_round(state, args.round)
-        round_.setdefault("step2", {})["cross_verifier_clean_pass"] = True
+        from debate_review.round_ops import mark_cross_verifier_clean_pass
+        mark_cross_verifier_clean_pass(state, round_num=args.round)
     result = settle_round(state, round_num=args.round)
     if result.get("result") in ("consensus_reached", "max_rounds_exceeded", "stalled"):
         terminate_agents(state)
