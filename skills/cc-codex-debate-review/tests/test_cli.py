@@ -389,6 +389,29 @@ def test_cli_valueerror_json_exit(monkeypatch, capsys, state_path):
     assert "error_log" not in result
 
 
+def test_cli_settle_round_terminates_agents_on_terminal_result(monkeypatch, capsys, state_path):
+    calls = []
+
+    def fake_settle_round(state, *, round_num):
+        return {"round": round_num, "result": "stalled"}
+
+    def fake_terminate_agents(state):
+        calls.append(state["journal"]["step"])
+        return {"cc_killed": 1, "codex_killed": 1}
+
+    monkeypatch.setattr("debate_review.cli.settle_round", fake_settle_round)
+    monkeypatch.setattr("debate_review.cli.terminate_agents", fake_terminate_agents)
+
+    _run_cli(monkeypatch, [
+        "settle-round", "--state-file", state_path,
+        "--round", "1",
+    ])
+
+    result = json.loads(capsys.readouterr().out)
+    assert result["result"] == "stalled"
+    assert calls == ["step4_settle"]
+
+
 def test_cli_mark_failed_saves_error_log(monkeypatch, capsys, state_path, tmp_path):
     """mark-failed should save an error log and return error_log path."""
     calls = []
@@ -435,6 +458,26 @@ def test_cli_mark_failed_without_failed_command(monkeypatch, capsys, state_path,
     assert result["status"] == "failed"
     assert "error_log" in result
     assert calls == ["unknown"]
+
+
+def test_cli_mark_failed_terminates_agents(monkeypatch, capsys, state_path):
+    calls = []
+
+    def fake_terminate_agents(state):
+        calls.append(state["status"])
+        return {"cc_killed": 1, "codex_killed": 1}
+
+    monkeypatch.setattr("debate_review.cli.terminate_agents", fake_terminate_agents)
+    monkeypatch.setattr("debate_review.cli.save_error_log", lambda **kwargs: None)
+
+    _run_cli(monkeypatch, [
+        "mark-failed", "--state-file", state_path,
+        "--error-message", "agent crashed",
+    ])
+
+    result = json.loads(capsys.readouterr().out)
+    assert result["status"] == "failed"
+    assert calls == ["failed"]
 
 
 # Test 10: Invalid JSON in --verifications
@@ -767,6 +810,22 @@ def test_cli_mark_failed(monkeypatch, capsys, state_path):
     assert state["status"] == "failed"
     assert state["final_outcome"] == "error"
     assert state["error_message"] == "Codex parse failure"
+
+
+def test_cli_terminate_agents_command_calls_helper(monkeypatch, capsys, state_path):
+    calls = []
+
+    def fake_terminate_agents(state):
+        calls.append(state["repo"])
+        return {"cc_killed": 2, "codex_killed": 3}
+
+    monkeypatch.setattr("debate_review.cli.terminate_agents", fake_terminate_agents)
+
+    _run_cli(monkeypatch, ["terminate-agents", "--state-file", state_path])
+
+    result = json.loads(capsys.readouterr().out)
+    assert result == {"cc_killed": 2, "codex_killed": 3}
+    assert calls == ["owner/repo"]
 
 
 def test_cli_append_ledger(monkeypatch, capsys, state_path):
