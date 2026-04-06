@@ -80,13 +80,17 @@ def _ensure_step_trace(state: dict, *, round_num: int, step_name: str) -> dict:
     return trace
 
 
+def _step_slug(step_name: str) -> str:
+    return step_name.replace("_", "-")
+
+
 def _merge_trace(trace: dict, patch: dict) -> dict:
     for key, value in patch.items():
         if value is None:
             continue
-        if key == "command_spans":
-            trace.setdefault("command_spans", [])
-            trace["command_spans"].extend(deepcopy(value))
+        if key in {"command_spans", "recovery_attempts"}:
+            trace.setdefault(key, [])
+            trace[key].extend(deepcopy(value))
             continue
         existing = trace.get(key)
         if isinstance(existing, dict) and isinstance(value, dict):
@@ -109,6 +113,9 @@ def start_step_trace(
     trace = _ensure_step_trace(state, round_num=round_num, step_name=step_name)
     trace.setdefault("agent", agent)
     trace.setdefault("started_at", started)
+    trace.setdefault("step_id", f"round{round_num}-{_step_slug(step_name)}-01")
+    trace.setdefault("dedupe_token", f"round{round_num}:{step_name}:{trace['step_id']}")
+    trace.setdefault("supervision", {"recovery_attempts": []})
     if patch:
         _merge_trace(trace, patch)
     state["journal"]["current_step_trace"] = {
@@ -116,6 +123,8 @@ def start_step_trace(
         "step": step_name,
         "agent": trace.get("agent"),
         "started_at": trace["started_at"],
+        "step_id": trace["step_id"],
+        "dedupe_token": trace["dedupe_token"],
     }
     return trace
 

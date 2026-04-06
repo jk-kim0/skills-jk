@@ -40,3 +40,7 @@ Before substantial work, state one short line:
 - why they were selected
 - in what order (if multiple)
 
+## Completion Workflow
+- After finishing work, do not stop at local changes only.
+- If there is no existing PR for the work branch, commit, push, and create a PR by default.
+- If there is already an existing PR for the work branch, commit and push by default.

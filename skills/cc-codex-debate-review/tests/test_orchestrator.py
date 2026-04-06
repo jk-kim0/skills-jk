@@ -11,13 +11,20 @@ from debate_review.application import (
 )
 from debate_review.cross_verification import record_cross_verification, resolve_rebuttals
 from debate_review.issue_ops import upsert_issue, withdraw_issue
-from debate_review.orchestrator import DebateReviewOrchestrator, OrchestrationError, SubprocessDebateCli
+from debate_review.orchestrator import (
+    CcAdapter,
+    CodexAdapter,
+    DebateReviewOrchestrator,
+    OrchestrationError,
+    SubprocessDebateCli,
+)
 from debate_review.round_ops import (
     init_round,
     mark_cross_verifier_clean_pass,
     record_verdict,
     settle_round,
 )
+from debate_review.runtime_supervision import StepSupervisor
 from debate_review.state import create_initial_state, mark_failed, save_state
 
 SKILL_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -348,6 +355,141 @@ def test_dispatch_step_persistent_records_trace_metadata(monkeypatch, tmp_path):
     assert trace["runtime_artifacts"]["subagent_log_path"] == str(output_real.resolve())
     assert trace["persistent_session"]["handle"] == "cc-session-1"
     assert [span["name"] for span in trace["command_spans"]] == ["build_prompt", "send_message"]
+
+
+def test_dispatch_step_records_runtime_supervision_summary(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    checkpoint_path = tmp_path / "checkpoint.json"
+    monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
+
+    state = _sample_state()
+    init_round(state, round_num=1, lead_agent="cc", synced_head_sha=state["head"]["last_observed_pr_sha"])
+    state["persistent_agents"]["cc_agent_id"] = "cc-session-1"
+    state["persistent_agents"]["codex_session_id"] = "codex-session-1"
+
+    cli = FakeCli(state, state_file=str(tmp_path / "state.json"))
+    cc = ScriptedAdapter(
+        "cc",
+        send=[{
+            "rebuttal_responses": [],
+            "withdrawals": [],
+            "findings": [],
+            "verdict": "no_findings_mergeable",
+            "_runtime": {
+                "supervision": {
+                    "status": "completed",
+                    "last_event_kind": "turn_completed",
+                    "stall_level": "none",
+                },
+                "runtime_artifacts": {
+                    "stdout_event_log": str(tmp_path / "stdout.jsonl"),
+                    "stderr_log": str(tmp_path / "stderr.log"),
+                },
+            },
+        }],
+    )
+    orchestrator = DebateReviewOrchestrator(
+        cli=cli,
+        adapters={"codex": ScriptedAdapter("codex"), "cc": cc},
+        skill_root=SKILL_ROOT,
+        config={"codex_sandbox": "danger-full-access"},
+        cleanup_worktree=False,
+    )
+    orchestrator.state_file = cli.state_file
+
+    round_ctx = {
+        "round": 1,
+        "lead_agent": "cc",
+        "cross_verifier": "codex",
+        "worktree_path": f"{state['repo_root']}/.worktrees/debate-pr-{state['pr_number']}",
+        "head_branch": state["head"]["pr_branch_name"],
+    }
+
+    orchestrator._dispatch_and_checkpoint(
+        step="step1",
+        agent="cc",
+        state=state,
+        round_ctx=round_ctx,
+    )
+
+    trace = cli.state["rounds"][0]["step_traces"]["step1_lead_review"]
+    assert trace["supervision"]["status"] == "completed"
+    assert trace["supervision"]["last_event_kind"] == "turn_completed"
+    assert trace["runtime_artifacts"]["stdout_event_log"] == str(tmp_path / "stdout.jsonl")
+
+
+def test_cc_adapter_send_message_streams_runtime_summary(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    def fake_run_stream(*, on_started, on_stdout_line, on_stderr_line, on_tick, **_kwargs):
+        on_started(4242)
+        on_stdout_line(json.dumps({"type": "system/init"}))
+        on_stdout_line(json.dumps({"type": "stream_event.message_start"}))
+        on_stdout_line(json.dumps({"type": "stream_event.content_block_delta", "delta": {"text": "partial"}}))
+        on_stdout_line(json.dumps({"type": "result", "result": '{"verdict":"no_findings_mergeable","findings":[]}'}))
+        return {
+            "returncode": 0,
+            "stdout_log_path": str(tmp_path / "cc.stdout.jsonl"),
+            "stderr_log_path": str(tmp_path / "cc.stderr.log"),
+            "child_pid": 4242,
+        }
+
+    monkeypatch.setattr(orchestrator_module, "_run_streaming_command", fake_run_stream)
+
+    snapshots = []
+    adapter = CcAdapter()
+    response = adapter.send_message(
+        "cc-session-1",
+        "message",
+        worktree_path=str(tmp_path),
+        runtime={
+            "artifact_dir": str(tmp_path),
+            "step_id": "round1-step1-lead-review-01",
+            "supervisor": StepSupervisor(agent="cc", started_at="2026-04-07T00:00:00+00:00"),
+            "on_snapshot": lambda snapshot: snapshots.append(snapshot),
+        },
+    )
+
+    assert response["verdict"] == "no_findings_mergeable"
+    assert any(snapshot["status"] == "thinking" for snapshot in snapshots)
+    assert response["_runtime"]["supervision"]["last_event_kind"] == "turn_completed"
+    assert response["_runtime"]["runtime_artifacts"]["child_pid"] == 4242
+
+
+def test_codex_adapter_send_message_reads_output_file(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    def fake_run_stream(*, output_file_path, on_started, on_stdout_line, on_stderr_line, on_tick, **_kwargs):
+        on_started(5252)
+        on_stdout_line(json.dumps({"type": "turn.started"}))
+        on_stdout_line(json.dumps({"type": "turn.completed"}))
+        output_file_path.write_text('{"verdict":"has_findings","findings":[]}')
+        return {
+            "returncode": 0,
+            "stdout_log_path": str(tmp_path / "codex.stdout.jsonl"),
+            "stderr_log_path": str(tmp_path / "codex.stderr.log"),
+            "child_pid": 5252,
+        }
+
+    monkeypatch.setattr(orchestrator_module, "_run_streaming_command", fake_run_stream)
+
+    adapter = CodexAdapter()
+    response = adapter.send_message(
+        "codex-session-1",
+        "message",
+        worktree_path=str(tmp_path),
+        runtime={
+            "artifact_dir": str(tmp_path),
+            "step_id": "round1-step2-cross-review-01",
+            "supervisor": StepSupervisor(agent="codex", started_at="2026-04-07T00:00:00+00:00"),
+            "on_snapshot": lambda _snapshot: None,
+        },
+    )
+
+    assert response["verdict"] == "has_findings"
+    assert response["_runtime"]["supervision"]["last_event_kind"] == "turn_completed"
+    assert response["_runtime"]["runtime_artifacts"]["output_file"].endswith(".output.json")
 
 
 def test_dispatch_step_persistent_rehydrates_missing_round_with_subprocess_cli(monkeypatch, tmp_path):

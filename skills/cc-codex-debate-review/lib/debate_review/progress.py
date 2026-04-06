@@ -22,7 +22,7 @@ def _format_elapsed(seconds: float) -> str:
 class ProgressReporter:
     """Writes debate progress and content to stderr."""
 
-    TICK_INTERVAL = 30  # seconds
+    TICK_INTERVAL = 5  # seconds
 
     def __init__(self, file=None):
         self._file = file or sys.stderr
@@ -32,6 +32,9 @@ class ProgressReporter:
         self._lock = threading.Lock()
         self._running = False
         self._token = 0
+        self._status: str | None = None
+        self._last_event_kind: str | None = None
+        self._last_event_monotonic: float | None = None
 
     def _write(self, text: str) -> None:
         self._file.write(text + "\n")
@@ -50,6 +53,9 @@ class ProgressReporter:
         self._stop_timer()
         self._step_label = f"[{step}] {agent} {action}"
         self._step_start = time.monotonic()
+        self._status = None
+        self._last_event_kind = None
+        self._last_event_monotonic = None
         with self._lock:
             self._running = True
             self._token += 1
@@ -91,7 +97,36 @@ class ProgressReporter:
         self._write(f"{outcome} after {rounds} rounds ({duration})")
         self._write(f"applied: {applied} | withdrawn: {withdrawn} | unresolved: {unresolved}")
 
+    def step_status(
+        self,
+        status: str,
+        *,
+        last_event_kind: str | None = None,
+        last_event_age_seconds: float | None = None,
+        force: bool = False,
+    ) -> None:
+        now = time.monotonic()
+        changed = (
+            force
+            or status != self._status
+            or last_event_kind != self._last_event_kind
+        )
+        self._status = status
+        self._last_event_kind = last_event_kind
+        if last_event_age_seconds is not None:
+            self._last_event_monotonic = now - last_event_age_seconds
+        if changed:
+            self._write(self._render_status_line(now))
+
     # ── timer ──
+
+    def _render_status_line(self, now: float) -> str:
+        elapsed = now - self._step_start
+        line = f"{self._step_label}... status={self._status} elapsed={_format_elapsed(elapsed)}"
+        if self._last_event_kind and self._last_event_monotonic is not None:
+            age = max(0.0, now - self._last_event_monotonic)
+            line += f" last_event={self._last_event_kind} {int(age)}s ago"
+        return line
 
     def _start_timer(self, token: int | None = None) -> None:
         with self._lock:
@@ -108,8 +143,12 @@ class ProgressReporter:
             active_token = self._token if token is None else token
             if not self._running or active_token != self._token:
                 return
-            elapsed = time.monotonic() - self._step_start
-            line = f"{self._step_label}... ({_format_elapsed(elapsed)})"
+            now = time.monotonic()
+            if self._status:
+                line = self._render_status_line(now)
+            else:
+                elapsed = now - self._step_start
+                line = f"{self._step_label}... ({_format_elapsed(elapsed)})"
         self._write(line)
         self._start_timer(active_token)
 

@@ -113,6 +113,31 @@ def test_step_done_stops_timer():
     assert pr._timer is None
 
 
+def test_step_status_change_prints_immediately():
+    buf = io.StringIO()
+    pr = ProgressReporter(file=buf)
+    pr.step_start("Step1", "codex", "lead review")
+    pr.step_status("thinking", last_event_kind="turn_started", last_event_age_seconds=0)
+    pr._stop_timer()
+
+    output = buf.getvalue()
+    assert "status=thinking" in output
+    assert "last_event=turn_started" in output
+
+
+def test_tick_line_includes_last_event_age():
+    buf = io.StringIO()
+    pr = ProgressReporter(file=buf)
+    pr.step_start("Step1", "cc", "lead review")
+    pr.step_status("streaming_output", last_event_kind="assistant_delta", last_event_age_seconds=2)
+    pr._tick()
+    pr._stop_timer()
+
+    tick_lines = [line for line in buf.getvalue().splitlines() if "status=streaming_output" in line]
+    assert tick_lines
+    assert any("last_event=assistant_delta" in line for line in tick_lines)
+
+
 def test_step_done_during_tick_does_not_reschedule(monkeypatch):
     buf = io.StringIO()
     pr = ProgressReporter(file=buf)

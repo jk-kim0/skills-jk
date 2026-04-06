@@ -94,6 +94,52 @@ def test_step_trace_lifecycle_persists_per_round(sample_state):
     assert len(trace["command_spans"]) == 1
 
 
+def test_start_step_trace_assigns_step_id_and_dedupe_token(sample_state):
+    init_round(sample_state, round_num=1, lead_agent="cc", synced_head_sha="abc")
+
+    trace = start_step_trace(
+        sample_state,
+        round_num=1,
+        step_name="step3_lead_apply",
+        agent="cc",
+        started_at="2026-04-04T00:00:00+00:00",
+    )
+
+    assert trace["step_id"] == "round1-step3-lead-apply-01"
+    assert trace["dedupe_token"] == "round1:step3_lead_apply:round1-step3-lead-apply-01"
+
+
+def test_update_step_trace_merges_supervision_summary(sample_state):
+    init_round(sample_state, round_num=1, lead_agent="cc", synced_head_sha="abc")
+    start_step_trace(
+        sample_state,
+        round_num=1,
+        step_name="step1_lead_review",
+        agent="cc",
+        started_at="2026-04-04T00:00:00+00:00",
+    )
+
+    update_step_trace(
+        sample_state,
+        round_num=1,
+        step_name="step1_lead_review",
+        patch={
+            "supervision": {
+                "status": "thinking",
+                "last_event_kind": "turn_started",
+                "recovery_attempts": [
+                    {"kind": "client_retry", "result": "success"},
+                ],
+            }
+        },
+    )
+
+    trace = sample_state["rounds"][0]["step_traces"]["step1_lead_review"]
+    assert trace["supervision"]["status"] == "thinking"
+    assert trace["supervision"]["last_event_kind"] == "turn_started"
+    assert trace["supervision"]["recovery_attempts"][0]["kind"] == "client_retry"
+
+
 # --- Round-level timing ---
 
 def test_init_round_sets_started_at(sample_state):
