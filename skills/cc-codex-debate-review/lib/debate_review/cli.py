@@ -316,7 +316,17 @@ def cmd_init(args):
     else:
         # Terminal state — use terminal_sha for session identity
         existing_sha = existing["head"].get("terminal_sha") or existing["head"]["last_observed_pr_sha"]
-        if existing_sha == head_sha:
+        # Also collect known commit SHAs from rounds (agent's own pushes)
+        known_shas = {existing_sha}
+        for r in existing.get("rounds", []):
+            cs = r.get("step3", {}).get("commit_sha")
+            if cs:
+                known_shas.add(cs)
+        jcs = existing.get("journal", {}).get("commit_sha")
+        if jcs:
+            known_shas.add(jcs)
+
+        if head_sha in known_shas:
             checkpoint_path = _orchestrator_checkpoint_path(state_path)
             if os.path.exists(checkpoint_path) and existing["status"] in ("failed",):
                 existing["status"] = "in_progress"
