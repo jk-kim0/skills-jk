@@ -12,7 +12,12 @@ from debate_review.application import (
 from debate_review.cross_verification import record_cross_verification, resolve_rebuttals
 from debate_review.issue_ops import upsert_issue, withdraw_issue
 from debate_review.orchestrator import DebateReviewOrchestrator, OrchestrationError, SubprocessDebateCli
-from debate_review.round_ops import init_round, record_verdict, settle_round
+from debate_review.round_ops import (
+    init_round,
+    mark_cross_verifier_clean_pass,
+    record_verdict,
+    settle_round,
+)
 from debate_review.state import create_initial_state, mark_failed, save_state
 
 SKILL_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -100,6 +105,10 @@ class FakeCli:
 
     def record_cross_verification(self, _state_file, *, round_num, verifications):
         return record_cross_verification(self.state, round_num=round_num, verifications=verifications)
+
+    def mark_cross_verifier_clean_pass(self, _state_file, *, round_num):
+        mark_cross_verifier_clean_pass(self.state, round_num=round_num)
+        return {"round": round_num, "cross_verifier_clean_pass": True}
 
     def record_application(self, _state_file, *, round_num, applied_issues=None, failed_issues=None, commit_sha=None, verify_push=False):
         self.record_application_calls.append(
@@ -906,6 +915,102 @@ def test_route_step1_checkpoint_normalizes_issue_id_rebuttal_responses(monkeypat
     }]
 
 
+def test_route_step1_checkpoint_clean_pass_still_goes_to_step2(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    checkpoint_path = tmp_path / "checkpoint.json"
+    monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
+
+    state = _sample_state()
+    init_round(state, round_num=1, synced_head_sha=state["head"]["last_observed_pr_sha"])
+
+    cli = FakeCli(state, state_file=str(tmp_path / "state.json"))
+    orchestrator = DebateReviewOrchestrator(
+        cli=cli,
+        adapters={"codex": ScriptedAdapter("codex"), "cc": ScriptedAdapter("cc")},
+        skill_root=SKILL_ROOT,
+        config={"codex_sandbox": "danger-full-access"},
+        cleanup_worktree=False,
+    )
+    orchestrator.state_file = cli.state_file
+
+    checkpoint = {
+        "step": "step1",
+        "round": 1,
+        "agent": "codex",
+        "response": {
+            "rebuttal_responses": [],
+            "withdrawals": [],
+            "findings": [],
+            "verdict": "no_findings_mergeable",
+        },
+        "progress": {
+            "rebuttals_done": False,
+            "withdrawals_done": 0,
+            "findings_done": 0,
+            "verdict_done": False,
+        },
+    }
+
+    next_step = orchestrator._route_step1_checkpoint(checkpoint, {
+        "round": 1,
+        "lead_agent": "codex",
+        "cross_verifier": "cc",
+        "worktree_path": "/tmp/repo/.worktrees/debate-pr-123",
+        "head_branch": "feat/test",
+    })
+
+    assert next_step == "step2"
+
+
+def test_route_step2_checkpoint_clean_pass_without_findings_goes_to_step4(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    checkpoint_path = tmp_path / "checkpoint.json"
+    monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
+
+    state = _sample_state()
+    init_round(state, round_num=1, synced_head_sha=state["head"]["last_observed_pr_sha"])
+    record_verdict(state, round_num=1, verdict="no_findings_mergeable")
+
+    cli = FakeCli(state, state_file=str(tmp_path / "state.json"))
+    orchestrator = DebateReviewOrchestrator(
+        cli=cli,
+        adapters={"codex": ScriptedAdapter("codex"), "cc": ScriptedAdapter("cc")},
+        skill_root=SKILL_ROOT,
+        config={"codex_sandbox": "danger-full-access"},
+        cleanup_worktree=False,
+    )
+    orchestrator.state_file = cli.state_file
+
+    checkpoint = {
+        "step": "step2",
+        "round": 1,
+        "agent": "cc",
+        "response": {
+            "cross_verifications": [],
+            "withdrawals": [],
+            "findings": [],
+        },
+        "progress": {
+            "verifications_done": False,
+            "withdrawals_done": 0,
+            "findings_done": 0,
+        },
+    }
+
+    next_step = orchestrator._route_step2_checkpoint(checkpoint, {
+        "round": 1,
+        "lead_agent": "codex",
+        "cross_verifier": "cc",
+        "worktree_path": "/tmp/repo/.worktrees/debate-pr-123",
+        "head_branch": "feat/test",
+    })
+
+    assert next_step == "step4"
+    assert state["rounds"][0]["step2"]["cross_verifier_clean_pass"] is True
+
+
 def test_route_step1_checkpoint_maps_issue_id_to_pending_rebuttal_report(monkeypatch, tmp_path):
     import debate_review.orchestrator as orchestrator_module
 
@@ -1483,7 +1588,10 @@ def test_run_resumed_checkpoint_replays_step_summary(monkeypatch, tmp_path):
 
     orchestrator = DebateReviewOrchestrator(
         cli=cli,
-        adapters={"codex": ScriptedAdapter("codex"), "cc": ScriptedAdapter("cc")},
+        adapters={
+            "codex": ScriptedAdapter("codex"),
+            "cc": ScriptedAdapter("cc", send=[{"cross_verifications": [], "withdrawals": [], "findings": []}]),
+        },
         skill_root=SKILL_ROOT,
         config={"codex_sandbox": "danger-full-access"},
         cleanup_worktree=False,
@@ -1493,7 +1601,7 @@ def test_run_resumed_checkpoint_replays_step_summary(monkeypatch, tmp_path):
 
     result = orchestrator.run(repo="owner/repo", pr_number=123)
 
-    assert result["result"] == "max_rounds_exceeded"
+    assert result["result"] == "consensus_reached"
     assert progress.round_calls == [(1, "codex", "cc")]
     assert progress.step_done_calls[0][:3] == ("Step1", "codex", "lead review")
     assert progress.content_calls[0][-1] == "verdict: no_findings_mergeable"
@@ -1890,8 +1998,8 @@ def test_e2e_code_apply_and_push_verify(monkeypatch, tmp_path):
     assert any(c["applied_issues"] is not None for c in app_calls)  # phase1
     assert any(c["commit_sha"] is not None for c in app_calls)  # phase2
     assert any(c["verify_push"] for c in app_calls)  # phase3
-    # 3 rounds completed
-    assert len(cli.state["rounds"]) == 3
+    # Same-round clean pass consensus now completes in round 2
+    assert len(cli.state["rounds"]) == 2
 
 
 def test_e2e_supersede_by_external_push(monkeypatch, tmp_path):

@@ -584,3 +584,24 @@ def test_record_verdict_has_findings_with_open_issues_is_not_corrected(sample_st
     result = record_verdict(sample_state, round_num=1, verdict="has_findings")
     assert result["verdict"] == "has_findings"
     assert result["clean_pass"] is False
+
+
+def test_settle_same_round_consensus_with_cross_verifier_clean_pass(sample_state):
+    """Consensus in a single round when both lead and cross-verifier give clean pass (#212)."""
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    record_verdict(sample_state, round_num=1, verdict="no_findings_mergeable")
+    # Mark cross-verifier clean pass (Step 2 ran and found nothing)
+    sample_state["rounds"][0]["step2"]["cross_verifier_clean_pass"] = True
+    result = settle_round(sample_state, round_num=1)
+    assert result["result"] == "consensus_reached"
+    assert sample_state["status"] == "consensus_reached"
+    assert sample_state["final_outcome"] == "consensus"
+
+
+def test_settle_no_same_round_consensus_without_cross_verifier(sample_state):
+    """Without cross-verifier confirmation, single clean pass should continue."""
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    record_verdict(sample_state, round_num=1, verdict="no_findings_mergeable")
+    # cross_verifier_clean_pass NOT set (Step 2 was not run)
+    result = settle_round(sample_state, round_num=1)
+    assert result["result"] == "continue"

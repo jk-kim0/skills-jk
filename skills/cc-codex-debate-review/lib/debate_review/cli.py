@@ -19,7 +19,12 @@ from debate_review.application import (
 )
 from debate_review.cross_verification import record_cross_verification, resolve_rebuttals
 from debate_review.issue_ops import upsert_issue, withdraw_issue
-from debate_review.round_ops import init_round, record_verdict, settle_round
+from debate_review.round_ops import (
+    init_round,
+    mark_cross_verifier_clean_pass,
+    record_verdict,
+    settle_round,
+)
 from debate_review.comment import post_comment
 from debate_review.sync import sync_head
 from debate_review.error_log import save_error_log
@@ -86,6 +91,15 @@ def build_parser() -> argparse.ArgumentParser:
     p_settle = subparsers.add_parser("settle-round")
     p_settle.add_argument("--state-file", required=True)
     p_settle.add_argument("--round", type=int, required=True)
+    p_settle.add_argument("--cross-verifier-clean-pass", action="store_true",
+                          help="Cross-verifier also found no issues (enables same-round consensus)")
+
+    p_mark_clean = subparsers.add_parser(
+        "mark-cross-verifier-clean-pass",
+        help="Persist same-round cross-verifier clean pass before settlement",
+    )
+    p_mark_clean.add_argument("--state-file", required=True)
+    p_mark_clean.add_argument("--round", type=int, required=True)
 
     # record-cross-verification subcommand
     p_xcv = subparsers.add_parser("record-cross-verification")
@@ -523,11 +537,26 @@ def cmd_settle_round(args):
         return
     state["journal"]["step"] = "step4_settle"
     record_step_timing(state, "step4_settle")
+    if args.cross_verifier_clean_pass:
+        from debate_review.round_ops import mark_cross_verifier_clean_pass
+        mark_cross_verifier_clean_pass(state, round_num=args.round)
     result = settle_round(state, round_num=args.round)
     if result.get("result") in ("consensus_reached", "max_rounds_exceeded", "stalled"):
         terminate_agents(state)
     save_state(state, args.state_file)
     print(json.dumps(result))
+
+
+def cmd_mark_cross_verifier_clean_pass(args):
+    state = load_state(args.state_file)
+    if state is None:
+        _error_exit(f"No state file found at {args.state_file}")
+    if state.get("dry_run"):
+        print(json.dumps(_dry_run_skip(state, command="mark-cross-verifier-clean-pass", round=args.round)))
+        return
+    mark_cross_verifier_clean_pass(state, round_num=args.round)
+    save_state(state, args.state_file)
+    print(json.dumps({"round": args.round, "cross_verifier_clean_pass": True}))
 
 
 def cmd_record_cross_verification(args):
@@ -790,6 +819,7 @@ def main():
         "upsert-issue": cmd_upsert_issue,
         "record-verdict": cmd_record_verdict,
         "settle-round": cmd_settle_round,
+        "mark-cross-verifier-clean-pass": cmd_mark_cross_verifier_clean_pass,
         "record-cross-verification": cmd_record_cross_verification,
         "resolve-rebuttals": cmd_resolve_rebuttals,
         "record-application": cmd_record_application,

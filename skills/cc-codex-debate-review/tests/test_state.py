@@ -237,18 +237,29 @@ def test_next_step_from_step1_has_findings(sample_state):
 
 
 def test_next_step_from_step1_clean_pass(sample_state):
+    """Clean pass now proceeds to step2 for cross-verifier confirmation (#212)."""
     from debate_review.round_ops import init_round, record_verdict
     init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
     record_verdict(sample_state, round_num=1, verdict="no_findings_mergeable")
     sample_state["journal"]["step"] = "step1_lead_review"
     result = determine_next_step(sample_state)
-    assert result["next_step"] == "step4"
+    assert result["next_step"] == "step2"
     assert result["resume_context"]["clean_pass"] is True
 
 
 def test_next_step_from_step2(sample_state):
     sample_state["journal"]["step"] = "step2_cross_review"
     assert determine_next_step(sample_state)["next_step"] == "step3"
+
+
+def test_next_step_from_step2_cross_verifier_clean_pass(sample_state):
+    from debate_review.round_ops import init_round, record_verdict
+
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    record_verdict(sample_state, round_num=1, verdict="no_findings_mergeable")
+    sample_state["rounds"][0]["step2"]["cross_verifier_clean_pass"] = True
+    sample_state["journal"]["step"] = "step2_cross_review"
+    assert determine_next_step(sample_state)["next_step"] == "step4"
 
 
 def test_next_step_from_step3_phase1(sample_state):
