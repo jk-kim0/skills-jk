@@ -70,6 +70,8 @@ def run_streaming_command(
                 try:
                     channel, line = events.get(timeout=timeout)
                 except queue.Empty:
+                    if all(completed_streams.values()) and process.poll() is not None:
+                        break
                     if process.poll() is None and on_tick is not None:
                         on_tick()
                     next_tick = time.monotonic() + tick_interval
