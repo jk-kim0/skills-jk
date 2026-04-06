@@ -554,6 +554,13 @@ class SubprocessDebateCli:
             "--verifications", json.dumps(verifications, ensure_ascii=False),
         )
 
+    def mark_cross_verifier_clean_pass(self, state_file: str, *, round_num: int) -> dict:
+        return self._run_json(
+            "mark-cross-verifier-clean-pass",
+            "--state-file", state_file,
+            "--round", str(round_num),
+        )
+
     def record_application(
         self,
         state_file: str,
@@ -1096,7 +1103,7 @@ class DebateReviewOrchestrator:
             verdict_result = {"clean_pass": any(r["round"] == round_ctx["round"] and r.get("clean_pass") for r in state.get("rounds", []))}
 
         self._clear_checkpoint()
-        return "step4" if verdict_result.get("clean_pass") else "step2"
+        return "step2"
 
     def _route_step2_checkpoint(self, checkpoint: dict, round_ctx: dict) -> str:
         response = checkpoint["response"]
@@ -1131,6 +1138,21 @@ class DebateReviewOrchestrator:
             self._save_checkpoint(checkpoint)
 
         self._route_findings(checkpoint=checkpoint, agent=round_ctx["cross_verifier"], round_num=round_ctx["round"])
+        state = self._load_state()
+        round_data = next((r for r in state.get("rounds", []) if r["round"] == round_ctx["round"]), None)
+        if (
+            round_data
+            and round_data.get("clean_pass")
+            and not response.get("cross_verifications")
+            and not response.get("withdrawals")
+            and not response.get("findings")
+        ):
+            self.cli.mark_cross_verifier_clean_pass(
+                self.state_file,
+                round_num=round_ctx["round"],
+            )
+            self._clear_checkpoint()
+            return "step4"
         self._clear_checkpoint()
         return "step3"
 

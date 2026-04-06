@@ -138,7 +138,17 @@ def determine_next_step(state) -> dict:
             result["next_step"] = "step2"
             result["resume_context"] = {"clean_pass": round_data.get("clean_pass", False)}
     elif step == "step2_cross_review":
-        result["next_step"] = "step3"
+        current_round_num = journal.get("round", state["current_round"])
+        round_data = None
+        for r in state["rounds"]:
+            if r["round"] == current_round_num:
+                round_data = r
+                break
+        step2 = round_data.get("step2", {}) if round_data else {}
+        if round_data and round_data.get("clean_pass") and step2.get("cross_verifier_clean_pass"):
+            result["next_step"] = "step4"
+        else:
+            result["next_step"] = "step3"
     elif step == "step3_lead_apply":
         phase1_recorded = journal.get("phase1_completed", False)
         if journal.get("push_verified"):
