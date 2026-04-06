@@ -128,6 +128,8 @@ def settle_round(state, *, round_num) -> dict:
                 and set(issue.get("accepted_by", [])) >= {"cc", "codex"}):
             issue["consensus_status"] = "accepted"
             issue["consensus_reason"] = None
+            if is_fork:
+                issue["application_status"] = "recommended"
 
     # Calculate unresolved_issue_ids
     unresolved_issue_ids = []
