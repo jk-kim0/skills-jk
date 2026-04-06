@@ -628,6 +628,134 @@ def test_route_step3_checkpoint_recovers_commit_sha_from_local_head(monkeypatch,
     assert not checkpoint_path.exists()
 
 
+def test_route_step3_checkpoint_skips_repush_when_commit_already_on_remote(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    checkpoint_path = tmp_path / "checkpoint.json"
+    monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
+
+    commands = []
+
+    def fake_run(command, *, cwd=None, stdin_text=None):
+        commands.append(command)
+        if command == "git fetch origin":
+            return ""
+        if command == "git branch -r --contains cafebabe12345678":
+            return "  origin/feat/test\n"
+        raise AssertionError(f"unexpected command: {command}")
+
+    monkeypatch.setattr(orchestrator_module, "_run_command", fake_run)
+
+    state = _sample_state()
+    init_round(state, round_num=1, synced_head_sha=state["head"]["last_observed_pr_sha"])
+    state["issues"]["isu_001"] = {
+        "issue_id": "isu_001",
+        "issue_key": "criterion:6|file:src/app.py|anchor:line1|kind:unused_variable",
+        "opened_by": "codex",
+        "introduced_in_round": 1,
+        "criterion": 6,
+        "file": "src/app.py",
+        "line": 1,
+        "anchor": "line1",
+        "severity": "warning",
+        "consensus_status": "accepted",
+        "application_status": "pending",
+        "accepted_by": ["cc", "codex"],
+        "rejected_by": [],
+        "applied_by": None,
+        "application_commit_sha": None,
+        "consensus_reason": None,
+        "reports": [
+            {
+                "report_id": "rpt_001",
+                "agent": "codex",
+                "round": 1,
+                "severity": "warning",
+                "message": "unused variable x",
+                "reported_at": "2026-04-04T00:00:00+00:00",
+                "status": "open",
+            }
+        ],
+        "created_at": "2026-04-04T00:00:00+00:00",
+        "updated_at": "2026-04-04T00:00:00+00:00",
+    }
+
+    cli = FakeCli(state, state_file=str(tmp_path / "state.json"), init_status="resumed", next_step="step3")
+    original_record_application = cli.record_application
+    verify_attempts = {"count": 0}
+
+    def flaky_record_application(_state_file, *, round_num, applied_issues=None, failed_issues=None, commit_sha=None, verify_push=False):
+        if verify_push and verify_attempts["count"] == 0:
+            verify_attempts["count"] += 1
+            cli.record_application_calls.append(
+                {
+                    "round": round_num,
+                    "applied_issues": applied_issues,
+                    "failed_issues": failed_issues,
+                    "commit_sha": commit_sha,
+                    "verify_push": verify_push,
+                }
+            )
+            raise OrchestrationError("head mismatch")
+        return original_record_application(
+            _state_file,
+            round_num=round_num,
+            applied_issues=applied_issues,
+            failed_issues=failed_issues,
+            commit_sha=commit_sha,
+            verify_push=verify_push,
+        )
+
+    cli.record_application = flaky_record_application
+
+    orchestrator = DebateReviewOrchestrator(
+        cli=cli,
+        adapters={"codex": ScriptedAdapter("codex"), "cc": ScriptedAdapter("cc")},
+        skill_root=SKILL_ROOT,
+        config={"codex_sandbox": "danger-full-access"},
+        cleanup_worktree=False,
+    )
+    orchestrator.state_file = cli.state_file
+
+    checkpoint = {
+        "step": "step3",
+        "round": 1,
+        "agent": "codex",
+        "response": {
+            "rebuttal_decisions": [],
+            "cross_finding_evaluations": [],
+            "application_result": {
+                "applied_issues": ["isu_001"],
+                "failed_issues": [],
+                "commit_sha": "cafebabe12345678",
+            },
+        },
+        "progress": {
+            "withdrawals_done": 0,
+            "decisions_done": True,
+            "phase1_done": False,
+            "phase2_done": False,
+            "phase3_done": False,
+        },
+    }
+
+    next_step = orchestrator._route_step3_checkpoint(checkpoint, {
+        "round": 1,
+        "lead_agent": "codex",
+        "cross_verifier": "cc",
+        "worktree_path": "/tmp/repo/.worktrees/debate-pr-123",
+        "head_branch": "feat/test",
+    })
+
+    assert next_step == "step4"
+    assert commands == [
+        "git fetch origin",
+        "git branch -r --contains cafebabe12345678",
+    ]
+    assert cli.record_application_calls[-1]["verify_push"] is True
+    assert cli.state["issues"]["isu_001"]["application_commit_sha"] == "cafebabe12345678"
+
+
 def test_route_step1_checkpoint_ignores_non_owner_withdrawal_error(monkeypatch, tmp_path):
     import debate_review.orchestrator as orchestrator_module
 
