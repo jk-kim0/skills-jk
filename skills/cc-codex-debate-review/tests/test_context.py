@@ -89,17 +89,6 @@ def test_open_issues_includes_accepted_not_applied():
     assert len(result) == 1
 
 
-def test_open_issues_fork_excludes_recommended():
-    state = _make_state(is_fork=True)
-    init_round(state, round_num=1, synced_head_sha="abc123")
-    res = _add_finding(state, 1)
-    issue = state["issues"][res["issue_id"]]
-    issue["consensus_status"] = "accepted"
-    issue["application_status"] = "recommended"
-    result = build_open_issues(state)
-    assert len(result) == 0
-
-
 # --- build_debate_ledger_text ---
 
 def test_debate_ledger_empty():
@@ -195,17 +184,6 @@ def test_applicable_issues_excludes_applied():
     issue["application_status"] = "applied"
     result = build_applicable_issues(state)
     assert len(result) == 0
-
-
-def test_applicable_issues_fork_skips_code_application():
-    state = _make_state(is_fork=True)
-    init_round(state, round_num=1, synced_head_sha="abc123")
-    res = _add_finding(state, 1)
-    issue = state["issues"][res["issue_id"]]
-    issue["consensus_status"] = "accepted"
-    issue["application_status"] = "pending"
-    result = build_applicable_issues(state)
-    assert result == []
 
 
 def test_applicable_issues_dry_run_skips_code_application():

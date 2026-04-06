@@ -70,7 +70,6 @@ def record_verdict(state, *, round_num, verdict) -> dict:
     clean_pass = False
     if verdict == "no_findings_mergeable":
         issues = state["issues"]
-        is_fork = state.get("is_fork", False)
 
         open_issues = [i for i in issues.values() if i["consensus_status"] == "open"]
         if open_issues:
@@ -79,24 +78,14 @@ def record_verdict(state, *, round_num, verdict) -> dict:
             )
 
         accepted_issues = [i for i in issues.values() if i["consensus_status"] == "accepted"]
-        if is_fork:
-            not_recommended = [
-                i for i in accepted_issues if i["application_status"] != "recommended"
-            ]
-            if not_recommended:
-                raise ValueError(
-                    f"verdict=no_findings_mergeable but {len(not_recommended)} accepted issue(s) "
-                    f"not yet recommended"
-                )
-        else:
-            not_applied = [
-                i for i in accepted_issues if i["application_status"] != "applied"
-            ]
-            if not_applied:
-                raise ValueError(
-                    f"verdict=no_findings_mergeable but {len(not_applied)} accepted issue(s) "
-                    f"not yet applied"
-                )
+        not_applied = [
+            i for i in accepted_issues if i["application_status"] != "applied"
+        ]
+        if not_applied:
+            raise ValueError(
+                f"verdict=no_findings_mergeable but {len(not_applied)} accepted issue(s) "
+                f"not yet applied"
+            )
 
         clean_pass = True
 
@@ -120,7 +109,6 @@ def settle_round(state, *, round_num) -> dict:
     round_["completed_at"] = datetime.now(timezone.utc).isoformat()
 
     issues = state["issues"]
-    is_fork = state.get("is_fork", False)
 
     # TODO(#207): remove after root cause of consensus_status/accepted_by
     # inconsistency is identified. See _recalculate_accepted_by path.
@@ -136,29 +124,16 @@ def settle_round(state, *, round_num) -> dict:
             issue["consensus_reason"] = (
                 "auto-corrected: both agents accepted but status was open"
             )
-            if is_fork:
-                issue["application_status"] = "recommended"
 
     # Calculate unresolved_issue_ids
     unresolved_issue_ids = []
     for iid, issue in issues.items():
         cs = issue["consensus_status"]
         app = issue["application_status"]
-        if is_fork:
-            if cs == "open":
-                unresolved_issue_ids.append(iid)
-        else:
-            if cs == "open" or (cs == "accepted" and app != "applied"):
-                unresolved_issue_ids.append(iid)
+        if cs == "open" or (cs == "accepted" and app != "applied"):
+            unresolved_issue_ids.append(iid)
 
-    # Calculate recommendation_issue_ids (fork only)
-    recommendation_issue_ids = []
-    if is_fork:
-        for iid, issue in issues.items():
-            if issue["consensus_status"] == "accepted" and issue["application_status"] == "recommended":
-                recommendation_issue_ids.append(iid)
-
-    round_["step4"]["recommendation_issue_ids"] = recommendation_issue_ids
+    round_["step4"]["recommendation_issue_ids"] = []
 
     # Collect issues that were settled (withdrawn/accepted) during this round
     # Skip if the latest ledger entry for this issue has same status AND same round
@@ -253,7 +228,7 @@ def settle_round(state, *, round_num) -> dict:
             "round": round_num,
             "result": "consensus_reached",
             "unresolved_issue_ids": unresolved_issue_ids,
-            "recommendation_issue_ids": recommendation_issue_ids,
+            "recommendation_issue_ids": [],
             "settled_issues": settled_issues,
         }
     elif stall_count >= 2:
@@ -271,7 +246,7 @@ def settle_round(state, *, round_num) -> dict:
             "result": "stalled",
             "stall_count": stall_count,
             "unresolved_issue_ids": unresolved_issue_ids,
-            "recommendation_issue_ids": recommendation_issue_ids,
+            "recommendation_issue_ids": [],
             "settled_issues": settled_issues,
         }
     elif max_rounds_exceeded:
@@ -284,7 +259,7 @@ def settle_round(state, *, round_num) -> dict:
             "round": round_num,
             "result": "max_rounds_exceeded",
             "unresolved_issue_ids": unresolved_issue_ids,
-            "recommendation_issue_ids": recommendation_issue_ids,
+            "recommendation_issue_ids": [],
             "settled_issues": settled_issues,
         }
     else:
@@ -296,7 +271,7 @@ def settle_round(state, *, round_num) -> dict:
             "result": "continue",
             "next_round": state["current_round"],
             "unresolved_issue_ids": unresolved_issue_ids,
-            "recommendation_issue_ids": recommendation_issue_ids,
+            "recommendation_issue_ids": [],
             "settled_issues": settled_issues,
         }
         if no_progress:

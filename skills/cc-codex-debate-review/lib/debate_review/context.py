@@ -109,7 +109,6 @@ def build_review_context(state, round_num):
 def build_open_issues(state):
     """Build {OPEN_ISSUES} list — unresolved issues for current state."""
     issues = state.get("issues", {})
-    is_fork = state.get("is_fork", False)
     result = []
     for iid, issue in issues.items():
         cs = issue.get("consensus_status")
@@ -117,11 +116,8 @@ def build_open_issues(state):
         include = False
         if cs == "open":
             include = True
-        elif cs == "accepted":
-            if is_fork and app != "recommended":
-                include = True
-            elif not is_fork and app != "applied":
-                include = True
+        elif cs == "accepted" and app != "applied":
+            include = True
         if include:
             result.append({
                 "issue_id": iid,
@@ -243,7 +239,7 @@ def build_cross_findings(state, round_num):
 
 def build_applicable_issues(state):
     """Build {APPLICABLE_ISSUES} — issues ready for code application."""
-    if state.get("is_fork") or state.get("dry_run"):
+    if state.get("dry_run"):
         return []
 
     result = []

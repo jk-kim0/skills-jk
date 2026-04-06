@@ -283,6 +283,8 @@ def cmd_init(args):
     head_repo_owner = pr_data["headRepositoryOwner"]["login"]
     repo_owner = repo.split("/")[0]
     is_fork = head_repo_owner != repo_owner
+    if is_fork:
+        _error_exit("Fork PRs are not supported. Only same-repo (clone) PRs are allowed.")
 
     repo_root = _resolve_repo_root(repo, args.repo_root)
 

@@ -54,21 +54,14 @@ def _append_unresolved_issue_section(lines, state):
 
 
 def _build_consensus(state, tag):
-    """Template for consensus (same-repo and fork)."""
-    is_fork = state.get("is_fork", False)
+    """Template for consensus comment."""
     header = f"{tag} Consensus reached after {state['current_round']} rounds."
-    if is_fork:
-        header += " (fork PR - code push not allowed)"
     lines = [header]
 
     lines.extend(_build_debate_summary_lines(state))
 
-    if is_fork:
-        fixes = [i for i in state["issues"].values() if i["application_status"] == "recommended"]
-        fixes_heading = "## Recommended Fixes"
-    else:
-        fixes = [i for i in state["issues"].values() if i["application_status"] == "applied"]
-        fixes_heading = "## Applied Fixes"
+    fixes = [i for i in state["issues"].values() if i["application_status"] == "applied"]
+    fixes_heading = "## Applied Fixes"
 
     withdrawn = [i for i in state["issues"].values() if i["consensus_status"] == "withdrawn"]
 
@@ -83,13 +76,10 @@ def _build_consensus(state, tag):
         for issue in fixes:
             reporter = _first_reporter(issue)
             msg = latest_report_message(issue)
-            if is_fork:
-                lines.append(f"- {issue['file']}:{issue['line']} - (reported by {reporter}) {msg}")
-            else:
-                applier = issue.get("applied_by", "unknown")
-                lines.append(
-                    f"- {issue['file']}:{issue['line']} - (reported by {reporter}, applied by {applier}) {msg}"
-                )
+            applier = issue.get("applied_by", "unknown")
+            lines.append(
+                f"- {issue['file']}:{issue['line']} - (reported by {reporter}, applied by {applier}) {msg}"
+            )
 
     if withdrawn:
         lines.append("")
