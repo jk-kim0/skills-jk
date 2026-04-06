@@ -1083,7 +1083,7 @@ class DebateReviewOrchestrator:
         sessions = self._load_state()["persistent_agents"]
         handle_key = "cc_agent_id" if agent == "cc" else "codex_session_id"
         handle = sessions.get(handle_key)
-        self.cli.record_step_trace(
+        trace = self.cli.record_step_trace(
             self.state_file,
             round_num=round_ctx["round"],
             step_name=trace_step,
@@ -1109,8 +1109,10 @@ class DebateReviewOrchestrator:
                 None,
             )
 
-        def build_runtime(started_at: str) -> dict | None:
-            runtime_trace = _load_runtime_trace()
+        def build_runtime(started_at: str, runtime_trace: dict | None = None) -> dict | None:
+            if not isinstance(adapter, AgentAdapter):
+                return None
+            runtime_trace = runtime_trace or _load_runtime_trace()
             if runtime_trace is None:
                 return None
             supervisor = StepSupervisor(agent=agent, started_at=started_at)
@@ -1129,7 +1131,7 @@ class DebateReviewOrchestrator:
         try:
             send_started = utc_now_iso()
             send_clock = time.monotonic()
-            runtime = build_runtime(step_started_at)
+            runtime = build_runtime(step_started_at, runtime_trace=trace)
             if runtime is not None:
                 response = adapter.send_message(
                     handle,
@@ -1209,7 +1211,7 @@ class DebateReviewOrchestrator:
             )
             send_started = utc_now_iso()
             send_clock = time.monotonic()
-            self.cli.record_step_trace(
+            trace = self.cli.record_step_trace(
                 self.state_file,
                 round_num=round_ctx["round"],
                 step_name=trace_step,
@@ -1217,7 +1219,7 @@ class DebateReviewOrchestrator:
                 started_at=send_started,
                 patch={"persistent_session": {"handle_key": handle_key, "handle": new_handle}},
             )
-            recovery_runtime = build_runtime(send_started)
+            recovery_runtime = build_runtime(send_started, runtime_trace=trace)
             recovery_snapshot = None
             if recovery_runtime is not None:
                 recovery_snapshot = recovery_runtime["supervisor"].begin_recovery(
