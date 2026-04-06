@@ -358,8 +358,9 @@ class AgentAdapter:
             emit_snapshot(supervisor.on_stderr(line, observed_at=utc_now_iso()))
 
         def handle_tick() -> None:
-            snapshot = supervisor.on_process_alive(observed_at=utc_now_iso())
-            snapshot = supervisor.evaluate(now=utc_now_iso())
+            now = utc_now_iso()
+            snapshot = supervisor.on_process_alive(observed_at=now)
+            snapshot = supervisor.evaluate(now=now)
             emit_snapshot(snapshot)
             if snapshot["stall_level"] == "hard":
                 raise OrchestrationError(
@@ -565,16 +566,19 @@ def _is_non_owner_withdrawal_error(exc: OrchestrationError) -> bool:
 
 
 class CcAdapter(AgentAdapter):
+    _STREAM_FLAGS = " --output-format stream-json --verbose --include-partial-messages"
+
     def __init__(self):
         super().__init__(
             name="cc",
             create_command="claude -p --dangerously-skip-permissions --output-format stream-json --verbose",
-            send_command="claude -p --dangerously-skip-permissions --resume {session_id} --output-format stream-json --verbose --include-partial-messages",
+            send_command="claude -p --dangerously-skip-permissions --resume {session_id}",
         )
 
     def send_message(self, session_id: str, message: str, *, worktree_path: str, runtime: dict | None = None) -> dict:
+        base_command = self._format(self.send_command, session_id=session_id)
         if runtime is not None:
-            command = self._format(self.send_command, session_id=session_id)
+            command = base_command + self._STREAM_FLAGS
             return self._stream_send_message(
                 session_id,
                 message,
@@ -582,8 +586,7 @@ class CcAdapter(AgentAdapter):
                 command=command,
                 runtime=runtime,
             )
-        command = self._format(self.send_command, session_id=session_id)
-        output = _run_command(command, cwd=worktree_path, stdin_text=message)
+        output = _run_command(base_command, cwd=worktree_path, stdin_text=message)
         return _unwrap_cc_result(output)
 
 
@@ -1099,9 +1102,10 @@ class DebateReviewOrchestrator:
         if isinstance(adapter, AgentAdapter):
             trace_state = self._load_state()
             runtime_trace = next(
-                round_["step_traces"][trace_step]
-                for round_ in trace_state.get("rounds", [])
-                if round_.get("round") == round_ctx["round"]
+                (round_["step_traces"].get(trace_step)
+                 for round_ in trace_state.get("rounds", [])
+                 if round_.get("round") == round_ctx["round"]),
+                None,
             )
 
         def build_runtime(started_at: str) -> dict | None:

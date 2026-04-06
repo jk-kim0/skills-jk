@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import queue
 import shlex
 import subprocess
@@ -44,10 +45,6 @@ def run_streaming_command(
     if on_started is not None:
         on_started(process.pid)
 
-    if stdin_text is not None and process.stdin is not None:
-        process.stdin.write(stdin_text)
-        process.stdin.close()
-
     events: queue.Queue = queue.Queue()
     threads = [
         threading.Thread(target=_reader_thread, args=(process.stdout, "stdout", events), daemon=True),
@@ -56,58 +53,59 @@ def run_streaming_command(
     for thread in threads:
         thread.start()
 
+    if stdin_text is not None and process.stdin is not None:
+        process.stdin.write(stdin_text)
+        process.stdin.close()
+
     completed_streams = {"stdout": False, "stderr": False}
-    stdout_log = open(stdout_log_path, "w") if stdout_log_path else None
-    stderr_log = open(stderr_log_path, "w") if stderr_log_path else None
     next_tick = time.monotonic() + tick_interval
 
-    try:
-        while True:
-            timeout = max(0.0, next_tick - time.monotonic())
-            try:
-                channel, line = events.get(timeout=timeout)
-            except queue.Empty:
-                if process.poll() is None and on_tick is not None:
-                    on_tick()
-                next_tick = time.monotonic() + tick_interval
-                continue
+    with contextlib.ExitStack() as stack:
+        stdout_log = stack.enter_context(open(stdout_log_path, "w")) if stdout_log_path else None
+        stderr_log = stack.enter_context(open(stderr_log_path, "w")) if stderr_log_path else None
 
-            if line is None:
-                completed_streams[channel] = True
-                if all(completed_streams.values()) and process.poll() is not None and events.empty():
-                    break
-                continue
+        try:
+            while True:
+                timeout = max(0.0, next_tick - time.monotonic())
+                try:
+                    channel, line = events.get(timeout=timeout)
+                except queue.Empty:
+                    if process.poll() is None and on_tick is not None:
+                        on_tick()
+                    next_tick = time.monotonic() + tick_interval
+                    continue
 
-            if channel == "stdout":
-                if stdout_log is not None:
-                    stdout_log.write(line + "\n")
-                    stdout_log.flush()
-                if on_stdout_line is not None:
-                    on_stdout_line(line)
-            else:
-                if stderr_log is not None:
-                    stderr_log.write(line + "\n")
-                    stderr_log.flush()
-                if on_stderr_line is not None:
-                    on_stderr_line(line)
+                if line is None:
+                    completed_streams[channel] = True
+                    if all(completed_streams.values()) and process.poll() is not None and events.empty():
+                        break
+                    continue
 
-            if time.monotonic() >= next_tick:
-                if process.poll() is None and on_tick is not None:
-                    on_tick()
-                next_tick = time.monotonic() + tick_interval
-    except Exception:
-        if process.poll() is None:
-            process.terminate()
-            try:
-                process.wait(timeout=1)
-            except subprocess.TimeoutExpired:
-                process.kill()
-        raise
-    finally:
-        if stdout_log is not None:
-            stdout_log.close()
-        if stderr_log is not None:
-            stderr_log.close()
+                if channel == "stdout":
+                    if stdout_log is not None:
+                        stdout_log.write(line + "\n")
+                        stdout_log.flush()
+                    if on_stdout_line is not None:
+                        on_stdout_line(line)
+                else:
+                    if stderr_log is not None:
+                        stderr_log.write(line + "\n")
+                        stderr_log.flush()
+                    if on_stderr_line is not None:
+                        on_stderr_line(line)
+
+                if time.monotonic() >= next_tick:
+                    if process.poll() is None and on_tick is not None:
+                        on_tick()
+                    next_tick = time.monotonic() + tick_interval
+        except Exception:
+            if process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=1)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+            raise
 
     return {
         "returncode": process.wait(),

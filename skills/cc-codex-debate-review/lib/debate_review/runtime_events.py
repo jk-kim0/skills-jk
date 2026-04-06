@@ -3,11 +3,8 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
 
-
-def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+from debate_review.timing import utc_now_iso
 
 
 def _extract_json_from_text(text: str) -> str:
