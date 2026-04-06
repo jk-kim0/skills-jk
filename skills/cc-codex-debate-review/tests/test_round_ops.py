@@ -496,6 +496,55 @@ def test_settle_stall_resets_after_progress(sample_state):
     assert r3_result.get("stall_count") == 1
 
 
+def test_settle_corrects_open_consensus_when_both_accepted(sample_state, capsys):
+    """settle_round should fix consensus_status=open when accepted_by has both agents."""
+    from debate_review.issue_ops import upsert_issue
+
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    r1 = upsert_issue(sample_state, agent="codex", round_num=1, severity="warning",
+                       criterion=3, file="src/foo.ts", line=42, anchor="retry",
+                       message="unbounded loop")
+    issue_id = r1["issue_id"]
+    # Simulate inconsistent state: accepted_by has both agents but status is still open
+    sample_state["issues"][issue_id]["accepted_by"] = ["cc", "codex"]
+    sample_state["issues"][issue_id]["consensus_status"] = "open"
+    sample_state["issues"][issue_id]["application_status"] = "applied"
+    sample_state["issues"][issue_id]["applied_by"] = "codex"
+
+    record_verdict(sample_state, round_num=1, verdict="has_findings")
+    settle_round(sample_state, round_num=1)
+
+    issue = sample_state["issues"][issue_id]
+    assert issue["consensus_status"] == "accepted"
+    assert "auto-corrected" in issue["consensus_reason"]
+    captured = capsys.readouterr()
+    assert "WARNING: auto-correcting" in captured.err
+    assert issue_id in captured.err
+
+
+def test_settle_corrects_fork_consensus_to_recommended(sample_state):
+    """Fork PR self-heal should also restore recommended application state."""
+    from debate_review.issue_ops import upsert_issue
+
+    sample_state["is_fork"] = True
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    result = upsert_issue(sample_state, agent="codex", round_num=1, severity="warning",
+                          criterion=3, file="src/foo.ts", line=42, anchor="retry",
+                          message="unbounded loop")
+    issue_id = result["issue_id"]
+    sample_state["issues"][issue_id]["accepted_by"] = ["cc", "codex"]
+    sample_state["issues"][issue_id]["consensus_status"] = "open"
+    sample_state["issues"][issue_id]["application_status"] = "pending"
+
+    record_verdict(sample_state, round_num=1, verdict="has_findings")
+    settle_result = settle_round(sample_state, round_num=1)
+
+    issue = sample_state["issues"][issue_id]
+    assert issue["consensus_status"] == "accepted"
+    assert issue["application_status"] == "recommended"
+    assert issue_id in settle_result["recommendation_issue_ids"]
+
+
 def test_settle_populates_debate_ledger(sample_state):
     """settle_round should populate state['debate_ledger'] with settled issues."""
     from debate_review.issue_ops import upsert_issue
