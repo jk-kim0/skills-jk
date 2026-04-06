@@ -496,7 +496,7 @@ def test_settle_stall_resets_after_progress(sample_state):
     assert r3_result.get("stall_count") == 1
 
 
-def test_settle_corrects_open_consensus_when_both_accepted(sample_state):
+def test_settle_corrects_open_consensus_when_both_accepted(sample_state, capsys):
     """settle_round should fix consensus_status=open when accepted_by has both agents."""
     from debate_review.issue_ops import upsert_issue
 
@@ -516,7 +516,10 @@ def test_settle_corrects_open_consensus_when_both_accepted(sample_state):
 
     issue = sample_state["issues"][issue_id]
     assert issue["consensus_status"] == "accepted"
-    assert issue["consensus_reason"] is None
+    assert "auto-corrected" in issue["consensus_reason"]
+    captured = capsys.readouterr()
+    assert "WARNING: auto-correcting" in captured.err
+    assert issue_id in captured.err
 
 
 def test_settle_corrects_fork_consensus_to_recommended(sample_state):
