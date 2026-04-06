@@ -263,7 +263,7 @@ def build_potential_applicable_issues(state, round_num):
     that haven't reached consensus yet. If the lead accepts them in Step 3,
     they should be fixed in the same round instead of waiting for the next round.
     """
-    if state.get("is_fork") or state.get("dry_run"):
+    if state.get("dry_run"):
         return []
 
     for r in state.get("rounds", []):
@@ -287,7 +287,7 @@ def build_potential_applicable_issues(state, round_num):
         # Only include open issues (not yet at consensus)
         if issue.get("consensus_status") != "open":
             continue
-        if issue.get("application_status") in ("applied",):
+        if issue.get("application_status") == "applied":
             continue
         result.append({
             "issue_id": iid,

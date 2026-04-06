@@ -218,8 +218,8 @@ def test_potential_applicable_issues_includes_cross_verifier_findings():
     issue_ids = [r["issue_id"] for r in result]
     # Cross-verifier's issue (open, not yet consensus) should be included
     assert r2["issue_id"] in issue_ids
-    # Lead's issue that was already accepted should NOT be included
-    # (it would be in applicable_issues, not potential)
+    # Lead's issue should NOT be included (not touched by cross-verifier)
+    assert r1["issue_id"] not in issue_ids
 
 
 def test_potential_applicable_issues_excludes_accepted():
