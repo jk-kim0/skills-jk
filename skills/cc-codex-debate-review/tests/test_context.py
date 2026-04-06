@@ -228,10 +228,17 @@ def test_potential_applicable_issues_excludes_accepted():
 
     state = _make_state()
     init_round(state, round_num=1, synced_head_sha="abc123")
-    r1 = _add_finding(state, 1, agent="codex")
-    # Accept → consensus reached
-    record_cross_verification(state, round_num=1,
-                              verifications=[{"report_id": r1["report_id"], "decision": "accept", "reason": "ok"}])
+    # Lead reports a finding
+    _add_finding(state, 1, agent="codex")
+    # Cross-verifier reports its own finding (goes into step2)
+    r2 = _add_finding(state, 1, agent="cc", file="src/b.py", anchor="BAR", message="Cross issue")
+    round_ = state["rounds"][0]
+    round_["step2"]["report_ids"].append(r2["report_id"])
+    round_["step2"]["issue_ids_touched"].append(r2["issue_id"])
+    # Simulate consensus: both agents accepted → consensus_status = "accepted"
+    issue = state["issues"][r2["issue_id"]]
+    issue["accepted_by"] = ["cc", "codex"]
+    issue["consensus_status"] = "accepted"
     result = build_potential_applicable_issues(state, round_num=1)
     # Already accepted → should be in applicable_issues, not potential
     assert result == []
