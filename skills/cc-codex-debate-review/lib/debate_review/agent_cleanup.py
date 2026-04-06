@@ -1,5 +1,7 @@
 """Terminate persistent agent processes on session end."""
 
+import os
+import signal
 import subprocess
 import sys
 
@@ -20,11 +22,9 @@ def _find_pids_by_pattern(pattern):
 
 def _kill_pids(pids):
     """Send SIGTERM to a list of PIDs. Returns count of successfully signaled."""
-    import signal
     killed = 0
     for pid in pids:
         try:
-            import os
             os.kill(pid, signal.SIGTERM)
             killed += 1
         except ProcessLookupError:
