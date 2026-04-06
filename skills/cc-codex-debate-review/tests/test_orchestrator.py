@@ -492,6 +492,47 @@ def test_codex_adapter_send_message_reads_output_file(monkeypatch, tmp_path):
     assert response["_runtime"]["runtime_artifacts"]["output_file"].endswith(".output.json")
 
 
+def test_codex_adapter_send_message_prefers_output_file_over_intermediate_stdout(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    def fake_run_stream(*, output_file_path, on_started, on_stdout_line, on_stderr_line, on_tick, **_kwargs):
+        on_started(5252)
+        on_stdout_line(json.dumps({"type": "turn.started"}))
+        on_stdout_line(json.dumps({
+            "type": "item.completed",
+            "item": {
+                "type": "agent_message",
+                "text": '{"verdict":"has_findings","findings":[{"message":"stale"}]}',
+            },
+        }))
+        on_stdout_line(json.dumps({"type": "turn.completed"}))
+        output_file_path.write_text('{"verdict":"no_findings_mergeable","findings":[]}')
+        return {
+            "returncode": 0,
+            "stdout_log_path": str(tmp_path / "codex.stdout.jsonl"),
+            "stderr_log_path": str(tmp_path / "codex.stderr.log"),
+            "child_pid": 5252,
+        }
+
+    monkeypatch.setattr(orchestrator_module, "_run_streaming_command", fake_run_stream)
+
+    adapter = CodexAdapter()
+    response = adapter.send_message(
+        "codex-session-1",
+        "message",
+        worktree_path=str(tmp_path),
+        runtime={
+            "artifact_dir": str(tmp_path),
+            "step_id": "round1-step2-cross-review-01",
+            "supervisor": StepSupervisor(agent="codex", started_at="2026-04-07T00:00:00+00:00"),
+            "on_snapshot": lambda _snapshot: None,
+        },
+    )
+
+    assert response["verdict"] == "no_findings_mergeable"
+    assert response["findings"] == []
+
+
 def test_dispatch_step_persistent_rehydrates_missing_round_with_subprocess_cli(monkeypatch, tmp_path):
     import debate_review.orchestrator as orchestrator_module
 

@@ -386,7 +386,7 @@ class AgentAdapter:
                 f"Command failed: {command}\nexit {result['returncode']}"
             )
 
-        if parsed_response is None and output_file_path is not None and output_file_path.exists():
+        if output_file_path is not None and output_file_path.exists():
             parsed_response = _read_json_file(str(output_file_path))
 
         if parsed_response is None:
@@ -1098,10 +1098,11 @@ class DebateReviewOrchestrator:
                 "command_spans": [prompt_span],
             },
         )
-        runtime_trace = None
-        if isinstance(adapter, AgentAdapter):
+        def _load_runtime_trace() -> dict | None:
+            if not isinstance(adapter, AgentAdapter):
+                return None
             trace_state = self._load_state()
-            runtime_trace = next(
+            return next(
                 (round_["step_traces"].get(trace_step)
                  for round_ in trace_state.get("rounds", [])
                  if round_.get("round") == round_ctx["round"]),
@@ -1109,6 +1110,7 @@ class DebateReviewOrchestrator:
             )
 
         def build_runtime(started_at: str) -> dict | None:
+            runtime_trace = _load_runtime_trace()
             if runtime_trace is None:
                 return None
             supervisor = StepSupervisor(agent=agent, started_at=started_at)
@@ -1207,6 +1209,14 @@ class DebateReviewOrchestrator:
             )
             send_started = utc_now_iso()
             send_clock = time.monotonic()
+            self.cli.record_step_trace(
+                self.state_file,
+                round_num=round_ctx["round"],
+                step_name=trace_step,
+                agent=agent,
+                started_at=send_started,
+                patch={"persistent_session": {"handle_key": handle_key, "handle": new_handle}},
+            )
             recovery_runtime = build_runtime(send_started)
             recovery_snapshot = None
             if recovery_runtime is not None:

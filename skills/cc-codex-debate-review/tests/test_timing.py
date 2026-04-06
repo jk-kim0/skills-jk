@@ -109,6 +109,31 @@ def test_start_step_trace_assigns_step_id_and_dedupe_token(sample_state):
     assert trace["dedupe_token"] == "round1:step3_lead_apply:round1-step3-lead-apply-01"
 
 
+def test_start_step_trace_restarts_with_new_attempt_id(sample_state):
+    init_round(sample_state, round_num=1, lead_agent="cc", synced_head_sha="abc")
+
+    first = start_step_trace(
+        sample_state,
+        round_num=1,
+        step_name="step1_lead_review",
+        agent="cc",
+        started_at="2026-04-04T00:00:00+00:00",
+    )
+    first_step_id = first["step_id"]
+    second = start_step_trace(
+        sample_state,
+        round_num=1,
+        step_name="step1_lead_review",
+        agent="cc",
+        started_at="2026-04-04T00:05:00+00:00",
+    )
+
+    assert first_step_id == "round1-step1-lead-review-01"
+    assert second["step_id"] == "round1-step1-lead-review-02"
+    assert second["dedupe_token"] == "round1:step1_lead_review:round1-step1-lead-review-02"
+    assert second["started_at"] == "2026-04-04T00:05:00+00:00"
+
+
 def test_update_step_trace_merges_supervision_summary(sample_state):
     init_round(sample_state, round_num=1, lead_agent="cc", synced_head_sha="abc")
     start_step_trace(

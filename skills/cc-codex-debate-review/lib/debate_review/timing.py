@@ -84,6 +84,10 @@ def _step_slug(step_name: str) -> str:
     return step_name.replace("_", "-")
 
 
+def _step_id(round_num: int, step_name: str, attempt: int) -> str:
+    return f"round{round_num}-{_step_slug(step_name)}-{attempt:02d}"
+
+
 def _merge_trace(trace: dict, patch: dict) -> dict:
     for key, value in patch.items():
         if value is None:
@@ -109,12 +113,16 @@ def start_step_trace(
     started_at: str | None = None,
     patch: dict | None = None,
 ) -> dict:
-    started = record_step_timing(state, step_name, round_num=round_num, timestamp=started_at)
+    timing_started = record_step_timing(state, step_name, round_num=round_num, timestamp=started_at)
+    started = started_at or timing_started
     trace = _ensure_step_trace(state, round_num=round_num, step_name=step_name)
     trace.setdefault("agent", agent)
-    trace.setdefault("started_at", started)
-    trace.setdefault("step_id", f"round{round_num}-{_step_slug(step_name)}-01")
-    trace.setdefault("dedupe_token", f"round{round_num}:{step_name}:{trace['step_id']}")
+    attempt = int(trace.get("attempt", 0)) + 1
+    trace["attempt"] = attempt
+    trace["started_at"] = started
+    trace.pop("completed_at", None)
+    trace["step_id"] = _step_id(round_num, step_name, attempt)
+    trace["dedupe_token"] = f"round{round_num}:{step_name}:{trace['step_id']}"
     trace.setdefault("supervision", {"recovery_attempts": []})
     if patch:
         _merge_trace(trace, patch)
