@@ -223,6 +223,12 @@ def test_next_step_from_step1_has_findings(sample_state):
     """step1_lead_review with verdict recorded → step2."""
     from debate_review.round_ops import init_round, record_verdict
     init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    # Add an open issue so has_findings verdict is not auto-corrected
+    sample_state["issues"]["ISS-1"] = {
+        "consensus_status": "open",
+        "application_status": "pending",
+        "accepted_by": [],
+    }
     record_verdict(sample_state, round_num=1, verdict="has_findings")
     sample_state["journal"]["step"] = "step1_lead_review"
     result = determine_next_step(sample_state)
