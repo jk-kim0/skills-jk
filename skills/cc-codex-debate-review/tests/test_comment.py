@@ -283,33 +283,33 @@ def test_build_error_includes_withdrawn_findings():
     assert "Review stopped due to an error." in body
 
 
-# Test: build_comment_body infers "consensus" from status
-def test_build_comment_body_infers_consensus_from_status():
+# Test: build_comment_body raises ValueError when final_outcome is not set
+def test_build_comment_body_raises_on_missing_final_outcome():
+    import pytest
     state = create_initial_state(
         repo="owner/repo", repo_root="/tmp/repo", pr_number=123,
         is_fork=False, head_sha="abc123", pr_branch_name="feat/test",
     )
     state["status"] = "consensus_reached"
     state["current_round"] = 2
-    # final_outcome is NOT set — should be inferred
-    body = build_comment_body(state)
-    assert "Consensus reached after 2 rounds." in body
-    assert "No actionable issues remain." in body
+    # final_outcome is NOT set — should raise ValueError
+    with pytest.raises(ValueError, match="final_outcome is not set"):
+        build_comment_body(state)
 
 
-# Test: build_comment_body infers "stalled" from status and uses stalled template
-def test_build_comment_body_infers_stalled_from_status():
+# Test: stalled template with final_outcome properly set
+def test_build_comment_body_stalled_template():
     state = create_initial_state(
         repo="owner/repo", repo_root="/tmp/repo", pr_number=123,
         is_fork=False, head_sha="abc123", pr_branch_name="feat/test",
     )
     state["status"] = "stalled"
-    state["current_round"] = 2
+    state["final_outcome"] = "stalled"
+    state["current_round"] = 4
     state["error_message"] = "Stalled: 2 consecutive rounds with no progress"
     state["max_rounds"] = 10
-    # final_outcome is NOT set — should be inferred as "stalled"
     body = build_comment_body(state)
-    assert "Review stalled after 2 rounds." in body
+    assert "Review stalled after 4 rounds." in body
     assert "Stalled: 2 consecutive rounds with no progress" in body
     assert "Consensus was not reached after 10 rounds." not in body
     assert "Manual review required." in body

@@ -172,15 +172,13 @@ def build_comment_body(state) -> str:
     tag = _make_tag(state)
     outcome = state.get("final_outcome")
 
-    # Infer outcome from status if final_outcome was not set
     if not outcome:
-        status = state.get("status", "")
-        if status == "consensus_reached":
-            outcome = "consensus"
-        elif status in ("max_rounds_exceeded",):
-            outcome = "no_consensus"
-        elif status == "stalled":
-            outcome = "stalled"
+        raise ValueError(
+            f"final_outcome is not set (status={state.get('status')!r}). "
+            "This indicates a bug in the upstream state machine — "
+            "settle_round or mark_failed should always set final_outcome "
+            "before post-comment is called."
+        )
 
     if outcome == "consensus":
         return _build_consensus(state, tag)
