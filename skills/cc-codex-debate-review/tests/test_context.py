@@ -257,6 +257,33 @@ def test_potential_applicable_issues_ignores_non_cross_issue_ids_touched():
     assert lead["issue_id"] not in issue_ids
 
 
+def test_potential_applicable_issues_preserves_step2_report_order():
+    """Potential issues should be stable and follow step2 report order."""
+    from debate_review.context import build_potential_applicable_issues
+
+    state = _make_state()
+    init_round(state, round_num=1, synced_head_sha="abc123")
+    first = _add_finding(state, 1, agent="cc", file="src/a.py", anchor="a")
+    second = _add_finding(state, 1, agent="cc", file="src/b.py", anchor="b")
+    third = _add_finding(state, 1, agent="cc", file="src/c.py", anchor="c")
+
+    round_ = state["rounds"][0]
+    round_["step2"]["report_ids"] = [
+        third["report_id"],
+        first["report_id"],
+        second["report_id"],
+        first["report_id"],
+    ]
+
+    result = build_potential_applicable_issues(state, round_num=1)
+
+    assert [entry["issue_id"] for entry in result] == [
+        third["issue_id"],
+        first["issue_id"],
+        second["issue_id"],
+    ]
+
+
 # --- build_context (integration) ---
 
 def test_build_context_returns_all_keys():

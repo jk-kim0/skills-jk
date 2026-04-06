@@ -269,11 +269,13 @@ def build_potential_applicable_issues(state, round_num):
     for r in state.get("rounds", []):
         if r["round"] == round_num:
             step2 = r.get("step2", {})
-            cross_issue_ids = set()
+            cross_issue_ids = []
+            seen_issue_ids = set()
             for rid in step2.get("report_ids", []):
                 rpt = _resolve_report(state, rid)
-                if rpt:
-                    cross_issue_ids.add(rpt["issue_id"])
+                if rpt and rpt["issue_id"] not in seen_issue_ids:
+                    cross_issue_ids.append(rpt["issue_id"])
+                    seen_issue_ids.add(rpt["issue_id"])
             break
     else:
         return []
