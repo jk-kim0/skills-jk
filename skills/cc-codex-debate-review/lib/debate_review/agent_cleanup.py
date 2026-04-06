@@ -41,7 +41,7 @@ def terminate_agents(state) -> dict:
     and sends SIGTERM to them.
     """
     agents = state.get("persistent_agents", {})
-    result = {"cc_killed": 0, "codex_killed": 0, "errors": []}
+    result = {"cc_killed": 0, "codex_killed": 0}
 
     # Terminate Codex processes by session ID
     codex_sid = agents.get("codex_session_id")
