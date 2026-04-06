@@ -1091,16 +1091,13 @@ class DebateReviewOrchestrator:
         self._route_findings(checkpoint=checkpoint, agent=round_ctx["lead_agent"], round_num=round_ctx["round"])
 
         if not checkpoint["progress"]["verdict_done"]:
-            verdict_result = self.cli.record_verdict(
+            self.cli.record_verdict(
                 self.state_file,
                 round_num=round_ctx["round"],
                 verdict=response["verdict"],
             )
             checkpoint["progress"]["verdict_done"] = True
             self._save_checkpoint(checkpoint)
-        else:
-            state = self._load_state()
-            verdict_result = {"clean_pass": any(r["round"] == round_ctx["round"] and r.get("clean_pass") for r in state.get("rounds", []))}
 
         self._clear_checkpoint()
         return "step2"
