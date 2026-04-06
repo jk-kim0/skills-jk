@@ -21,7 +21,8 @@ def test_init_round_auto_lead_agent(sample_state):
 def test_record_verdict_has_findings(sample_state):
     init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
     result = record_verdict(sample_state, round_num=1, verdict="has_findings")
-    assert result["clean_pass"] is False
+    assert result["clean_pass"] is True
+    assert result["verdict"] == "no_findings_mergeable"
 
 
 def test_record_verdict_clean_pass(sample_state):
@@ -556,6 +557,18 @@ def test_record_verdict_auto_corrects_contradictory_has_findings(sample_state, c
     init_round(sample_state, round_num=4, lead_agent="cc", synced_head_sha="abc")
     # Agent says has_findings but step1 has no report_ids and no open issues
     result = record_verdict(sample_state, round_num=4, verdict="has_findings")
+    assert result["verdict"] == "no_findings_mergeable"
+    assert result["clean_pass"] is True
+    err = capsys.readouterr().err
+    assert "Auto-correcting" in err
+
+
+def test_record_verdict_auto_corrects_zero_issue_clean_pass(sample_state, capsys):
+    """Zero-issue clean PR should also auto-correct contradictory has_findings."""
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+
+    result = record_verdict(sample_state, round_num=1, verdict="has_findings")
+
     assert result["verdict"] == "no_findings_mergeable"
     assert result["clean_pass"] is True
     err = capsys.readouterr().err

@@ -77,7 +77,7 @@ def record_verdict(state, *, round_num, verdict) -> dict:
             if i["consensus_status"] == "accepted"
             and i["application_status"] not in excluded_statuses
         ]
-        if not has_new_findings and not open_issues and not accepted_unresolved and state["issues"]:
+        if not has_new_findings and not open_issues and not accepted_unresolved:
             print(
                 f"WARNING: verdict=has_findings but no new findings and no open issues in round {round_num}. "
                 f"Auto-correcting to no_findings_mergeable.",
