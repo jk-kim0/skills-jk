@@ -129,7 +129,6 @@ def _build_error(state, tag):
     """Template 4: error."""
     journal = state["journal"]
     lines = [f"{tag} Review stopped due to an error."]
-    is_fork = state.get("is_fork", False)
 
     lines.extend(_build_debate_summary_lines(state))
 
@@ -137,21 +136,18 @@ def _build_error(state, tag):
     fixes = [
         issue
         for issue in state["issues"].values()
-        if issue.get("application_status") == ("recommended" if is_fork else "applied")
+        if issue.get("application_status") == "applied"
     ]
     if fixes:
         lines.append("")
-        lines.append("## Recommended Fixes" if is_fork else "## Applied Fixes")
+        lines.append("## Applied Fixes")
         for issue in fixes:
             reporter = _first_reporter(issue)
             msg = latest_report_message(issue)
-            if is_fork:
-                lines.append(f"- {issue['file']}:{issue['line']} - (reported by {reporter}) {msg}")
-            else:
-                applier = issue.get("applied_by", "unknown")
-                lines.append(
-                    f"- {issue['file']}:{issue['line']} - (reported by {reporter}, applied by {applier}) {msg}"
-                )
+            applier = issue.get("applied_by", "unknown")
+            lines.append(
+                f"- {issue['file']}:{issue['line']} - (reported by {reporter}, applied by {applier}) {msg}"
+            )
 
     # Show withdrawn findings
     withdrawn = [i for i in state["issues"].values() if i.get("consensus_status") == "withdrawn"]
