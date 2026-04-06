@@ -276,13 +276,19 @@ def cmd_init(args):
     pr_data = gh_json(
         "pr", "view", str(pr_number),
         "--repo", repo,
-        "--json", "headRefName,headRefOid,headRepositoryOwner",
+        "--json", "headRefName,headRefOid,headRepositoryOwner,headRepository",
     )
     head_ref_name = pr_data["headRefName"]
     head_sha = pr_data["headRefOid"]
     head_repo_owner = pr_data["headRepositoryOwner"]["login"]
+    head_repo = pr_data.get("headRepository") or {}
+    head_repo_name_with_owner = head_repo.get("nameWithOwner")
     repo_owner = repo.split("/")[0]
-    is_fork = head_repo_owner != repo_owner
+    is_fork = (
+        head_repo_name_with_owner != repo
+        if head_repo_name_with_owner is not None
+        else head_repo_owner != repo_owner
+    )
     if is_fork:
         _error_exit("Fork PRs are not supported. Only same-repo (clone) PRs are allowed.")
 
