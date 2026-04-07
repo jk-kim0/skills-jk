@@ -82,6 +82,8 @@ CODEX_SANDBOX=$(echo "$RESULT" | jq -r '.codex_sandbox')
 LANGUAGE=$(echo "$RESULT" | jq -r '.language')
 ```
 
+`debate-review init` rejects fork PRs. In supported sessions, `IS_FORK` is always `false` and exists only for state-schema compatibility.
+
 `LANGUAGE` is passed to LLM prompts via `{OUTPUT_LANGUAGE}` to control user-facing output language. The language setting applies to **all user-facing text**:
 
 - Issue `message`, `reason`, `description` values in JSON
@@ -410,11 +412,11 @@ The CLI automatically routes step1/step2 tracking based on the agent role.
 The lead agent handles three things:
 1. Respond to cross-verifier's rebuttals (withdraw/maintain)
 2. Evaluate cross-verifier's new findings (accept/maintain)
-3. Apply code fixes for agreed issues (same-repo PRs only)
+3. Apply code fixes for agreed issues (supported same-repo PRs only)
 
 #### Code Application is Mandatory
 
-When `DRY_RUN=false` and `IS_FORK=false`, the lead agent **MUST** attempt to fix every issue with `consensus_status=accepted` and `application_status=pending|failed`. Skipping without attempting is a procedure violation.
+In supported sessions, when `DRY_RUN=false`, the lead agent **MUST** attempt to fix every issue with `consensus_status=accepted` and `application_status=pending|failed`. Skipping without attempting is a procedure violation.
 
 The lead agent edits files directly in the worktree, commits, and pushes. There is no patch-based workflow.
 
@@ -425,7 +427,7 @@ The lead agent edits files directly in the worktree, commits, and pushes. There 
 1. Compose step message using **Step 3 Message Format** below with data from **Step Message Data Sources**:
    - `CROSS_REBUTTALS_JSON` → this round's Step 2 agent output (`cross_verifications` where `decision=rebut`). On restart/recovery when that output is unavailable, rebuild it from `show --json` using the current round's `step2.rebuttals` plus `issues[*].reports` matched by `report_id`.
    - `CROSS_NEW_FINDINGS_JSON` → this round's Step 2 agent output (`findings` array verbatim). On restart/recovery when that output is unavailable, rebuild it from `show --json` using the current round's `step2.report_ids` excluding `step2.accepted_report_ids`, then resolve each `report_id` through `issues[*].reports`.
-   - `APPLICABLE_ISSUES_JSON` → from `show --json`, filtered: `consensus_status=accepted` AND `application_status in (pending, failed)`. Empty `[]` when `IS_FORK=true` or `DRY_RUN=true`.
+   - `APPLICABLE_ISSUES_JSON` → from `show --json`, filtered: `consensus_status=accepted` AND `application_status in (pending, failed)`. Empty `[]` when `DRY_RUN=true`. Fork PRs are rejected by `init` and never reach this step.
    - Include `WORKTREE_PATH`, `DEBATE_REVIEW_BIN`, `STATE_FILE`, `HEAD_BRANCH`, `ROUND` literals in the message.
 2. Dispatch to lead agent:
    - CC: write `$step_message` to a temp file, then `cd "$WORKTREE_PATH" && claude -p --dangerously-skip-permissions --resume "$CC_AGENT_ID" --output-format json - < "$STEP_FILE"`
@@ -479,10 +481,9 @@ COMMIT_MSG=$("$DEBATE_REVIEW_BIN" build-commit-message \
 git -C "$WORKTREE_PATH" commit -m "$COMMIT_MSG"
 ```
 
-**Skip all 3 phases for fork PRs.** (Push not possible, `application_status=recommended`)
 **Skip all 3 phases if `DRY_RUN=true`.** (Review-only simulation)
 
-The orchestrator applies the same filter when composing the step message (see **Step Message Data Sources**): when `IS_FORK=true` or `DRY_RUN=true`, `APPLICABLE_ISSUES_JSON` is `[]`.
+The orchestrator applies the same filter when composing the step message (see **Step Message Data Sources**): when `DRY_RUN=true`, `APPLICABLE_ISSUES_JSON` is `[]`. Fork PRs are rejected before prompt composition.
 
 The agent's `application_result` contains `applied_issues`, `failed_issues`, and `commit_sha`.
 `failed_issues` may be reported as either issue ID strings or objects with `{issue_id, reason}`; `record-application` normalizes both forms.
@@ -929,11 +930,11 @@ If empty, skip code application.
 | Step message data | Source |
 |-------------------|--------|
 | `PENDING_REBUTTALS_JSON` | Primary: previous round Step 3 agent output — items decided as `maintain`. Restart/recovery fallback: `show --json` → previous round `step3.rebuttals`, enriched from `issues[*].reports` by `report_id`. |
-| `OPEN_ISSUES_JSON` | `show --json` → issues where `consensus_status` is `open` or (`accepted` and `application_status` not in (`applied`, `recommended`)) |
+| `OPEN_ISSUES_JSON` | `show --json` → issues where `consensus_status` is `open` or (`accepted` and `application_status` != `applied`) |
 | `LEAD_FINDINGS_JSON` | Primary: current round Step 1 agent output — `findings` array verbatim. Restart/recovery fallback: `show --json` → current round `step1.report_ids`, resolved through `issues[*].reports` by `report_id`. |
 | `CROSS_REBUTTALS_JSON` | Primary: current round Step 2 agent output — `cross_verifications` where `decision=rebut`. Restart/recovery fallback: `show --json` → current round `step2.rebuttals`, enriched from `issues[*].reports` by `report_id`. |
 | `CROSS_NEW_FINDINGS_JSON` | Primary: current round Step 2 agent output — `findings` array verbatim. Restart/recovery fallback: `show --json` → current round `step2.report_ids` excluding `step2.accepted_report_ids`, resolved through `issues[*].reports` by `report_id`. |
-| `APPLICABLE_ISSUES_JSON` | `show --json` → issues where `consensus_status=accepted` AND `application_status` in (`pending`, `failed`). Empty `[]` when `IS_FORK=true` or `DRY_RUN=true`. |
+| `APPLICABLE_ISSUES_JSON` | `show --json` → issues where `consensus_status=accepted` AND `application_status` in (`pending`, `failed`). Empty `[]` when `DRY_RUN=true`. Fork PRs are rejected by `init`. |
 | `DEBATE_LEDGER_TEXT` | `show --json` → `debate_ledger` field, formatted as text |
 
 Use `build-prompt` to generate step messages: it reads templates, substitutes placeholders from state, and appends to the agent's persistent prompt file. The orchestrator does not need to call `build-context` separately — `build-prompt` handles all data derivation internally.
@@ -1019,7 +1020,7 @@ Progress is handled by `ProgressReporter` in `lib/debate_review/progress.py`. Th
 | Worktree | `<repo_root>/.worktrees/debate-pr-<N>` |
 | GitHub CLI | `env -u GITHUB_TOKEN -u GH_TOKEN gh ...` |
 | Output language | Config `language` (default: `en`) |
-| Code application | Mandatory when `DRY_RUN=false` and `IS_FORK=false` |
+| Code application | Mandatory when `DRY_RUN=false` |
 
 ### CLI Argument Quick Reference
 
@@ -1172,8 +1173,8 @@ The orchestrator must handle this failure exactly like a real error — capture 
 - **Filtering by `opened_by`**: Lead agent fixes all agreed issues regardless of who opened them
 - **Using agent output as-is in comments**: Orchestrator must normalize to standard format
 - **Ignoring phase order**: Strictly follow Phase 1 → Phase 2 → Phase 3 (record → commit → verify push)
-- **Attempting push on fork PR**: Fork PRs skip code application/commit/push entirely
-- **Skipping code application**: When `DRY_RUN=false` and `IS_FORK=false`, code application is mandatory for accepted issues. Recording all issues as `failed-issues` without attempting fixes creates an infinite loop. The agent must either apply fixes or escalate to the user.
+- **Allowing fork PRs into the round loop**: Unsupported. `debate-review init` must reject fork PRs before any prompt dispatch.
+- **Skipping code application**: When `DRY_RUN=false`, code application is mandatory for accepted issues. Recording all issues as `failed-issues` without attempting fixes creates an infinite loop. The agent must either apply fixes or escalate to the user.
 - **Treating debate review as review-only**: The skill is a review + fix system, not a comment-only reviewer. If only review comments are needed, use `DRY_RUN=true` in config.
 - **Ignoring errors**: Every failure must go through `mark-failed`; when `DRY_RUN=false`, also produce a bug report before session termination
 - **Suppressing retry-success errors**: Even when a retry with corrected arguments succeeds, the original error must be reported as a GitHub issue. "Retry succeeded" ≠ "resolved" — the same mistake will recur in future sessions

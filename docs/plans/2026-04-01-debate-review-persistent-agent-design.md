@@ -1,6 +1,6 @@
 # Debate Review: Persistent Agent + Append-Only Prompt Design
 
-## Status: Proposed
+## Status: Implemented (same-repo only)
 
 ## 문서 구성
 
@@ -26,6 +26,7 @@
 - prompt/routing schema parity: Step 3 `withdrawals` 필드 추가, legacy/persistent 일관성 확보
 
 Prompt/state routing parity (Workstream A)는 완료되었다. 나머지 active backlog는 orchestration path, operational follow-through, E2E verification이며 canonical 목록은 [2026-04-01-debate-review-persistent-agent-impl.md](./2026-04-01-debate-review-persistent-agent-impl.md)에 둔다.
+현재 지원 범위는 same-repo PR뿐이며, fork PR은 `debate-review init`에서 거부된다.
 
 ## Background
 
@@ -83,7 +84,9 @@ CC Orchestrator
 
 - ~~`#161`: `build-prompt` output JSON 안정화~~ → `#168`에서 해결
 - ~~persistent step prompt와 state routing의 schema 정합성~~ → Step 3 withdrawals 추가로 해결
-- restart / recovery / supersede의 실제 런타임 검증
-- terminal follow-through의 재현 가능한 orchestration path
+- ~~restart / recovery / supersede의 실제 런타임 검증~~ → 완료
+- ~~terminal follow-through의 재현 가능한 orchestration path~~ → 완료
+- historical fork-path 문서/용어 cleanup
+- legacy mode 제거 및 문서 통합
 
 세부 backlog와 우선순위는 [2026-04-01-debate-review-persistent-agent-impl.md](./2026-04-01-debate-review-persistent-agent-impl.md)에서 관리한다.

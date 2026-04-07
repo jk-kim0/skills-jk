@@ -25,6 +25,7 @@
 - Step 3 prompt/routing에 `withdrawals` 필드 추가 (`#169`)
 - operational follow-through CLI 명령 추가: `create-failure-issue`, `update-pr-status`, `cleanup-worktree` (`#170`)
 - orchestration runner: round loop, agent dispatch, checkpoint/recovery, terminal processing (`#171`, merged)
+- same-repo only scope enforcement: `init` 단계에서 fork PR 거부
 
 ## Implemented Foundation
 
@@ -98,7 +99,7 @@
 
 - ~~clean pass consensus~~ ✅
 - ~~same-repo code apply~~ ✅
-- ~~fork recommendation path~~ ✅
+- ~~fork PR rejection at init~~ ✅
 - ~~supersede by external push~~ ✅
 - ~~persistent resume / recovery~~ ✅
 - ~~terminal comment dedupe~~ ✅
@@ -115,7 +116,7 @@
 
 ## Completion Status (2026-04-06)
 
-**모든 Completion Criteria 충족. 이 backlog는 완료 상태다.**
+**모든 Completion Criteria 충족. 구현 backlog는 완료 상태이며, 현재 남은 일은 cleanup backlog다.**
 
 | # | 기준 | 상태 |
 |---|------|------|
@@ -123,8 +124,9 @@
 | 2 | persistent 경로 최신 schema 일치 | ✅ `#191`, `#192`, `#194` |
 | 3 | resume / recovery / supersede / terminal 자동화 | ✅ |
 | 4 | 운영 절차 코드화 | ✅ `#172` |
-| 5 | 핵심 시나리오 E2E 테스트 | ✅ `#195` (347 tests) |
+| 5 | 핵심 시나리오 E2E 테스트 | ✅ `#195` 이후 현재 393 tests passing |
 
 ## Future Work (별도 backlog)
 
+- historical fork-path cleanup: 문서와 내부 용어에 남아 있는 `is_fork`, `recommended` 중심 dead path를 same-repo only 정책에 맞게 제거
 - legacy mode 제거: `agent_mode="legacy"` 코드 경로, legacy 전용 프롬프트 3개, 테스트 40곳+ 리팩토링 필요. persistent가 기본이므로 기능적 필요는 없으나, 코드 복잡도 감소를 위해 별도 리팩토링 PR로 진행 가능.

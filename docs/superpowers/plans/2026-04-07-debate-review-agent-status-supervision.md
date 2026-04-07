@@ -1,5 +1,7 @@
 # Debate Review Agent Status Supervision Implementation Plan
 
+> Status note (2026-04-07): 이 계획의 구현 항목은 현재 저장소에 반영되어 있다. 아래 체크리스트는 historical implementation record이며, 새로운 backlog로 해석하면 안 된다.
+
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add live streaming supervision to persistent debate-review steps so the orchestrator can surface agent status, detect stalls, and persist heartbeat/recovery summaries.

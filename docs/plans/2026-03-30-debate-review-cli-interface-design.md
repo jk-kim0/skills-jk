@@ -1,7 +1,7 @@
 # Debate Review CLI Interface Design
 
 **작성일:** 2026-03-30
-**상태:** 초안
+**상태:** 구현 반영, same-repo 지원 범위 기준으로 갱신
 
 ---
 
@@ -112,7 +112,7 @@ bin/debate-review init \
 
 **동작:**
 1. PR 메타데이터 수집 (`headRefName`, `headRefOid`, `headRepositoryOwner`)
-2. is_fork 판별
+2. same-repo 여부 판별 (`is_fork`는 state compatibility용으로 계산하되, `true`면 즉시 에러)
 3. 기존 상태 파일 확인:
    - 없음 → 설계 문서 Section 2 스키마로 초기화
    - terminal 상태 + 같은 HEAD → 에러: "세션 이미 완료"
@@ -498,7 +498,7 @@ bin/debate-review post-comment --state-file "$STATE_FILE"
 | `--dry-run` | 격리된 상태 파일로 세션을 시작하고, 이후 mutating subcommand는 상태 저장/commit/push/comment 없이 `action=dry_run` 결과만 반환 |
 | `--no-comment` | PR comment 게시 생략. 코멘트 본문은 stdout에 출력 |
 
-> **Note:** `--no-push`는 CLI에 없다. git push는 CC(오케스트레이터)의 책임이며, CLI는 `record-application --verify-push`로 push 결과만 검증한다. fork PR에서는 CC가 push를 생략하고, CLI는 `is_fork=true`로 이를 인지한다.
+> **Note:** `--no-push`는 CLI에 없다. git push는 CC(오케스트레이터)의 책임이며, CLI는 `record-application --verify-push`로 push 결과만 검증한다. fork PR은 현재 지원 범위 밖이며 `init`에서 즉시 거부된다.
 
 ### 조합표
 

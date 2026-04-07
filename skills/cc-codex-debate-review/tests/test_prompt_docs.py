@@ -79,14 +79,16 @@ def test_skill_doc_step3_routing_includes_withdrawals():
     ), "SKILL.md Step 3 routing missing withdraw-issue"
 
 
-def test_skill_doc_open_issues_excludes_recommended_fork_items():
+def test_skill_doc_declares_fork_prs_unsupported():
     skill_path = Path(__file__).resolve().parents[1] / "SKILL.md"
     skill = skill_path.read_text()
 
     assert (
         "`OPEN_ISSUES_JSON` | `show --json` → issues where `consensus_status` is `open` "
-        "or (`accepted` and `application_status` not in (`applied`, `recommended`)) |"
+        "or (`accepted` and `application_status` != `applied`) |"
     ) in skill
+    assert "Fork PRs are rejected by `init`." in skill
+    assert "**Skip all 3 phases for fork PRs.**" not in skill
 
 
 def test_retry_success_error_reporting_skips_issue_creation_in_dry_run():
