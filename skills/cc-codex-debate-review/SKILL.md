@@ -363,6 +363,8 @@ The orchestrator **must** compare the new message against the existing reports a
 - `--verdict "no_findings_mergeable"`
 - Skip Steps 2, 3 and proceed to Step 4
 
+**Failed application handling:** If accepted issues have `application_status=failed`, the verdict is allowed but returns `needs_reapplication` with the list of issue IDs. The orchestrator must retry `apply-issue` for these before proceeding to Step 4.
+
 #### Report to User
 
 After routing all Step 1 results, **immediately report the debate content to the user**. Do not silently proceed to the next step. The user must see the debate as it happens:

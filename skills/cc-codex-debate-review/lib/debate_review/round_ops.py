@@ -71,7 +71,7 @@ def record_verdict(state, *, round_num, verdict) -> dict:
     if verdict == "has_findings":
         has_new_findings = bool(round_.get("step1", {}).get("report_ids"))
         open_issues = [i for i in state["issues"].values() if i["consensus_status"] == "open"]
-        excluded_statuses = {"applied"}
+        excluded_statuses = {"applied", "failed"}
         accepted_unresolved = [
             i for i in state["issues"].values()
             if i["consensus_status"] == "accepted"
@@ -88,6 +88,7 @@ def record_verdict(state, *, round_num, verdict) -> dict:
     round_["step1"]["verdict"] = verdict
 
     clean_pass = False
+    needs_reapplication = []
     if verdict == "no_findings_mergeable":
         issues = state["issues"]
 
@@ -102,15 +103,24 @@ def record_verdict(state, *, round_num, verdict) -> dict:
             i for i in accepted_issues if i["application_status"] != "applied"
         ]
         if not_applied:
-            raise ValueError(
-                f"verdict=no_findings_mergeable but {len(not_applied)} accepted issue(s) "
-                f"not yet applied"
-            )
-
-        clean_pass = True
+            # Separate truly pending from failed applications
+            failed = [i for i in not_applied if i["application_status"] == "failed"]
+            pending = [i for i in not_applied if i["application_status"] != "failed"]
+            if pending:
+                raise ValueError(
+                    f"verdict=no_findings_mergeable but {len(pending)} accepted issue(s) "
+                    f"not yet applied (status: pending)"
+                )
+            # Failed applications: allow verdict but flag for reapplication
+            needs_reapplication = [i["issue_id"] for i in failed]
+        else:
+            clean_pass = True
 
     round_["clean_pass"] = clean_pass
-    return {"round": round_num, "verdict": verdict, "clean_pass": clean_pass}
+    result = {"round": round_num, "verdict": verdict, "clean_pass": clean_pass}
+    if needs_reapplication:
+        result["needs_reapplication"] = needs_reapplication
+    return result
 
 
 def _collect_touched_issue_ids(round_):
