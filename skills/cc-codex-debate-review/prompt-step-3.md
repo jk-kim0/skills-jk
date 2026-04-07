@@ -1,5 +1,7 @@
 ## Round {ROUND} — Lead Response + Code Application
 
+{USER_FEEDBACKS}
+
 ### Rebuttals Against Your Findings
 
 {CROSS_REBUTTALS_JSON}

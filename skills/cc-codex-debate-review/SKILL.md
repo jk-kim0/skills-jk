@@ -26,6 +26,7 @@ CC (orchestrator)
 
 - When consensus-based review by two agents is needed for a PR
 - Example invocation: `run debate-review (repo=owner/repo, pr=123)`
+- With review instructions: `run debate-review (repo=owner/repo, pr=123, review_instructions="인터페이스 계약과 backward compatibility를 중심으로 꼼꼼하게 리뷰해주세요")`
 
 ## Inputs
 
@@ -72,7 +73,8 @@ CONFIG_FILE="$SKILL_ROOT/config.yml"
 
 ```bash
 RESULT=$("$DEBATE_REVIEW_BIN" init --repo "$REPO" --pr "$PR_NUMBER" \
-  --config "$CONFIG_FILE")
+  --config "$CONFIG_FILE" \
+  ${REVIEW_INSTRUCTIONS:+--review-instructions "$REVIEW_INSTRUCTIONS"})
 STATE_FILE=$(echo "$RESULT" | jq -r '.state_file')
 STATUS=$(echo "$RESULT" | jq -r '.status')           # "created" | "resumed"
 CURRENT_ROUND=$(echo "$RESULT" | jq -r '.current_round')
@@ -80,9 +82,12 @@ IS_FORK=$(echo "$RESULT" | jq -r '.is_fork')
 DRY_RUN=$(echo "$RESULT" | jq -r '.dry_run')
 CODEX_SANDBOX=$(echo "$RESULT" | jq -r '.codex_sandbox')
 LANGUAGE=$(echo "$RESULT" | jq -r '.language')
+REVIEW_INSTRUCTIONS=$(echo "$RESULT" | jq -r '.review_instructions // empty')
 ```
 
 `debate-review init` rejects fork PRs. In supported sessions, `IS_FORK` is always `false` and exists only for state-schema compatibility.
+
+`REVIEW_INSTRUCTIONS` is an optional free-text string provided by the user at session creation. When present, it is injected into the agent initial prompt as a "Review Instructions" section, guiding agents to prioritize specific review areas (e.g., design patterns, interface contracts, local testing, backward compatibility). If empty, the section is omitted.
 
 `LANGUAGE` is passed to LLM prompts via `{OUTPUT_LANGUAGE}` to control user-facing output language. The language setting applies to **all user-facing text**:
 
@@ -680,6 +685,45 @@ After Step 4 (`settle-round`), if `settled_issues` is non-empty, the orchestrato
 ```
 
 Each entry: `{"issue_id", "status" (accepted/withdrawn), "reason", "summary", "round"}`. The CLI deduplicates by `(issue_id, status, round)`. If a withdrawn issue is re-raised and settled again, a new entry is appended (history accumulates).
+
+---
+
+## User Feedback During Review
+
+The user (orchestrator's human operator) can inject feedback at any time during a debate review session. Feedback is stored in state and automatically included in the next step prompt sent to agents.
+
+### Adding Feedback
+
+```bash
+"$DEBATE_REVIEW_BIN" add-feedback \
+  --state-file "$STATE_FILE" \
+  --message "로컬 테스트도 수행해서 동작 확인해주세요"
+```
+
+Returns a JSON entry with `id`, `message`, `created_at`, `consumed` fields.
+
+### Feedback Delivery to Agents
+
+When `build-prompt` is called for any step, pending (unconsumed) feedbacks are automatically injected into the step message as a "User Feedback" section. The output includes `consumed_feedback_ids` for the orchestrator to mark as consumed:
+
+```bash
+PROMPT_RESULT=$("$DEBATE_REVIEW_BIN" build-prompt \
+  --state-file "$STATE_FILE" --agent "$LEAD_AGENT" --step 1 --round "$CURRENT_ROUND")
+CONSUMED_IDS=$(echo "$PROMPT_RESULT" | jq -r '.consumed_feedback_ids // empty')
+
+# After successful dispatch, mark feedbacks as consumed
+if [ -n "$CONSUMED_IDS" ]; then
+  "$DEBATE_REVIEW_BIN" mark-feedbacks-consumed \
+    --state-file "$STATE_FILE" \
+    --feedback-ids "$CONSUMED_IDS"
+fi
+```
+
+Feedbacks are delivered once — after `mark-feedbacks-consumed`, they will not appear in subsequent step prompts. If the orchestrator crashes before marking, the feedbacks will be re-delivered in the next step (at-least-once delivery).
+
+### When to Use
+
+The orchestrator should check for user feedback between steps. If the user provides chat input during a debate review, the orchestrator should call `add-feedback` before dispatching the next step.
 
 ---
 

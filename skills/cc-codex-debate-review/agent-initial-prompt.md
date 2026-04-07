@@ -31,6 +31,8 @@ description). Keep JSON keys, enum values, file paths, anchors unchanged.
 
 {REVIEW_CRITERIA}
 
+{REVIEW_INSTRUCTIONS}
+
 ## General Output Rules
 
 - Each task message specifies its own JSON schema — follow it exactly

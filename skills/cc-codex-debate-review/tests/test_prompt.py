@@ -11,6 +11,7 @@ from debate_review.prompt import (
     prompt_file_path,
 )
 from debate_review.state import create_initial_state
+from debate_review.state import add_user_feedback, mark_feedbacks_consumed
 from debate_review.issue_ops import upsert_issue
 from debate_review.round_ops import init_round, record_verdict
 from debate_review.cross_verification import record_cross_verification
@@ -72,7 +73,7 @@ def test_build_initial_prompt_includes_review_criteria():
 def test_step1_message_contains_round():
     state = _make_state()
     init_round(state, round_num=1, synced_head_sha="abc123")
-    msg = build_step_message(state, step=1, round_num=1, skill_root=SKILL_ROOT)
+    msg, _ = build_step_message(state, step=1, round_num=1, skill_root=SKILL_ROOT)
     assert "Round 1" in msg
     assert "Lead Review" in msg
 
@@ -82,7 +83,7 @@ def test_step2_message_contains_lead_findings():
     init_round(state, round_num=1, synced_head_sha="abc123")
     upsert_issue(state, agent="codex", round_num=1, severity="warning",
                  criterion=7, file="a.py", line=1, anchor="foo", message="Test")
-    msg = build_step_message(state, step=2, round_num=1, skill_root=SKILL_ROOT)
+    msg, _ = build_step_message(state, step=2, round_num=1, skill_root=SKILL_ROOT)
     assert "Cross-Verification" in msg
     assert "Test" in msg
 
@@ -90,7 +91,7 @@ def test_step2_message_contains_lead_findings():
 def test_step1_message_requests_withdrawals_output():
     state = _make_state()
     init_round(state, round_num=1, synced_head_sha="abc123")
-    msg = build_step_message(state, step=1, round_num=1, skill_root=SKILL_ROOT)
+    msg, _ = build_step_message(state, step=1, round_num=1, skill_root=SKILL_ROOT)
     assert '"withdrawals": [' in msg
     assert "Duplicate detection" in msg
 
@@ -100,7 +101,7 @@ def test_step2_message_requests_withdrawals_output():
     init_round(state, round_num=1, synced_head_sha="abc123")
     upsert_issue(state, agent="codex", round_num=1, severity="warning",
                  criterion=7, file="a.py", line=1, anchor="foo", message="Test")
-    msg = build_step_message(state, step=2, round_num=1, skill_root=SKILL_ROOT)
+    msg, _ = build_step_message(state, step=2, round_num=1, skill_root=SKILL_ROOT)
     assert '"withdrawals": [' in msg
     assert "Duplicate detection" in msg
 
@@ -116,7 +117,7 @@ def test_step3_message_contains_applicable_issues():
     record_cross_verification(state, round_num=1, verifications=[
         {"report_id": report_id, "decision": "accept", "reason": "ok"}
     ])
-    msg = build_step_message(
+    msg, _ = build_step_message(
         state,
         step=3,
         round_num=1,
@@ -142,7 +143,7 @@ def test_step3_message_requests_withdrawals_output():
     record_cross_verification(state, round_num=1, verifications=[
         {"report_id": report_id, "decision": "accept", "reason": "ok"}
     ])
-    msg = build_step_message(
+    msg, _ = build_step_message(
         state,
         step=3,
         round_num=1,
@@ -162,8 +163,8 @@ def test_step_message_invalid_step():
 def test_step_message_extra_context():
     state = _make_state()
     init_round(state, round_num=1, synced_head_sha="abc123")
-    msg = build_step_message(state, step=1, round_num=1, skill_root=SKILL_ROOT,
-                             extra="Check security headers")
+    msg, _ = build_step_message(state, step=1, round_num=1, skill_root=SKILL_ROOT,
+                               extra="Check security headers")
     assert "Check security headers" in msg
     assert "Additional Context" in msg
 
@@ -173,6 +174,21 @@ def test_step3_message_requires_state_file():
     init_round(state, round_num=1, synced_head_sha="abc123")
     with pytest.raises(ValueError, match="state_file is required"):
         build_step_message(state, step=3, round_num=1, skill_root=SKILL_ROOT)
+
+
+def test_step_message_includes_only_pending_user_feedbacks():
+    state = _make_state()
+    init_round(state, round_num=1, synced_head_sha="abc123")
+    first = add_user_feedback(state, message="Run local tests")
+    add_user_feedback(state, message="Check backward compatibility")
+    mark_feedbacks_consumed(state, [first["id"]])
+
+    msg, consumed_feedback_ids = build_step_message(state, step=1, round_num=1, skill_root=SKILL_ROOT)
+
+    assert "### User Feedback" in msg
+    assert "Run local tests" not in msg
+    assert "Check backward compatibility" in msg
+    assert consumed_feedback_ids == ["fb_002"]
 
 
 # --- build_prompt (integration: file I/O) ---
@@ -246,6 +262,18 @@ def test_build_prompt_step3_substitutes_runtime_placeholders(tmp_path, monkeypat
     assert os.path.join(SKILL_ROOT, "bin", "debate-review") in result["message"]
     assert "{DEBATE_REVIEW_BIN}" not in result["message"]
     assert "{STATE_FILE}" not in result["message"]
+
+
+def test_build_prompt_step_returns_consumed_feedback_ids(tmp_path, monkeypatch):
+    monkeypatch.setattr("debate_review.prompt._PROMPTS_DIR", str(tmp_path))
+    state = _make_state()
+    init_round(state, round_num=1, synced_head_sha="abc123")
+    add_user_feedback(state, message="Verify local tests")
+
+    result = build_prompt(state, agent="cc", step="1", round_num=1, skill_root=SKILL_ROOT)
+
+    assert result["consumed_feedback_ids"] == ["fb_001"]
+    assert "Verify local tests" in result["message"]
 
 
 def test_build_prompt_requires_skill_root():

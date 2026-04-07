@@ -25,7 +25,7 @@ from debate_review.round_ops import (
     settle_round,
 )
 from debate_review.runtime_supervision import StepSupervisor
-from debate_review.state import create_initial_state, mark_failed, save_state
+from debate_review.state import add_user_feedback, create_initial_state, mark_failed, save_state
 
 SKILL_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -38,6 +38,7 @@ class FakeCli:
         self.next_step = next_step
         self.post_comment_calls = []
         self.mark_failed_calls = []
+        self.mark_feedbacks_consumed_calls = []
         self.record_agent_sessions_calls = []
         self.record_application_calls = []
         self.build_prompt_calls = []
@@ -176,6 +177,13 @@ class FakeCli:
         if step != "init":
             result["message_file"] = message_path
         return result
+
+    def mark_feedbacks_consumed(self, _state_file, *, feedback_ids):
+        self.mark_feedbacks_consumed_calls.append(list(feedback_ids))
+        for feedback in self.state.get("user_feedbacks", []):
+            if feedback["id"] in feedback_ids:
+                feedback["consumed"] = True
+        return {"consumed": feedback_ids}
 
     def record_agent_sessions(self, _state_file, *, cc_agent_id, codex_session_id):
         self.record_agent_sessions_calls.append((cc_agent_id, codex_session_id))
@@ -355,6 +363,68 @@ def test_dispatch_step_persistent_records_trace_metadata(monkeypatch, tmp_path):
     assert trace["runtime_artifacts"]["subagent_log_path"] == str(output_real.resolve())
     assert trace["persistent_session"]["handle"] == "cc-session-1"
     assert [span["name"] for span in trace["command_spans"]] == ["build_prompt", "send_message"]
+
+
+def test_dispatch_step_marks_feedbacks_consumed_after_success(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    checkpoint_path = tmp_path / "checkpoint.json"
+    monkeypatch.setattr(orchestrator_module, "_checkpoint_path", lambda _state_file: str(checkpoint_path))
+
+    state = _sample_state()
+    init_round(state, round_num=1, lead_agent="cc", synced_head_sha=state["head"]["last_observed_pr_sha"])
+    add_user_feedback(state, message="Run local tests")
+    state["persistent_agents"]["cc_agent_id"] = "cc-session-1"
+    state["persistent_agents"]["codex_session_id"] = "codex-session-1"
+
+    cli = FakeCli(state, state_file=str(tmp_path / "state.json"))
+
+    def build_prompt_with_feedback(_state_file, *, agent, step, round_num=None, extra=None):
+        cli.build_prompt_calls.append((agent, step, round_num, extra))
+        prompt_path = f"{cli.state_file}.{agent}.prompt.md"
+        message_path = f"{cli.state_file}.{agent}.message.md"
+        with open(prompt_path, "w") as f:
+            f.write(f"prompt:{agent}:{step}")
+        with open(message_path, "w") as f:
+            f.write(f"message:{agent}:{step}:{round_num}")
+        return {
+            "prompt_file": prompt_path,
+            "message_file": message_path,
+            "consumed_feedback_ids": ["fb_001"],
+        }
+
+    cli.build_prompt = build_prompt_with_feedback
+    cc = ScriptedAdapter(
+        "cc",
+        send=[{"rebuttal_responses": [], "withdrawals": [], "findings": [], "verdict": "no_findings_mergeable"}],
+    )
+    orchestrator = DebateReviewOrchestrator(
+        cli=cli,
+        adapters={"codex": ScriptedAdapter("codex"), "cc": cc},
+        skill_root=SKILL_ROOT,
+        config={"codex_sandbox": "danger-full-access"},
+        cleanup_worktree=False,
+    )
+    orchestrator.state_file = cli.state_file
+
+    round_ctx = {
+        "round": 1,
+        "lead_agent": "cc",
+        "cross_verifier": "codex",
+        "worktree_path": f"{state['repo_root']}/.worktrees/debate-pr-{state['pr_number']}",
+        "head_branch": state["head"]["pr_branch_name"],
+    }
+
+    response = orchestrator._dispatch_step(
+        step="step1",
+        agent="cc",
+        state=state,
+        round_ctx=round_ctx,
+    )
+
+    assert response["verdict"] == "no_findings_mergeable"
+    assert cli.mark_feedbacks_consumed_calls == [["fb_001"]]
+    assert cli.state["user_feedbacks"][0]["consumed"] is True
 
 
 def test_dispatch_step_records_runtime_supervision_summary(monkeypatch, tmp_path):
