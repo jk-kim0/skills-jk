@@ -372,7 +372,7 @@ After routing all Step 1 results, **immediately report the debate content to the
   [{severity}] {file}:{line} ({anchor})
     {message}
   ...
-  {issue_id} {WITHDRAW/MAINTAIN}:
+  {report_id} {WITHDRAW/MAINTAIN}:
     {reason}
   verdict: {verdict}
 ```
@@ -440,7 +440,7 @@ After routing all Step 2 results, **immediately report the debate content to the
 
 ```
 [Step2] {CROSS_VERIFIER} cross-verify ✓ — {N} accept, {M} rebut, {K} new
-  {issue_id} {ACCEPT/REBUT}:
+  {report_id} {ACCEPT/REBUT}:
     {reason}
   ...
   {N} new finding(s):
@@ -635,7 +635,15 @@ Branch based on `SETTLE_RESULT.result`:
 After settlement, **immediately report the result to the user**:
 
 ```
-[Step4] settle ✓ {result} → round {next_round}
+[Step4] settle ✓ continue → round {next_round}
+        settled: {settled_issue_ids}
+        unresolved: {unresolved_issue_ids}
+```
+
+For terminal results (`consensus_reached`, `max_rounds_exceeded`, `stalled`), omit `→ round {next_round}` and report:
+
+```
+[Step4] settle ✓ {result}
         settled: {settled_issue_ids}
         unresolved: {unresolved_issue_ids}
 ```
@@ -1097,9 +1105,9 @@ The user must always see the debate as it happens. There are two execution modes
 
 [Step2] cc cross-verify...
 [Step2] cc cross-verify ✓ (1m 12s) — 1 accept, 1 rebut
-  isu_001 ACCEPT:
+  rpt_001 ACCEPT:
     agreed
-  isu_002 REBUT:
+  rpt_002 REBUT:
     out of scope for this PR
 
 [Step3] codex lead response...
@@ -1122,7 +1130,7 @@ applied: 1 | withdrawn: 1 | unresolved: 0
 - **Elapsed time ticks**: During long agent runs, a periodic update prints every 30 seconds (e.g., `[Step1] codex lead review... (30s)`, `... (1m 0s)`)
 - **Debate content**: After each step completes, full findings/rebuttals/decisions are printed with indentation
 - **Clean pass shortcut**: When step1 returns `no_findings_mergeable`, Step2 and Step3 are shown as `skip (clean pass)`
-- **Settlement**: Shows which issues were settled and which remain unresolved
+- **Settlement**: Shows which issues were settled and which remain unresolved; terminal results omit `→ round {next_round}`
 
 ### Implementation
 
