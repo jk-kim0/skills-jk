@@ -804,11 +804,26 @@ def cmd_terminate_agents(args):
     print(json.dumps(result))
 
 
+_BUILD_PROMPT_STEP_TIMING_MAP = {
+    "1": "step1_lead_review",
+    "2": "step2_cross_review",
+    "3": "step3_lead_apply",
+}
+
+
 def cmd_build_prompt(args):
-    # Read-only command: loads state but MUST NOT call save_state().
     state = load_state(args.state_file)
     if state is None:
         _error_exit(f"No state file found at {args.state_file}")
+
+    # Record step timing at build-prompt time — the closest CLI-level proxy
+    # for "step dispatch started".  Uses setdefault (first-write-wins) so the
+    # orchestrator's earlier record_step_trace timestamp is preserved when present.
+    timing_step = _BUILD_PROMPT_STEP_TIMING_MAP.get(args.step)
+    if timing_step is not None:
+        record_step_timing(state, timing_step)
+        save_state(state, args.state_file)
+
     # cli.py is at lib/debate_review/cli.py, skill root is 3 levels up
     skill_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     result = build_prompt(
