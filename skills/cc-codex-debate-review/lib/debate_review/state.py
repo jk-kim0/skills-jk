@@ -41,6 +41,7 @@ def create_initial_state(
     max_rounds=10,
     language="en",
     dry_run=False,
+    review_instructions=None,
 ) -> dict:
     now = datetime.now(timezone.utc).isoformat()
     return {
@@ -51,6 +52,8 @@ def create_initial_state(
         "dry_run": dry_run,
         "max_rounds": max_rounds,
         "language": language,
+        "review_instructions": review_instructions,
+        "user_feedbacks": [],
         "persistent_agents": default_persistent_agents(),
         "status": "in_progress",
         "current_round": 1,
@@ -96,6 +99,33 @@ def mark_failed(state, *, error_message="Unknown error"):
     state["error_message"] = error_message
     state["head"]["terminal_sha"] = state["head"]["last_observed_pr_sha"]
     state["journal"]["state_persisted"] = True
+
+
+def add_user_feedback(state, *, message):
+    """Append a user feedback entry to user_feedbacks."""
+    now = datetime.now(timezone.utc).isoformat()
+    feedbacks = state.setdefault("user_feedbacks", [])
+    entry = {
+        "id": f"fb_{len(feedbacks) + 1:03d}",
+        "message": message,
+        "created_at": now,
+        "consumed": False,
+    }
+    feedbacks.append(entry)
+    return entry
+
+
+def get_pending_feedbacks(state):
+    """Return user feedbacks that have not been consumed yet."""
+    return [fb for fb in state.get("user_feedbacks", []) if not fb.get("consumed")]
+
+
+def mark_feedbacks_consumed(state, feedback_ids):
+    """Mark specified feedbacks as consumed."""
+    ids_set = set(feedback_ids)
+    for fb in state.get("user_feedbacks", []):
+        if fb["id"] in ids_set:
+            fb["consumed"] = True
 
 
 def append_ledger(state, *, entries):

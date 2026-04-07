@@ -2,6 +2,8 @@
 
 You are the LEAD reviewer this round.
 
+{USER_FEEDBACKS}
+
 ### Pending Rebuttals (Step 1a)
 
 {PENDING_REBUTTALS_JSON}

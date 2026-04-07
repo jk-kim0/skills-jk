@@ -13,6 +13,7 @@ from .context import (
     build_pending_rebuttals,
     build_potential_applicable_issues,
 )
+from .state import get_pending_feedbacks
 
 _PROMPTS_DIR = os.path.join(os.path.expanduser("~"), ".claude", "debate-state", "prompts")
 
@@ -69,27 +70,60 @@ def build_initial_prompt(state, skill_root):
     review_criteria = _read_template(skill_root, "review-criteria.md")
 
     worktree_path = _worktree_path(state)
+    review_instructions = state.get("review_instructions")
+    if review_instructions:
+        ri_section = (
+            "## Review Instructions\n\n"
+            "The reviewer has requested the following focus for this review:\n\n"
+            f"> {review_instructions}\n\n"
+            "Prioritize these areas while still applying the standard review criteria."
+        )
+    else:
+        ri_section = ""
+
     placeholders = {
         "{REPO}": state["repo"],
         "{PR_NUMBER}": str(state["pr_number"]),
         "{WORKTREE_PATH}": worktree_path,
         "{OUTPUT_LANGUAGE}": state.get("language", "en"),
         "{REVIEW_CRITERIA}": review_criteria,
+        "{REVIEW_INSTRUCTIONS}": ri_section,
     }
     return _substitute(template, placeholders)
 
 
+def _build_user_feedbacks_section(state):
+    """Build the user feedbacks section from pending (unconsumed) feedbacks."""
+    pending = get_pending_feedbacks(state)
+    if not pending:
+        return "", []
+    lines = ["### User Feedback\n"]
+    lines.append("The reviewer has provided the following feedback. "
+                 "Consider this in your current task:\n")
+    for fb in pending:
+        lines.append(f"- **[{fb['id']}]** {fb['message']}")
+    section = "\n".join(lines)
+    consumed_ids = [fb["id"] for fb in pending]
+    return section, consumed_ids
+
+
 def build_step_message(state, step, round_num, skill_root, extra=None, state_file=None):
-    """Build a step message from the step template + state data."""
+    """Build a step message from the step template + state data.
+
+    Returns (message, consumed_feedback_ids) tuple.
+    """
     template_file = _STEP_TEMPLATE_FILES.get(str(step))
     if not template_file:
         raise ValueError(f"Unknown step: {step}. Valid steps: 1, 2, 3")
 
     template = _read_template(skill_root, template_file)
 
+    feedbacks_section, consumed_feedback_ids = _build_user_feedbacks_section(state)
+
     placeholders = {
         "{ROUND}": str(round_num),
         "{DEBATE_LEDGER_TEXT}": build_debate_ledger_text(state),
+        "{USER_FEEDBACKS}": feedbacks_section,
     }
 
     if str(step) == "1":
@@ -128,7 +162,7 @@ def build_step_message(state, step, round_num, skill_root, extra=None, state_fil
     if extra:
         message += f"\n\n### Additional Context\n\n{extra}"
 
-    return message
+    return message, consumed_feedback_ids
 
 
 def build_prompt(state, agent, step, round_num=None, skill_root=None, extra=None, state_file=None):
@@ -146,6 +180,8 @@ def build_prompt(state, agent, step, round_num=None, skill_root=None, extra=None
         dry_run=state.get("dry_run", False),
     )
 
+    consumed_feedback_ids = []
+
     if step == "init":
         message = build_initial_prompt(state, skill_root)
         with open(pf, "w") as f:
@@ -153,7 +189,7 @@ def build_prompt(state, agent, step, round_num=None, skill_root=None, extra=None
     else:
         if round_num is None:
             raise ValueError("round is required for step messages")
-        message = build_step_message(
+        message, consumed_feedback_ids = build_step_message(
             state,
             step,
             round_num,
@@ -166,4 +202,7 @@ def build_prompt(state, agent, step, round_num=None, skill_root=None, extra=None
             f.write(separator)
             f.write(message)
 
-    return {"prompt_file": pf, "message": message}
+    result = {"prompt_file": pf, "message": message}
+    if consumed_feedback_ids:
+        result["consumed_feedback_ids"] = consumed_feedback_ids
+    return result

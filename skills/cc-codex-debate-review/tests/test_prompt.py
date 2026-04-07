@@ -72,7 +72,7 @@ def test_build_initial_prompt_includes_review_criteria():
 def test_step1_message_contains_round():
     state = _make_state()
     init_round(state, round_num=1, synced_head_sha="abc123")
-    msg = build_step_message(state, step=1, round_num=1, skill_root=SKILL_ROOT)
+    msg, _ = build_step_message(state, step=1, round_num=1, skill_root=SKILL_ROOT)
     assert "Round 1" in msg
     assert "Lead Review" in msg
 
@@ -82,7 +82,7 @@ def test_step2_message_contains_lead_findings():
     init_round(state, round_num=1, synced_head_sha="abc123")
     upsert_issue(state, agent="codex", round_num=1, severity="warning",
                  criterion=7, file="a.py", line=1, anchor="foo", message="Test")
-    msg = build_step_message(state, step=2, round_num=1, skill_root=SKILL_ROOT)
+    msg, _ = build_step_message(state, step=2, round_num=1, skill_root=SKILL_ROOT)
     assert "Cross-Verification" in msg
     assert "Test" in msg
 
@@ -90,7 +90,7 @@ def test_step2_message_contains_lead_findings():
 def test_step1_message_requests_withdrawals_output():
     state = _make_state()
     init_round(state, round_num=1, synced_head_sha="abc123")
-    msg = build_step_message(state, step=1, round_num=1, skill_root=SKILL_ROOT)
+    msg, _ = build_step_message(state, step=1, round_num=1, skill_root=SKILL_ROOT)
     assert '"withdrawals": [' in msg
     assert "Duplicate detection" in msg
 
@@ -100,7 +100,7 @@ def test_step2_message_requests_withdrawals_output():
     init_round(state, round_num=1, synced_head_sha="abc123")
     upsert_issue(state, agent="codex", round_num=1, severity="warning",
                  criterion=7, file="a.py", line=1, anchor="foo", message="Test")
-    msg = build_step_message(state, step=2, round_num=1, skill_root=SKILL_ROOT)
+    msg, _ = build_step_message(state, step=2, round_num=1, skill_root=SKILL_ROOT)
     assert '"withdrawals": [' in msg
     assert "Duplicate detection" in msg
 
@@ -116,7 +116,7 @@ def test_step3_message_contains_applicable_issues():
     record_cross_verification(state, round_num=1, verifications=[
         {"report_id": report_id, "decision": "accept", "reason": "ok"}
     ])
-    msg = build_step_message(
+    msg, _ = build_step_message(
         state,
         step=3,
         round_num=1,
@@ -142,7 +142,7 @@ def test_step3_message_requests_withdrawals_output():
     record_cross_verification(state, round_num=1, verifications=[
         {"report_id": report_id, "decision": "accept", "reason": "ok"}
     ])
-    msg = build_step_message(
+    msg, _ = build_step_message(
         state,
         step=3,
         round_num=1,
@@ -162,8 +162,8 @@ def test_step_message_invalid_step():
 def test_step_message_extra_context():
     state = _make_state()
     init_round(state, round_num=1, synced_head_sha="abc123")
-    msg = build_step_message(state, step=1, round_num=1, skill_root=SKILL_ROOT,
-                             extra="Check security headers")
+    msg, _ = build_step_message(state, step=1, round_num=1, skill_root=SKILL_ROOT,
+                               extra="Check security headers")
     assert "Check security headers" in msg
     assert "Additional Context" in msg
 

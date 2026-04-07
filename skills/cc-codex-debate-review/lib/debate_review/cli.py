@@ -31,7 +31,9 @@ from debate_review.error_log import save_error_log
 from debate_review.agent_cleanup import terminate_agents
 from debate_review.follow_through import create_failure_issue, cleanup_worktree
 from debate_review.state import (
+    add_user_feedback,
     append_ledger,
+    mark_feedbacks_consumed,
     StateCorruptedError,
     create_initial_state,
     determine_next_step,
@@ -55,6 +57,8 @@ def build_parser() -> argparse.ArgumentParser:
     init_parser.add_argument("--config", help="Path to config YAML")
     init_parser.add_argument("--max-rounds", type=int, help="Override max_rounds from config")
     init_parser.add_argument("--dry-run", action="store_true", help="Dry run mode")
+    init_parser.add_argument("--review-instructions", default=None,
+                             help="User's review focus instructions for agents")
     # show subcommand
     show_parser = subparsers.add_parser("show", help="Show debate-review state")
     show_parser.add_argument("--state-file", help="Path to state file")
@@ -133,6 +137,17 @@ def build_parser() -> argparse.ArgumentParser:
     p_ledger = subparsers.add_parser("append-ledger", help="Append entries to debate_ledger")
     p_ledger.add_argument("--state-file", required=True)
     p_ledger.add_argument("--entries", required=True, help="JSON array of ledger entries")
+
+    # add-feedback subcommand
+    p_feedback = subparsers.add_parser("add-feedback", help="Add user feedback to influence next step")
+    p_feedback.add_argument("--state-file", required=True)
+    p_feedback.add_argument("--message", required=True, help="User's feedback message")
+
+    # mark-feedbacks-consumed subcommand
+    p_mfc = subparsers.add_parser("mark-feedbacks-consumed",
+                                  help="Mark user feedbacks as consumed after dispatch")
+    p_mfc.add_argument("--state-file", required=True)
+    p_mfc.add_argument("--feedback-ids", required=True, help="JSON array of feedback IDs")
 
     # withdraw-issue subcommand
     p_withdraw = subparsers.add_parser("withdraw-issue", help="Withdraw an open issue by orchestrator/agent decision")
@@ -328,6 +343,7 @@ def cmd_init(args):
             max_rounds=max_rounds,
             language=language,
             dry_run=dry_run,
+            review_instructions=args.review_instructions,
         )
         save_state(state, state_path)
         result_status = "created"
@@ -385,6 +401,7 @@ def cmd_init(args):
                 max_rounds=max_rounds,
                 language=language,
                 dry_run=dry_run,
+                review_instructions=args.review_instructions,
             )
             save_state(state, state_path)
             result_status = "created"
@@ -398,6 +415,10 @@ def cmd_init(args):
         "dry_run": dry_run,
         "codex_sandbox": codex_sandbox,
         "language": existing.get("language", language) if result_status == "resumed" else language,
+        "review_instructions": (
+            existing.get("review_instructions") if result_status == "resumed"
+            else args.review_instructions
+        ),
     }
     if result_status == "resumed":
         resume_info = determine_next_step(existing)
@@ -725,6 +746,25 @@ def cmd_append_ledger(args):
     print(json.dumps(result))
 
 
+def cmd_add_feedback(args):
+    state = load_state(args.state_file)
+    if state is None:
+        _error_exit(f"No state file found at {args.state_file}")
+    entry = add_user_feedback(state, message=args.message)
+    save_state(state, args.state_file)
+    print(json.dumps(entry))
+
+
+def cmd_mark_feedbacks_consumed(args):
+    state = load_state(args.state_file)
+    if state is None:
+        _error_exit(f"No state file found at {args.state_file}")
+    feedback_ids = json.loads(args.feedback_ids)
+    mark_feedbacks_consumed(state, feedback_ids)
+    save_state(state, args.state_file)
+    print(json.dumps({"consumed": feedback_ids}))
+
+
 def cmd_withdraw_issue(args):
     state = load_state(args.state_file)
     if state is None:
@@ -789,6 +829,8 @@ def cmd_build_prompt(args):
         with os.fdopen(msg_fd, "w") as f:
             f.write(result["message"])
         output["message_file"] = msg_path
+    if result.get("consumed_feedback_ids"):
+        output["consumed_feedback_ids"] = result["consumed_feedback_ids"]
     print(json.dumps(output))
 
 
@@ -834,6 +876,8 @@ def main():
         "test-error": cmd_test_error,
         "mark-failed": cmd_mark_failed,
         "withdraw-issue": cmd_withdraw_issue,
+        "add-feedback": cmd_add_feedback,
+        "mark-feedbacks-consumed": cmd_mark_feedbacks_consumed,
         "append-ledger": cmd_append_ledger,
         "sync-head": cmd_sync_head,
         "post-comment": cmd_post_comment,

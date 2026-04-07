@@ -2,6 +2,8 @@
 
 You are the CROSS-VERIFIER this round.
 
+{USER_FEEDBACKS}
+
 ### Lead's Findings
 
 {LEAD_FINDINGS_JSON}
