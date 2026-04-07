@@ -887,8 +887,17 @@ def test_session_summary_includes_cc_invocation_type(tmp_path):
 
 def test_version_consistency():
     """Ensure __version__ in __init__.py matches pyproject.toml."""
+    import sys
     from pathlib import Path
-    import tomllib
+
+    if sys.version_info >= (3, 11):
+        import tomllib
+    else:
+        try:
+            import tomli as tomllib  # type: ignore[no-redef]
+        except ImportError:
+            import pytest
+            pytest.skip("tomllib requires Python 3.11+ or tomli package")
 
     from debate_review import __version__
 
