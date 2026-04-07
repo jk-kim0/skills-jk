@@ -296,7 +296,7 @@ def cmd_init(args):
     head_sha = pr_data["headRefOid"]
     head_repo_owner = pr_data["headRepositoryOwner"]["login"]
     head_repo = pr_data.get("headRepository") or {}
-    head_repo_name_with_owner = head_repo.get("nameWithOwner")
+    head_repo_name_with_owner = head_repo.get("nameWithOwner") or None
     repo_owner = repo.split("/")[0]
     is_fork = (
         head_repo_name_with_owner != repo
