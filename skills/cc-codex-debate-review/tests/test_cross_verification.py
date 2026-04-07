@@ -218,6 +218,58 @@ def test_withdraw_after_reopen_restores_previous_state():
     assert "pre_reopen_state" not in issue  # cleaned up after restore
 
 
+# Test: withdraw with both agents still having open reports sets consensus_status="accepted"
+# Regression test for #207/#230: _apply_withdraw → _recalculate_accepted_by produces
+# accepted_by=["codex","cc"] but consensus_status stays "open"
+def test_withdraw_preserves_consensus_when_both_agents_remain():
+    state = _state_with_round_and_issues()
+    issue = state["issues"]["isu_001"]
+    # Issue has 3 reports: codex, cc, codex — and was accepted
+    issue["reports"].append({
+        "report_id": "rpt_003", "agent": "cc", "round": 1,
+        "severity": "critical", "message": "Also missing validation",
+        "reported_at": "2026-03-30T00:00:00+00:00", "status": "open",
+    })
+    issue["reports"].append({
+        "report_id": "rpt_004", "agent": "codex", "round": 1,
+        "severity": "critical", "message": "Re-reported",
+        "reported_at": "2026-03-30T00:00:00+00:00", "status": "open",
+    })
+    issue["accepted_by"] = ["codex", "cc"]
+    issue["consensus_status"] = "accepted"
+    # Withdraw the 3rd report (rpt_004, codex) — both agents still have open reports
+    decisions = [{"report_id": "rpt_004", "decision": "withdraw", "reason": "Duplicate"}]
+    resolve_rebuttals(state, round_num=1, step="1a", decisions=decisions)
+    assert issue["accepted_by"] == ["codex", "cc"]
+    assert issue["consensus_status"] == "accepted"  # must NOT regress to "open"
+
+
+# Test: withdraw recalculates to both agents from "open" → sets "accepted"
+# Covers the case where consensus_status was "open" but _recalculate_accepted_by
+# finds both agents have open reports
+def test_withdraw_upgrades_consensus_when_both_agents_recalculated():
+    state = _state_with_round_and_issues()
+    issue = state["issues"]["isu_001"]
+    # Issue has reports from both agents but consensus_status stuck at "open"
+    issue["reports"].append({
+        "report_id": "rpt_003", "agent": "cc", "round": 1,
+        "severity": "critical", "message": "CC finding",
+        "reported_at": "2026-03-30T00:00:00+00:00", "status": "open",
+    })
+    issue["reports"].append({
+        "report_id": "rpt_004", "agent": "codex", "round": 1,
+        "severity": "warning", "message": "Extra report",
+        "reported_at": "2026-03-30T00:00:00+00:00", "status": "open",
+    })
+    issue["accepted_by"] = ["codex", "cc"]
+    issue["consensus_status"] = "open"  # inconsistent state
+    # Withdraw rpt_004 — both agents still have open reports
+    decisions = [{"report_id": "rpt_004", "decision": "withdraw", "reason": "Not needed"}]
+    resolve_rebuttals(state, round_num=1, step="1a", decisions=decisions)
+    assert issue["accepted_by"] == ["codex", "cc"]
+    assert issue["consensus_status"] == "accepted"  # should be auto-corrected
+
+
 def test_record_cross_verification_skips_unknown_report_id(capsys):
     """Unknown report_id should be skipped with a warning, not raise."""
     state = _state_with_round_and_issues()

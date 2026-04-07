@@ -55,7 +55,9 @@ def _apply_withdraw(issue, report, reason="", *, round_num=None):
     else:
         # Partial withdraw or still both agents — clear stale reason
         issue["consensus_reason"] = None
-        if set(accepted_by) != {"cc", "codex"}:
+        if set(accepted_by) >= {"cc", "codex"}:
+            issue["consensus_status"] = "accepted"
+        else:
             issue["consensus_status"] = "open"
             # Track reopening so settle_round can distinguish re-settlement
             if prev_status != "open" and round_num is not None:

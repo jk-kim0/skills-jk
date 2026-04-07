@@ -91,6 +91,35 @@ def test_upsert_appends_report_to_existing(sample_state):
     assert len(issue["reports"]) == 2
 
 
+# Regression test for #230: both agents report same issue → consensus_status must be "accepted"
+def test_upsert_sets_consensus_when_both_agents_report(sample_state):
+    upsert_issue(
+        sample_state,
+        agent="cc",
+        round_num=1,
+        severity="critical",
+        criterion=3,
+        file="src/foo.py",
+        line=42,
+        anchor="L42",
+        message="loop never ends",
+    )
+    result = upsert_issue(
+        sample_state,
+        agent="codex",
+        round_num=1,
+        severity="critical",
+        criterion=3,
+        file="src/foo.py",
+        line=42,
+        anchor="L42",
+        message="loop never ends",
+    )
+    issue = sample_state["issues"][result["issue_id"]]
+    assert set(issue["accepted_by"]) == {"cc", "codex"}
+    assert issue["consensus_status"] == "accepted"  # must NOT stay "open"
+
+
 def test_upsert_reopens_withdrawn_issue(sample_state):
     upsert_issue(
         sample_state,

@@ -136,21 +136,6 @@ def settle_round(state, *, round_num) -> dict:
 
     issues = state["issues"]
 
-    # TODO(#207): remove after root cause of consensus_status/accepted_by
-    # inconsistency is identified. See _recalculate_accepted_by path.
-    for iid, issue in issues.items():
-        if (issue["consensus_status"] == "open"
-                and set(issue.get("accepted_by", [])) >= {"cc", "codex"}):
-            print(
-                f"WARNING: auto-correcting {iid} consensus_status "
-                f"open→accepted (accepted_by={issue['accepted_by']})",
-                file=sys.stderr,
-            )
-            issue["consensus_status"] = "accepted"
-            issue["consensus_reason"] = (
-                "auto-corrected: both agents accepted but status was open"
-            )
-
     # Calculate unresolved_issue_ids
     unresolved_issue_ids = []
     for iid, issue in issues.items():
