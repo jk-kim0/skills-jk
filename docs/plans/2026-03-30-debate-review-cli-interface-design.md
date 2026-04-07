@@ -17,8 +17,8 @@ process plan이나 rollout checklist는 포함하지 않는다.
 
 ## Entrypoints
 
-- orchestrator: [`run-debate-review`](/Users/jk/workspace/skills-jk/skills/cc-codex-debate-review/bin/run-debate-review)
-- state CLI: [`debate-review`](/Users/jk/workspace/skills-jk/skills/cc-codex-debate-review/bin/debate-review)
+- orchestrator: [`run-debate-review`](../../skills/cc-codex-debate-review/bin/run-debate-review)
+- state CLI: [`debate-review`](../../skills/cc-codex-debate-review/bin/debate-review)
 
 ## Command Groups
 
@@ -39,7 +39,7 @@ process plan이나 rollout checklist는 포함하지 않는다.
 - fork PR이면 즉시 에러 반환
 - state file 생성 또는 resume
 
-구현: [`cli.py`](/Users/jk/workspace/skills-jk/skills/cc-codex-debate-review/lib/debate_review/cli.py)
+구현: [`cli.py`](../../skills/cc-codex-debate-review/lib/debate_review/cli.py)
 
 #### `show`
 
@@ -62,7 +62,7 @@ process plan이나 rollout checklist는 포함하지 않는다.
 - worktree reset
 - supersede 감지
 
-구현: [`sync.py`](/Users/jk/workspace/skills-jk/skills/cc-codex-debate-review/lib/debate_review/sync.py)
+구현: [`sync.py`](../../skills/cc-codex-debate-review/lib/debate_review/sync.py)
 
 #### `init-round`
 
@@ -98,7 +98,7 @@ process plan이나 rollout checklist는 포함하지 않는다.
 2. commit SHA 기록
 3. push verification
 
-구현: [`application.py`](/Users/jk/workspace/skills-jk/skills/cc-codex-debate-review/lib/debate_review/application.py)
+구현: [`application.py`](../../skills/cc-codex-debate-review/lib/debate_review/application.py)
 
 #### `mark-cross-verifier-clean-pass`
 
@@ -109,7 +109,7 @@ process plan이나 rollout checklist는 포함하지 않는다.
 - settled/unresolved issue 계산
 - consensus / stalled / max rounds 판정
 
-구현: [`round_ops.py`](/Users/jk/workspace/skills-jk/skills/cc-codex-debate-review/lib/debate_review/round_ops.py)
+구현: [`round_ops.py`](../../skills/cc-codex-debate-review/lib/debate_review/round_ops.py)
 
 ### Prompt / Message Helpers
 
@@ -118,11 +118,26 @@ process plan이나 rollout checklist는 포함하지 않는다.
 - init 또는 step message 생성
 - persistent prompt file에 append
 
-구현: [`prompt.py`](/Users/jk/workspace/skills-jk/skills/cc-codex-debate-review/lib/debate_review/prompt.py)
+구현: [`prompt.py`](../../skills/cc-codex-debate-review/lib/debate_review/prompt.py)
 
 #### `build-commit-message`
 
 - applied issue를 바탕으로 commit subject/body 생성
+
+### Debug / Internal Helpers
+
+#### `build-context`
+
+- debugging/inspection용 context JSON 생성
+- normal prompt dispatch path에서는 `build-prompt`를 사용하고, 이 명령은 보조 점검 용도로만 남긴다
+
+#### `append-ledger`
+
+- `debate_ledger`에 manual/debug entry를 append
+
+#### `test-error`
+
+- error reporting pipeline을 검증하기 위한 intentional failure 생성
 
 ### Terminal / Ops
 
@@ -163,7 +178,7 @@ CLI는 stdout으로 JSON object를 반환한다.
 - terminal state 이후 같은 HEAD면 resume가 아니라 completion으로 본다
 - agent handle은 `persistent_agents` block에 저장한다
 
-정확한 validation/migration은 [`state.py`](/Users/jk/workspace/skills-jk/skills/cc-codex-debate-review/lib/debate_review/state.py) 를 따른다.
+정확한 validation/migration은 [`state.py`](../../skills/cc-codex-debate-review/lib/debate_review/state.py) 를 따른다.
 
 ## Orchestrator Boundary
 
@@ -184,11 +199,11 @@ CLI가 담당하는 것:
 
 구현 참조:
 
-- orchestrator: [`orchestrator.py`](/Users/jk/workspace/skills-jk/skills/cc-codex-debate-review/lib/debate_review/orchestrator.py)
-- runtime supervision: [`runtime_supervision.py`](/Users/jk/workspace/skills-jk/skills/cc-codex-debate-review/lib/debate_review/runtime_supervision.py)
+- orchestrator: [`orchestrator.py`](../../skills/cc-codex-debate-review/lib/debate_review/orchestrator.py)
+- runtime supervision: [`runtime_supervision.py`](../../skills/cc-codex-debate-review/lib/debate_review/runtime_supervision.py)
 
 ## Retained References
 
 - architecture: [2026-03-30-debate-review-core-design.md](./2026-03-30-debate-review-core-design.md)
-- runtime procedure: [`SKILL.md`](/Users/jk/workspace/skills-jk/skills/cc-codex-debate-review/SKILL.md)
-- placeholder/prompt mapping: [`REFERENCE.md`](/Users/jk/workspace/skills-jk/skills/cc-codex-debate-review/REFERENCE.md)
+- runtime procedure: [`SKILL.md`](../../skills/cc-codex-debate-review/SKILL.md)
+- placeholder/prompt mapping: [`REFERENCE.md`](../../skills/cc-codex-debate-review/REFERENCE.md)
