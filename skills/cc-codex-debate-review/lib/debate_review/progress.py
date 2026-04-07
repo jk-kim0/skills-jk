@@ -10,6 +10,8 @@ import sys
 import threading
 import time
 
+from debate_review import __version__
+
 
 def _format_elapsed(seconds: float) -> str:
     minutes = int(seconds) // 60
@@ -45,6 +47,10 @@ class ProgressReporter:
             self._write(f"  {line}")
 
     # ── lifecycle ──
+
+    def session_start(self, repo: str, pr_number: int) -> None:
+        self._write(f"\n══ Debate Review v{__version__} ══")
+        self._write(f"PR: {repo}#{pr_number}")
 
     def round_start(self, round_num: int, lead: str, cross: str) -> None:
         self._write(f"\n── Round {round_num} (lead: {lead}) " + "─" * 40)
@@ -96,6 +102,7 @@ class ProgressReporter:
         self._write(f"\n── Result " + "─" * 50)
         self._write(f"{outcome} after {rounds} rounds ({duration})")
         self._write(f"applied: {applied} | withdrawn: {withdrawn} | unresolved: {unresolved}")
+        self._write(f"debate-review v{__version__}")
 
     def step_status(
         self,

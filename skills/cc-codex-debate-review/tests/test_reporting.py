@@ -883,3 +883,25 @@ def test_session_summary_includes_cc_invocation_type(tmp_path):
     assert "Statistics By CC Invocation Type" in markdown
     assert "Subprocess (`claude -p`)" in markdown
     assert "CC invocation: subprocess" in markdown
+
+
+def test_version_consistency():
+    """Ensure __version__ in __init__.py matches pyproject.toml."""
+    import sys
+    from pathlib import Path
+
+    if sys.version_info >= (3, 11):
+        import tomllib
+    else:
+        try:
+            import tomli as tomllib  # type: ignore[no-redef]
+        except ImportError:
+            import pytest
+            pytest.skip("tomllib requires Python 3.11+ or tomli package")
+
+    from debate_review import __version__
+
+    pyproject_path = Path(__file__).resolve().parents[1] / "pyproject.toml"
+    with open(pyproject_path, "rb") as f:
+        pyproject = tomllib.load(f)
+    assert __version__ == pyproject["project"]["version"]

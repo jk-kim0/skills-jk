@@ -1691,6 +1691,7 @@ class DebateReviewOrchestrator:
             "state_file": self.state_file,
             "result": settle_result,
             "current_round": state["current_round"],
+            "version": summary.get("version"),
             "pr_url": summary["pr_url"],
             "outcome": summary["outcome"],
             "total_duration": summary["total_duration"],
@@ -1761,6 +1762,7 @@ class DebateReviewOrchestrator:
             self.state_file = init_result["state_file"]
             self.fresh_session = init_result["status"] == "created"
             next_step = init_result.get("next_step", "step0")
+            self.progress.session_start(repo, pr_number)
 
             while True:
                 state = self._load_state()

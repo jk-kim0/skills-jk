@@ -1840,6 +1840,9 @@ def test_run_resumed_step4_announces_round_start(monkeypatch, tmp_path):
         def __init__(self):
             self.round_calls = []
 
+        def session_start(self, *_args):
+            pass
+
         def round_start(self, round_num, lead, cross):
             self.round_calls.append((round_num, lead, cross))
 
@@ -1912,6 +1915,9 @@ def test_run_resumed_checkpoint_replays_step_summary(monkeypatch, tmp_path):
             self.round_calls = []
             self.step_done_calls = []
             self.content_calls = []
+
+        def session_start(self, *_args):
+            pass
 
         def round_start(self, round_num, lead, cross):
             self.round_calls.append((round_num, lead, cross))
