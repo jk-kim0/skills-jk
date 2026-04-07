@@ -195,6 +195,8 @@ def upsert_issue(
     else:
         if agent not in issue["accepted_by"]:
             issue["accepted_by"].append(agent)
+        if set(issue["accepted_by"]) >= {"cc", "codex"}:
+            issue["consensus_status"] = "accepted"
 
     issue["reports"].append(new_report)
     issue["updated_at"] = now
