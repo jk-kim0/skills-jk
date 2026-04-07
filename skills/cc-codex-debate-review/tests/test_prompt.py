@@ -11,6 +11,7 @@ from debate_review.prompt import (
     prompt_file_path,
 )
 from debate_review.state import create_initial_state
+from debate_review.state import add_user_feedback, mark_feedbacks_consumed
 from debate_review.issue_ops import upsert_issue
 from debate_review.round_ops import init_round, record_verdict
 from debate_review.cross_verification import record_cross_verification
@@ -175,6 +176,21 @@ def test_step3_message_requires_state_file():
         build_step_message(state, step=3, round_num=1, skill_root=SKILL_ROOT)
 
 
+def test_step_message_includes_only_pending_user_feedbacks():
+    state = _make_state()
+    init_round(state, round_num=1, synced_head_sha="abc123")
+    first = add_user_feedback(state, message="Run local tests")
+    add_user_feedback(state, message="Check backward compatibility")
+    mark_feedbacks_consumed(state, [first["id"]])
+
+    msg, consumed_feedback_ids = build_step_message(state, step=1, round_num=1, skill_root=SKILL_ROOT)
+
+    assert "### User Feedback" in msg
+    assert "Run local tests" not in msg
+    assert "Check backward compatibility" in msg
+    assert consumed_feedback_ids == ["fb_002"]
+
+
 # --- build_prompt (integration: file I/O) ---
 
 def test_build_prompt_init_creates_file(tmp_path, monkeypatch):
@@ -246,6 +262,18 @@ def test_build_prompt_step3_substitutes_runtime_placeholders(tmp_path, monkeypat
     assert os.path.join(SKILL_ROOT, "bin", "debate-review") in result["message"]
     assert "{DEBATE_REVIEW_BIN}" not in result["message"]
     assert "{STATE_FILE}" not in result["message"]
+
+
+def test_build_prompt_step_returns_consumed_feedback_ids(tmp_path, monkeypatch):
+    monkeypatch.setattr("debate_review.prompt._PROMPTS_DIR", str(tmp_path))
+    state = _make_state()
+    init_round(state, round_num=1, synced_head_sha="abc123")
+    add_user_feedback(state, message="Verify local tests")
+
+    result = build_prompt(state, agent="cc", step="1", round_num=1, skill_root=SKILL_ROOT)
+
+    assert result["consumed_feedback_ids"] == ["fb_001"]
+    assert "Verify local tests" in result["message"]
 
 
 def test_build_prompt_requires_skill_root():

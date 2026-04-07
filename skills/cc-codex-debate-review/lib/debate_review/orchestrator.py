@@ -773,6 +773,13 @@ class SubprocessDebateCli:
             args.extend(["--extra", extra])
         return self._run_json(*args)
 
+    def mark_feedbacks_consumed(self, state_file: str, *, feedback_ids: list[str]) -> dict:
+        return self._run_json(
+            "mark-feedbacks-consumed",
+            "--state-file", state_file,
+            "--feedback-ids", json.dumps(feedback_ids, ensure_ascii=False),
+        )
+
     def record_agent_sessions(self, state_file: str, *, cc_agent_id: str | None, codex_session_id: str | None) -> dict:
         args = ["record-agent-sessions", "--state-file", state_file]
         if cc_agent_id is not None:
@@ -1128,6 +1135,11 @@ class DebateReviewOrchestrator:
                 ),
             }
 
+        def mark_consumed_feedbacks() -> None:
+            feedback_ids = prompt_result.get("consumed_feedback_ids") or []
+            if feedback_ids:
+                self.cli.mark_feedbacks_consumed(self.state_file, feedback_ids=feedback_ids)
+
         try:
             send_started = utc_now_iso()
             send_clock = time.monotonic()
@@ -1167,6 +1179,7 @@ class DebateReviewOrchestrator:
                 completed_at=send_completed,
                 patch=patch,
             )
+            mark_consumed_feedbacks()
             return response
         except OrchestrationError as exc:
             failed_completed = utc_now_iso()
@@ -1275,6 +1288,7 @@ class DebateReviewOrchestrator:
                 completed_at=send_completed,
                 patch=patch,
             )
+            mark_consumed_feedbacks()
             return response
 
     def _route_findings(self, *, checkpoint: dict, agent: str, round_num: int) -> None:

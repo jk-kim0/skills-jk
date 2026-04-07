@@ -5,10 +5,13 @@ import pytest
 
 from debate_review.state import (
     StateCorruptedError,
+    add_user_feedback,
     append_ledger,
     create_initial_state,
     determine_next_step,
+    get_pending_feedbacks,
     load_state,
+    mark_feedbacks_consumed,
     mark_failed,
     save_state,
     state_file_path,
@@ -100,6 +103,20 @@ def test_mark_failed(sample_state):
     assert sample_state["finished_at"] is not None
     assert sample_state["head"]["terminal_sha"] == sample_state["head"]["last_observed_pr_sha"]
     assert sample_state["journal"]["state_persisted"] is True
+
+
+def test_user_feedback_lifecycle(sample_state):
+    first = add_user_feedback(sample_state, message="Check local tests")
+    second = add_user_feedback(sample_state, message="Focus on API compatibility")
+
+    assert [fb["id"] for fb in sample_state["user_feedbacks"]] == ["fb_001", "fb_002"]
+    assert [fb["id"] for fb in get_pending_feedbacks(sample_state)] == ["fb_001", "fb_002"]
+
+    mark_feedbacks_consumed(sample_state, [first["id"]])
+
+    assert [fb["id"] for fb in get_pending_feedbacks(sample_state)] == ["fb_002"]
+    assert sample_state["user_feedbacks"][0]["consumed"] is True
+    assert sample_state["user_feedbacks"][1]["consumed"] is False
 
 
 def test_append_ledger_adds_entries(sample_state):

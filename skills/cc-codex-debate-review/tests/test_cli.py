@@ -999,6 +999,29 @@ def test_cli_build_prompt_step_returns_prompt_and_message_file(monkeypatch, caps
     assert len(content) > 0
 
 
+def test_cli_add_feedback_and_mark_consumed(monkeypatch, capsys, state_path):
+    _run_cli(monkeypatch, [
+        "add-feedback", "--state-file", state_path,
+        "--message", "Run the local test suite",
+    ])
+    result = json.loads(capsys.readouterr().out)
+    assert result["id"] == "fb_001"
+    assert result["consumed"] is False
+
+    state = load_state(state_path)
+    assert state["user_feedbacks"][0]["message"] == "Run the local test suite"
+
+    _run_cli(monkeypatch, [
+        "mark-feedbacks-consumed", "--state-file", state_path,
+        "--feedback-ids", json.dumps(["fb_001"]),
+    ])
+    result = json.loads(capsys.readouterr().out)
+    assert result["consumed"] == ["fb_001"]
+
+    state = load_state(state_path)
+    assert state["user_feedbacks"][0]["consumed"] is True
+
+
 def test_cli_withdraw_issue(monkeypatch, capsys, state_path):
     """withdraw-issue CLI should withdraw an open issue."""
     _run_cli(monkeypatch, [
