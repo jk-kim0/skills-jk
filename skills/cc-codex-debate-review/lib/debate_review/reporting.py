@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from statistics import mean, median
 
+from debate_review import __version__
 from debate_review.issue_ops import latest_report_message
 
 _STEP_ORDER = [
@@ -1226,6 +1227,7 @@ def build_final_summary(state: dict) -> dict:
         })
 
     return {
+        "version": __version__,
         "pr_url": pr_url,
         "outcome": state.get("final_outcome", "unknown"),
         "total_rounds": state.get("current_round", 0),
@@ -1247,6 +1249,7 @@ def export_debate_markdown(state: dict, output_path: str) -> str:
     lines = [
         f"# Debate Review: {repo}#{pr_number}",
         "",
+        f"- **Version**: {__version__}",
         f"- **PR**: {pr_url}",
         f"- **Outcome**: {state.get('final_outcome', 'unknown')}",
         f"- **Rounds**: {state.get('current_round', 0)}",

@@ -1747,6 +1747,7 @@ class DebateReviewOrchestrator:
             self.state_file = init_result["state_file"]
             self.fresh_session = init_result["status"] == "created"
             next_step = init_result.get("next_step", "step0")
+            self.progress.session_start(repo, pr_number)
 
             while True:
                 state = self._load_state()
