@@ -281,7 +281,7 @@ Skip if no previous round exists or no rebuttals are pending.
    - `OPEN_ISSUES_JSON`, `DEBATE_LEDGER_TEXT` → from `"$DEBATE_REVIEW_BIN" show --state-file "$STATE_FILE" --json`
    - `PENDING_REBUTTALS_JSON` → previous round Step 3 output, items where `decision=maintain`. If round 1, use `[]`. On restart/recovery when the previous agent output is unavailable, rebuild it from `show --json` using the previous round's `step3.rebuttals` plus `issues[*].reports` matched by `report_id`.
 2. Dispatch to lead agent:
-   - CC: write `$step_message` to a temp file, then `cd "$WORKTREE_PATH" && claude -p --dangerously-skip-permissions --resume "$CC_AGENT_ID" --output-format json - < "$STEP_FILE"`
+   - CC: write `$step_message` to a temp file, then `cd "$WORKTREE_PATH" && claude -p --dangerously-skip-permissions --resume "$CC_AGENT_ID" --output-format stream-json --verbose - < "$STEP_FILE"`
    - Codex: write `$step_message` to a temp file, then `cd "$WORKTREE_PATH" && codex exec resume "$CODEX_SESSION_ID" - < "$STEP_FILE"`
 3. Parse JSON response (retry up to 3 times on failure)
 
@@ -393,7 +393,7 @@ The cross-verifier performs two tasks:
    - `LEAD_FINDINGS_JSON` → this round's Step 1 agent output (`findings` array verbatim). On restart/recovery when that output is unavailable, rebuild it from `show --json` using the current round's `step1.report_ids` plus `issues[*].reports` matched by `report_id`.
    - `DEBATE_LEDGER_TEXT` → from `"$DEBATE_REVIEW_BIN" show --state-file "$STATE_FILE" --json`
 2. Dispatch to cross-verifier agent:
-   - CC: write `$step_message` to a temp file, then `cd "$WORKTREE_PATH" && claude -p --dangerously-skip-permissions --resume "$CC_AGENT_ID" --output-format json - < "$STEP_FILE"`
+   - CC: write `$step_message` to a temp file, then `cd "$WORKTREE_PATH" && claude -p --dangerously-skip-permissions --resume "$CC_AGENT_ID" --output-format stream-json --verbose - < "$STEP_FILE"`
    - Codex: write `$step_message` to a temp file, then `cd "$WORKTREE_PATH" && codex exec resume "$CODEX_SESSION_ID" - < "$STEP_FILE"`
 3. Parse JSON response (retry up to 3 times on failure)
 
@@ -477,7 +477,7 @@ The lead agent edits files directly in the worktree, commits, and pushes. There 
    - `APPLICABLE_ISSUES_JSON` → from `show --json`, filtered: `consensus_status=accepted` AND `application_status in (pending, failed)`. Empty `[]` when `DRY_RUN=true`. Fork PRs are rejected by `init` and never reach this step.
    - Include `WORKTREE_PATH`, `DEBATE_REVIEW_BIN`, `STATE_FILE`, `HEAD_BRANCH`, `ROUND` literals in the message.
 2. Dispatch to lead agent:
-   - CC: write `$step_message` to a temp file, then `cd "$WORKTREE_PATH" && claude -p --dangerously-skip-permissions --resume "$CC_AGENT_ID" --output-format json - < "$STEP_FILE"`
+   - CC: write `$step_message` to a temp file, then `cd "$WORKTREE_PATH" && claude -p --dangerously-skip-permissions --resume "$CC_AGENT_ID" --output-format stream-json --verbose - < "$STEP_FILE"`
    - Codex: write `$step_message` to a temp file, then `cd "$WORKTREE_PATH" && codex exec resume "$CODEX_SESSION_ID" - < "$STEP_FILE"`
 3. Parse JSON response (retry up to 3 times on failure)
 
@@ -913,9 +913,11 @@ The CLI returns `prompt_file` (cumulative) and `message_file` (this step only). 
 **CC Agent dispatch:**
 ```bash
 cd "$WORKTREE_PATH"
-claude -p --dangerously-skip-permissions --resume "$CC_AGENT_ID" --output-format json < "$MSG_FILE"
+claude -p --dangerously-skip-permissions --resume "$CC_AGENT_ID" --output-format stream-json --verbose < "$MSG_FILE"
 rm -f "$MSG_FILE"
 ```
+
+The output is NDJSON (one JSON object per line). Extract the result from the last `{"type":"result",...}` event's `"result"` field.
 
 **Codex Agent dispatch:**
 ```bash

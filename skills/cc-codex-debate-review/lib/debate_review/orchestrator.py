@@ -482,6 +482,36 @@ def _unwrap_cc_result(output: str) -> dict:
     return wrapper
 
 
+def _extract_result_from_stream(output: str) -> dict:
+    """Extract agent response from stream-json NDJSON output.
+
+    Finds the last {"type":"result",...} event and extracts the inner result.
+    Falls back to _unwrap_cc_result for backwards compatibility.
+    """
+    for line in reversed(output.strip().splitlines()):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(event, dict) and event.get("type") == "result" and "result" in event:
+            inner = event["result"]
+            if isinstance(inner, str):
+                candidate = _extract_json_from_text(inner)
+                try:
+                    parsed = json.loads(candidate)
+                    if isinstance(parsed, dict):
+                        return parsed
+                except json.JSONDecodeError:
+                    pass
+            elif isinstance(inner, dict):
+                return inner
+    # Fallback: try parsing as single JSON object (e.g. --output-format json)
+    return _unwrap_cc_result(output)
+
+
 def _normalize_cross_verifications(verifications: list, state: dict) -> list:
     """Normalize agent cross-verification responses to CLI-expected format.
 
@@ -566,13 +596,13 @@ def _is_non_owner_withdrawal_error(exc: OrchestrationError) -> bool:
 
 
 class CcAdapter(AgentAdapter):
-    _STREAM_FLAGS = " --output-format stream-json --verbose --include-partial-messages"
+    _STREAM_FLAGS = " --include-partial-messages"
 
     def __init__(self):
         super().__init__(
             name="cc",
             create_command="claude -p --dangerously-skip-permissions --output-format stream-json --verbose",
-            send_command="claude -p --dangerously-skip-permissions --output-format json --resume {session_id}",
+            send_command="claude -p --dangerously-skip-permissions --output-format stream-json --verbose --resume {session_id}",
         )
 
     def send_message(self, session_id: str, message: str, *, worktree_path: str, runtime: dict | None = None) -> dict:
@@ -587,7 +617,7 @@ class CcAdapter(AgentAdapter):
                 runtime=runtime,
             )
         output = _run_command(base_command, cwd=worktree_path, stdin_text=message)
-        return _unwrap_cc_result(output)
+        return _extract_result_from_stream(output)
 
 
 class SubprocessDebateCli:
