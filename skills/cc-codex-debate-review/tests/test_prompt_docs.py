@@ -79,14 +79,16 @@ def test_skill_doc_step3_routing_includes_withdrawals():
     ), "SKILL.md Step 3 routing missing withdraw-issue"
 
 
-def test_skill_doc_open_issues_excludes_recommended_fork_items():
+def test_skill_doc_declares_fork_prs_unsupported():
     skill_path = Path(__file__).resolve().parents[1] / "SKILL.md"
     skill = skill_path.read_text()
 
     assert (
         "`OPEN_ISSUES_JSON` | `show --json` → issues where `consensus_status` is `open` "
-        "or (`accepted` and `application_status` not in (`applied`, `recommended`)) |"
+        "or (`accepted` and `application_status` != `applied`) |"
     ) in skill
+    assert "Fork PRs are rejected by `init`." in skill
+    assert "**Skip all 3 phases for fork PRs.**" not in skill
 
 
 def test_retry_success_error_reporting_skips_issue_creation_in_dry_run():
@@ -97,3 +99,22 @@ def test_retry_success_error_reporting_skips_issue_creation_in_dry_run():
     section = skill[start:end]
 
     assert "If `DRY_RUN=true`, do not create a GitHub issue" in section
+
+
+def test_canonical_reference_docs_do_not_use_local_absolute_paths():
+    repo_root = Path(__file__).resolve().parents[3]
+    for doc_path in [
+        repo_root / "docs/plans/2026-03-30-debate-review-cli-interface-design.md",
+        repo_root / "docs/plans/2026-03-30-debate-review-core-design.md",
+    ]:
+        assert "/Users/jk/workspace/skills-jk/" not in doc_path.read_text()
+
+
+def test_cli_reference_mentions_debug_and_test_commands_still_supported_by_cli():
+    repo_root = Path(__file__).resolve().parents[3]
+    cli_reference = (
+        repo_root / "docs/plans/2026-03-30-debate-review-cli-interface-design.md"
+    ).read_text()
+
+    for command in ["`build-context`", "`append-ledger`", "`test-error`"]:
+        assert command in cli_reference
