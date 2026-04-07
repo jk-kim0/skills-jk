@@ -1148,3 +1148,104 @@ def test_cli_init_rejects_same_owner_cross_repo_pr(monkeypatch, capsys, tmp_path
     result = json.loads(capsys.readouterr().out)
     assert "error" in result
     assert "Fork PRs are not supported" in result["error"]
+
+
+# --- build-prompt step timing ---
+
+def test_cli_build_prompt_step1_records_timing(monkeypatch, capsys, state_path, tmp_path):
+    """build-prompt --step 1 should record step1_lead_review timing."""
+    monkeypatch.setattr("debate_review.prompt._PROMPTS_DIR", str(tmp_path))
+    _run_cli(monkeypatch, [
+        "build-prompt", "--state-file", state_path,
+        "--agent", "cc", "--step", "init",
+    ])
+    capsys.readouterr()
+
+    _run_cli(monkeypatch, [
+        "build-prompt", "--state-file", state_path,
+        "--agent", "cc", "--step", "1", "--round", "1",
+    ])
+    capsys.readouterr()
+
+    state = load_state(state_path)
+    assert "step1_lead_review" in state["journal"]["step_timings"]
+    assert "step1_lead_review" in state["rounds"][0]["step_timings"]
+
+
+def test_cli_build_prompt_step2_records_timing(monkeypatch, capsys, state_path, tmp_path):
+    """build-prompt --step 2 should record step2_cross_review timing."""
+    monkeypatch.setattr("debate_review.prompt._PROMPTS_DIR", str(tmp_path))
+    _run_cli(monkeypatch, [
+        "build-prompt", "--state-file", state_path,
+        "--agent", "cc", "--step", "init",
+    ])
+    capsys.readouterr()
+
+    _run_cli(monkeypatch, [
+        "build-prompt", "--state-file", state_path,
+        "--agent", "cc", "--step", "2", "--round", "1",
+    ])
+    capsys.readouterr()
+
+    state = load_state(state_path)
+    assert "step2_cross_review" in state["journal"]["step_timings"]
+    assert "step2_cross_review" in state["rounds"][0]["step_timings"]
+
+
+def test_cli_build_prompt_step3_records_timing(monkeypatch, capsys, state_path, tmp_path):
+    """build-prompt --step 3 should record step3_lead_apply timing."""
+    monkeypatch.setattr("debate_review.prompt._PROMPTS_DIR", str(tmp_path))
+    _run_cli(monkeypatch, [
+        "build-prompt", "--state-file", state_path,
+        "--agent", "cc", "--step", "init",
+    ])
+    capsys.readouterr()
+
+    _run_cli(monkeypatch, [
+        "build-prompt", "--state-file", state_path,
+        "--agent", "cc", "--step", "3", "--round", "1",
+    ])
+    capsys.readouterr()
+
+    state = load_state(state_path)
+    assert "step3_lead_apply" in state["journal"]["step_timings"]
+    assert "step3_lead_apply" in state["rounds"][0]["step_timings"]
+
+
+def test_cli_build_prompt_init_does_not_record_timing(monkeypatch, capsys, state_path, tmp_path):
+    """build-prompt --step init should NOT record any step timing."""
+    monkeypatch.setattr("debate_review.prompt._PROMPTS_DIR", str(tmp_path))
+    _run_cli(monkeypatch, [
+        "build-prompt", "--state-file", state_path,
+        "--agent", "cc", "--step", "init",
+    ])
+    capsys.readouterr()
+
+    state = load_state(state_path)
+    assert state["journal"]["step_timings"] == {}
+
+
+def test_cli_build_prompt_timing_does_not_overwrite_earlier(monkeypatch, capsys, state_path, tmp_path):
+    """build-prompt timing should not overwrite an earlier timestamp (first-write-wins)."""
+    monkeypatch.setattr("debate_review.prompt._PROMPTS_DIR", str(tmp_path))
+    # Pre-set an earlier timestamp (simulating orchestrator's record_step_trace)
+    state = load_state(state_path)
+    from debate_review.timing import record_step_timing
+    early_ts = "2026-01-01T00:00:00+00:00"
+    record_step_timing(state, "step1_lead_review", timestamp=early_ts)
+    save_state(state, state_path)
+
+    _run_cli(monkeypatch, [
+        "build-prompt", "--state-file", state_path,
+        "--agent", "cc", "--step", "init",
+    ])
+    capsys.readouterr()
+
+    _run_cli(monkeypatch, [
+        "build-prompt", "--state-file", state_path,
+        "--agent", "cc", "--step", "1", "--round", "1",
+    ])
+    capsys.readouterr()
+
+    state = load_state(state_path)
+    assert state["journal"]["step_timings"]["step1_lead_review"] == early_ts
