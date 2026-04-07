@@ -1677,6 +1677,7 @@ class DebateReviewOrchestrator:
             "state_file": self.state_file,
             "result": settle_result,
             "current_round": state["current_round"],
+            "version": summary.get("version"),
             "pr_url": summary["pr_url"],
             "outcome": summary["outcome"],
             "total_duration": summary["total_duration"],

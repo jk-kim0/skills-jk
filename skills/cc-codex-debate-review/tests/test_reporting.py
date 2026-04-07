@@ -883,3 +883,16 @@ def test_session_summary_includes_cc_invocation_type(tmp_path):
     assert "Statistics By CC Invocation Type" in markdown
     assert "Subprocess (`claude -p`)" in markdown
     assert "CC invocation: subprocess" in markdown
+
+
+def test_version_consistency():
+    """Ensure __version__ in __init__.py matches pyproject.toml."""
+    from pathlib import Path
+    import tomllib
+
+    from debate_review import __version__
+
+    pyproject_path = Path(__file__).resolve().parents[1] / "pyproject.toml"
+    with open(pyproject_path, "rb") as f:
+        pyproject = tomllib.load(f)
+    assert __version__ == pyproject["project"]["version"]
