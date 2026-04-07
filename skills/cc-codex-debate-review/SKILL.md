@@ -173,6 +173,16 @@ After initialization, start loop from `CURRENT_ROUND`. Each round:
 5. Step 3: Lead agent response + code application (skipped on clean pass)
 6. Step 4: Settlement (`settle-round`)
 
+#### Progress Reporting Rule
+
+**The user must be able to follow the debate in real time.** After each step completes and its results are routed to CLI subcommands, immediately report the debate content to the user before proceeding to the next step. See each step's "Report to User" section for the exact format. Also announce each round start:
+
+```
+── Round {N} (lead: {LEAD_AGENT}) ────────────────────────────────────
+```
+
+This is a mandatory part of the orchestration procedure, not optional.
+
 #### Agent Lifecycle
 
 Before the first step dispatch, resolve agent state **once per orchestrator session**:
@@ -353,6 +363,22 @@ The orchestrator **must** compare the new message against the existing reports a
 - `--verdict "no_findings_mergeable"`
 - Skip Steps 2, 3 and proceed to Step 4
 
+#### Report to User
+
+After routing all Step 1 results, **immediately report the debate content to the user**. Do not silently proceed to the next step. The user must see the debate as it happens:
+
+```
+[Step1] {LEAD_AGENT} lead review ✓ — {N} finding(s), {M} rebuttal(s), {K} withdrawal(s)
+  [{severity}] {file}:{line} ({anchor})
+    {message}
+  ...
+  {issue_id} {WITHDRAW/MAINTAIN}:
+    {reason}
+  verdict: {verdict}
+```
+
+Show all findings with severity, location, and message. Show all rebuttal responses and withdrawals. Show the verdict. This is **not optional** — the user is waiting to follow the debate in real time.
+
 ---
 
 ### Step 2: Cross-Verifier Cross-Verification
@@ -407,6 +433,22 @@ Each new finding from the cross-verifier is also recorded via `upsert-issue`:
 The CLI automatically routes step1/step2 tracking based on the agent role.
 
 **Important:** `build-prompt` and `build-context` are read-only commands — they never modify the state file. Only explicit mutation commands (`upsert-issue`, `record-cross-verification`, `record-verdict`, etc.) create or modify issues. If unexpected issues appear after Step 2, verify that every `upsert-issue` call matches a genuine agent finding.
+
+#### Report to User
+
+After routing all Step 2 results, **immediately report the debate content to the user**:
+
+```
+[Step2] {CROSS_VERIFIER} cross-verify ✓ — {N} accept, {M} rebut, {K} new
+  {issue_id} {ACCEPT/REBUT}:
+    {reason}
+  ...
+  {N} new finding(s):
+    [{severity}] {file}:{line} ({anchor})
+      {message}
+```
+
+Show all cross-verification decisions with reasons. Show new findings if any. Show withdrawals if any. The user is following the debate — do not skip this.
 
 ---
 
@@ -549,6 +591,24 @@ fi
 
 **Note:** In detached HEAD worktrees, always use `HEAD:$HEAD_BRANCH` refspec instead of bare branch names. Do NOT retry push if the agent already pushed successfully — verify with `git branch -r --contains` first.
 
+#### Report to User
+
+After routing all Step 3 results, **immediately report the debate content to the user**:
+
+```
+[Step3] {LEAD_AGENT} lead response ✓ — {N} decision(s), applied {M}, failed {K}
+  {report_id} {MAINTAIN/WITHDRAW}:
+    {reason}
+  ...
+  {report_id} {ACCEPT/MAINTAIN}:
+    {reason}
+  ...
+  CODE APPLIED: {issue_ids} → commit {short_sha}
+  CODE FAILED: {issue_ids}
+```
+
+Show all rebuttal decisions and cross-finding evaluations with reasons. Show code application results including applied/failed issues and commit SHA. Show withdrawals if any. Do not skip this — the user needs to follow the debate progress.
+
 ---
 
 ### Step 4: Settlement (`settle-round`)
@@ -569,6 +629,24 @@ Branch based on `SETTLE_RESULT.result`:
 | `stalled` | 2+ consecutive no-progress rounds | Terminal processing → post comment |
 | `consensus_reached` | Consensus reached | Terminal processing → post comment |
 | `max_rounds_exceeded` | Max rounds exceeded | Terminal processing → post comment |
+
+#### Report to User
+
+After settlement, **immediately report the result to the user**:
+
+```
+[Step4] settle ✓ {result} → round {next_round}
+        settled: {settled_issue_ids}
+        unresolved: {unresolved_issue_ids}
+```
+
+For terminal results (`consensus_reached`, `max_rounds_exceeded`, `stalled`), also report the final summary:
+
+```
+── Result ──────────────────────────────────────────
+{outcome} after {N} rounds ({duration})
+applied: {N} | withdrawn: {N} | unresolved: {N}
+```
 
 If `continue`:
 ```
@@ -1001,7 +1079,10 @@ Then proceed with the new round's Step 1 instruction.
 
 ## Progress Display
 
-The orchestrator outputs real-time progress to stderr so users can follow the debate as it happens. stdout remains reserved for the final JSON result.
+The user must always see the debate as it happens. There are two execution modes, and both must provide progress:
+
+- **CC orchestrator mode** (SKILL.md Procedure): CC reports debate content directly to the user after each step. See each step's "Report to User" section in the Procedure above. This is mandatory — without it, the user sees nothing until the entire debate completes.
+- **Python orchestrator mode** (`run-debate-review`): `ProgressReporter` outputs real-time progress to stderr. stdout remains reserved for the final JSON result.
 
 ### Output Format
 
@@ -1045,7 +1126,8 @@ applied: 1 | withdrawn: 1 | unresolved: 0
 
 ### Implementation
 
-Progress is handled by `ProgressReporter` in `lib/debate_review/progress.py`. The orchestrator calls it at each lifecycle event. Content formatters (`format_step1`, `format_step2`, `format_step3`) extract human-readable summaries from agent JSON responses.
+- **CC orchestrator mode**: CC follows the "Report to User" instructions embedded in each step of the Procedure section. CC outputs debate content as regular text messages to the user.
+- **Python orchestrator mode**: `ProgressReporter` in `lib/debate_review/progress.py` handles stderr output. Content formatters (`format_step1`, `format_step2`, `format_step3`) extract human-readable summaries from agent JSON responses.
 
 ---
 
