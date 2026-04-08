@@ -527,6 +527,32 @@ def test_cc_adapter_send_message_streams_runtime_summary(monkeypatch, tmp_path):
     assert response["_runtime"]["runtime_artifacts"]["child_pid"] == 4242
 
 
+def test_cc_adapter_send_message_parses_stream_json_without_runtime(monkeypatch, tmp_path):
+    import debate_review.orchestrator as orchestrator_module
+
+    def fake_run(command, *, cwd=None, stdin_text=None):
+        assert "--output-format stream-json" in command
+        assert "--resume cc-session-1" in command
+        assert cwd == str(tmp_path)
+        assert stdin_text == "message"
+        return "\n".join([
+            json.dumps({"type": "system/init", "session_id": "cc-session-1"}),
+            json.dumps({"type": "assistant", "message": {"content": [{"text": "partial"}]}}),
+            json.dumps({"type": "result", "result": '{"verdict":"no_findings_mergeable","findings":[]}'}),
+        ])
+
+    monkeypatch.setattr(orchestrator_module, "_run_command", fake_run)
+
+    adapter = CcAdapter()
+    response = adapter.send_message(
+        "cc-session-1",
+        "message",
+        worktree_path=str(tmp_path),
+    )
+
+    assert response == {"verdict": "no_findings_mergeable", "findings": []}
+
+
 def test_codex_adapter_send_message_reads_output_file(monkeypatch, tmp_path):
     import debate_review.orchestrator as orchestrator_module
 
@@ -2078,6 +2104,7 @@ def test_cleanup_worktree_skips_dry_run(monkeypatch, tmp_path):
 # --- Agent response normalization tests ---
 
 from debate_review.orchestrator import (
+    _extract_result_from_stream,
     _extract_json_from_text,
     _normalize_cross_verifications,
     _normalize_rebuttal_responses,
@@ -2103,6 +2130,30 @@ def test_unwrap_cc_result_prose_with_embedded_json():
     inner = 'Some explanation.\n\n```json\n{"verdict": "has_findings", "findings": []}\n```'
     wrapper = json.dumps({"type": "result", "result": inner})
     assert _unwrap_cc_result(wrapper)["verdict"] == "has_findings"
+
+
+def test_extract_result_from_stream_returns_last_result_event():
+    output = "\n".join([
+        json.dumps({"type": "system/init", "session_id": "abc"}),
+        json.dumps({"type": "assistant", "message": {"content": [{"text": "thinking"}]}}),
+        json.dumps({"type": "result", "result": '{"verdict":"has_findings","findings":[{"message":"stale"}]}'}),
+        json.dumps({"type": "result", "result": '{"verdict":"no_findings_mergeable","findings":[]}'}),
+    ])
+
+    assert _extract_result_from_stream(output) == {
+        "verdict": "no_findings_mergeable",
+        "findings": [],
+    }
+
+
+def test_extract_result_from_stream_raises_when_stream_has_no_result_event():
+    output = "\n".join([
+        json.dumps({"type": "system/init", "session_id": "abc"}),
+        json.dumps({"type": "assistant", "message": {"content": [{"text": "thinking"}]}}),
+    ])
+
+    with pytest.raises(OrchestrationError, match="Could not find final result event"):
+        _extract_result_from_stream(output)
 
 
 def test_extract_json_from_text_plain():

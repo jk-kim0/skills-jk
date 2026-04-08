@@ -488,10 +488,9 @@ def _extract_result_from_stream(output: str) -> dict:
     Finds the last {"type":"result",...} event and extracts the inner result.
     Falls back to _unwrap_cc_result for backwards compatibility.
     """
-    for line in reversed(output.strip().splitlines()):
+    lines = [line.strip() for line in output.strip().splitlines() if line.strip()]
+    for line in reversed(lines):
         line = line.strip()
-        if not line:
-            continue
         try:
             event = json.loads(line)
         except json.JSONDecodeError:
@@ -508,8 +507,11 @@ def _extract_result_from_stream(output: str) -> dict:
                     pass
             elif isinstance(inner, dict):
                 return inner
-    # Fallback: try parsing as single JSON object (e.g. --output-format json)
-    return _unwrap_cc_result(output)
+    # Backwards compatibility: legacy --output-format json returns a single wrapper object,
+    # while a stream-json response must contain a terminal result event.
+    if len(lines) == 1:
+        return _unwrap_cc_result(lines[0])
+    raise OrchestrationError("Could not find final result event in Claude stream-json output")
 
 
 def _normalize_cross_verifications(verifications: list, state: dict) -> list:
