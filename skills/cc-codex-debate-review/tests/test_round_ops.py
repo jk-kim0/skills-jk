@@ -31,6 +31,81 @@ def test_record_verdict_clean_pass(sample_state):
     assert result["clean_pass"] is True
 
 
+def test_record_verdict_failed_accepted_issue_returns_needs_reapplication(sample_state):
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    sample_state["issues"]["isu_001"] = {
+        "issue_id": "isu_001",
+        "issue_key": "k1",
+        "opened_by": "codex",
+        "introduced_in_round": 1,
+        "criterion": 14,
+        "file": "src/a.py",
+        "line": 10,
+        "anchor": "foo",
+        "severity": "warning",
+        "consensus_status": "accepted",
+        "application_status": "failed",
+        "accepted_by": ["codex", "cc"],
+        "rejected_by": [],
+        "applied_by": "codex",
+        "application_commit_sha": None,
+        "consensus_reason": None,
+        "reports": [{
+            "report_id": "rpt_001",
+            "agent": "codex",
+            "round": 1,
+            "severity": "warning",
+            "message": "test",
+            "reported_at": "2026-03-30T00:00:00+00:00",
+            "status": "accepted",
+        }],
+        "created_at": "2026-03-30T00:00:00+00:00",
+        "updated_at": "2026-03-30T00:00:00+00:00",
+    }
+
+    result = record_verdict(sample_state, round_num=1, verdict="no_findings_mergeable")
+
+    assert result["verdict"] == "no_findings_mergeable"
+    assert result["clean_pass"] is False
+    assert result["needs_reapplication"] == ["isu_001"]
+
+
+def test_record_verdict_pending_accepted_issue_still_raises(sample_state):
+    init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
+    sample_state["issues"]["isu_001"] = {
+        "issue_id": "isu_001",
+        "issue_key": "k1",
+        "opened_by": "codex",
+        "introduced_in_round": 1,
+        "criterion": 14,
+        "file": "src/a.py",
+        "line": 10,
+        "anchor": "foo",
+        "severity": "warning",
+        "consensus_status": "accepted",
+        "application_status": "pending",
+        "accepted_by": ["codex", "cc"],
+        "rejected_by": [],
+        "applied_by": None,
+        "application_commit_sha": None,
+        "consensus_reason": None,
+        "reports": [{
+            "report_id": "rpt_001",
+            "agent": "codex",
+            "round": 1,
+            "severity": "warning",
+            "message": "test",
+            "reported_at": "2026-03-30T00:00:00+00:00",
+            "status": "accepted",
+        }],
+        "created_at": "2026-03-30T00:00:00+00:00",
+        "updated_at": "2026-03-30T00:00:00+00:00",
+    }
+
+    with pytest.raises(ValueError, match="status: pending"):
+        record_verdict(sample_state, round_num=1, verdict="no_findings_mergeable")
+
+
 def test_settle_continue(sample_state):
     init_round(sample_state, round_num=1, lead_agent="codex", synced_head_sha="abc")
     record_verdict(sample_state, round_num=1, verdict="has_findings")
