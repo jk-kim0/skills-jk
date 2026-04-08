@@ -361,7 +361,9 @@ The orchestrator **must** compare the new message against the existing reports a
 
 **Clean pass determination:** If findings are 0 and all existing issues are resolved:
 - `--verdict "no_findings_mergeable"`
-- Skip Steps 2, 3 and proceed to Step 4
+- Continue to Step 2 for cross-verifier confirmation; Step 4 is only reachable if Step 2 is also clean
+
+**Failed application handling:** If accepted issues have `application_status=failed`, the verdict is allowed and returns `needs_reapplication` with the list of issue IDs. The round still proceeds through Step 2 and, if needed, Step 3; failed accepted issues remain in `{APPLICABLE_ISSUES}` so the lead can retry them during code application before settlement.
 
 #### Report to User
 
