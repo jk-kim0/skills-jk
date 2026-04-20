@@ -12,6 +12,7 @@ __pycache__/
 .hermes/auth.lock
 .hermes/auth.json
 .hermes/state.db
+.hermes/.update_check
 .hermes/SOUL.md
 .hermes/.env
 .env
