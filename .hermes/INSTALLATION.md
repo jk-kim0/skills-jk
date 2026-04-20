@@ -27,11 +27,11 @@ hermes setup
 
 ## Verified Version
 
-The installed command reported:
+The installed command reported, with the home directory normalized to `~`:
 
 ```text
 Hermes Agent v0.10.0 (2026.4.16)
-Project: /Users/jk/.hermes/hermes-agent
+Project: ~/.hermes/hermes-agent
 Python: 3.11.15
 OpenAI SDK: 2.32.0
 Up to date
