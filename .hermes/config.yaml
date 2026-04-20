@@ -1,0 +1,50 @@
+# Repository-local Hermes agent configuration.
+agent:
+  name: hermes
+
+storage:
+  root: .hermes
+  memories: .hermes/memories
+  sessions: .hermes/sessions
+
+git:
+  track_memories: true
+  ignore_sessions: true
+  memory_commit_message: "chore(hermes): update memories"
+
+secrets:
+  provider: 1password
+  primary_mode: secret_references
+  item:
+    vault: Employee
+    title: skills-jk-hermes-local
+    field_naming: .env key names
+  env_file:
+    template_path: .env.1password.example
+    local_path: .env.1password
+    local_git_ignored: true
+    sync_command: bin/hermes-sync-env
+    materialized_path: .env
+    materialized_git_ignored: true
+    run_command: HERMES_HOME="$PWD/.hermes" bash -lc 'set -a; source .env; set +a; hermes'
+  deferred_mode:
+    name: environments
+    status: revisit if 1Password Environments becomes available and useful
+
+memory_safety:
+  prohibited_content:
+    - token values
+    - api key values
+    - session cookie values
+    - private credential values
+    - customer data
+    - personal sensitive data
+  allowed_references:
+    - environment variable names
+    - .env key names
+    - config key names
+    - secret manager reference names
+    - 1Password vault names
+    - 1Password item titles
+    - 1Password secret references
+    - credential rotation instructions
