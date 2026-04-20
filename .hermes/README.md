@@ -4,7 +4,9 @@ This directory stores repository-local Hermes agent configuration and long-lived
 
 ## Layout
 
-- `config.yml`: Hermes storage and Git policy for this repository.
+- `config.yaml`: Hermes storage and Git policy for this repository. Run with
+  `HERMES_HOME="$PWD/.hermes"` when this repository-local configuration should
+  be the active Hermes home.
 - `memories/`: Long-lived memory that is intentionally tracked by Git.
 - `sessions/`: Runtime session state, transcripts, locks, and cache files. This path is ignored by Git.
 
@@ -26,7 +28,7 @@ bin/hermes-sync-env
 This is the only step that should require 1Password authorization. Normal Hermes runs read the local Git-ignored `.env` file and should not call 1Password:
 
 ```bash
-bash -lc 'set -a; source .env; set +a; hermes'
+HERMES_HOME="$PWD/.hermes" bash -lc 'set -a; source .env; set +a; hermes'
 ```
 
 Example `.env.1password` content:
