@@ -18,6 +18,12 @@
 | docs/ | 문서 변경 |
 | refactor/ | 리팩토링 |
 
+## Testing Command Scripts
+
+- `bin/` 아래 실행명령과 shell script에 대한 테스트는 해당 명령 옆의 `bin/t/` 아래에 둔다.
+- 실행명령 테스트는 기본적으로 Bats를 사용한다.
+- 예: `bin/hermes-sync-env`의 테스트는 `bin/t/hermes-sync-env.bats`에 둔다.
+
 ## Related Skills
 
 - [session-startup](skills/session-startup/SKILL.md): 세션 시작 시 브랜치 관리
