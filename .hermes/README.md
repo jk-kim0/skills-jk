@@ -4,6 +4,7 @@ This directory stores repository-local Hermes agent configuration and long-lived
 
 ## Layout
 
+- `INSTALLATION.md`: Local Hermes Agent installation status and verification notes.
 - `config.yaml`: Hermes storage and Git policy for this repository. Run with
   `HERMES_HOME="$PWD/.hermes"` when this repository-local configuration should
   be the active Hermes home.
