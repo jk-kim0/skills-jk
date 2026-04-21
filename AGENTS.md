@@ -1,61 +1,46 @@
 # AGENTS.md
 
 ## Purpose
+This repository uses local Skills.  
+When the current working directory is `skills-jk`, always run Skill discovery before doing task work.
 
-This repository is used by both humans and AI agents, but this file is the working guide for AI agents such as Codex and Claude Code.
-It explains how to do repository work safely and consistently.
+## Always-Run Skill Discovery
+At the start of every user turn:
 
-## Common guide for humans and AI agents
-
-These rules apply to everyone working in this repository.
-
-- Keep changes small and focused.
-- Prefer the source of truth: code and structured content first, then docs.
-- If a rule affects both humans and agents, keep the wording aligned across files and avoid duplicating long policy text.
-- When documentation and implementation diverge, update the source of truth first.
-
-## Before you work
-
-1. Read `README.md` for repository context.
-2. Read the relevant skill if the task matches an existing Skill.
-3. Confirm the active branch and worktree before editing.
-4. Prefer a new worktree for isolated branch work.
-
-## Skill discovery
-
-At the start of every user turn in this repository:
-
-1. Discover available skills from these sources (in order):
-   - Session-provided skill list, if present
-   - `skills/` directory in this repository (`skills/<name>/SKILL.md`)
+1. Check whether `cwd` is inside this repository.
+2. Discover available skills from these sources (in order):
+   - Session-provided skill list (if present)
+   - `skills/` directory in this repository (each skill is `skills/<name>/SKILL.md`)
    - `$CODEX_HOME/skills/.system/` for built-in system skills
-2. Build a short in-memory registry for this turn with:
+3. Build a short in-memory registry for this turn:
    - `name`
    - `description`
    - `path to SKILL.md`
-3. Match the user task against that registry.
-4. Load only the minimum `SKILL.md` and linked files needed.
+4. Match user intent against the registry.
 
-## Trigger rules
-
-- If the user names a skill explicitly, use that skill.
-- If the task clearly matches a skill description, use that skill even without an explicit name.
-- If multiple skills match, use the minimum set and state the execution order briefly.
+## Trigger Rules (Mandatory)
+- If user mentions a skill name explicitly (`$skill-name` or plain text), use that skill.
+- If user intent clearly matches a skill description, use that skill even without explicit name.
+- If multiple skills match, use the minimal set and state execution order in one line.
 - Do not carry skill activation across turns unless re-triggered.
 
-## Work rules
+## Skill Loading Policy
+- Open `SKILL.md` first, and read only enough to execute correctly.
+- Resolve relative paths from the skill directory first.
+- Load only the specific referenced files needed (`references/`, `scripts/`, `assets/`).
+- Prefer skill-provided scripts/templates over rewriting from scratch.
 
-- Use a worktree for branch-isolated work.
-- Make the smallest change that satisfies the request.
-- Keep docs and implementation aligned.
-- Verify the result before finishing.
-- If a PR already exists for the branch, commit and push the change.
-- If no PR exists, follow the repository workflow for committing, pushing, and creating one.
+## Fallback Rules
+- If a named skill is missing or blocked, say so briefly and continue with best-effort fallback.
+- If instructions are ambiguous, follow the safest minimal implementation and report assumptions.
 
-## Output contract
-
+## Output Contract
 Before substantial work, state one short line:
-
 - which skill(s) are being used
 - why they were selected
-- in what order, if multiple
+- in what order (if multiple)
+
+## Completion Workflow
+- After finishing work, do not stop at local changes only.
+- If there is no existing PR for the work branch, commit, push, and create a PR by default.
+- If there is already an existing PR for the work branch, commit and push by default.
