@@ -24,9 +24,9 @@ secrets:
     local_path: .env.1password
     local_git_ignored: true
     sync_command: bin/hermes-sync-env
-    materialized_path: .env
+    materialized_path: .hermes/.env
     materialized_git_ignored: true
-    run_command: HERMES_HOME="$PWD/.hermes" bash -lc 'set -a; source .env; set +a; hermes'
+    run_command: HERMES_HOME="$PWD/.hermes" bash -lc 'set -a; source .hermes/.env; set +a; hermes'
   deferred_mode:
     name: environments
     status: revisit if 1Password Environments becomes available and useful

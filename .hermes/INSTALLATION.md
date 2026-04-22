@@ -48,7 +48,7 @@ v2026.4.16-590-g5157f542
 Hermes reads its runtime configuration from `HERMES_HOME/config.yaml`. For this repository, use the repository-local Hermes home:
 
 ```bash
-HERMES_HOME="$PWD/.hermes" bash -lc 'set -a; source .env; set +a; hermes'
+HERMES_HOME="$PWD/.hermes" bash -lc 'set -a; source .hermes/.env; set +a; hermes'
 ```
 
 `HERMES_HOME="$PWD/.hermes" ~/.local/bin/hermes doctor` verified that Hermes recognizes this repository's `.hermes/config.yaml`.
@@ -78,10 +78,10 @@ Do not write token values, API key values, session cookie values, or private cre
 
 Secret values belong in the personal 1Password item `Employee/skills-jk-hermes-local`. This repository may store non-sensitive references such as `.env` key names and `op://Employee/skills-jk-hermes-local/<KEY>` references.
 
-When secrets change, materialize the local `.env` file with:
+When secrets change, materialize the local `.hermes/.env` file with:
 
 ```bash
 bin/hermes-sync-env
 ```
 
-Normal Hermes runs should read the local Git-ignored `.env` file and should not call 1Password.
+Normal Hermes runs should read the local Git-ignored `.hermes/.env` file and should not call 1Password.
