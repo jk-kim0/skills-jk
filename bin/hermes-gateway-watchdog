@@ -1,0 +1,563 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import shlex
+import socket
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from typing import Any
+from xml.sax.saxutils import escape
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_HERMES_HOME = Path(os.environ.get("HERMES_HOME", REPO_ROOT / ".hermes"))
+DEFAULT_STATE_FILE_NAME = "gateway-watchdog-state.json"
+DEFAULT_WATCHDOG_LABEL = "ai.hermes.gateway-watchdog"
+DEFAULT_GATEWAY_LABEL = "ai.hermes.gateway"
+DEFAULT_INTERVAL_SECONDS = 60
+DEFAULT_TELEGRAM_TIMEOUT_SECONDS = 15
+DEFAULT_FALLBACK_IPS = ("149.154.167.220",)
+INITIAL_NETWORK_RETRY_DELAY_SECONDS = 300
+MAX_NETWORK_RETRY_DELAY_SECONDS = 3600
+CONNECT_FAILURE_PATTERNS = (
+    "Failed to connect to Telegram",
+    "Connect attempt",
+    "telegram_network_error",
+    "Primary api.telegram.org connection failed",
+    "Fallback IP",
+)
+
+
+@dataclass
+class ProbeResult:
+    gateway_running: bool
+    gateway_pid: int | None
+    gateway_status_summary: str
+    telegram_api_ok: bool
+    telegram_api_transport: str
+    telegram_dns_ok: bool
+    fallback_api_ok: bool
+    recent_connect_failure: bool
+    error_fingerprint: str | None
+
+
+@dataclass
+class WatchdogState:
+    last_api_ok: bool = False
+    last_check_at: float | None = None
+    last_action: str | None = None
+    last_action_reason: str | None = None
+    last_action_at: float | None = None
+    last_repair_error_fingerprint: str | None = None
+    network_failure_backoff_step: int = 0
+    next_network_retry_at: float | None = None
+
+
+def run_command(
+    command: list[str], *, cwd: Path | None = None, env: dict[str, str] | None = None, timeout: int = 30
+) -> tuple[int, str, str]:
+    try:
+        result = subprocess.run(
+            command,
+            cwd=str(cwd) if cwd else None,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+        return result.returncode, result.stdout, result.stderr
+    except subprocess.TimeoutExpired as exc:
+        return 124, exc.stdout or "", exc.stderr or "timed out"
+    except Exception as exc:  # pragma: no cover - defensive
+        return 1, "", str(exc)
+
+
+def parse_env_file(path: Path) -> dict[str, str]:
+    values: dict[str, str] = {}
+    if not path.exists():
+        return values
+
+    for raw_line in path.read_text().splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        if line.startswith("export "):
+            line = line[len("export "):]
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if not key:
+            continue
+        if value and value[0] in {'"', "'"}:
+            try:
+                parsed = shlex.split(f"x={value}", posix=True)
+                if parsed and "=" in parsed[0]:
+                    value = parsed[0].split("=", 1)[1]
+            except ValueError:
+                pass
+        values[key] = value
+    return values
+
+
+def load_state(path: Path) -> WatchdogState:
+    if not path.exists():
+        return WatchdogState()
+    try:
+        payload = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return WatchdogState()
+    if not isinstance(payload, dict):
+        return WatchdogState()
+
+    state = WatchdogState()
+    if isinstance(payload.get("last_api_ok"), bool):
+        state.last_api_ok = payload["last_api_ok"]
+    for field_name in (
+        "last_check_at",
+        "last_action",
+        "last_action_reason",
+        "last_action_at",
+        "last_repair_error_fingerprint",
+        "network_failure_backoff_step",
+        "next_network_retry_at",
+    ):
+        value = payload.get(field_name)
+        if value is not None:
+            setattr(state, field_name, value)
+    return state
+
+
+def save_state(path: Path, state: WatchdogState) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(asdict(state), indent=2, sort_keys=True) + "\n")
+
+
+def _gateway_command_env(hermes_home: Path) -> dict[str, str]:
+    env = os.environ.copy()
+    env["HERMES_HOME"] = str(hermes_home)
+    return env
+
+
+def probe_gateway_service(hermes_home: Path, gateway_label: str = DEFAULT_GATEWAY_LABEL) -> tuple[bool, int | None, str]:
+    uid = os.getuid()
+    code, stdout, stderr = run_command(["launchctl", "print", f"gui/{uid}/{gateway_label}"], timeout=15)
+    combined = f"{stdout}\n{stderr}".strip()
+    if code == 0:
+        running = "state = running" in combined
+        pid = None
+        for line in combined.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("pid ="):
+                try:
+                    pid = int(stripped.split("=", 1)[1].strip())
+                except ValueError:
+                    pid = None
+                break
+        return running, pid, combined
+
+    env = _gateway_command_env(hermes_home)
+    code, stdout, stderr = run_command(
+        ["hermes", "gateway", "status"], cwd=REPO_ROOT, env=env, timeout=30
+    )
+    combined = f"{stdout}\n{stderr}".strip()
+    running = "Gateway service is loaded" in combined and '"PID"' in combined
+    return running, None, combined
+
+
+def check_dns(host: str) -> bool:
+    try:
+        socket.getaddrinfo(host, 443, socket.AF_INET)
+        return True
+    except OSError:
+        return False
+
+
+def extract_telegram_token(hermes_home: Path) -> str | None:
+    token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    if token:
+        return token.strip()
+    env_path = hermes_home / ".env"
+    values = parse_env_file(env_path)
+    token = values.get("TELEGRAM_BOT_TOKEN", "").strip()
+    return token or None
+
+
+def bot_api_request(token: str, *, timeout_seconds: int, resolve_ip: str | None = None) -> tuple[bool, str]:
+    url = f"https://api.telegram.org/bot{token}/getMe"
+    headers = {"User-Agent": "hermes-gateway-watchdog/1.0"}
+    opener = urllib.request.build_opener()
+    if resolve_ip:
+        proxy_handler = urllib.request.ProxyHandler({})
+        opener = urllib.request.build_opener(proxy_handler)
+    request = urllib.request.Request(url, headers=headers)
+    try:
+        if resolve_ip:
+            # urllib does not offer a direct equivalent to curl --resolve. Keep a
+            # tiny curl fallback here only for the explicit fallback-IP path.
+            command = [
+                "curl",
+                "-sS",
+                "--max-time",
+                str(timeout_seconds),
+                "--resolve",
+                f"api.telegram.org:443:{resolve_ip}",
+                url,
+            ]
+            code, stdout, stderr = run_command(command, timeout=timeout_seconds + 5)
+            payload = (stdout or stderr).strip()
+            ok = code == 0 and '"ok":true' in payload.replace(" ", "")
+            return ok, payload
+        with opener.open(request, timeout=timeout_seconds) as response:
+            payload = response.read().decode("utf-8", errors="replace")
+            ok = '"ok":true' in payload.replace(" ", "")
+            return ok, payload
+    except urllib.error.URLError as exc:
+        return False, str(exc)
+    except Exception as exc:  # pragma: no cover - defensive
+        return False, str(exc)
+
+
+def probe_telegram_api(hermes_home: Path, *, timeout_seconds: int = DEFAULT_TELEGRAM_TIMEOUT_SECONDS) -> tuple[bool, str, bool, bool]:
+    token = extract_telegram_token(hermes_home)
+    if not token:
+        return False, "missing_token", False, False
+
+    dns_ok = check_dns("api.telegram.org")
+    direct_ok, _ = bot_api_request(token, timeout_seconds=timeout_seconds)
+    if direct_ok:
+        return True, "direct", dns_ok, False
+
+    fallback_ok = False
+    for ip in DEFAULT_FALLBACK_IPS:
+        fallback_ok, _ = bot_api_request(token, timeout_seconds=timeout_seconds, resolve_ip=ip)
+        if fallback_ok:
+            return True, f"fallback:{ip}", dns_ok, True
+
+    return False, "none", dns_ok, False
+
+
+def inspect_recent_connect_failure(error_log_path: Path, *, recent_window_seconds: int = 900) -> tuple[bool, str | None]:
+    if not error_log_path.exists():
+        return False, None
+    stat = error_log_path.stat()
+    if time.time() - stat.st_mtime > recent_window_seconds:
+        return False, None
+    try:
+        lines = error_log_path.read_text(errors="replace").splitlines()[-200:]
+    except OSError:
+        return False, None
+
+    matches = [line for line in lines if any(pattern in line for pattern in CONNECT_FAILURE_PATTERNS)]
+    if not matches:
+        return False, None
+    fingerprint = f"{int(stat.st_mtime)}:{stat.st_size}:{matches[-1].strip()}"
+    return True, fingerprint
+
+
+def probe(hermes_home: Path) -> ProbeResult:
+    gateway_running, gateway_pid, gateway_status = probe_gateway_service(hermes_home)
+    api_ok, transport, dns_ok, fallback_ok = probe_telegram_api(hermes_home)
+    recent_connect_failure, error_fingerprint = inspect_recent_connect_failure(
+        hermes_home / "logs" / "gateway.error.log"
+    )
+    return ProbeResult(
+        gateway_running=gateway_running,
+        gateway_pid=gateway_pid,
+        gateway_status_summary=gateway_status,
+        telegram_api_ok=api_ok,
+        telegram_api_transport=transport,
+        telegram_dns_ok=dns_ok,
+        fallback_api_ok=fallback_ok,
+        recent_connect_failure=recent_connect_failure,
+        error_fingerprint=error_fingerprint,
+    )
+
+
+def record_network_failure_backoff(state: WatchdogState, *, now: float) -> None:
+    state.network_failure_backoff_step += 1
+    delay = min(
+        INITIAL_NETWORK_RETRY_DELAY_SECONDS * (2 ** (state.network_failure_backoff_step - 1)),
+        MAX_NETWORK_RETRY_DELAY_SECONDS,
+    )
+    state.next_network_retry_at = now + delay
+
+
+def reset_network_failure_backoff(state: WatchdogState) -> None:
+    state.network_failure_backoff_step = 0
+    state.next_network_retry_at = None
+
+
+def decide_repair_action(
+    probe_result: ProbeResult,
+    state: WatchdogState,
+    *,
+    now: float | None = None,
+) -> tuple[str | None, str]:
+    now = time.time() if now is None else now
+    if not probe_result.telegram_api_ok:
+        return None, "telegram_api_unreachable"
+    if not probe_result.gateway_running:
+        return "start", "gateway_not_running"
+    if not state.last_api_ok:
+        return "restart", "telegram_api_recovered"
+    if probe_result.recent_connect_failure and probe_result.error_fingerprint:
+        if probe_result.error_fingerprint == state.last_repair_error_fingerprint:
+            return None, "awaiting_new_failure_signal"
+        if state.next_network_retry_at is not None and now < state.next_network_retry_at:
+            return None, "network_backoff_active"
+        return "restart", "recent_connect_failure"
+    return None, "healthy"
+
+
+def run_gateway_action(action: str, hermes_home: Path) -> tuple[bool, str]:
+    env = _gateway_command_env(hermes_home)
+    command = ["hermes", "gateway", action]
+    code, stdout, stderr = run_command(command, cwd=REPO_ROOT, env=env, timeout=180)
+    output = (stdout + stderr).strip()
+    return code == 0, output
+
+
+def build_launch_agent_plist(
+    *,
+    label: str,
+    script_path: Path,
+    repo_root: Path,
+    hermes_home: Path,
+    interval_seconds: int,
+    stdout_path: Path,
+    stderr_path: Path,
+) -> str:
+    env_path = os.environ.get("PATH", "/usr/bin:/bin:/usr/sbin:/sbin")
+    items = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">',
+        '<plist version="1.0">',
+        '<dict>',
+        '  <key>Label</key>',
+        f'  <string>{escape(label)}</string>',
+        '  <key>ProgramArguments</key>',
+        '  <array>',
+        f'    <string>{escape(str(script_path))}</string>',
+        '    <string>check</string>',
+        '    <string>--repair</string>',
+        '    <string>--json</string>',
+        '  </array>',
+        '  <key>WorkingDirectory</key>',
+        f'  <string>{escape(str(repo_root))}</string>',
+        '  <key>EnvironmentVariables</key>',
+        '  <dict>',
+        '    <key>PATH</key>',
+        f'    <string>{escape(env_path)}</string>',
+        '    <key>HERMES_HOME</key>',
+        f'    <string>{escape(str(hermes_home))}</string>',
+        '  </dict>',
+        '  <key>RunAtLoad</key>',
+        '  <true/>',
+        '  <key>StartInterval</key>',
+        f'  <integer>{interval_seconds}</integer>',
+        '  <key>StandardOutPath</key>',
+        f'  <string>{escape(str(stdout_path))}</string>',
+        '  <key>StandardErrorPath</key>',
+        f'  <string>{escape(str(stderr_path))}</string>',
+        '</dict>',
+        '</plist>',
+    ]
+    return "\n".join(items) + "\n"
+
+
+def _run_launchctl_required(command: list[str], *, timeout: int = 30) -> None:
+    code, stdout, stderr = run_command(command, timeout=timeout)
+    if code != 0:
+        message = (stderr or stdout or f"command failed: {' '.join(command)}").strip()
+        raise RuntimeError(message)
+
+
+def install_launch_agent(
+    *,
+    label: str,
+    script_path: Path,
+    repo_root: Path,
+    hermes_home: Path,
+    interval_seconds: int,
+) -> Path:
+    launch_agents_dir = Path.home() / "Library" / "LaunchAgents"
+    launch_agents_dir.mkdir(parents=True, exist_ok=True)
+    plist_path = launch_agents_dir / f"{label}.plist"
+    stdout_path = hermes_home / "logs" / "gateway-watchdog.log"
+    stderr_path = hermes_home / "logs" / "gateway-watchdog.error.log"
+    stdout_path.parent.mkdir(parents=True, exist_ok=True)
+    plist = build_launch_agent_plist(
+        label=label,
+        script_path=script_path,
+        repo_root=repo_root,
+        hermes_home=hermes_home,
+        interval_seconds=interval_seconds,
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
+    )
+    plist_path.write_text(plist)
+
+    target = f"gui/{os.getuid()}/{label}"
+    run_command(["launchctl", "bootout", target], timeout=30)
+    _run_launchctl_required(["launchctl", "bootstrap", f"gui/{os.getuid()}", str(plist_path)], timeout=30)
+    _run_launchctl_required(["launchctl", "enable", target], timeout=30)
+    _run_launchctl_required(["launchctl", "kickstart", "-k", target], timeout=30)
+    return plist_path
+
+
+def uninstall_launch_agent(label: str) -> Path:
+    plist_path = Path.home() / "Library" / "LaunchAgents" / f"{label}.plist"
+    target = f"gui/{os.getuid()}/{label}"
+    run_command(["launchctl", "bootout", target], timeout=30)
+    if plist_path.exists():
+        plist_path.unlink()
+    return plist_path
+
+
+def launch_agent_status(label: str) -> tuple[int, str, str]:
+    return run_command(["launchctl", "print", f"gui/{os.getuid()}/{label}"], timeout=30)
+
+
+def command_check(args: argparse.Namespace) -> int:
+    hermes_home = Path(args.hermes_home).expanduser().resolve()
+    state_path = hermes_home / DEFAULT_STATE_FILE_NAME
+    state = load_state(state_path)
+    now = time.time()
+    probe_result = probe(hermes_home)
+    action, reason = decide_repair_action(probe_result, state, now=now)
+
+    action_ok = None
+    action_output = ""
+    executed_action = None
+    if args.repair and action is not None:
+        action_ok, action_output = run_gateway_action(action, hermes_home)
+        executed_action = action if action_ok else f"failed:{action}"
+        if reason == "recent_connect_failure":
+            record_network_failure_backoff(state, now=now)
+        if action_ok and probe_result.error_fingerprint:
+            state.last_repair_error_fingerprint = probe_result.error_fingerprint
+        if action_ok and reason != "recent_connect_failure":
+            reset_network_failure_backoff(state)
+
+    if reason == "healthy" and not probe_result.recent_connect_failure:
+        reset_network_failure_backoff(state)
+
+    state.last_api_ok = probe_result.telegram_api_ok
+    state.last_check_at = now
+    state.last_action = executed_action
+    state.last_action_reason = reason
+    state.last_action_at = now if executed_action else state.last_action_at
+    save_state(state_path, state)
+
+    payload: dict[str, Any] = {
+        "probe": asdict(probe_result),
+        "decision": {"action": action, "reason": reason},
+        "executed_action": executed_action,
+        "action_ok": action_ok,
+        "action_output": action_output,
+        "state_file": str(state_path),
+    }
+    if args.json:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        print(
+            f"gateway_running={probe_result.gateway_running} telegram_api_ok={probe_result.telegram_api_ok} "
+            f"transport={probe_result.telegram_api_transport} decision={action or 'none'}:{reason}"
+        )
+        if executed_action:
+            print(action_output)
+    return 0
+
+
+def command_install(args: argparse.Namespace) -> int:
+    hermes_home = Path(args.hermes_home).expanduser().resolve()
+    script_path = Path(__file__).resolve()
+    plist_path = install_launch_agent(
+        label=args.label,
+        script_path=script_path,
+        repo_root=REPO_ROOT,
+        hermes_home=hermes_home,
+        interval_seconds=args.interval,
+    )
+    print(plist_path)
+    return 0
+
+
+def command_uninstall(args: argparse.Namespace) -> int:
+    plist_path = uninstall_launch_agent(args.label)
+    print(plist_path)
+    return 0
+
+
+def command_print_launch_agent(args: argparse.Namespace) -> int:
+    hermes_home = Path(args.hermes_home).expanduser().resolve()
+    stdout_path = hermes_home / "logs" / "gateway-watchdog.log"
+    stderr_path = hermes_home / "logs" / "gateway-watchdog.error.log"
+    print(
+        build_launch_agent_plist(
+            label=args.label,
+            script_path=Path(__file__).resolve(),
+            repo_root=REPO_ROOT,
+            hermes_home=hermes_home,
+            interval_seconds=args.interval,
+            stdout_path=stdout_path,
+            stderr_path=stderr_path,
+        )
+    )
+    return 0
+
+
+def command_status(args: argparse.Namespace) -> int:
+    code, stdout, stderr = launch_agent_status(args.label)
+    print((stdout or stderr).strip())
+    return 0 if code == 0 else 1
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Hermes Telegram gateway watchdog")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    check = subparsers.add_parser("check", help="Probe Telegram + gateway health and optionally repair")
+    check.add_argument("--repair", action="store_true", help="Start/restart gateway when recovery criteria are met")
+    check.add_argument("--json", action="store_true", help="Print structured JSON output")
+    check.add_argument("--hermes-home", default=str(DEFAULT_HERMES_HOME))
+    check.set_defaults(func=command_check)
+
+    install = subparsers.add_parser("install-launch-agent", help="Install the per-user launchd watchdog")
+    install.add_argument("--label", default=DEFAULT_WATCHDOG_LABEL)
+    install.add_argument("--interval", type=int, default=DEFAULT_INTERVAL_SECONDS)
+    install.add_argument("--hermes-home", default=str(DEFAULT_HERMES_HOME))
+    install.set_defaults(func=command_install)
+
+    uninstall = subparsers.add_parser("uninstall-launch-agent", help="Remove the launchd watchdog")
+    uninstall.add_argument("--label", default=DEFAULT_WATCHDOG_LABEL)
+    uninstall.set_defaults(func=command_uninstall)
+
+    print_plist = subparsers.add_parser("print-launch-agent", help="Render launchd plist to stdout")
+    print_plist.add_argument("--label", default=DEFAULT_WATCHDOG_LABEL)
+    print_plist.add_argument("--interval", type=int, default=DEFAULT_INTERVAL_SECONDS)
+    print_plist.add_argument("--hermes-home", default=str(DEFAULT_HERMES_HOME))
+    print_plist.set_defaults(func=command_print_launch_agent)
+
+    status = subparsers.add_parser("status", help="Show launchd watchdog status")
+    status.add_argument("--label", default=DEFAULT_WATCHDOG_LABEL)
+    status.set_defaults(func=command_status)
+
+    return parser
+
+
+def main() -> int:
+    parser = build_parser()
+    args = parser.parse_args()
+    return int(args.func(args))
+
+
+if __name__ == "__main__":
+    sys.exit(main())
