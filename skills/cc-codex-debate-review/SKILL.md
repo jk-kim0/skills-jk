@@ -49,10 +49,10 @@ All paths below are relative to the `cc-codex-debate-review/` directory.
 
 ## GitHub CLI Rules
 
-All `gh` calls inside the CLI strip injected token variables and use keyring authentication. CC must follow the same rule when calling `gh` directly:
+All `gh` calls inside the CLI examples below should use plain `gh` commands. CC should follow the same convention when calling `gh` directly:
 
 ```bash
-env -u GITHUB_TOKEN -u GH_TOKEN gh <subcommand>
+gh <subcommand>
 ```
 
 ---
@@ -697,15 +697,15 @@ If code fixes were applied, update the PR title and description to accurately re
 
 1. Check current PR title/body:
    ```bash
-   env -u GITHUB_TOKEN -u GH_TOKEN gh pr view "$PR_NUMBER" --repo "$REPO" --json title,body
+   gh pr view "$PR_NUMBER" --repo "$REPO" --json title,body
    ```
 2. Re-analyze changes based on the final diff:
    ```bash
-   env -u GITHUB_TOKEN -u GH_TOKEN gh pr diff "$PR_NUMBER" --repo "$REPO"
+   gh pr diff "$PR_NUMBER" --repo "$REPO"
    ```
 3. Update PR title/body if they don't match the latest code (skip if `DRY_RUN=true`):
    ```bash
-   env -u GITHUB_TOKEN -u GH_TOKEN gh pr edit "$PR_NUMBER" --repo "$REPO" \
+   gh pr edit "$PR_NUMBER" --repo "$REPO" \
      --title "$UPDATED_TITLE" \
      --body "$UPDATED_BODY"
    ```
@@ -1156,7 +1156,7 @@ applied: 1 | withdrawn: 1 | unresolved: 0
 | Codex sandbox | `danger-full-access` for all steps (configurable via `codex_sandbox`) |
 | Prompt files | `~/.claude/debate-state/prompts/<owner>-<repo>-<pr>-<agent>.md` |
 | Worktree | `<repo_root>/.worktrees/debate-pr-<N>` |
-| GitHub CLI | `env -u GITHUB_TOKEN -u GH_TOKEN gh ...` |
+| GitHub CLI | `gh ...` |
 | Output language | Config `language` (default: `en`) |
 | Code application | Mandatory when `DRY_RUN=false` |
 
@@ -1216,7 +1216,7 @@ On any failure (CLI exit code 1, external command failure, JSON parse failure af
    ```bash
    SKILL_REPO=$(git -C "$SKILL_ROOT" remote get-url origin | sed -E 's#(ssh://git@github.com/|git@github.com:|https://github.com/)##; s#\.git$##')
    SHORT_ERROR=$(printf '%s' "$ERROR_MESSAGE" | tr '\n' ' ' | cut -c1-120)
-   env -u GITHUB_TOKEN -u GH_TOKEN gh issue create \
+   gh issue create \
      --repo "$SKILL_REPO" \
      --title "bug(debate-review): $COMMAND failed - $SHORT_ERROR" \
      --body "$(cat <<EOF
@@ -1270,7 +1270,7 @@ When a CLI command, external command, or script fails and a retry with corrected
 3. Otherwise, create a GitHub issue in the skill repo:
    ```bash
    SKILL_REPO=$(git -C "$SKILL_ROOT" remote get-url origin | sed -E 's#(ssh://git@github.com/|git@github.com:|https://github.com/)##; s#\.git$##')
-   env -u GITHUB_TOKEN -u GH_TOKEN gh issue create \
+   gh issue create \
      --repo "$SKILL_REPO" \
      --title "bug(debate-review): $FAILED_COMMAND - retried with $CORRECTED_COMMAND" \
      --body "$(cat <<EOF

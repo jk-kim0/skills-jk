@@ -88,14 +88,14 @@ Raw findings placed in the `findings` field follow this JSON array item schema:
 Before reviewing the diff, check the PR's CI pipeline status:
 
 ```bash
-env -u GITHUB_TOKEN -u GH_TOKEN gh pr checks {PR_NUMBER} --repo {REPO}
+gh pr checks {PR_NUMBER} --repo {REPO}
 ```
 
 - **All passing**: Proceed to diff review.
 - **No checks reported**: `gh pr checks` may print `no checks reported on the '<branch>' branch` and exit with status 1 when the PR has no check runs yet. Treat this as `no checks yet`, not as a CI failure. Confirm with:
 
 ```bash
-env -u GITHUB_TOKEN -u GH_TOKEN gh run list --repo {REPO} --branch "$(env -u GITHUB_TOKEN -u GH_TOKEN gh pr view {PR_NUMBER} --repo {REPO} --json headRefName -q .headRefName)" --limit 20
+gh run list --repo {REPO} --branch "$(gh pr view {PR_NUMBER} --repo {REPO} --json headRefName -q .headRefName)" --limit 20
 ```
 
 If the fallback shows no runs, note `no checks yet` and proceed to diff review.

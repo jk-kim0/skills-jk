@@ -34,7 +34,7 @@ Trigger this skill when:
    - Check remote tracking with `git status -sb`
 
 2. Confirm whether a PR already exists for the branch.
-   - Use `env -u GITHUB_TOKEN -u GH_TOKEN gh pr status`
+   - Use `gh pr status`
    - If a PR already exists, edit that PR instead of creating a new one
 
 3. Prepare the PR body in a file first.
@@ -42,30 +42,30 @@ Trigger this skill when:
    - Avoid inline shell interpolation of multiline markdown
 
 4. Trigger the repository workflow instead of calling `gh pr create` directly.
-   - Use `env -u GITHUB_TOKEN -u GH_TOKEN gh workflow run .github/workflows/create-pr.yml`
+   - Use `gh workflow run .github/workflows/create-pr.yml`
    - Pass:
      - `-f branch=<branch>`
      - `-f title=<title>`
      - `--raw-field body="$(cat <body-file>)"`
 
 5. Wait for the workflow run to appear and finish.
-   - Use `env -u GITHUB_TOKEN -u GH_TOKEN gh run list --workflow create-pr.yml --limit 5`
-   - Then inspect the newest run if needed with `env -u GITHUB_TOKEN -u GH_TOKEN gh run view <run-id>`
+   - Use `gh run list --workflow create-pr.yml --limit 5`
+   - Then inspect the newest run if needed with `gh run view <run-id>`
 
 6. Verify the PR was created.
-   - Use `env -u GITHUB_TOKEN -u GH_TOKEN gh pr status` or `env -u GITHUB_TOKEN -u GH_TOKEN gh pr view <number>`
+   - Use `gh pr status` or `gh pr view <number>`
    - Report the PR number and URL
 
 ## If a PR already exists
 
 Do not dispatch the create workflow again unless intentionally creating a replacement PR.
 Instead:
-- use `env -u GITHUB_TOKEN -u GH_TOKEN gh pr edit <number> --title ...`
-- or `env -u GITHUB_TOKEN -u GH_TOKEN gh pr edit <number> --body-file <file>`
+- use `gh pr edit <number> --title ...`
+- or `gh pr edit <number> --body-file <file>`
 
 ## Pitfalls
 
-- Do not use raw `gh ...`; always use `env -u GITHUB_TOKEN -u GH_TOKEN gh ...`
+- Use plain `gh ...` commands in this repo; do not reintroduce a custom token-unset wrapper unless there is a repository-specific reason
 - Do not pass complex markdown directly to `gh pr create --body` in this repo unless there is a strong reason
 - `create-pr.yml` targets `main` as the base branch
 - The workflow appends a GitHub Actions bot footer to the body

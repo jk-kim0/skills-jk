@@ -98,17 +98,17 @@ PR 생성 실행 전에 아래 4개를 먼저 공유:
 
 ## gh 실행 환경 규칙
 
-로컬에서 `gh`를 실행할 때는 환경변수 토큰을 제거하고 keyring 인증을 사용합니다.
+로컬에서 `gh`를 실행할 때는 plain `gh` 명령을 사용합니다.
 
 ```bash
-env -u GITHUB_TOKEN -u GH_TOKEN gh <subcommand>
+gh <subcommand>
 ```
 
 이유:
-- 셸에 주입된 `GITHUB_TOKEN`/`GH_TOKEN`이 권한 제한 토큰일 경우 `gh pr create`/`gh pr edit`/`gh pr view` 등이 실패할 수 있음
-- 사용자 계정 keyring 토큰(`gh auth login`)을 우선 사용해야 일관된 권한으로 동작
+- repo와 사용자 환경에 맞는 기본 GitHub CLI 인증 경로를 그대로 사용한다.
+- 불필요한 wrapper 규칙을 문서화하지 않아도 된다.
+- 문서 예시와 실제 사용법을 단순하게 유지할 수 있다.
 
-## 스크립트 실행 규칙
 
 `python3 script.py` 대신, 스크립트에 실행권한을 부여해 직접 실행합니다.
 

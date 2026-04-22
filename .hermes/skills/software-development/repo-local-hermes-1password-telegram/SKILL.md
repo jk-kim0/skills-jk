@@ -284,6 +284,14 @@ Recommended watchdog behavior for `recent_connect_failure` repairs:
 Working schedule used here:
 - 5m → 10m → 20m → 40m → 60m cap
 
+Current repo-local watchdog behavior to preserve:
+- launchd still runs the watchdog every 60 seconds for observation
+- the backoff applies to repair actions, not to the health-check cadence
+- `recent_connect_failure` with a new fingerprint can trigger repair only when the backoff window has expired
+- an unchanged fingerprint should return an `awaiting_new_failure_signal` style outcome, not be treated as recovery
+- if a `recent_connect_failure` repair command itself fails, the watchdog should still advance the backoff window so it does not retry the same broken repair every minute
+- only clear the backoff window on genuinely healthy state, not merely because no new fingerprint appeared during the last minute
+
 Important details:
 - advance the back-off window even when the restart command itself fails, otherwise the watchdog can attempt the same broken repair every minute
 - do not treat an unchanged error fingerprint as recovery; suppress duplicate retries until a new failure signal appears
