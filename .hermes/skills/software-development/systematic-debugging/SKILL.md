@@ -324,6 +324,16 @@ Use these Hermes tools during Phase 1:
 - **`read_file`** — Read source code with line numbers for precise analysis
 - **`terminal`** — Run tests, check git history, reproduce bugs
 - **`web_search`/`web_extract`** — Research error messages, library docs
+- **`session_search`** — When the user references a prior session, recover the previous investigation instead of re-deriving it from scratch
+
+### Hermes/TUI-specific checks
+
+For Hermes CLI/TUI issues, always verify the live execution path before changing code:
+
+- Confirm whether the TUI is running from `--dev` source or a built `dist/entry.js` bundle.
+- Check whether the observed behavior is controlled by runtime config toggles (for example `display.tui_statusbar`) rather than code.
+- Trace the label/data source all the way back to env and session state (for example `HERMES_CWD`, cwd, or repo detection helpers) before assuming the renderer is wrong.
+- If the user says “we changed this earlier”, search the prior session first; the root cause may already be documented there.
 
 ### With delegate_task
 
