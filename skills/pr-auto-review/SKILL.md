@@ -26,10 +26,10 @@ These are independent outcomes. One agent's review must not suppress the other.
 
 ## Required GitHub Command Form
 
-Always remove injected token variables before calling GitHub CLI:
+Use plain `gh` commands when calling GitHub CLI from this workflow:
 
 ```bash
-env -u GITHUB_TOKEN -u GH_TOKEN gh <subcommand>
+gh <subcommand>
 ```
 
 ## Runtime Contract
@@ -81,7 +81,7 @@ Normalize `repo` as follows:
 If `head_sha` is missing (always the case for `gh search prs` results), fetch it with:
 
 ```bash
-env -u GITHUB_TOKEN -u GH_TOKEN gh pr view <number> --repo <repo> --json headRefOid --jq .headRefOid
+gh pr view <number> --repo <repo> --json headRefOid --jq .headRefOid
 ```
 
 ### Ordering and limit
@@ -170,12 +170,12 @@ Run:
 
 ```bash
 # Source 1: review-requested PRs (headRefOid not available here)
-env -u GITHUB_TOKEN -u GH_TOKEN gh search prs \
+gh search prs \
   --review-requested=@me --state open --limit 100 \
   --json number,repository,createdAt,url,isDraft
 
 # Source 2: per configured repo (headRefOid available)
-env -u GITHUB_TOKEN -u GH_TOKEN gh pr list \
+gh pr list \
   --repo <owner/repo> --state open --limit 100 \
   --json number,createdAt,headRefOid,isDraft,url
 ```
@@ -212,17 +212,17 @@ If the file is corrupted, back it up to `<state_file>.bak.<unix_timestamp>` and 
 
 For each PR in order:
 
-1. If `head_sha` is missing, fetch: `env -u GITHUB_TOKEN -u GH_TOKEN gh pr view <number> --repo <repo> --json headRefOid --jq .headRefOid`
+1. If `head_sha` is missing, fetch: `gh pr view <number> --repo <repo> --json headRefOid --jq .headRefOid`
 2. Build `comment_tag`: `[auto-review:<agent_id>][sha:<head_sha>]`
 3. Check state: if same `agent_id` + same `head_sha` already recorded → skip
-4. Check existing PR comments for exact `comment_tag`: `env -u GITHUB_TOKEN -u GH_TOKEN gh pr view <number> --repo <repo> --json comments --jq '.comments[].body'` → if found, update state and skip
+4. Check existing PR comments for exact `comment_tag`: `gh pr view <number> --repo <repo> --json comments --jq '.comments[].body'` → if found, update state and skip
 5. Otherwise proceed to review
 
 ### 6. Run review
 
 #### Claude Code path
 
-- Retrieve PR diff: `env -u GITHUB_TOKEN -u GH_TOKEN gh pr diff <number> --repo <repo>`
+- Retrieve PR diff: `gh pr diff <number> --repo <repo>`
 - Optionally use `/code-review <PR URL>` as analysis aid
 - Do **not** rely on `/code-review` to satisfy the final publication contract — it does not produce the required `[auto-review:claude][sha:...]` header
 - Synthesize findings and build the final normalized comment body yourself
@@ -230,7 +230,7 @@ For each PR in order:
 
 #### Codex path
 
-- Retrieve PR diff: `env -u GITHUB_TOKEN -u GH_TOKEN gh pr diff <number> --repo <repo>`
+- Retrieve PR diff: `gh pr diff <number> --repo <repo>`
 - `codex review` can review local repo changes via `--base` or `--commit`, but it does **not** accept a PR URL as input — do not use it in this URL/diff-driven flow
 - Use Codex-native reasoning on the retrieved diff to generate review findings
 - Build the final normalized comment body and publish with `gh pr comment` (step 7)
@@ -240,7 +240,7 @@ For each PR in order:
 Publish only after the final comment body is normalized to the required header and section format:
 
 ```bash
-env -u GITHUB_TOKEN -u GH_TOKEN gh pr comment <number> --repo <owner/repo> --body "$COMMENT_BODY"
+gh pr comment <number> --repo <owner/repo> --body "$COMMENT_BODY"
 ```
 
 ### 8. Verify publication
@@ -248,7 +248,7 @@ env -u GITHUB_TOKEN -u GH_TOKEN gh pr comment <number> --repo <owner/repo> --bod
 Re-read comments and confirm the exact `comment_tag` exists on the PR:
 
 ```bash
-env -u GITHUB_TOKEN -u GH_TOKEN gh pr view <number> --repo <repo> \
+gh pr view <number> --repo <repo> \
   --json comments --jq '.comments[].body' | grep -F "$COMMENT_TAG"
 ```
 

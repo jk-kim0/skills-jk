@@ -20,4 +20,4 @@ User prefers low-context communication: respond explicitly to each instruction/q
 §
 User prefers polite speech and does not want banmal.
 §
-User expects Git tasks to be completed without asking for commit/push follow-up, and considers them complete only when reviewable via PR or web URL.
+User expects Git tasks to be completed through commit and push, and considers them complete only when reviewable via PR or web URL.

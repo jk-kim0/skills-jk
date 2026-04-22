@@ -17,10 +17,10 @@ history. Use them as context for your decisions.
 
 ## How to Explore
 
-- `env -u GITHUB_TOKEN -u GH_TOKEN gh pr diff {PR_NUMBER} --repo {REPO}`
-- `env -u GITHUB_TOKEN -u GH_TOKEN gh pr view {PR_NUMBER} --repo {REPO}`
+- `gh pr diff {PR_NUMBER} --repo {REPO}`
+- `gh pr view {PR_NUMBER} --repo {REPO}`
 - Read files directly in {WORKTREE_PATH}
-- `env -u GITHUB_TOKEN -u GH_TOKEN gh pr checks {PR_NUMBER} --repo {REPO}`
+- `gh pr checks {PR_NUMBER} --repo {REPO}`
 
 ## Output Language
 
