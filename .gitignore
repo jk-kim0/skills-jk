@@ -7,7 +7,6 @@ __pycache__/
 .hermes/sessions/
 .hermes/logs/
 .hermes/cron/
-.hermes/skills/
 .hermes/images/
 .hermes/auth.lock
 .hermes/auth.json

@@ -1,0 +1,102 @@
+# Repository-local Hermes runtime ignore list
+#
+# Policy:
+# - Ignore only machine-local/runtime state here.
+# - Do NOT ignore durable agent memory or documentation that should travel via Git.
+# - Therefore files like `memories/MEMORY.md`, `memories/USER.md`, `README.md`,
+#   `INSTALLATION.md`, and `config.yaml` are intentionally NOT listed here.
+
+# Plaintext runtime secrets materialized from 1Password for local execution.
+.env
+
+# SQLite session/state database used by Hermes runtime.
+# Contents: conversation/session metadata and message index state.
+state.db
+
+# SQLite shared-memory sidecar for the runtime database.
+# Contents: transient in-memory coordination data for SQLite.
+state.db-shm
+
+# SQLite write-ahead log sidecar for the runtime database.
+# Contents: uncheckpointed recent writes for the runtime database.
+state.db-wal
+
+# Local shell/history trace for repo-local Hermes usage.
+# Contents: command/session history for this machine.
+.hermes_history
+
+# Prompt snapshot cache used by Hermes skills tooling.
+# Contents: ephemeral snapshot of loaded prompt/skills state for this machine.
+.skills_prompt_snapshot.json
+
+# Cached Telegram/home-channel directory mapping.
+# Contents: local chat/channel ID to metadata mapping discovered at runtime.
+channel_directory.json
+
+# Gateway watchdog runtime state.
+# Contents: last health result, last repair reason, backoff counters, next retry time.
+gateway-watchdog-state.json
+
+# Gateway process PID file.
+# Contents: current gateway process ID for local process management.
+gateway.pid
+
+# Gateway adapter runtime state file.
+# Contents: current messaging gateway state and local bookkeeping.
+gateway_state.json
+
+# Interrupt/debug trace emitted during local runtime investigation.
+# Contents: temporary diagnostic log lines.
+interrupt_debug.log
+
+# Local model discovery/development cache.
+# Contents: cached model/provider metadata for this machine.
+models_dev_cache.json
+
+# Local Ollama cloud model cache.
+# Contents: cached remote model catalog metadata.
+ollama_cloud_models_cache.json
+
+# Background process registry.
+# Contents: tracked local process/session bookkeeping for Hermes tools.
+processes.json
+
+# Local cron scheduler tick lock.
+# Contents: lock file preventing overlapping scheduler ticks.
+cron/.tick.lock
+
+# Memory file lock for MEMORY.md writes.
+# Contents: local file lock used while updating durable memory.
+memories/MEMORY.md.lock
+
+# Memory file lock for USER.md writes.
+# Contents: local file lock used while updating durable user profile memory.
+memories/USER.md.lock
+
+# Runtime logs directory.
+# Contents: gateway stdout/stderr, watchdog logs, agent logs created on this machine.
+logs/
+
+# Runtime session transcripts and scratch session artifacts.
+# Contents: session JSON transcripts, locks, temporary runtime session data.
+sessions/
+
+# Runtime cron state directory.
+# Contents: scheduler-local state files and locks.
+cron/
+
+# Repo-local installed/generated helper binaries.
+# Contents: runtime-generated helper executables and copied tools.
+bin/
+
+# Filesystem checkpoints created by Hermes checkpoint/rollback support.
+# Contents: git-style snapshot repository and objects for local rollback.
+checkpoints/
+
+# Local pasted text/image scratch directory.
+# Contents: ephemeral pasted content captured during sessions.
+pastes/
+
+# Platform adapter runtime state directory.
+# Contents: per-platform local messaging state and caches.
+platforms/
