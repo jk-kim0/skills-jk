@@ -8,6 +8,9 @@ profiles:
 agent:
   name: hermes
   service_tier: fast
+memory:
+  memory_char_limit: 22000
+  user_char_limit: 13750
 storage:
   root: .hermes
   memories: .hermes/memories
