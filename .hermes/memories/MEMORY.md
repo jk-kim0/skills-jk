@@ -11,3 +11,7 @@ In the skills-jk repo, portable Hermes state should live in tracked `.hermes/con
 For portable Hermes setups in skills-jk, session-like records should remain local to each machine/instance and should not be migrated between PCs; only durable memories and config should be synced.
 §
 In the skills-jk repo, PR creation uses the repo's GitHub Actions workflow `.github/workflows/create-pr.yml` via `workflow_dispatch`; it is the preferred PR creation path for this repo.
+§
+In corp-web-v2, managed public content is currently loaded from authored files under src/content/** via src/features/content/authored.server.ts and contentState.server.ts, not from src/content/state/content-state.json.
+§
+In corp-web-v2, the user expects each PR task to start from a fresh worktree and fresh branch; do not continue new requested work on a previously used PR branch because it can cause rebase conflicts and stale PR state.
