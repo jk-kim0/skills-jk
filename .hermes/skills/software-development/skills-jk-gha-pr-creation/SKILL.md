@@ -65,11 +65,13 @@ Instead:
 
 ## Pitfalls
 
-- Use plain `gh ...` commands in this repo; do not reintroduce a custom token-unset wrapper unless there is a repository-specific reason
+- Use plain `gh ...` commands in this repo; do not add a token-unset wrapper unless there is a specific repository need
 - Do not pass complex markdown directly to `gh pr create --body` in this repo unless there is a strong reason
 - `create-pr.yml` targets `main` as the base branch
 - The workflow appends a GitHub Actions bot footer to the body
 - If the branch has an existing open PR, the workflow may fail or create duplicate intent; check first
+- After dispatching the PR-creation workflow, verify completion with `gh run watch` and then confirm the resulting PR with `gh pr view` or `gh pr status`
+- `gh pr checks` may legitimately report no checks for the new PR branch; if so, also inspect `gh run list --branch <branch>` before concluding that no CI ran
 
 ## Evidence from use
 
