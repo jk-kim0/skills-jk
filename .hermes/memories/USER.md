@@ -8,7 +8,7 @@ User prefers polite Korean and may use Korean chat shorthand like ㅇㅇ, ㅇㅋ
 §
 User prefers verification via Draft PR and CI pipeline instead of spending time on running local development servers.
 §
-User wants open PR status checked before making changes in a repository.
+User wants PR status checked before commit/push on repo work to avoid continuing on a merged PR branch.
 §
 User prefers brief progress updates while work is in progress.
 §
