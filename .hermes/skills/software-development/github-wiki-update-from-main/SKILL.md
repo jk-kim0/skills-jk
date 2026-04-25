@@ -1,0 +1,326 @@
+---
+name: github-wiki-update-from-main
+description: Create or update a GitHub wiki page from the latest repository main branch, using the wiki git remote as the source of truth for writes and verification. Handles private repos where public wiki URLs may return 404.
+version: 1.0.0
+author: Hermes Agent
+license: MIT
+metadata:
+  hermes:
+    tags: [GitHub, Wiki, Documentation, Main-branch-audit, Private-repo]
+    related_skills: [github-auth, github-repo-management]
+---
+
+# GitHub wiki update from latest main
+
+Use this when the user asks to create or update a GitHub wiki page and the content must reflect the latest repository `main` branch rather than stale local state.
+
+## When to use
+
+- Create a new page in `https://github.com/<owner>/<repo>/wiki/...`
+- Update an existing wiki page without modifying the product repo itself
+- Build documentation from the latest `origin/main`
+- Private repository wikis where browser/HTTP checks may misleadingly return 404 when unauthenticated
+
+## Core rule
+
+Treat the repository `main` branch and the separate wiki git repository as two different sources of truth:
+
+1. Content source of truth: latest `origin/main` of the product repo
+2. Write target / publish source of truth: `<repo>.wiki.git`
+
+Do not assume the current local checkout is up to date.
+Do not assume the wiki can be modified through the product repo.
+
+## Required workflow
+
+### 1. Read repository context first
+
+Inside the product repo:
+
+```bash
+git rev-parse --show-toplevel
+git branch --show-current
+git status -sb
+git remote -v
+git fetch origin main
+git rev-parse FETCH_HEAD
+git log --oneline -1 FETCH_HEAD
+```
+
+Use `FETCH_HEAD` or `origin/main` as the documentation basis, not the possibly dirty working tree.
+
+### 2. Check GitHub auth and wiki availability
+
+Always follow the GitHub CLI safety rule:
+
+```bash
+gh auth status -h github.com
+gh repo view <owner>/<repo> --json nameWithOwner,defaultBranchRef,url,hasWikiEnabled,isPrivate
+```
+
+Important:
+- `hasWikiEnabled: true` only confirms wiki support exists.
+- The actual wiki content lives in a separate git repository.
+
+### 3. Clone the wiki repository directly
+
+Do not edit wiki content through the product repo.
+Clone the dedicated wiki repo:
+
+```bash
+git clone git@github.com:<owner>/<repo>.wiki.git ~/workspace/.tmp-<repo>-wiki
+```
+
+Useful checks:
+
+```bash
+git ls-remote --heads git@github.com:<owner>/<repo>.wiki.git
+git status -sb
+```
+
+If the wiki repo is empty or has a different default branch, inspect before writing.
+Common wiki branch is `master`.
+
+### 4. Inspect existing wiki pages before writing
+
+List current files in the wiki clone and read the existing relevant page if present.
+
+Typical page mapping:
+- `Page Name` -> `Page-Name.md`
+
+Example:
+
+```bash
+find . -maxdepth 1 -type f | sort
+```
+
+If the user asked for a new page, create a new `.md` file and leave the old one untouched.
+
+### 5. Build content from latest main, not from stale local files
+
+If the request says “current link”, “latest main”, or similar, inspect `FETCH_HEAD` / `origin/main` directly.
+Do not trust `read_file` against the checked-out working tree when the repo is dirty or behind remote — local edits can silently diverge from the real latest-main state.
+
+Preferred authoritative patterns:
+
+```bash
+git show origin/main:path/to/file
+# or
+git show FETCH_HEAD:path/to/file
+```
+
+Use the archive/extract approach when you need to inspect many files together or search across a clean snapshot.
+A reliable pattern is to archive the fetched commit to a temporary directory and inspect that snapshot:
+
+```bash
+tmpdir=$(mktemp -d)
+git archive --format=tar FETCH_HEAD | tar -xf - -C "$tmpdir"
+```
+
+Then read the relevant files from that extracted snapshot.
+
+This avoids contamination from:
+- dirty local changes
+- unrelated in-progress work
+- being behind `origin/main`
+
+## Key lesson for CTA / route inventories
+
+When documenting implemented links in `corp-web-japan`-style repos, treat local redirect endpoints and local path/query values as the current implemented links if that is what the latest main branch uses.
+
+Examples:
+- Current link can be `/contact-us`
+- Current link can be `/contact-us?inquiry=ai-consulting&product=ai-crew`
+- Current link can be `/demo/use-cases`
+- Current link can be an external documentation path-style label such as `/ja/features/documentation/...`
+
+Note separately when a local endpoint redirects to a final external destination such as `https://www.querypie.com/ja/company/contact-us`.
+Do not collapse these two concepts unless the user explicitly wants only final destinations.
+
+Also verify whether routes that used to be pages are now redirect endpoints.
+Example pattern:
+- old local page removed
+- new `route.ts` added
+- documentation should say the current link is the local endpoint and mention the redirect destination
+
+### Important CTA-inventory lesson from later main-branch updates
+
+Do not preserve stale wiki `Current link` cells based on older design assumptions like `#contact` when latest `origin/main` has since centralized the real href values into exported constants.
+
+In `corp-web-japan`, re-audit these common sources on latest main before editing the wiki:
+- `src/content/top-page.ts`
+- `src/content/home.ts`
+- `src/content/ai-dashi-links.ts`
+- page entrypoints such as `src/app/page.tsx`, `src/app/solutions/ai-crew/page.tsx`, `src/app/solutions/ai-dashi/page.tsx`
+- component-level CTA surfaces such as `ai-dashi-faq`, `ai-crew-floating-guide`, and `resource-post-page`
+- regression tests such as `tests/launch-readiness-coverage.test.mjs`
+
+Why this matters:
+- latest main may move from local anchors like `#contact` to concrete links like `/contact-us?...`
+- a wiki page can stay stale even after the product code and tests have been updated
+- `Current link` should reflect the actual implemented href on latest main, not the older intended target or a previous audit conclusion
+
+### Updating an existing CTA inventory page without rewriting other columns
+
+If the user asks to update only the `Current link` column of an existing wiki page:
+- preserve `Target link`, comments, notes, and table structure unless the user explicitly asks otherwise
+- use latest `origin/main` as the sole source of truth for current-link values
+- use any newer wiki pages (for example `CTA-Inventory-v2` or `CTA-Inventory-Shared-CTAs`) only as cross-checks, not as the write target unless requested
+
+Recommended approach:
+1. fetch latest `origin/main`
+2. inspect the real source files on `origin/main`
+3. map each CTA row back to the owning file / route / anchor
+4. patch only the `Current link` cell in the existing wiki page
+5. preserve `Target link`, comments, and any Chikako guidance unless the user explicitly asked to rewrite them
+6. leave rows whose structure would require a broader content-model rewrite unless the user asked for that broader rewrite
+
+Formatting rule learned from `corp-web-japan` CTA inventory maintenance:
+- in the `Current link` column, prefer path/anchor-style visible text such as `#contact`, `/contact-us?inquiry=...`, `/demo/use-cases`, or `/ja/features/...`
+- avoid showing a raw full external URL as the visible link text when a cleaner path-style label is available
+- it is fine for the markdown destination to remain the full external URL; the important part is that the displayed text stays concise and inventory-like
+- this rule applies especially to documentation, whitepaper, and use-case detail links where older wiki pages may show the entire `https://www.querypie.com/...` string in the cell
+
+Why this matters:
+- older inventory pages often mix local anchors, redirect endpoints, and live external URLs in one table
+- a full rewrite can accidentally alter `Target link` guidance or Chikako comments that the user wanted preserved
+- shared CTA inventories and page-specific inventories may intentionally diverge in scope, so use them for validation but not blind copy-over
+
+## Reusable-component link inventory rule
+
+When documenting a shared CTA component that is instantiated on multiple pages, do not infer the page-specific target from the section name or earlier documentation.
+Verify each page in two places on the latest `origin/main` snapshot:
+
+1. the component call site (for example `FloatingConversionCta href="..."`)
+2. the actual anchor definition on that page (for example `id="contact"`)
+
+Recommended audit pattern:
+
+```bash
+git show origin/main:path/to/page.tsx | nl -ba | sed -n '<relevant-range>p'
+git show origin/main:path/to/section-file.tsx | rg 'id="contact"|id="..."'
+```
+
+Why this matters:
+- shared components may keep the same label while their per-page `href` values change
+- older wiki pages often preserve stale assumptions like `#final-cta` or other legacy anchors
+- page copy may describe a “final CTA box” even though the real implemented anchor is now `#contact`
+
+If a user explicitly questions whether a documented current link is really latest-main-accurate, re-audit from `origin/main` immediately instead of trusting the existing wiki content or your previous summary.
+
+## Editing rules
+
+### Prefer targeted edits for existing wiki pages
+
+When updating an existing wiki page, prefer targeted edits (`patch` tool or careful line-based replacements) over a full rewrite generated from `read_file` output.
+
+Reason:
+- some file-reading tools return line-number-prefixed content for display
+- copying that displayed output back into the file can accidentally write the line numbers into the markdown
+
+Safe pattern:
+- inspect current content
+- apply narrow replacements for the changed commit SHA, links, notes, and source-file list
+- re-read the affected lines and diff before commit
+
+Use full-file rewrite only when you are generating the page content from scratch and you are certain the source text is raw markdown without display prefixes.
+
+### Recovery rule when the wiki file is already contaminated
+
+If the existing wiki page already contains display artifacts such as line-number prefixes (`1|`, `2|`, etc.), do not keep patching that displayed text mechanically.
+
+Safer recovery pattern:
+1. Fetch the remote wiki file to inspect whether the contamination is already in `origin/master`
+2. Reconstruct the intended markdown from authoritative sources (latest `origin/main`, your notes, or a clean local draft)
+3. Overwrite the wiki page with the reconstructed raw markdown
+4. Re-read the saved file and verify the first lines are plain markdown, not numbered display output
+
+This is safer than incremental patching because once the remote page itself contains numbered lines, simple search/replace can preserve or reintroduce the artifact.
+
+## Verification rules
+
+### Verify publish by git, not only by browser URL
+
+After writing the wiki file:
+
+```bash
+git add <page>.md
+git commit -m "<message>"
+git push origin master
+```
+
+#### Concurrent wiki edit pitfall: push races are common
+
+GitHub wiki repos are small and often edited directly by humans or other agents. Even right after a successful `pull --ff-only` or `pull --rebase`, your `git push origin master` can still be rejected with a non-fast-forward error because someone else pushed in the meantime.
+
+Treat this as a normal concurrency case, not a failure of your content.
+
+Preferred recovery loop:
+
+```bash
+git status -sb
+git fetch origin master
+git log --oneline --left-right --graph --max-count=20 HEAD...origin/master
+git pull --rebase origin master
+git push origin master
+```
+
+If another new remote commit appears before the retry push finishes, repeat the fetch/rebase/push cycle until the push succeeds.
+
+Important:
+- Re-check that the remote-only commit touched unrelated wiki files before assuming your page needs manual conflict resolution.
+- If the remote change is on the same page, resolve carefully and then continue the rebase.
+- After the final successful push, verify local `HEAD` and `origin/master` are identical.
+
+Then verify with git-based checks:
+
+```bash
+git rev-parse HEAD
+git log --oneline -1
+git fetch origin master
+git show origin/master:<page>.md | sed -n '1,40p'
+```
+
+This is the authoritative verification that the wiki page exists remotely.
+
+### Important private-repo pitfall
+
+For private repos, unauthenticated HTTP checks like:
+
+```bash
+curl -I https://github.com/<owner>/<repo>/wiki/<Page-Name>
+```
+
+may return `404` even when the page exists.
+Do not treat that as publish failure if the wiki git remote contains the committed file.
+
+## Suggested response notes to user
+
+When reporting completion, include:
+- that a new wiki page was created or updated
+- whether the old page was left untouched
+- the source-of-truth product commit SHA used for the audit
+- the wiki commit SHA used for publication
+- any notable latest-main findings, such as redirect endpoints replacing previous page routes
+
+## Minimal checklist
+
+- product repo README/AGENTS context checked
+- `origin/main` fetched
+- latest main SHA recorded
+- wiki enabled confirmed
+- `.wiki.git` cloned
+- existing wiki page inspected
+- content built from latest main snapshot
+- new or updated wiki `.md` file written
+- committed and pushed to wiki repo
+- remote wiki file verified with `git show origin/<branch>:<file>`
+- user informed that browser 404 can be expected for private repos without auth
+
+## Pitfalls
+
+- Editing only the product repo and forgetting the wiki is separate
+- Using stale local checkout instead of `origin/main`
+- Treating redirect destinations as the implemented current link when the current implementation is a local endpoint
+- Assuming `/wiki/<Page>` HTTP 404 means the page failed to publish in a private repo
+- Accidentally updating the old wiki page when the user explicitly requested a new page name
