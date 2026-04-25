@@ -30,6 +30,8 @@ Analyze repositories for lines of code, language breakdown, file counts, and cod
 pip install --break-system-packages pygount 2>/dev/null || pip install pygount
 ```
 
+If the `pygount` shell command is missing but the Python package is installed, use the module entrypoint below instead. On some environments, `python3 -m pygount` does not work because the package has no `__main__`; `python3 -m pygount.command` is the reliable fallback.
+
 ## 1. Basic Summary (Most Common)
 
 Get a full language breakdown with file counts, code lines, and comment lines:
@@ -37,6 +39,14 @@ Get a full language breakdown with file counts, code lines, and comment lines:
 ```bash
 cd /path/to/repo
 pygount --format=summary \
+  --folders-to-skip=".git,node_modules,venv,.venv,__pycache__,.cache,dist,build,.next,.tox,.eggs,*.egg-info" \
+  .
+```
+
+Fallback when the `pygount` executable is unavailable:
+
+```bash
+python3 -m pygount.command --format=summary \
   --folders-to-skip=".git,node_modules,venv,.venv,__pycache__,.cache,dist,build,.next,.tox,.eggs,*.egg-info" \
   .
 ```
