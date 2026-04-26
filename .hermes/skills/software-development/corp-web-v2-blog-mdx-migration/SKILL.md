@@ -1,46 +1,61 @@
 ---
 name: corp-web-v2-blog-mdx-migration
-description: Migrate blog MDX content from corp-web-contents into corp-web-v2, including required public assets and legacy link rewrites, then verify with tests and PR workflow.
-version: 1.0.0
+description: Migrate blog or white-paper MDX content from corp-web-contents into corp-web-v2, first verifying what is already on main so you only copy missing content or fix residual migration issues, then verify with tests and PR workflow.
+version: 1.1.0
 author: Hermes Agent
 license: MIT
 ---
 
-# corp-web-v2 blog MDX migration
+# corp-web-v2 blog/white-paper MDX migration
 
-Use when the task is to move blog content from `../corp-web-contents/` into `corp-web-v2`.
+Use when the task is to move blog or white-paper content from `../corp-web-contents/` into `corp-web-v2`, or to verify whether that migration is already effectively present on `origin/main`.
 
 ## When this skill applies
 
 - Source repo: `../corp-web-contents`
 - Target repo: `corp-web-v2`
-- Target content path: `src/content/mdx/blog/`
-- Content already exists in authored metadata under `src/content/documentation/blogs/**/meta.json`, and the missing piece is MDX bodies/assets
+- Target content paths:
+  - `src/content/mdx/blog/`
+  - `src/content/mdx/white-paper/`
+- Content often already exists in authored metadata under:
+  - `src/content/documentation/blogs/**/meta.json`
+  - `src/content/documentation/white-papers/**/meta.json`
+- The remaining work may be either:
+  - missing MDX bodies/assets
+  - or residual migration defects such as broken internal links in already-migrated MDX
 
 ## Key findings
 
 1. Blog source files live at:
    - `../corp-web-contents/pages/features/documentation/blog/<id>/<slug>/<locale>/content.mdx`
-2. Existing `corp-web-v2` blog MDX files are stored as:
+2. White-paper source files live at:
+   - `../corp-web-contents/pages/features/documentation/white-paper/<id>/<slug>/<locale>/content.mdx`
+3. Existing `corp-web-v2` MDX files are stored as:
    - `src/content/mdx/blog/<id>/<locale>.mdx`
-3. Public listing/detail pages are driven by authored content metadata under:
+   - `src/content/mdx/white-paper/<id>/<locale>.mdx`
+4. Public listing/detail pages are driven by authored content metadata under:
    - `src/content/documentation/blogs/**/meta.json`
-   - so this migration usually does **not** require editing content-state or authored meta files if the entries already exist.
-4. Migrated MDX often references assets outside `public/blog`, especially some Japanese posts using `public/news/news-20.png` and `public/news/news-21.png`.
-5. Legacy internal links in source MDX may point to:
+   - `src/content/documentation/white-papers/**/meta.json`
+   - so this migration often does **not** require editing content-state or authored meta files if the entries already exist.
+5. Before copying anything, compare source/target counts and inspect current target files. In at least one real case, `origin/main` already contained the full blog and white-paper MDX set by count, so the correct action was not a bulk migration but a small repair PR for residual bad links.
+6. Migrated MDX may reference assets outside `public/blog`, especially some Japanese posts using `public/news/news-20.png` and `public/news/news-21.png`.
+7. Legacy internal links in source or previously migrated MDX may point to:
    - `/features/documentation/blog/<id>/<slug>`
-   - malformed variants like `/features/documentation/<id>/<slug>`
-   These should be rewritten to locale-specific MDX routes:
+   - `/features/documentation/white-paper/<id>/<slug>`
+   - malformed variants such as duplicated locale prefixes like `/ja/ja/...`
+   - malformed download/listing links such as `white-paper/<id>download` or category typos like `white-paperss`
+8. These links should be rewritten to locale-specific routes supported by the current app, for example:
    - `/<locale>/blog/<id>`
-6. For long-term asset hygiene, blog assets can be reorganized from flat `public/blog/*` into per-post directories:
+   - `/<locale>/white-paper/<id>`
+9. For long-term asset hygiene, blog assets can be reorganized from flat `public/blog/*` into per-post directories:
    - `public/blog/<id>/thumbnail.<ext>` for the post thumbnail
    - `public/blog/<id>/<image-name>.<ext>` for inline images
-7. Most generic inline names like `blogNN-image-1.png` are inherited from `corp-web-contents/public/blog`, not invented during migration. Before renaming them semantically, extract evidence from:
+10. Most generic inline names like `blogNN-image-1.png` are inherited from `corp-web-contents/public/blog`, not invented during migration. Before renaming them semantically, extract evidence from:
    - image `alt`
    - image `caption`
    - nearby MDX headings/paragraphs
    - and only rename high-confidence cases first
-8. Some posts have enough evidence for semantic renames (for example captioned UI screenshots), while others only have weak generic alt text like `Demonstration` or `QueryPie PM`; keep those generic until stronger evidence exists.
+11. Some posts have enough evidence for semantic renames (for example captioned UI screenshots), while others only have weak generic alt text like `Demonstration` or `QueryPie PM`; keep those generic until stronger evidence exists.
 
 ## Recommended workflow
 
@@ -58,7 +73,8 @@ Check:
 - open PRs
 - current branch cleanliness
 - existing worktrees
-- authored blog entries already present in `src/content/documentation/blogs`
+- authored blog/white-paper entries already present in `src/content/documentation/**`
+- source/target MDX counts before copying any files
 
 Useful checks:
 
@@ -66,30 +82,48 @@ Useful checks:
 git status -sb
 env -u GITHUB_TOKEN gh pr list --state open --limit 20
 find src/content/documentation/blogs -name meta.json
+find src/content/documentation/white-papers -name meta.json
+find ../corp-web-contents/pages/features/documentation/blog -name content.mdx | wc -l
+find ../corp-web-contents/pages/features/documentation/white-paper -name content.mdx | wc -l
+find src/content/mdx/blog -name '*.mdx' | wc -l
+find src/content/mdx/white-paper -name '*.mdx' | wc -l
 ```
 
-### 3. Copy MDX files from source to target layout
+If counts already match, do not assume the request still requires bulk copying. Inspect a few target files and search for residual bad patterns first; the correct deliverable may be a narrow fix-only PR.
+
+### 3. Copy MDX files from source to target layout when content is actually missing
 
 For each source file:
-- source: `../corp-web-contents/pages/features/documentation/blog/<id>/<slug>/<locale>/content.mdx`
-- target: `src/content/mdx/blog/<id>/<locale>.mdx`
+- blog source: `../corp-web-contents/pages/features/documentation/blog/<id>/<slug>/<locale>/content.mdx`
+- blog target: `src/content/mdx/blog/<id>/<locale>.mdx`
+- white-paper source: `../corp-web-contents/pages/features/documentation/white-paper/<id>/<slug>/<locale>/content.mdx`
+- white-paper target: `src/content/mdx/white-paper/<id>/<locale>.mdx`
 
 Important:
 - preserve only locales that actually exist in source
 - do not invent missing locale files
 - ensure files end with a trailing newline
 
-### 4. Rewrite legacy internal blog links
+### 4. Rewrite legacy or malformed internal links
 
-Rewrite these patterns inside migrated MDX:
+Rewrite these patterns inside migrated MDX when they appear:
 
+Blog examples:
 - `/<locale>/features/documentation/blog/<id>/<slug>` -> `/<locale>/blog/<id>`
 - `/features/documentation/blog/<id>/<slug>` -> `/<file-locale>/blog/<id>`
 - `/features/documentation/<id>/<slug>` -> `/<file-locale>/blog/<id>`
 
+White-paper examples:
+- `/<locale>/features/documentation/white-paper/<id>/<slug>` -> `/<locale>/white-paper/<id>`
+- `/features/documentation/white-paper/<id>/<slug>` -> `/<file-locale>/white-paper/<id>`
+- duplicated locale prefixes like `/ja/ja/features/documentation?...` -> single locale prefix
+- malformed download/list links such as `white-paper/<id>download` -> correct route for the intended page or CTA
+- category typos like `white-paperss` -> `white-papers`
+
 Reason:
 - source MDX links use old documentation URLs
-- target MDX route is the locale-specific `/blog/[id]` route
+- previously migrated MDX can also contain bad generated link strings
+- target MDX routes are the locale-specific `/blog/[id]` and `/white-paper/[id]` routes
 
 ### 5. Copy all referenced assets, not just blog images blindly
 
@@ -122,11 +156,14 @@ If the task includes cleaning up blog assets after migration:
 ### 7. Verify migrated content integrity
 
 Run checks for:
-- no remaining `/features/documentation/blog/` or `/features/documentation/` legacy links in migrated MDX
+- no remaining `/features/documentation/blog/` or `/features/documentation/white-paper/` legacy links in migrated MDX
+- no malformed doubled locale prefixes like `/ja/ja/`
+- no malformed category strings like `white-paperss`
 - no missing `public/...` asset refs used by migrated MDX
 - no stale flat `public/blog/b-thumb-*` refs after reorganizing assets
 - only intended files changed
 - survey document exists if semantic renaming was performed
+- if the task turned into a fix-only PR, confirm the changed files are restricted to the repaired MDX files
 
 ### 8. Run project verification
 
@@ -137,6 +174,8 @@ npm install   # if node_modules absent
 npm run test:run
 npm run typecheck
 ```
+
+If these fail on a fresh branch in the same way they fail on latest `origin/main`, record them explicitly as pre-existing baseline failures instead of expanding scope automatically. In one real migration/fix PR, both commands failed because of an existing `mermaid` module/type-resolution problem unrelated to the edited MDX files.
 
 ### 8. Commit, push, and create PR
 

@@ -271,6 +271,48 @@ Interpretation:
 - `decision.reason=network_backoff_active` means the watchdog still sees a recoverable network-related failure pattern, but restart attempts are being intentionally throttled
 - `decision.reason=awaiting_new_failure_signal` means the same failure fingerprint is still present and should not trigger another immediate restart
 
+### Telegram response delay with gateway apparently healthy
+Another distinct failure mode observed in practice:
+- user reports Hermes replies are delayed rather than fully silent
+- `hermes gateway status` shows the launchd service is loaded and the gateway PID is alive
+- Telegram API direct checks are healthy
+- watchdog keeps reporting `decision.reason=healthy`
+- but `gateway.error.log` contains repeated lines like:
+  - `Telegram polling conflict (1/3), will retry in 10s`
+  - `Conflict: terminated by other getUpdates request; make sure that only one bot instance is running`
+
+Interpretation:
+- this is not a generic model/API latency problem first
+- it means some other process is consuming `getUpdates` for the same bot token
+- the active gateway may stay alive, but inbound updates are being interrupted or delayed by polling ownership fights
+- the watchdog can miss this because it may only check process liveness and Telegram API reachability, not update-stream exclusivity
+
+Recommended diagnostic sequence for delayed Telegram replies:
+1. Check the active runtime/config first:
+   - `hermes config path`
+   - `hermes config env-path`
+   - `hermes gateway status`
+2. Search the gateway error log for polling conflicts:
+   - `rg -n 'Telegram polling conflict|getUpdates request' .hermes/logs/gateway.error.log`
+3. Count how persistent the conflict is:
+   - `rg -c 'Telegram polling conflict' .hermes/logs/gateway.error.log`
+4. Confirm the model path is not the main bottleneck with a minimal direct query:
+   - `hermes chat -q 'Reply with exactly OK.' -Q`
+5. Enumerate likely duplicate Hermes/gateway processes on the local machine:
+   - `ps -Ao pid,ppid,etime,command | grep '/Users/.../.local/bin/hermes'`
+   - `launchctl list | grep -i hermes`
+6. If only one local gateway exists, expand suspicion to:
+   - another `HERMES_HOME` on the same machine
+   - another terminal running `hermes gateway run`
+   - another profile/repo-local install
+   - another machine using the same bot token
+7. Treat repeated polling conflicts as the primary root cause for Telegram delay until disproven
+
+Operational lesson:
+- `gateway running` plus `telegram_api_ok=true` does not prove Telegram update consumption is healthy
+- a gateway can look healthy while still losing the `getUpdates` lock to another bot instance
+- when users report delayed Telegram responses, check polling conflict before deeper model-latency investigation
+
 ### Watchdog back-off behavior
 A key operational lesson from practice:
 - Running the watchdog every minute is fine for monitoring.

@@ -99,6 +99,29 @@ The CLI prints lines like:
 
 These may appear on stdout or stderr. Ignore non-JSON lines and parse only lines beginning with `{`.
 
+### 3.5 Historical day-window queries can repeat rows and plateau at 50 unique entries
+
+When querying a bounded historical window such as:
+
+```bash
+vercel logs --project <project> --environment production \
+  --since '2026-04-25T00:00:00+09:00' \
+  --until '2026-04-26T00:00:00+09:00' \
+  --json --no-branch --limit 200
+```
+
+practical behavior may differ from the requested `--limit`:
+- the CLI can emit many more JSON lines than the number of distinct log records
+- after dedupe by `id`, you may end up with only about `50` unique rows even when `--limit 200` or higher was requested
+- this can affect general queries and filtered `404` / `307` queries alike
+
+Interpretation rule:
+- do **not** report these as authoritative traffic totals
+- report them as sampled runtime-log evidence for that day/window
+- always dedupe by log `id` before counting paths or statuses
+
+This matters especially for wiki or incident summaries covering exact calendar days: the safest framing is sampled status mix and repeated-path patterns, not exact volume.
+
 ### 4. Error queries can hit a hard practical cap
 
 `vercel logs --level error --limit 1000` can hit the 1000-line cap quickly on noisy projects. If you get 1000 results, report it as:

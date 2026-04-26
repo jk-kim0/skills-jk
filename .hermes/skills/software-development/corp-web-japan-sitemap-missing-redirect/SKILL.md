@@ -100,12 +100,36 @@ Good structure:
 - `getQueryPieContentRedirectPath()`
 - `buildQueryPieContentRedirectUrl()`
 
-Also add a doc comment stating the only accepted redirect patterns:
-1. file-like sitemap paths
-2. direct content namespace paths: `/{contentRoot}/...`
-3. localized namespace paths: `/{lang}/{contentRoot}/...`
+Also add a doc comment stating the accepted redirect patterns. The current best structure is:
+1. runtime-log-validated exact paths that were checked against `https://www.querypie.com` and returned `200 OK`
+2. file-like sitemap paths
+3. direct content namespace paths: `/{contentRoot}/...`
+4. localized namespace paths: `/{lang}/{contentRoot}/...`
 
 This matters because users may complain that the rules are hard to read if the conditions stay buried in inline logic.
+
+### 1.5 runtime-log-driven exact redirects
+
+When the request is specifically to fix real production 404s seen in Vercel Runtime Logs, do not only rely on broad sitemap namespace matching.
+
+Recommended decision rule:
+1. collect the distinct 404 request paths from the requested runtime-log window
+2. for each candidate path, check `https://www.querypie.com<same-path>` directly
+3. only consider paths that return `200 OK`
+4. before adding any exact-path redirect, check whether the current generic namespace rules already cover it
+5. only add new exact allowlist entries for the remaining uncovered paths
+
+Why this split matters:
+- it prevents redirecting arbitrary 404 noise that does not exist on `querypie.com`
+- it avoids redundant exact entries for paths already handled by namespace rules
+- it keeps the code small and reviewable
+
+A proven helper shape for this follow-up work was:
+- `type QueryPieExactRedirectPath = ...`
+- `const QUERYPIE_EXACT_REDIRECT_PATHS = [...]`
+- `isQueryPieExactRedirectPath()`
+
+In the observed Apr 25–26 runtime-log remediation, six paths returned `200` on `querypie.com`, but only two needed new exact rules because four were already covered by namespace matching.
 
 ### 2. local-content helper for `/ja/...`
 
@@ -135,7 +159,14 @@ Add focused source-based tests for both helpers.
 - known namespace strings are present
 - locale-aware logic is present
 - file-path exceptions are present
+- exact runtime-validated paths are present when applicable
 - redirect URL is built from `https://www.querypie.com`
+
+For follow-up safety, add at least one behavioral test that actually imports the helper and verifies:
+- a newly added exact path returns itself from `getQueryPieContentRedirectPath()`
+- a known non-matching path returns `null`
+
+This is useful when a source-pattern test alone might pass even though the helper logic is wired incorrectly.
 
 ### `/ja/...` precedence test should verify
 - internal content helper is used first

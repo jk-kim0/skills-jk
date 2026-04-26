@@ -571,6 +571,24 @@ hermes config set auxiliary.vision.provider <your_provider>
 hermes config set auxiliary.vision.model <model_name>
 ```
 
+### Auxiliary memory flush errors on Codex Responses
+If you see warnings like:
+```text
+⚠ Auxiliary memory flush failed: HTTP 400: Invalid value: 'tool'. Supported values are: 'assistant', 'system', 'developer', and 'user'.
+⚠ Auxiliary memory flush failed: Responses API returned no output items
+```
+this usually means Hermes attempted to run the pre-compression / pre-exit memory flush through a Codex Responses-compatible auxiliary path, but the conversation history still contained OpenAI-style `role: "tool"` messages. The Responses API rejects `tool` as an input message role unless those tool results are converted into Responses-format function-call output items.
+
+Interpretation:
+- This is usually a memory-flush-side warning, not a full conversation failure.
+- The immediate risk is that automatic memory persistence for that flush point may be skipped.
+- Hermes may still continue via a fallback flush path, so treat it first as a compatibility / normalization bug rather than proof the main model call failed.
+
+Debugging checklist:
+1. Check whether the active provider/model for `auxiliary.flush_memories` resolves to a Codex Responses backend.
+2. Inspect the flush input conversion path and confirm `role: "tool"` messages are converted before the Responses call.
+3. If you also see `Responses API returned no output items`, inspect the Responses adapter normalization path — the backend may have streamed events without populating final `response.output`, or the wrapper may not be backfilling items correctly.
+
 ---
 
 ## Where to Find Things

@@ -65,11 +65,21 @@ Important:
 ### 3. Clone the wiki repository directly
 
 Do not edit wiki content through the product repo.
-Clone the dedicated wiki repo:
+Clone the dedicated wiki repo.
+Prefer a fresh unique temporary directory instead of a reused hard-coded path:
 
 ```bash
-git clone git@github.com:<owner>/<repo>.wiki.git ~/workspace/.tmp-<repo>-wiki
+tmpdir=$(mktemp -d "/tmp/<repo>.wiki.XXXXXX")
+git clone git@github.com:<owner>/<repo>.wiki.git "$tmpdir"
 ```
+
+Why this is safer:
+- avoids collisions with an existing stale clone
+- avoids accidental reuse of dirty wiki state from a previous run
+- makes it easy to abandon and recreate the clone if the first attempt fails
+
+If you intentionally want a stable workspace path, first check whether it already exists and whether reusing it is actually helpful.
+Do not keep retrying the exact same blocked clone command/path combination when a fresh temp directory would solve the issue more cleanly.
 
 Useful checks:
 
@@ -127,6 +137,29 @@ This avoids contamination from:
 ## Key lesson for CTA / route inventories
 
 When documenting implemented links in `corp-web-japan`-style repos, treat local redirect endpoints and local path/query values as the current implemented links if that is what the latest main branch uses.
+
+### Important mismatch-inventory lesson from content-route audits
+
+When adding a "current code vs target canonical" inventory to a wiki page, do not assume an older or previously discussed route still exists on latest `origin/main`.
+
+Audit the latest code snapshot and classify each family carefully:
+- exact match already exists
+- legacy/transitional route exists and differs from target canonical
+- no dedicated family route exists yet; current behavior is still served from a shared hub plus query/category filtering
+
+This distinction matters because a misleading mismatch table can imply the app currently uses a route like `/white-paper/...` when latest main may actually have no dedicated white-paper family route at all and still serve that content under `/features/documentation`.
+
+For content-family audits, explicitly check:
+- route files under `src/app/[locale]`
+- public href builders such as `getPublicListHref` / `getPublicDetailHref`
+- category config hrefs and query-string filters
+- sitemap entries and metadata canonicals
+
+In the final wiki table, prefer wording like:
+- "current route is `/features/demo`" when that route exists
+- "current implementation has no dedicated route; uses `/features/documentation?category=blogs` and `/features/documentation/:slug`" when family routes are not yet split
+
+This produces a more accurate migration inventory and avoids documenting nonexistent intermediate routes as if they were real current behavior.
 
 Examples:
 - Current link can be `/contact-us`
@@ -293,6 +326,69 @@ curl -I https://github.com/<owner>/<repo>/wiki/<Page-Name>
 
 may return `404` even when the page exists.
 Do not treat that as publish failure if the wiki git remote contains the committed file.
+
+## Multi-repo replacement-audit note
+
+When the wiki page is a readiness audit or redirect-planning document for replacing one production site with another, do not limit yourself to a single repo snapshot.
+
+Use all relevant sources of truth explicitly and record them in the page header:
+- target repo latest `origin/main` SHA
+- legacy app repo latest `main` SHA if the live site still runs there
+- legacy content repo latest `main` SHA if routing/content is split across repos
+- operational evidence windows such as Vercel Runtime Logs, Google Search Console, and GA4 date ranges
+
+Recommended structure for these pages:
+1. source-of-truth commit SHAs for every repo inspected
+2. operational evidence window(s)
+3. current-state findings
+4. derived task list or redirect rules
+5. cutover blockers / first batch recommendation
+
+Important lesson from replacement-readiness wiki work:
+- the most useful redirect/readiness docs are driven by both code inspection and live traffic/error evidence
+- Vercel 404 samples help prioritize redirect families
+- GSC top pages identify SEO-sensitive legacy URLs that need exact redirects
+- GA source/traffic data shows whether the current production surface is still centered on the legacy site
+- if the user asks for a separate wiki page, create a new page and leave prior audit pages untouched
+
+### Important stale-plan rewrite lesson after latest-main merges
+
+When rewriting a planning or migration-status wiki page after a large feature has merged to `origin/main`, do not just update commit SHAs and preserve the old narrative.
+
+Re-audit whether the feature changed the document's core thesis.
+Typical examples:
+- a page framed around "largest missing blocker" may become outdated once the blocker is implemented on main
+- a plan page may need to become a "current state + remaining follow-up" page instead of a pre-implementation proposal
+- a portfolio-level migration inventory may need blocker priorities reordered after the merge
+
+Recommended rewrite pattern:
+1. identify the old document's key assumptions
+2. verify each assumption against latest `origin/main`
+3. explicitly call out which earlier claims are no longer true
+4. rewrite conclusions and priorities, not just evidence sections
+5. note when related split wiki pages are now stale because they still reflect older branches or pre-merge status
+
+This avoids a common failure mode where a wiki page cites the newest commit SHA but still describes the pre-merge world.
+
+## Consolidation and wiki-IA cleanup rule
+
+When the user says several wiki pages are duplicated, stale, or should be reorganized around the latest canonical document, do not limit yourself to editing one page in isolation.
+
+Recommended approach:
+1. inspect the overlapping wiki pages together
+2. identify one canonical page that should become the main source of truth
+3. merge the overlapping status/scope/readiness content into that canonical page
+4. simplify `Home.md` so it points to the canonical page first, then to supporting detail pages
+5. if the user explicitly wants duplicate pages removed, actually delete the old wiki files and commit the deletions instead of leaving placeholder stubs
+
+Important distinction:
+- if the user says to consolidate but does not ask for deletion, a short superseded note page can be acceptable
+- if the user later says to delete duplicates, remove the files from the wiki repo and verify the deletion on `origin/master`
+
+Useful reporting pattern after this kind of cleanup:
+- name the canonical page that now owns the topic
+- list any deleted pages explicitly
+- mention any new supporting pages created for implementation plans or inventories
 
 ## Suggested response notes to user
 

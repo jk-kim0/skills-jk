@@ -59,13 +59,32 @@ echo "Owner: $OWNER, Repo: $REPO"
 This part is pure `git` — identical either way:
 
 ```bash
-# Make sure you're up to date
-git fetch origin
+# Make sure you're up to date against the REMOTE default branch
+# Prefer branching from origin/main, not from whatever local branch is checked out.
+git fetch origin --prune
 git checkout main && git pull origin main
 
-# Create and switch to a new branch
-git checkout -b feat/add-user-authentication
+# Create and switch to a new branch from the latest remote main tip
+git checkout -b feat/add-user-authentication origin/main
 ```
+
+Important safety rule:
+- Do NOT create a new PR branch from a previously used feature/fix branch, even if that branch's PR was already merged.
+- If the previous PR was squash-merged or otherwise rewritten on GitHub, the old local commit SHA may not exist on `main`, so GitHub can show that old commit again in the new PR even though the content was already merged.
+- Always branch from `origin/main` (or the PR base branch) for new independent work.
+
+Recommended verification before committing:
+
+```bash
+# Confirm the new branch is based on the current remote main
+BASE=$(git merge-base HEAD origin/main)
+echo "$BASE"
+git rev-parse origin/main
+
+# These should match for a fresh branch with no new commits yet
+```
+
+If they do not match, stop and inspect the branch ancestry before proceeding.
 
 Branch naming conventions:
 - `feat/description` — new features
@@ -115,15 +134,25 @@ git push -u origin HEAD
 ```bash
 gh pr create \
   --title "feat: add JWT-based user authentication" \
-  --body "## Summary
+  --body-file /tmp/pr-body.md
+```
+
+Prepare `/tmp/pr-body.md` first (recommended whenever the PR body contains backticks, shell metacharacters, or multiple paragraphs):
+
+```bash
+cat >/tmp/pr-body.md <<'EOF'
+## Summary
 - Adds login and register API endpoints
 - JWT token generation and validation
 
 ## Test Plan
 - [ ] Unit tests pass
 
-Closes #42"
+Closes #42
+EOF
 ```
+
+Small one-line bodies can still use `--body "..."`, but `--body-file` is safer and avoids command substitution / shell quoting issues when the text includes Markdown code spans like `` `src/file.ts` ``.
 
 Options: `--draft`, `--reviewer user1,user2`, `--label "enhancement"`, `--base develop`
 
@@ -147,6 +176,45 @@ curl -s -X POST \
 The response JSON includes the PR `number` — save it for later commands.
 
 To create as a draft, add `"draft": true` to the JSON body.
+
+### Recovering a PR That Accidentally Includes Old Merged Commits
+
+Symptom:
+- A new PR unexpectedly shows commits from an older already-merged branch.
+- This often happens when the new branch was created from a stale local branch instead of `origin/main`.
+
+Fast diagnosis:
+
+```bash
+git fetch origin --prune
+git log --oneline --decorate --graph --max-count=10
+git merge-base origin/main HEAD
+git rev-list --oneline origin/main..HEAD
+```
+
+If `origin/main..HEAD` includes an old unrelated commit, rewrite the branch so only the intended commit(s) remain.
+
+Single-extra-parent case (common):
+
+```bash
+# Example: branch contains OLD_COMMIT -> YOUR_COMMIT, and OLD_COMMIT should not be in the PR
+git rebase --onto origin/main OLD_COMMIT <your-branch>
+
+# Resolve conflicts if needed, then continue without opening an editor
+GIT_EDITOR=true git rebase --continue
+
+# Update the existing PR branch safely
+git push --force-with-lease origin HEAD:<your-branch>
+```
+
+After force-pushing, verify that the PR now contains only the intended commits:
+
+```bash
+git rev-list --oneline origin/main..HEAD
+gh pr view <pr-number> --json commits,files,headRefName,url
+```
+
+This is especially important when the accidentally included old branch was merged via squash/rebase on GitHub, because the old local SHA may not be an ancestor of `origin/main` even when its content is already present there.
 
 ## 4. Monitoring CI Status
 
@@ -360,7 +428,31 @@ git push -u origin HEAD
 |--------|-----|-----------|
 | List my PRs | `gh pr list --author @me` | `curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/$OWNER/$REPO/pulls?state=open"` |
 | View PR diff | `gh pr diff` | `git diff main...HEAD` (local) or `curl -H "Accept: application/vnd.github.diff" ...` |
-| Add comment | `gh pr comment N --body "..."` | `curl -X POST .../issues/N/comments -d '{"body":"..."}'` |
+| Add comment | `gh pr comment N --body-file /tmp/comment.md` | `curl -X POST .../issues/N/comments -d '{"body":"..."}'` |
 | Request review | `gh pr edit N --add-reviewer user` | `curl -X POST .../pulls/N/requested_reviewers -d '{"reviewers":["user"]}'` |
 | Close PR | `gh pr close N` | `curl -X PATCH .../pulls/N -d '{"state":"closed"}'` |
 | Check out someone's PR | `gh pr checkout N` | `git fetch origin pull/N/head:pr-N && git checkout pr-N` |
+
+## Practical CLI pitfalls
+
+1. Prefer `--body-file` for `gh pr comment` as well as `gh pr create`.
+   - If the comment body contains backticks like `` `src/app/api/...` ``, shell command substitution can break the command or produce confusing errors.
+   - Safe pattern:
+     ```bash
+     cat >/tmp/pr-comment.md <<'EOF'
+     This PR depends on `src/app/api/downloads/file/route.ts` changes in #123.
+     EOF
+     gh pr comment 123 --body-file /tmp/pr-comment.md
+     ```
+
+2. `gh pr diff` can fail on very large PRs.
+   - GitHub may return HTTP 406 / `PullRequest.diff too_large` when the PR changes hundreds of files.
+   - In that case, inspect files with:
+     ```bash
+     gh pr view <PR_NUMBER> --json files --jq '.files[].path'
+     ```
+   - Then filter locally, e.g.:
+     ```bash
+     gh pr view <PR_NUMBER> --json files --jq '.files[].path' | grep '^src/app/api/' || true
+     ```
+   - Use this to verify whether a scoped set of files is still present after history cleanup or PR splitting.
