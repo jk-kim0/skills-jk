@@ -50,10 +50,12 @@ Trigger this skill when:
 
 5. Wait for the workflow run to appear and finish.
    - Use `gh run list --workflow create-pr.yml --limit 5`
-   - Then inspect the newest run if needed with `gh run view <run-id>`
+   - In this repo, the dispatched `create-pr.yml` run may appear with `headBranch` shown as `main` in `gh run list`, even when it creates a PR for another branch. Do not try to identify the run by filtering on the feature branch name.
+   - If you need to inspect the run, take the newest `create-pr.yml` run and use `gh run view <run-id>` or `gh run watch <run-id>`.
 
 6. Verify the PR was created.
-   - Use `gh pr status` or `gh pr view <number>`
+   - Prefer `gh pr status` or `gh pr view --head <branch>` to confirm the resulting PR.
+   - Do not rely on `gh run list --branch <branch>` to prove the PR-creation workflow ran; that branch filter may show nothing for this workflow even when PR creation succeeded.
    - Report the PR number and URL
 
 ## If a PR already exists
@@ -65,7 +67,7 @@ Instead:
 
 ## Pitfalls
 
-- Use plain `gh ...` commands in this repo; do not add a token-unset wrapper unless there is a specific repository need
+- Follow the active repository/global GitHub CLI safety policy when invoking `gh`. In this environment that means using `env -u GITHUB_TOKEN gh ...` rather than raw `gh ...`.
 - Do not pass complex markdown directly to `gh pr create --body` in this repo unless there is a strong reason
 - `create-pr.yml` targets `main` as the base branch
 - The workflow appends a GitHub Actions bot footer to the body

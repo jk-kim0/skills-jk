@@ -8,9 +8,13 @@ __pycache__/
 .hermes/logs/
 .hermes/cron/
 .hermes/images/
+.hermes/cache/
+.hermes/checkpoints/
 .hermes/auth.lock
 .hermes/auth.json
-.hermes/state.db
+.hermes/state.db*
+.hermes/context_length_cache.yaml
+.hermes/gateway.lock
 .hermes/.update_check
 .hermes/SOUL.md
 .hermes/.env

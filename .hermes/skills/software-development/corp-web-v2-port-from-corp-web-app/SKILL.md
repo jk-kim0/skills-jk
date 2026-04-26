@@ -92,6 +92,37 @@ Use this when the user says a feature existed in `corp-web-app` and wants it add
   - For multiple internal pages, prefer one catch-all App Router page like `src/app/[locale]/internal/[[...slug]]/page.tsx` plus an explicit whitelist helper such as `src/features/mdx/internalPaths.ts` instead of creating one page file per article.
   - This worked well for migrating `/internal`, `/internal/sample-article`, and the `/internal/mdx-guide/*` pages while intentionally excluding `/internal/plans` and `/internal/mdx-preview`.
 
+## Author-box / localized metadata findings
+- When `corp-web-app` depends on layout data that does not exist in `corp-web-v2`, check `corp-web-contents` for the canonical source before inventing a new schema.
+- For article author boxes, a workable pattern was:
+  1. keep MDX frontmatter `author` values as the source of which authors to render
+  2. copy locale-specific author registry data from `corp-web-contents/layout/{en,ko,ja}/author.json` into a small v2-side registry module
+  3. normalize `public/...` asset paths to web `/...` paths at read time
+  4. render a shared author-box component from the resolved author objects
+- Preserve unregistered/guest author names in the article header, but restrict the rich author-intro box to registered authors with profile metadata.
+- Prefer shortening copied profile image assets to `corp-web-v2/public/crew/*` and rewrite registry entries to `crew/<file>` rather than keeping either the longer legacy `public/querypie-company/crew/*` path or redundant `public/crew/<file>` values.
+- In rendering, normalize stored image paths defensively so `public/crew/...`, `crew/...`, and `/crew/...` all become runtime `/crew/...` URLs.
+- Keep the shared component name generic (`AuthorBox.tsx`) unless there is a real need to distinguish article-specific behavior.
+- Tests should cover mixed-author cases (registered + unregistered), locale-specific display names/translations, `/crew/...` image URLs, and the no-box fallback when only unregistered authors exist.
+
+## Solutions / route-parity findings
+- For `corp-web-v2` public-site parity work, do not treat placeholder pages like `/aip-not-found`, `/acp-not-found`, and `/fdes-not-found` as the full scope. First inspect the GitHub wiki migration page plus legacy redirects/content to recover the real public route family and alias relationships.
+- A proven pattern for multi-page parity is:
+  1. define a canonical route table in a small helper such as `src/features/<domain>/routes.ts`
+  2. add route tests first for canonical entries, placeholder redirects, and legacy alias resolution
+  3. render the canonical family with one catch-all page such as `src/app/[locale]/solutions/[[...slug]]/page.tsx`
+  4. implement legacy aliases as thin App Router redirect pages that call the shared resolver instead of duplicating mapping logic in each route file.
+- For Solutions specifically, the legacy canonical family was under `/solutions/...`, while important aliases also existed under `/platform/ai/aip/**`, `/platform/security/*`, `/products/*`, `/resources/manage/*`, `/resources/integrations`, and `/resources/discover/integrations`.
+- When migrating legacy MDX-backed static pages, copy the source tree into a dedicated v2 content root such as `src/content/solutions/**` and add a tiny loader module for `meta.json` + `content.mdx` with locale fallback.
+- Important loader pitfall: only fall back to `en` on missing-file (`ENOENT`) errors. Do not swallow permission errors or other filesystem failures by returning fallback/null for every read error.
+- Legacy public assets may come from both repos, not only `corp-web-contents`. In the Solutions parity work, most assets came from `corp-web-contents/public/*`, but `/assets/dac-analyzer.json` had to be copied from `corp-web-app/public/assets`.
+- Legacy MDX custom tags may not map cleanly to existing v2 MDX components. A reusable migration approach is to add a domain-specific adapter module such as `src/features/solutions/mdxComponents.tsx` that:
+  - preserves existing MDX source as much as possible
+  - normalizes `public/...` asset references to runtime `/...` URLs
+  - locale-prefixes internal links
+  - provides graceful fallbacks for unsupported widgets instead of blocking the entire migration.
+- In `corp-web-v2`, do not assume `npm run lint` exists. Verify the repo's actual scripts first; for this codebase snapshot, `test:run`, `typecheck`, and `build` were the reliable gates, while standalone ESLint also failed if no repo config was present.
+
 ## Pitfalls
 - A dirty existing worktree can make a small feature request risky; use a separate worktree early.
 - New worktrees may not have dependencies installed yet; `vitest: command not found` usually means `npm install` is needed there.

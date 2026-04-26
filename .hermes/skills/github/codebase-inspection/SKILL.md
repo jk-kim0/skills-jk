@@ -24,6 +24,13 @@ Analyze repositories for lines of code, language breakdown, file counts, and cod
 - User wants code-vs-comment ratios
 - General "how big is this repo" questions
 
+## When NOT to Use
+
+- Do **not** run pygount just because the user asked for a general project overview, architecture summary, or quick reconnaissance.
+- For "understand this project" requests, prefer a lightweight inspection first: `package.json`, top-level config files, README/docs, and a narrow directory listing of key source folders.
+- Only run repo-wide LOC/language scans when the user explicitly asks about size/composition, or when those metrics materially affect the answer.
+- On content-heavy repos (docs, CMS exports, cached API payloads, generated data, large `var/` trees), repo-wide scans are often unnecessary and disproportionately slow.
+
 ## Prerequisites
 
 ```bash
@@ -123,3 +130,5 @@ Special pseudo-languages:
 2. **Markdown shows 0 code lines** — pygount classifies all Markdown content as comments, not code. This is expected behavior.
 3. **JSON files show low code counts** — pygount may count JSON lines conservatively. For accurate JSON line counts, use `wc -l` directly.
 4. **Large monorepos** — for very large repos, consider using `--suffix` to target specific languages rather than scanning everything.
+5. **Stop quickly if the scan is slower than expected** — if a repo-wide scan on a docs/content-heavy repo does not return promptly, interrupt it and switch to a narrower inspection. Do not keep waiting on a long-running analysis when a lighter method would answer the user’s actual question.
+6. **Docs/content repos can be misleadingly expensive** — repositories with large `var/`, cached exports, generated snapshots, or content mirrors may look simple but still be expensive to scan. Narrow the target path or skip LOC analysis unless the user explicitly wants codebase metrics.

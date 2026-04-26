@@ -115,6 +115,8 @@ Important user-expectation nuance learned from active-review follow-up:
 - After each push, re-check PR status and CI so the user can review the updated PR without waiting for a later "finalize" step.
 - If the user later asks to clean up the PR title/body, rewrite them to describe only the final end state of the PR. Do not narrate intermediate implementation history unless the user explicitly wants that context.
 - If the user asks to squash the branch history for an open PR, use a fresh worktree from the PR branch tip, `git reset --soft <base-branch>`, recommit once with the final conventional-commit message, then `git push --force-with-lease origin HEAD:<pr-branch>` and re-check PR/CI status.
+- For small PR follow-ups such as squash, title/body edits, route/path renames, or other narrow review-driven fixes, do not automatically run local build/test verification unless the user explicitly asks for it. Prefer the fast path: edit -> commit -> push -> confirm PR updated -> watch CI.
+- At the start of a follow-up task, give a short time estimate. If the work exceeds that estimate, stop and immediately report current status and next step instead of staying silent.
 
 ### 6a. If the user asks to rebase the existing PR branch onto the latest main
 Use the same fresh-worktree principle, but rebase the PR branch tip onto `origin/main` instead of creating a merge commit.
@@ -151,6 +153,12 @@ Important practical findings:
 gh pr view <pr-number> --json number,headRefName,updatedAt,commits
 gh pr checks <pr-number>
 ```
+
+Important practical note:
+- `gh pr checks <pr-number>` returns a non-zero exit code not only for hard failures, but also while checks are still pending.
+- Do not treat the non-zero exit by itself as proof that your branch update failed.
+- Read the printed check table first, then classify each check as `pass`, `pending`, or `fail`.
+- If needed, follow up with `gh pr view <pr-number> --json headRefOid,updatedAt,url` and/or rerun `gh pr checks <pr-number>` after a short wait.
 
 Confirm:
 - the PR still points to the intended branch
