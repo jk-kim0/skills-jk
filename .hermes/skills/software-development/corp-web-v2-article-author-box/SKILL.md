@@ -150,12 +150,16 @@ Use a shared component:
 - `src/components/mdx-layout/AuthorBox.tsx`
 
 Render:
-- intro heading
 - avatar image
 - localized name
 - localized position
 - localized description paragraphs
 - LinkedIn icon link when present
+
+Current public-content composition reference:
+- place the author card block immediately below the article title
+- do not render an extra section heading like `About the author` / `작성자 소개` / `著者紹介`
+- show the publish date after the author card block, then continue with hero image and body
 
 The file name should stay concise:
 - prefer `AuthorBox.tsx`
@@ -229,5 +233,7 @@ Then:
 - White-paper layout works
 - `profileImage` registry values normalize to `/crew/...`
 - LinkedIn links render when present
-- locale heading strings are correct in en/ko/ja
+- Header author card block sits directly below the article title
+- Publish date appears after the author card block
+- Hero image and body remain below the metadata area
 - tests and typecheck pass
