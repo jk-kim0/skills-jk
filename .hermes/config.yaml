@@ -45,18 +45,14 @@ browser:
   record_sessions: false
   allow_private_urls: false
   cdp_url: ''
-<<<<<<< HEAD
   dialog_policy: must_respond
   dialog_timeout_s: 300
-=======
->>>>>>> 4f1454d (chore: update local skills workspace changes)
   camofox:
     managed_persistence: false
 checkpoints:
   enabled: true
   max_snapshots: 50
 file_read_max_chars: 100000
-<<<<<<< HEAD
 tool_output:
   max_bytes: 50000
   max_lines: 2000
@@ -68,13 +64,6 @@ compression:
   protect_last_n: 20
 prompt_caching:
   cache_ttl: 5m
-=======
-compression:
-  enabled: true
-  threshold: 0.5
-  target_ratio: 0.2
-  protect_last_n: 20
->>>>>>> 4f1454d (chore: update local skills workspace changes)
 bedrock:
   region: ''
   discovery:
@@ -239,28 +228,19 @@ delegation:
   api_key: ''
   inherit_mcp_toolsets: true
   max_iterations: 50
-<<<<<<< HEAD
   child_timeout_seconds: 600
-=======
->>>>>>> 4f1454d (chore: update local skills workspace changes)
   reasoning_effort: ''
   max_concurrent_children: 3
   max_spawn_depth: 1
   orchestrator_enabled: true
-<<<<<<< HEAD
   subagent_auto_approve: false
-=======
->>>>>>> 4f1454d (chore: update local skills workspace changes)
 prefill_messages_file: ''
 skills:
   external_dirs: []
   template_vars: true
   inline_shell: false
   inline_shell_timeout: 10
-<<<<<<< HEAD
   guard_agent_created: false
-=======
->>>>>>> 4f1454d (chore: update local skills workspace changes)
 honcho: {}
 timezone: ''
 discord:
@@ -282,15 +262,11 @@ approvals:
   mode: manual
   timeout: 60
   cron_mode: deny
-<<<<<<< HEAD
 command_allowlist:
 - stop/restart hermes gateway (kills running agents)
 - git force push (rewrites remote history)
 - recursive delete
 - script execution via -e/-c flag
-=======
-command_allowlist: []
->>>>>>> 4f1454d (chore: update local skills workspace changes)
 quick_commands: {}
 hooks: {}
 hooks_auto_accept: false
