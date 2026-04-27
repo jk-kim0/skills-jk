@@ -32,8 +32,9 @@ Use when the task is to move blog or white-paper content from `../corp-web-conte
    - `../corp-web-contents/pages/features/documentation/white-paper/<id>/<slug>/<locale>/content.mdx`
 3. Existing `corp-web-v2` MDX files are stored as:
    - `src/content/mdx/blog/<id>/<locale>.mdx`
-   - `src/content/mdx/white-paper/<id>/<locale>.mdx`
-4. Public listing/detail pages are driven by authored content metadata under:
+   - `src/content/mdx/white-papers/<id>/<locale>.mdx`
+4. The original `corp-web-contents` path slug should be preserved explicitly in each migrated MDX frontmatter as `slug: "..."`, shared across EN/KO/JA files for the same content ID.
+5. Public listing/detail pages are driven by authored content metadata under:
    - `src/content/documentation/blogs/**/meta.json`
    - `src/content/documentation/white-papers/**/meta.json`
    - so this migration often does **not** require editing content-state or authored meta files if the entries already exist.

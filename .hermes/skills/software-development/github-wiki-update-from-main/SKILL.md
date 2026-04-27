@@ -302,7 +302,8 @@ If another new remote commit appears before the retry push finishes, repeat the 
 
 Important:
 - Re-check that the remote-only commit touched unrelated wiki files before assuming your page needs manual conflict resolution.
-- If the remote change is on the same page, resolve carefully and then continue the rebase.
+- If the remote change is on the same page, do not blindly keep either side. First inspect `origin/master:<page>.md` to understand the newly updated baseline, then re-apply only your intended delta (for example: one restored item, updated counts, one route correction) onto that latest remote content, and continue the rebase.
+- When the same page changed on both sides, prefer reconstructing the final markdown from the remote page plus your verified new facts instead of editing conflict markers in-place for long tables.
 - After the final successful push, verify local `HEAD` and `origin/master` are identical.
 
 Then verify with git-based checks:

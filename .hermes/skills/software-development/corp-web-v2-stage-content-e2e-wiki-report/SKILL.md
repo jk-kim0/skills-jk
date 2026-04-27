@@ -143,6 +143,10 @@ Recommended summary table columns:
 - 관찰 내용
 
 Also add a separate table for legacy path / canonical path checks.
+For demo-family reports, add one more consistency section when relevant:
+- sitemap canonical URLs present or absent
+- list page links still pointing to legacy detail routes or already switched to canonical routes
+- whether list / sitemap / detail agree with each other
 
 ### 6. Write the wiki report as an E2E evidence document
 
@@ -214,6 +218,19 @@ If `aip` / `use-cases` / `webinars` return 404 on stage, do one more root-cause 
 Important lesson from use:
 - stage can correctly reflect `main` even when the wiki/planning docs or open PR already describe a broader target state
 - for this repo, `ACP` short-route support was merged first, while `AIP` / `use-cases` / `webinars` remained on open PR `#41 feat/demo-mdx-migration-all`; in that situation, stage 404 is expected and should be reported as `main 미반영`, not as an unexplained deployment failure
+- however, if latest `origin/main` already contains the missing short-route files and stage still returns 404, do not stop at code inspection: check the current GitHub Actions staging deploy status and re-test the live stage URLs after that deploy finishes
+
+Recommended deployment-state check when code and stage disagree:
+1. confirm the route files/helpers/content really exist on latest `origin/main`
+2. inspect recent `main` workflow runs, especially the staging deploy run
+3. if a `Deploy on Staging` run is still `in_progress`, treat the 404 as potentially transient and watch the run to completion
+4. after the run completes successfully, re-poll the previously failing stage URLs before writing the report conclusion
+5. only call it a live defect if the route still fails after the relevant staging deploy has completed
+
+This matters because in practice the observed root cause may be:
+- not "route missing on main"
+- not "deployment failed"
+- but simply "latest main was not yet reflected on stage at the time of the first check"
 
 ### Post-merge expectation checklist lesson
 
@@ -256,6 +273,25 @@ A page can technically render while still exposing:
 - mixed-quality public content
 
 Those should be reported as `조건부 통과`, not silently counted as success.
+
+### Legacy `/features/**` classification rule
+
+When writing the stage E2E report for `corp-web-v2`, treat `/features/**` as a legacy surface, not as proof that a family is implemented.
+
+Use this decision rule:
+- if a family has a separate non-legacy public URI and that route works on stage, the family can be counted as implemented
+- if a family only exists under `/features/**`, count it as not yet implemented for migration-readiness purposes even if the page renders
+
+Important examples from actual use:
+- `/features/demo` may load on stage, but without a separate public demo list URI it should not be counted as implemented
+- `/features/documentation` may load on stage, but without separate non-legacy public list/detail families it should not be counted as implemented
+- demo detail families such as `/demo/acp/:id/:slug`, `/demo/aip/:id/:slug`, `/demo/use-cases/:id/:slug`, and `/webinars/:id/:slug` can be counted as implemented because they have separate public canonical URIs
+
+When summarizing results, explicitly distinguish:
+- legacy route still reachable
+- separate public canonical route implemented
+
+Do not collapse these into a single success state.
 
 ### Legal-family lesson
 

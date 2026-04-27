@@ -20,13 +20,23 @@ Recommended workflow
    - Example: src/app/[locale]/solutions/[[...slug]]/page.tsx implies public-facing URI family /solutions/...
 2. Search migrated content for current asset references.
    - Look for filepath=, image=, thumbnailImg=, titleImage=, iconFilepath= and plain public/... strings.
-3. Convert both content references and actual files together.
+3. Decide the exact scope before renaming.
+   - If the user asked for a narrow rename such as only `thumbnail.png` paths, do not automatically broaden the change to every sibling asset under the same segment.
+3. Decide the exact scope before renaming.
+   - If the user asked for a narrow rename such as only `thumbnail.png` paths or only body inline-image paths, do not automatically broaden the change to every sibling asset under the same segment.
+   - First check whether other files in that family still intentionally use the old segment/path shape.
+   - In corp-web-v2 demo webinar content specifically, historical MDX may mix `ogImage: public/demo/webinars/...` with body `ArticleFileImage filepath="public/demo/webinar/..."`. Do not assume a newly restored file is the only inconsistency; inspect the existing family pattern first.
+   - If a broad rename would force unrelated catalog or inline-asset rewrites, prefer the minimal requested surface unless the user explicitly asks for full normalization.
+4. Convert both content references and actual files together.
    - Rewrite MDX/TSX references first or in the same scripted pass.
    - Move/rename the corresponding files under public/ so the URL path and file path stay consistent.
-4. Verify there are zero stale references to the old pattern.
+   - If the user's request is limited to MDX/body inline assets, avoid touching `src/features/demo/**` up front unless they explicitly asked for that layer too.
+5. Verify there are zero stale references to the old pattern within the approved scope.
    - Search for the old prefix globally after the move.
-5. Run focused tests, then typecheck and build.
-6. If Preview deploy fails on Vercel after adding many public assets, inspect trace-related causes before changing unrelated feature code.
+   - If out-of-scope legacy references remain, confirm they point to intentionally untouched assets rather than expanding the change silently.
+   - Before deleting a supposedly redundant asset, search the whole repo for remaining references. If one last reference would break after deletion, make the smallest necessary follow-up edit to keep the repo consistent, and treat that as cleanup required by the deletion rather than as scope expansion.
+6. Run focused tests, then typecheck and build.
+7. If Preview deploy fails on Vercel after adding many public assets, inspect trace-related causes before changing unrelated feature code.
 
 Vercel tracing lesson
 - Large new public trees can expose pre-existing generic filesystem access in API routes.

@@ -45,13 +45,16 @@ Important: treat redirect requirements as optional and explicitly scope-checked.
    - locale-specific thumbnails: `thumbnail-en.<ext>`, `thumbnail-ko.<ext>`, `thumbnail-ja.<ext>`
    - if multiple locales intentionally share the same underlying image, keep the shared asset on the owning locale filename (for example `en` + `ja` both using `thumbnail-en.png`) rather than fabricating a duplicate locale file.
 6. Source analysis must be content-reference-based, not just file-name search. Legacy MDX uses mixed patterns like markdown images, raw `<img>`, `ArticleFileImage`, and `public/...` references.
-7. Source availability may be incomplete. In this migration, `webinars` source existed only for ids `1..26`, so `27` had to remain unmapped and documented in the wiki.
-8. Information architecture and migration scope are separate decisions. Earlier migration work kept webinars under `/demo/webinar/:id/:slug` as a pragmatic intermediate choice, but the follow-up implementation settled the canonical public webinar detail route on `/webinars/:id/:slug`. Treat `/demo/webinar/:id/:slug` as legacy redirect-only if present, and keep any larger IA move beyond that out of scope unless the user explicitly asks for it.
-9. Use-case canonical public detail routes ultimately settled on plural `/demo/use-cases/:id/:slug`, not singular `/demo/use-case/:id/:slug`. Keep list/detail prefix naming aligned on the public site.
+7. Source availability may be incomplete in the current `corp-web-contents` tree, so audit git history before concluding a locale or entry is unrecoverable. A key example was `webinars/27/air-company-ai-agent-security-webinar`: it was absent from current `main`, but JA MDX and the related image were recoverable from history and could be restored into `corp-web-v2`.
+8. When restoring from history, restore only files you can verify empirically. For webinar 27, the safe restoration set was: JA MDX source, one inline image from legacy `public/webinar/...`, one normalized thumbnail under `public/demo/webinars/27/thumbnail.png`, plus the `src/features/demo/catalog.ts` entry and focused tests. Do not invent missing EN/KO/JA variants or extra assets that are not evidenced in history.
+9. Information architecture and migration scope are separate decisions. Earlier migration work kept webinars under `/demo/webinar/:id/:slug` as a pragmatic intermediate choice, but the follow-up implementation settled the canonical public webinar detail route on `/webinars/:id/:slug`. Treat `/demo/webinar/:id/:slug` as legacy redirect-only if present, and keep any larger IA move beyond that out of scope unless the user explicitly asks for it.
+10. Use-case canonical public detail routes ultimately settled on plural `/demo/use-cases/:id/:slug`, not singular `/demo/use-case/:id/:slug`. Keep list/detail prefix naming aligned on the public site.
 
 # Implementation pattern
 
 ## 1) Audit source availability and reference patterns first
+
+If the task starts from the migration comparison wiki, treat the wiki as an audit target, not as ground truth. First read the current wiki page and compare it against the actual repo state before editing code.
 
 Inspect source under:
 
@@ -59,6 +62,7 @@ Inspect source under:
 - `~/workspace/corp-web-contents/pages/features/demo/use-cases/**`
 - `~/workspace/corp-web-contents/pages/features/demo/webinars/**`
 - `~/workspace/corp-web-contents/public/**`
+- the corresponding `corp-web-v2` trees under `src/content/mdx/demo/**` and `public/demo/**`
 
 Check for:
 
@@ -215,7 +219,15 @@ Important scope guardrails:
 
 - do not modify `src/app/[locale]/features/demo/page.tsx` unless the user explicitly approves changing the managed `/features/demo` list behavior
 - do not modify `src/app/[locale]/features/demo/[slug]/page.tsx` or admin demo pages for this migration
-- if you temporarily changed any CMS-managed list/detail file while experimenting, revert it before finalizing the PR
+- if the user says not to touch `src/features/demo/**`, treat that as a hard scope boundary for follow-up cleanup too. Do not widen scope later for convenience, even for seemingly harmless dedupes or path cleanups in catalog/helpers.
+- if you temporarily changed any CMS-managed list/detail file or `src/features/demo/**` while experimenting, revert it before finalizing the PR
+- if the user explicitly asks for `/features/demo` to show all public lower demo pages together, that change is allowed, but keep it list-only: do not couple it to CMS detail rendering changes
+- the safest implementation pattern for that request is a public-only helper such as `src/features/demo/public.ts` that aggregates existing published managed demo items with already-public MDX demo entries and feeds the combined result into `src/app/[locale]/features/demo/page.tsx`
+- when aggregating managed ACP items with ACP MDX entries, dedupe by ACP slug identity rather than href. Managed ACP items can use `/features/demo/<slug>` while ACP MDX uses `/demo/acp/<id>/<slug>`, so href-based dedupe is insufficient and can surface duplicates later if authored ACP items become published
+- canonical cleanup is not an exception to these guardrails. Do not add redirect logic, query-param canonicalization, or “just one small supporting change” inside forbidden CMS-managed files unless the user explicitly opens that exact file for editing.
+- likewise, do not rewrite authored CMS data under `src/content/documentation/**` just to keep links/path names consistent with a route rename. Route/canonical work does not imply permission to bulk-edit managed HTML/Tiptap/JSON content.
+
+When the user asks to normalize only MDX content and public assets, keep the change set in `src/content/mdx/demo/**` and `public/demo/**` unless they explicitly authorize supporting code changes elsewhere.
 
 ## 8) Tests and verification
 
@@ -284,6 +296,35 @@ Use the wiki git repo as the write target, commit, and push there separately.
 - `/demo/aip/1/google-oauth-demo` renders
 - `/demo/use-cases/1/allganize-changsu-lee` renders
 - `/webinars/17/findy-querypie-mcp-webinar` renders
+
+## Stage 404 investigation shortcut
+
+If the user reports that AIP / use-case / webinar short routes 404 on `stage-v2.querypie.com`, check deployment lineage before debugging route code:
+
+1. verify the live stage response directly for representative paths
+2. confirm whether stage is deployed from `main` in the current repo workflow
+3. inspect `origin/main` for the actual route files:
+   - `src/app/[locale]/demo/aip/[id]/[[...rest]]/page.tsx`
+   - `src/app/[locale]/demo/use-cases/[id]/[[...rest]]/page.tsx`
+   - `src/app/[locale]/webinars/[id]/[[...rest]]/page.tsx`
+4. inspect whether `getPublicDetailHref("demo", ...)`, sitemap generation, and canonical metadata still point at `/features/demo/*`
+5. compare `origin/main` against the migration branch (for example `origin/feat/demo-mdx-migration-all`) to see whether the short-route implementation exists only on the feature branch
+6. inspect the live `/features/demo` page HTML and `sitemap.xml`; if they still emit `/features/demo/*` and not the short routes, treat that as evidence that stage is still serving pre-migration `main`
+
+This investigation pattern distinguishes three cases quickly:
+- route files absent on `origin/main` -> stage 404 is expected because the migration is not merged/deployed yet
+- route files present on `origin/main` but stage still 404s -> check GitHub Actions staging deployment status before treating it as a code bug
+- route files present and stage HTML/sitemap still emit old paths -> suspect stage is still serving the previous successful deploy while the new `main` deploy is in progress, queued, or failed
+- route files present and stage HTML/sitemap emit short routes, but detail pages still 404 -> suspect route implementation/runtime bug
+
+Deployment-status check for this repo:
+1. run `env -u GITHUB_TOKEN gh run list --repo querypie/corp-web-v2 --branch main --limit 10`
+2. if the newest `Deploy on Staging` run for `main` is `in_progress`, do not conclude the 404 is a code defect yet; stage may still be serving the previous deployment
+3. watch the active run with `env -u GITHUB_TOKEN gh run watch <run-id> --repo querypie/corp-web-v2 --interval 10`
+4. re-check representative stage URLs immediately after the run finishes
+5. if URLs turn from 404 to 200 right after the run succeeds, record the root cause as deployment propagation / not-yet-finished staging deploy, not a routing bug
+
+In the observed case for PR #41, `origin/main` already contained the AIP / use-case / webinar short-route files, but stage returned 404 until the `Deploy on Staging` run completed; immediately after success, the same URLs returned 200.
 - if redirects are in scope: `/demo/aip/1` redirects to the canonical slug path and legacy numbered paths redirect to the short canonical route
 - if redirects are out of scope: no newly introduced redirect-only routes/helpers remain in the branch, and slug-missing access does not perform unintended auto-redirects
 - `/features/demo` list page uses migrated MDX-backed entries

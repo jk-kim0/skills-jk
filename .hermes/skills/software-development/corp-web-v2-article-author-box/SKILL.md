@@ -46,6 +46,9 @@ Proven outcomes:
 5. If an `author` value is not found in the registry:
    - still show the name in the article header
    - do not render a detailed author profile box for that entry
+   - if the user explicitly asks to fix migrated MDX author data, first search legacy sources for an existing canonical id or profile record
+   - if none exists but the article should participate in the registered-author flow, add a minimal trustworthy registry record (`id`, `name`, optional empty `urls`) and normalize the MDX frontmatter to that canonical id
+   - do not fabricate bios, titles, profile images, or social links
 
 ## Relevant legacy sources
 
