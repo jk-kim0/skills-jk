@@ -121,3 +121,33 @@ In corp-web-v2 demo MDX migration work, the user wants CMS-connected demo files 
 In corp-web-v2 Solutions parity work, the user does not want placeholder or legacy alias redirects included in the migration PR; for an unopened site, updating GNB/header/footer links to canonical Solutions pages is sufficient, and redirect rules should be analyzed/applied separately later.
 §
 In corp-web-v2, when squashing an open PR branch after origin/main has advanced, use the PR branch's merge-base with origin/main as the soft-reset point, not current origin/main, or unrelated main-only changes can be pulled into the squashed commit.
+§
+In corp-web-v2 origin/main 51ad0a6656b675202ea09e20e5cb58bbb4f2f792, Solutions parity is implemented via src/app/[locale]/solutions/[[...slug]]/page.tsx with MDX content under src/content/solutions/** and route mapping in src/features/solutions/routes.ts.
+§
+In corp-web-v2 origin/main around 51ad0a6, src/content/mdx contains blog and white-paper only; there is no demo MDX source tree yet.
+§
+In corp-web-v2 worktrees under the repo root, targeted Vitest runs can resolve dependencies from the parent repo-root node_modules, so a separate worktree-local node_modules install is not always required.
+§
+In corp-web-v2 route-policy follow-up work, when renaming canonical public content paths like white-paper -> white-papers, the user wants code routes, MDX links, and public asset/image directories updated consistently in one pass to match the wiki naming convention.
+§
+In corp-web-v2 Solutions work, the user wants `/solutions/**` pages implemented as individual static `page.tsx` routes rather than an MDX-rendered catch-all, because most Solutions content is considered unsuitable for MDX.
+§
+In corp-web-v2 wiki/content migration audits, /features/** should be treated as legacy-only paths. A family counts as implemented only if it is exposed on a separate non-/features public URI; /features presence alone does not count.
+§
+For corp-web-v2 content restoration, the user wants missing MDX locale files and related assets recovered from corp-web-contents git history when possible, not recreated speculatively.
+§
+In corp-web-v2, the Public-Content-URL-Naming-Convention requires the white-paper public route family to use plural `/white-papers` with aligned app routes, MDX source/public asset paths, and related internal links; do not keep singular `/white-paper` for that family.
+§
+In corp-web-v2 Solutions static-page work, the user wants file/directory structure for localized page-content modules to mirror the nested src/app route slug structure and avoid flat legacy names such as acp-database-access-controller.
+§
+In corp-web-v2 route-policy work, the user wants the webinars family to use top-level `/webinars` for the public list route as well, not `/demo/webinars`; align code and the Public-Content-URL-Naming-Convention wiki in the same batch.
+§
+User's Hermes CLI is git-installed under ~/.hermes/hermes-agent, with ~/.local/bin/hermes symlinked to ~/.hermes/hermes-agent/venv/bin/hermes, and current config lives in ~/workspace/skills-jk/.hermes/.
+§
+In corp-web-v2 Public-Content-URL-Naming-Convention updates, treat src/app/[locale]/features/demo/page.tsx and src/app/[locale]/features/documentation/page.tsx as legacy-only paths; do not count them as migration targets or implementation results.
+§
+In corp-web-v2 blog/white-paper MDX, the canonical upstream slug from corp-web-contents is now stored explicitly as frontmatter `slug` in each `src/content/mdx/blog/<id>/<locale>.mdx` and `src/content/mdx/white-papers/<id>/<locale>.mdx`, while the directory name remains the numeric content ID.
+§
+In corp-web-japan, the user does not want Korean used in repository content such as code comments and docs; write repo-internal text in English.
+§
+In corp-web-japan, the site is Japanese-only; translation and i18n/internationalization are fully out of scope and should not be considered unless the user explicitly reintroduces them.
