@@ -172,6 +172,10 @@ display:
   tool_progress_overrides: {}
   tool_preview_length: 0
   platforms: {}
+platforms:
+  telegram:
+    enabled: true
+    token: ${TELEGRAM_BOT_TOKEN}
 dashboard:
   theme: default
 privacy:

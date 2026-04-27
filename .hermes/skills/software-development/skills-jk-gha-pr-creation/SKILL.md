@@ -76,6 +76,24 @@ Instead:
 - If the branch has an existing open PR, the workflow may fail or create duplicate intent; check first
 - After dispatching the PR-creation workflow, verify completion with `gh run watch` and then confirm the resulting PR with `gh pr view` or `gh pr status`
 - `gh pr checks` may legitimately report no checks for the new PR branch; if so, also inspect `gh run list --branch <branch>` before concluding that no CI ran
+- When the local workspace contains mixed changes, inspect `git status --short`, `git diff --stat`, and representative diffs before staging. In `skills-jk`, it is common to have meaningful tracked changes under `.hermes/` mixed with local-only artifacts such as `.claude/worktrees/` or scratch files like `test.txt`; exclude those temporary artifacts from the PR unless the user explicitly asks to include them
+
+## Local workspace sweep workflow
+
+When the user asks to create a PR from the current local workspace state rather than from a single known change:
+
+1. Review all current changes first:
+   - `git status --short`
+   - `git diff --stat`
+   - `git diff --name-status`
+   - `git ls-files --others --exclude-standard`
+2. Read representative diffs or files to classify them:
+   - meaningful tracked repo changes
+   - new skill/reference content that should be committed
+   - local runtime/worktree/scratch artifacts that should stay untracked
+3. Create a branch from the current dirty state, then selectively `git add` only the meaningful files
+4. Leave local-only artifacts untracked unless the user explicitly wants them in the PR
+5. In the PR body, briefly note what was intentionally excluded if that helps reviewers understand the scope
 
 ## Evidence from use
 
