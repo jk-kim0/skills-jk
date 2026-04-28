@@ -131,3 +131,7 @@ When showing Japanese text to the user, include a Korean translation in parenthe
 In wiki documents, the user prefers links written in markdown [path](url) format.
 §
 When restoring Korean website copy, the user is fine keeping expressions that were already in English in the earlier Korean version instead of forcing full Korean translation.
+§
+User does not want local dev servers started unless they explicitly instruct it first.
+§
+Local dev servers consume too many resources in the user's environment and interfere with work.

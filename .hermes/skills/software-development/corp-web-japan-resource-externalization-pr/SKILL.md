@@ -22,6 +22,11 @@ Important: corp-web-japan is not publicly launched yet. Do not add legacy redire
 
 ## Expected repo pattern
 - Resource index card data may start in `src/content/resources.ts`, but for category-specific cleanup it is often better to split category data into a dedicated file while keeping shared types in `src/content/resources.ts`.
+- In newer `corp-web-japan` revisions, publication index items may be generated from local MDX frontmatter loaders rather than handwritten static arrays.
+  - Current whitepaper example: `src/content/publications/whitepapers.ts` loads records from `src/content/whitepapers/*.mdx` and builds `whitepaperItems`.
+  - If the list links regress to local detail routes, inspect whether `whitepaperItems` is using `getPublicationHref("whitepaper", id, slug)`.
+  - To restore externalization without broad route refactors, prefer changing only the list-item `href` generation in that file to the canonical `https://www.querypie.com/ja/features/documentation/white-paper/{id}/{slug}` pattern.
+  - If the user only asked to change the whitepaper list destinations, keep local `/whitepapers` index rendering unchanged and avoid expanding scope into detail-route deletion or redirect work unless explicitly requested.
   - Practical pattern used here:
     - keep shared `ResourceItem` type and any truly shared helpers in `src/content/resources.ts`
     - move whitepaper listing data into `src/content/whitepapers.ts`

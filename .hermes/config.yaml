@@ -3,7 +3,10 @@ model:
   default: gpt-5.4
   base_url: https://chatgpt.com/backend-api/codex
   context_length: 1050000
-providers: {}
+providers:
+  querypie-kimi:
+    base_url: http://10.11.0.51:8011/v1
+    key: querypie
 fallback_providers: []
 credential_pool_strategies: {}
 toolsets:

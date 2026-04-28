@@ -148,7 +148,7 @@ In corp-web-v2 Public-Content-URL-Naming-Convention updates, treat src/app/[loca
 §
 In corp-web-v2 blog/white-paper MDX, the canonical upstream slug from corp-web-contents is now stored explicitly as frontmatter `slug` in each `src/content/mdx/blog/<id>/<locale>.mdx` and `src/content/mdx/white-papers/<id>/<locale>.mdx`, while the directory name remains the numeric content ID.
 §
-In corp-web-japan, the user does not want Korean used in repository content such as code comments and docs; write repo-internal text in English.
+In corp-web-japan, repo-internal text should be in English, including comments, docs, AGENTS guidance, and PR titles/descriptions.
 §
 In corp-web-japan, the site is Japanese-only; translation and i18n/internationalization are fully out of scope and should not be considered unless the user explicitly reintroduces them.
 §

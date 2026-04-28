@@ -30,9 +30,11 @@ For the current blog/article system:
 - `/blog/[id]/[slug]` and legacy/preview `/posts/[category]/[slug]` can both render through `src/components/PublicationPostPage.tsx`
 - The biggest visual difference may be that blog pages provide `toc` data while legacy resource posts provide `toc: []`
 - In that case, the page shell is already nearly identical and the main UX delta is simply `ToC + related + CTA` vs `related + CTA`
+- The current local ToC is not just conditionally shown; its visible height is intentionally capped in `src/components/sections/resource-post-toc.tsx` with `max-h-[220px] lg:max-h-[320px] overflow-y-auto`, so users may describe the right column as having a "fixed height" even though the whole aside is not fixed.
 - Secondary differences may come from content source format:
   - blog route: MDX via `src/lib/publications/get-publication-post.ts`
   - legacy `/posts/...`: HTML extraction via `src/lib/resource-posts.ts`
+- Be careful when the user mentions whitepapers alongside blog posts in `corp-web-japan`: the current `/whitepapers` page is a local list page, but whitepaper detail links currently go out to `querypie.com`, so the local repo may not control the whitepaper detail ToC/layout being compared.
 
 ## Required investigation order
 
