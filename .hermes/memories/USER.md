@@ -129,3 +129,5 @@ User prefers repository guidance files like AGENTS.md to stay reasonably concise
 When showing Japanese text to the user, include a Korean translation in parentheses immediately after it.
 §
 In wiki documents, the user prefers links written in markdown [path](url) format.
+§
+When restoring Korean website copy, the user is fine keeping expressions that were already in English in the earlier Korean version instead of forcing full Korean translation.

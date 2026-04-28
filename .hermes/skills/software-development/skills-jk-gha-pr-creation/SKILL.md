@@ -91,9 +91,20 @@ When the user asks to create a PR from the current local workspace state rather 
    - meaningful tracked repo changes
    - new skill/reference content that should be committed
    - local runtime/worktree/scratch artifacts that should stay untracked
-3. Create a branch from the current dirty state, then selectively `git add` only the meaningful files
-4. Leave local-only artifacts untracked unless the user explicitly wants them in the PR
-5. In the PR body, briefly note what was intentionally excluded if that helps reviewers understand the scope
+3. Refresh repository references before committing:
+   - `git fetch origin --prune`
+   - inspect whether the current branch tracks a deleted remote branch (`[gone]` in `git branch -vv`)
+   - inspect whether local `main` is behind `origin/main`
+4. If local `main` is behind and is not currently checked out, fast-forward it safely with:
+   - `git branch -f main origin/main`
+   - This updates local `main` without disturbing the dirty current branch.
+5. Commit only the meaningful files on the current branch.
+6. Before push/PR creation, rebase the current branch onto latest `origin/main`.
+   - This is especially important when the branch was created from an older local `main` or its remote tracking branch is gone.
+   - If rebase conflicts come from settings already present on latest `main`, keep the newer `main` values and continue so the PR diff stays focused on the still-local changes.
+7. Push the branch, then create the PR.
+8. Leave local-only artifacts untracked unless the user explicitly wants them in the PR.
+9. In the PR body, briefly note what was intentionally excluded if that helps reviewers understand the scope
 
 ## Evidence from use
 

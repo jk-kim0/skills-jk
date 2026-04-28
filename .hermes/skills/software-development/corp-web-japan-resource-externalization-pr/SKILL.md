@@ -63,6 +63,7 @@ Important: corp-web-japan is not publicly launched yet. Do not add legacy redire
    - Default for this repo: if the site is still pre-launch, do not preserve legacy local post URLs unless the user explicitly asks.
    - If legacy compatibility is explicitly requested, normalize incoming slugs before lookup. `generateStaticParams()` may emit filenames such as `b-001.html`, so helpers must strip a trailing `.html` before reading the map.
    - If you split out the affected category's content data during the same PR, prefer a minimal extraction for that category over a broad multi-category refactor.
+   - If you are restoring previously externalized blog links after a regression, do not guess the upstream short path from memory or from partial live redirects. In practice, `https://www.querypie.com/ja/blog/{id}` may 404 and `/{id}/{slug}` guesses may only redirect ambiguously. First inspect git history for the last known-good `blogItems` values and restore that exact upstream pattern (currently `https://www.querypie.com/ja/features/documentation/blog/{id}/{slug}`).
 5. Remove or keep local detail routes based on the request.
    - If compatibility is explicitly requested, redirect mapped local post URLs in `src/app/posts/[category]/[slug]/page.tsx`.
    - If compatibility is not requested, stop generating that category in `listResourcePostParams()` and return `notFound()` for that category in `src/app/posts/[category]/[slug]/page.tsx`.
