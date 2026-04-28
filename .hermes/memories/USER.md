@@ -111,3 +111,23 @@ In corp-web-v2, do not modify CMS-related code or legacy URL/redirect behavior u
 In corp-web-v2 migration comparison wiki tables, the user wants memo/description cells kept concise and information-dense; do not include legacy-route explanatory prose when current canonical routes are the real subject.
 §
 사용자는 corp-web-v2에서 CMS 관련 코드/경로와 공개 MDX 경로 분석을 완전히 별개로 취급하길 원한다. MDX 목록/공개 경로 원인 분석에서는 /features/** 등 CMS legacy 경로와 CMS 관련 코드 전체를 아예 분석 대상에서 제외하고 언급도 하지 말 것.
+§
+User prefers sitemap-style documentation to emphasize URI paths first, with nested bullet lists for page titles and translations, because it makes website structure easier to scan.
+§
+User does not need local build testing for corp-web-japan changes and prefers relying on CI for verification.
+§
+When asking to rewrite repository wiki documentation, the user wants it based on the latest main branch implementation rather than an in-progress feature branch.
+§
+When documenting corp-web-japan issues or link audit tables, the user prefers all links written in [path](url) format and wants a Korean translation column next to Japanese labels.
+§
+PRs should only be closed after explicit user approval. Unless the user explicitly instructs 'close the PR', do not close it.
+§
+User prefers launch-readiness reviews and issues to focus on implemented repository state and actionable code changes, not operational governance details or bureaucratic documentation.
+§
+User prefers repository guidance files like AGENTS.md to stay reasonably concise and not grow indefinitely; detailed procedures should be structured or split out before the file becomes too long.
+§
+When showing Japanese text to the user, include a Korean translation in parentheses immediately after it.
+§
+In wiki documents, the user prefers links written in markdown [path](url) format.
+§
+When restoring Korean website copy, the user is fine keeping expressions that were already in English in the earlier Korean version instead of forcing full Korean translation.

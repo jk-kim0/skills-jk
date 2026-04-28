@@ -151,3 +151,33 @@ In corp-web-v2 blog/white-paper MDX, the canonical upstream slug from corp-web-c
 In corp-web-japan, the user does not want Korean used in repository content such as code comments and docs; write repo-internal text in English.
 §
 In corp-web-japan, the site is Japanese-only; translation and i18n/internationalization are fully out of scope and should not be considered unless the user explicitly reintroduces them.
+§
+In corp-web-japan, the preferred final resource index URIs are /blog, /whitepapers, and /events. Blog and whitepaper articles should link to querypie.com/ja by default rather than using local /posts routes, while event content may be local, external to querypie.com/ja, or both.
+§
+In corp-web-japan, the site is not publicly launched yet; avoid adding legacy redirects solely for old public URLs unless explicitly requested.
+§
+In corp-web-japan, the user said the website is not publicly launched yet, so preserving existing local content/data and adding legacy redirects are not necessary constraints.
+§
+In corp-web-japan review/doc text, the user's annotation convention is: `~~Text~~` means do not use that text, and `~~Old~~ => New` means replace the old text with the new text.
+§
+In corp-web-japan, the staging URL is https://stage.querypie.ai. The representative production URL should be https://querypie.ai, and alternate URLs including https://www.querypie.ai should redirect to it.
+§
+In corp-web-japan, general-change rollbacks should be handled by creating an appropriate branch and performing a new deployment. JK is the rollback authority, and major deploy/rollback issues should be shared in Slack channel #jp-marketing.
+§
+In corp-web-japan, deployment secrets and vars ownership belongs to JK <jk@chequer.io>.
+§
+In corp-web-japan, production deploy approvers are Keizo and Brant.
+§
+In corp-web-japan, general minor-change deployments can proceed based on the judgment of Chikako, Jane, and JK.
+§
+In corp-web-japan, broader-impact production deploys require approval from either Keizo or Brant; one of the two is sufficient.
+§
+In corp-web-japan, the user does not want repository documentation added for operational facts that are already clear internally unless there is a strong need.
+§
+The corp-web-japan GitHub wiki repository is locally cloned at ../corp-web-japan.wiki relative to the main repo.
+§
+In corp-web-japan, the `/events` route currently exists as a functional page shell before content is ready; it is not part of the current public launch scope.
+§
+The active Hermes runtime uses HERMES_HOME=~/workspace/skills-jk/.hermes in this setup; treat that as the primary home for session state, logs, and agent-local artifacts unless evidence shows a different profile/home.
+§
+Hermes session files for this setup are stored under ~/workspace/skills-jk/.hermes/sessions, and direct file inspection there can reveal recent Telegram sessions beyond what session_search returns.
