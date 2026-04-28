@@ -64,10 +64,50 @@ For repo work, user does not want time spent on local build/test verification; p
 §
 In corp-web-v2, the user does not want node_modules kept inside worktrees.
 §
-User wants very fast acknowledgements during repo work; do not stay silent while tools run, and report immediate status if a command is taking longer than expected.
+User wants very fast acknowledgements during repo work and dislikes proposal-only pauses; after a brief status message, proceed directly with the clear requested change and report if commands run long.
 §
 User prioritizes very fast execution and fast replies; for slow tasks, prefer parallel execution and do not leave the user waiting without a response.
 §
-User expects an immediate verbal response first: briefly state what is being checked/changed before tool work, and if work runs longer than estimated, stop and switch to a faster alternative instead of continuing silently.
+User expects an immediate brief verbal response first, then direct tool execution; during active PR follow-up, do not stop at analysis or proposals when the requested code change is already clear.
 §
 User wants root-cause investigations for Hermes latency to be thorough and evidence-based, not speculative.
+§
+In corp-web-v2, the user does not want CMS/public managed route/data files such as src/app/[locale]/features/demo/page.tsx or src/content/documentation/** modified unless they explicitly authorize that exact file or subtree; route, canonical, link, or naming cleanup requests do not imply permission to edit CMS-managed files.
+§
+In corp-web-v2 stage/content verification, the user treats /features/** as legacy paths that should not count as implemented. If content is not exposed on a separate non-/features public URI, it should be considered not yet implemented.
+§
+For Solutions static-pages follow-up, the user wants remaining Solutions MDX documents fully reimplemented and replaced in the PR, not left as source artifacts.
+§
+In corp-web-v2 wiki and migration audits, the user wants `/features/**` treated as legacy across documents, and any content exposed only under `/features/**` should be considered not yet implemented until it has a separate non-legacy public URI.
+§
+In corp-web-v2 demo work, the user does not want src/features/demo/** touched for image-path consistency fixes unless explicitly requested.
+§
+In corp-web-v2 route-policy changes, the user wants the GitHub wiki naming-convention document and the corresponding code updates done together in the same batch, not separately.
+§
+When a requested cleanup would require touching a previously forbidden scope like `src/features/demo/**`, the user expects the assistant to stop and ask before making even a minimal supporting change; do not widen scope just to complete a cleanup.
+§
+In corp-web-v2 static-page work, the user prefers each page's content to stay colocated in one directory for easy comparison, does not want copy/data/helper split into separate directories, and wants static page.tsx files to remain very thin with minimal logic.
+§
+The user is open to challenging existing corp-web-v2 repository conventions and does not consider the current overall structure inherently authoritative when evaluating better file placement.
+§
+In this repo, the user wants a strong route-aligned colocate principle for static-page work. Only truly reusable code should be promoted to features/ or components/common; page-local content/UI should stay close to its route.
+§
+In corp-web-v2 follow-up work, the user does not want a new PR or reviewer requests created unless they explicitly ask for that PR/review action for the current scoped task; do not infer PR/reviewer permission from earlier broader requests.
+§
+When the user asks to squash an open PR branch, they expect the assistant to perform the squash and push the updated PR branch without asking again.
+§
+In corp-web-v2 static-page work, the user wants metadata/SEO data kept route-local with each page rather than centralized in a shared registry; avoid central metadata registries for static pages.
+§
+In corp-web-v2 static-page work, the user prefers removing even thin shared helpers like route-specific page helpers when they reduce route-local explicitness; favor fully self-contained page.tsx files.
+§
+When the user asks to remove a helper or proceed with a refactor after review, they expect immediate execution rather than a proposal-only response.
+§
+User dislikes proposal-only pauses during active PR follow-up; after analysis, proceed directly with the requested code change unless clarification is truly needed.
+§
+When the user says not to touch a scope like src/features/demo/**, do not change even a single line there for cleanup or path fixes without explicit permission, even if it seems like the minimal way to avoid a broken reference.
+§
+In corp-web-v2, do not modify CMS-related code or legacy URL/redirect behavior unless the user explicitly instructs that exact scope; route/list-page requests alone do not authorize CMS or legacy URL changes.
+§
+In corp-web-v2 migration comparison wiki tables, the user wants memo/description cells kept concise and information-dense; do not include legacy-route explanatory prose when current canonical routes are the real subject.
+§
+사용자는 corp-web-v2에서 CMS 관련 코드/경로와 공개 MDX 경로 분석을 완전히 별개로 취급하길 원한다. MDX 목록/공개 경로 원인 분석에서는 /features/** 등 CMS legacy 경로와 CMS 관련 코드 전체를 아예 분석 대상에서 제외하고 언급도 하지 말 것.

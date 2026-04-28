@@ -24,6 +24,8 @@ Important distinction learned from review follow-up work:
 - "Please update PR #N" or any review/follow-up on work already under review means: use a fresh worktree, but attach it to the existing PR branch and push back to that same branch.
 - Do not satisfy the fresh-worktree requirement by creating a second branch/PR for the same review cycle.
 - If the referenced PR is already merged and its head branch has been deleted, you cannot continue on that original PR branch. In that case, verify the merge commit is now on `origin/main` (or the PR base branch), create a fresh worktree from that merged tip, and open a new follow-up branch/PR for the requested additional work.
+- Exception: if the requested "follow-up" actually depends on code or route structure that already landed on latest `origin/main` but is missing from the old PR branch, do not force the change onto the stale PR branch. Treat it as a new independent task: branch from latest `origin/main`, open a separate PR, and mention explicitly why the old PR branch was no longer the right base.
+- Practical heuristic for this exception: if you discover during inspection that the target route family, helper layer, sitemap shape, or canonical-path policy already changed on `origin/main` after the old PR branched, switching to a new main-based branch is usually safer than backporting those structural assumptions into the old PR.
 
 ## When to use
 - "PR 32에 수정사항 넣어줘"
@@ -66,6 +68,7 @@ git checkout -b <pr-branch>-local --track origin/<pr-branch> 2>/dev/null || git 
 Practical note:
 - If the branch is already checked out in another worktree, `git checkout <pr-branch>` in the fresh worktree will fail. In that case, staying on the detached `origin/<pr-branch>` checkout is acceptable for a small follow-up.
 - You can make the fix, commit on detached HEAD, and push with `git push origin HEAD:<pr-branch>`.
+- In this detached state, some `gh pr ...` commands that rely on the current branch can fail with errors like `could not determine current branch`. Prefer explicit branch/PR arguments, e.g. `gh pr view <pr-branch> --json ...` or `gh pr view <pr-number> --json ...` instead of assuming branch autodetection will work.
 - This still satisfies the core requirement because the fresh worktree starts from the PR branch tip and updates the same remote PR branch.
 - The important thing is: the new worktree must start from the PR's remote head, not from `main` and not from some old local branch.
 
@@ -89,6 +92,37 @@ Typical examples:
 npm run test:run
 npm run typecheck
 ```
+
+Special case: the user asks you to remove forbidden-scope changes from an already-open PR branch
+- Example: "PR #44에서 CMS 데이터 파일 건드린 건 모두 취소해줘"
+- Use a fresh worktree on the existing PR branch, not a new branch/PR.
+- Discover the exact file set from the PR diff against the base branch, then restore only that forbidden scope from the base branch.
+- For a main-based PR, the safest pattern is:
+  ```bash
+  git fetch origin --prune
+  gh pr view <pr-number> --json headRefName
+  git worktree add .worktrees/<topic> origin/<pr-branch>
+  cd .worktrees/<topic>
+
+  git diff --name-only origin/main...HEAD -- 'forbidden/scope/**' > /tmp/forbidden-files.txt
+  while IFS= read -r f; do
+    git checkout origin/main -- "$f"
+  done < /tmp/forbidden-files.txt
+  ```
+- Then verify twice:
+  1. `git diff --name-only origin/main...HEAD -- 'forbidden/scope/**'` should become empty after the revert commit.
+  2. `git diff --stat -- 'forbidden/scope/**'` should reflect only your local revert before commit, then become clean after commit.
+- Why both checks matter:
+  - `origin/main...HEAD` answers "does the PR still contain this forbidden scope?"
+  - plain `git diff -- ...` answers "what is currently uncommitted in the worktree?"
+- On macOS/BSD, do not rely on GNU-only `xargs -a`; prefer the portable `while IFS= read -r f; do ...; done` loop above.
+- Commit and push back to the same PR branch:
+  ```bash
+  git add forbidden/scope
+  git commit -m "fix: revert forbidden-scope changes"
+  git push origin HEAD:<pr-branch>
+  ```
+- This pattern is especially important when the forbidden scope is CMS-managed data or routes that the user explicitly said must not be touched. Do not try to "partially keep" those edits unless the user explicitly names the exact file/subtree they still want changed.
 
 When the follow-up request is a broad cleanup of repeated link behavior on the existing PR branch (for example removing all `target="_blank"` / `rel="noreferrer"` patterns in that PR's surfaces), use an exhaustive search-and-verify loop instead of editing only the first example the user mentions:
 
@@ -131,7 +165,13 @@ git rebase origin/main
 
 Important practical findings:
 - `git worktree add <path> origin/<pr-branch>` often leaves you on a detached HEAD at the remote branch tip. That is acceptable for a rebase-only maintenance task.
-- After a detached-HEAD rebase succeeds, push with:
+- After a detached-HEAD rebase succeeds, do not force-push immediately. First verify that the expected post-PR follow-up commit(s) still survived the rebase and that their key scoped changes are still present. A fast check is:
+  ```bash
+  git log --oneline --decorate -n 5
+  git search-files-or-grep-for-the-target-pattern
+  ```
+  For example, if a later follow-up changed a path prefix or removed a repeated pattern, re-check that exact pattern before pushing.
+- Then push with:
   ```bash
   git push --force-with-lease origin HEAD:<pr-branch>
   ```

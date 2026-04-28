@@ -54,7 +54,9 @@ Trigger this skill when:
    - If you need to inspect the run, take the newest `create-pr.yml` run and use `gh run view <run-id>` or `gh run watch <run-id>`.
 
 6. Verify the PR was created.
-   - Prefer `gh pr status` or `gh pr view --head <branch>` to confirm the resulting PR.
+   - Prefer `gh pr status` to confirm the resulting PR.
+   - If you need a branch-specific lookup, use `gh pr list --head <branch>` or `gh pr view <branch>`.
+   - Do not use `gh pr view --head <branch>`; that flag is not supported by `gh pr view` and fails with `unknown flag: --head`.
    - Do not rely on `gh run list --branch <branch>` to prove the PR-creation workflow ran; that branch filter may show nothing for this workflow even when PR creation succeeded.
    - Report the PR number and URL
 

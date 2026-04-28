@@ -184,21 +184,37 @@ A safe approach is:
 
 This is especially useful when adding the same `추천 이관 유형` column across multiple large tables.
 
-## Known classification outcome from the 2026-04-26 audit
+## Known classification outcomes from recent audits
+
+### 2026-04-26 baseline audit
 
 Using `querypie/corp-web-v2` main `12bab42d798dcc7e499254f755aac06142a4c6f7`:
 - total legacy public rows: `210`
 - `정적 페이지`: `22`
 - `MDX`: `188`
 
-Category-level outcome:
+Category-level outcome at that point:
 - core/static content: mostly `정적 페이지`
 - demo detail: all `MDX`
 - documentation detail: all `MDX`
 - blog: all `MDX`
 - white paper: all `MDX`
-- solutions: all `정적 페이지`
+- solutions: all `정적 페이지` (pre-parity-merge assumption)
 - legal: only `cookie preference` is `정적 페이지`; the rest are `MDX`
+
+### Later latest-main update after Solutions parity merge
+
+Using `querypie/corp-web-v2` main `51ad0a6656b675202ea09e20e5cb58bbb4f2f792`:
+- total legacy public rows remain `210`
+- mapped rows become `177`
+- unmapped rows become `33`
+- if classifying by latest-main implementation shape, `정적 페이지` becomes `11` and `MDX` becomes `199`
+
+Important later-main lesson:
+- the old statement "solutions are all static-page targets" became stale once latest main introduced the dedicated `/solutions/**` route family backed by `src/content/solutions/**/content.mdx`
+- when rewriting the main comparison page after the Solutions parity merge, re-audit `src/app/[locale]/solutions/[[...slug]]/page.tsx`, `src/features/solutions/routes.ts`, and `src/features/solutions/loader.ts`
+- if the wiki page is meant to reflect latest-main current implementation rather than only an earlier recommendation, Solutions should now be documented as MDX-backed content rendered through a dedicated route family
+- do not preserve the old placeholder/not-found wording once the merge is on `origin/main`
 
 ## Important demo-route audit lesson from later main updates
 
@@ -208,17 +224,37 @@ For demo wiki updates, these are separate questions:
 1. migration type classification (`MDX` vs `정적 페이지`)
 2. latest-main current public route actually implemented today
 
-Latest-main finding from `querypie/corp-web-v2` `origin/main` `e634bcfa51d10468bfd31b886d09ec16e264a372`:
-- `ACP Features`: short MDX route is implemented at `/demo/acp/:id/:slug`
-- legacy ACP route `/features/demo/acp-features/:id/:slug` redirects to that canonical short route
-- `AIP Features`, `Use Cases`, `Webinars`: still resolve through managed-content detail route `/features/demo/[slug]`
-- therefore these rows are still classified as `MDX`, but their current public path should remain `/features/demo/<slug>` until short routes are actually implemented on latest main
+Updated latest-main finding from `querypie/corp-web-v2` `origin/main` `da4497e9d5fb27031985794d88458636dbe0eb0f`:
+- `ACP Features`: canonical MDX route exists at `/demo/acp/:id/:slug`
+- `AIP Features`: canonical MDX route exists at `/demo/aip/:id/:slug`
+- `Use Cases`: canonical MDX route exists at `/demo/use-cases/:id/:slug`
+- `Webinars`: canonical MDX route exists at `/webinars/:id/:slug`
+- `src/features/demo/catalog.ts` now enumerates `82` demo detail entries on latest main: ACP `26`, AIP `1`, Use Cases `29`, Webinars `26`
+- these counts match the current legacy `corp-web-contents/pages/features/demo/**` detail universe
 
 When rewriting `querypie-com-Demo-Content-Migration-Comparison-Table`:
 - keep `추천 이관 유형` as `MDX` for all demo detail rows
 - audit route implementation separately from migration-type strategy
-- explicitly note when a short-route plan exists conceptually but is not yet present on latest main
-- preserve unmatched rows as `—` rather than guessing the intended future path
+- do not preserve older wiki claims that only ACP is current-main canonical
+- use latest-main canonical route families above as the source of truth for current public paths
+- if legacy redirect/alias continuity is still missing, document that separately from the canonical route existence itself
+
+## Important corp-web-v2 legacy-route rule
+
+When updating migration inventory or comparison wiki pages for `corp-web-v2`, do not treat `/features/**` as the implementation target for completion status.
+
+Use this rule consistently across the hub page and split pages:
+- `/features/**` = legacy reference path
+- implemented = separate non-legacy public URI exists on latest main / live stage for that family
+
+Practical consequences:
+- `Demo list` should remain unimplemented in the wiki until a separate non-legacy list URI exists; a working `/features/demo` page is not enough
+- `Documentation` family should remain unimplemented at the family level if it still only exists under `/features/documentation/**`
+- `Blog`, `White Paper`, and short-route `Demo detail` entries can still be marked implemented when they have separate public canonical detail URIs outside `/features/**`
+
+Important writing rule:
+- in comparison tables, it is fine to keep the legacy `querypie.com` path column showing `/features/...` because that is the old-site source path
+- but the memo/interpretation column must make clear that `/features/**` on v2 is only a legacy/transitional reference and not completion evidence by itself
 
 ## Verification
 
