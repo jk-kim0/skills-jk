@@ -122,6 +122,41 @@ textarea {
 
 ## Important typography findings
 
+### If you use `next/font/local` variables, scope them on `html`, not only on `body`
+
+Experiential finding from the inline-link/font debugging work:
+- If `globals.css` builds `--font-app-sans` from `var(--font-mona-sans), var(--font-pretendard-jp), ...`
+- and the `next/font/local` variable classes are attached only on `body`
+- then article/body text can collapse to a fallback serif such as `Times`, even when the page visually looks otherwise fine at first glance.
+
+Safe pattern:
+
+```tsx
+<html lang="ja" className={`${monaSansFont.variable} ${pretendardJPFont.variable}`}>
+  <body className="font-sans antialiased">{children}</body>
+</html>
+```
+
+Avoid this pattern:
+
+```tsx
+<html lang="ja">
+  <body className={`${monaSansFont.variable} ${pretendardJPFont.variable} font-sans antialiased`}>
+    {children}
+  </body>
+</html>
+```
+
+Reason:
+- the app sans token is resolved above normal body descendants
+- keeping the font variables on `html` makes the Tailwind `font-sans` stack stable for body copy, headings, and inline links
+- adding an inline `style={{ fontFamily: ... }}` on `html` is not a sufficient substitute if `body` still resolves `font-sans` through the broken variable chain
+
+Verification tip:
+- Check computed `font-family` in the browser on article body text and external inline links.
+- If you see `Times`, the variable scope is still wrong.
+
+
 ### Prefer the simple fallback order unless the user explicitly wants script-based splitting
 
 Experiential finding from this task:

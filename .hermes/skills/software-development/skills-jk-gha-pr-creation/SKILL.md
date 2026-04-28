@@ -102,9 +102,14 @@ When the user asks to create a PR from the current local workspace state rather 
 6. Before push/PR creation, rebase the current branch onto latest `origin/main`.
    - This is especially important when the branch was created from an older local `main` or its remote tracking branch is gone.
    - If rebase conflicts come from settings already present on latest `main`, keep the newer `main` values and continue so the PR diff stays focused on the still-local changes.
-7. Push the branch, then create the PR.
-8. Leave local-only artifacts untracked unless the user explicitly wants them in the PR.
-9. In the PR body, briefly note what was intentionally excluded if that helps reviewers understand the scope
+7. After any manual conflict resolution, explicitly scan the touched files for leftover merge markers before committing or pushing.
+   - At minimum run a targeted search like `rg -n '^(<<<<<<<|=======|>>>>>>>)' <files...>`.
+   - Do not rely only on `git status`; a file can be marked resolved while still containing conflict text.
+   - For config files such as `.yaml`, also run a lightweight parse check (for example `python -c 'import yaml, pathlib; yaml.safe_load(pathlib.Path(...).read_text())'`).
+   - When resolving against latest `main`, prefer the actual `origin/main` file content as the source of truth instead of guessing which side of the conflict to keep.
+8. Push the branch, then create or update the PR.
+9. Leave local-only artifacts untracked unless the user explicitly wants them in the PR.
+10. In the PR body, briefly note what was intentionally excluded if that helps reviewers understand the scope
 
 ## Evidence from use
 

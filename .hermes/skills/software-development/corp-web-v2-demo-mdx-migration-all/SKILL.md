@@ -44,7 +44,9 @@ Important: treat redirect requirements as optional and explicitly scope-checked.
    - locale-agnostic thumbnail: `thumbnail.<ext>`
    - locale-specific thumbnails: `thumbnail-en.<ext>`, `thumbnail-ko.<ext>`, `thumbnail-ja.<ext>`
    - if multiple locales intentionally share the same underlying image, keep the shared asset on the owning locale filename (for example `en` + `ja` both using `thumbnail-en.png`) rather than fabricating a duplicate locale file.
-   - after any asset normalization, immediately reconcile `src/features/demo/catalog.ts` `imageSrc` values with the final public filenames. A common regression is leaving old names like `cs-thumb-*.png` or `aip-use-case-thumb-*.png` in the catalog while the actual files under `public/demo/use-cases/<id>/` have already been renamed to `thumbnail.png` / `thumbnail-<locale>.png`, which causes 404s on `/demo/use-cases` list cards.
+   - after any asset normalization, immediately reconcile `src/features/demo/catalog.ts` `imageSrc` values with the actual files under `public/demo/<segment>/<id>/...`; the catalog can silently keep older legacy filenames even when the public assets have already been renamed, which breaks list-page thumbnails with 404s on stage/preview.
+   - for `use-cases`, a practical regression guard is a test that iterates catalog `imageSrc` entries and asserts the referenced files exist under `public/`.
+6. Source analysis must be content-reference-based, not just file-name search.
    - for use-cases list-page regressions, inspect the live list page itself, not only detail pages: `/demo/use-cases` thumbnails are driven by catalog `imageSrc`, so a catalog/public mismatch can break the list while detail pages still render normally.
 6. Source analysis must be content-reference-based, not just file-name search. Legacy MDX uses mixed patterns like markdown images, raw `<img>`, `ArticleFileImage`, and `public/...` references.
 7. Source availability may be incomplete in the current `corp-web-contents` tree, so audit git history before concluding a locale or entry is unrecoverable. A key example was `webinars/27/air-company-ai-agent-security-webinar`: it was absent from current `main`, but JA MDX and the related image were recoverable from history and could be restored into `corp-web-v2`.
@@ -246,6 +248,7 @@ Useful checks:
 - locale visibility filtering, especially entries missing `en`
 - old legacy `/features/demo/...` links removed from migrated MDX
 - if redirects are in scope, cover slug-missing or slug-wrong redirect behavior with tests; if redirects are out of scope, assert canonical info without redirect side effects
+- when adding a public-asset existence regression test in Vitest, prefer repo-root resolution that matches the runner setup used by this repo (for example `process.cwd()` in the standard CI job). A seemingly more robust `fileURLToPath(new URL(..., import.meta.url))` approach can fail in Vitest/CI when `import.meta.url` is not a `file:` URL.
 
 Run at least:
 

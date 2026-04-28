@@ -154,6 +154,43 @@ Then replace the body with a body file describing:
 - Do not skip commits unless you verified their effect already exists in `main`.
 - Do not forget to force-push after a rewritten history rebase.
 - Do not leave the PR body describing old stacked/base changes after rebasing onto `main`.
+- If you are rebasing a different open PR branch while your current checkout has unrelated local changes, do not perform the rebase in the dirty working tree. Create a temporary isolated worktree from the remote PR branch, rebase there, and force-push from that isolated worktree.
+
+## Additional practical pattern: rebasing another open PR branch safely
+
+Use this when:
+- PR A is open on branch `feature/a`
+- your current checkout is on branch `feature/b` with unrelated local or untracked changes
+- the user asks to rebase PR A onto latest `main`
+
+Safe pattern:
+
+```bash
+git fetch origin --prune
+
+git branch -f main origin/main
+TEMP_WT=$(mktemp -d /tmp/rebase-pr-a.XXXXXX)
+git worktree add "$TEMP_WT" -b feature-a-rebase origin/feature/a
+cd "$TEMP_WT"
+git rebase origin/main
+```
+
+Why this is safer:
+- avoids polluting the current branch/worktree
+- avoids accidental staging of unrelated local changes
+- lets you resolve conflicts against the target PR branch only
+
+### Typical conflict pattern in repo-local state files
+
+When rebasing a repo that tracks durable memory/config/skill state, conflicts often appear in files like:
+- `.hermes/memories/MEMORY.md`
+- `.hermes/memories/USER.md`
+- `.hermes/skills/.bundled_manifest`
+
+Useful rule of thumb:
+- for memory files, if both sides add distinct durable facts, keep both entries and remove only conflict markers
+- for generated manifest-like files, preserve valid entries from both sides and remove only the markers/duplicate empty side
+- re-check with a marker search such as `rg '^(<<<<<<<|=======|>>>>>>>)'` before continuing
 
 ## Minimal checklist
 

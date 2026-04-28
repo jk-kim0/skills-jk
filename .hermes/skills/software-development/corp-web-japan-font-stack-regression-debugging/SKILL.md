@@ -105,11 +105,42 @@ When this regression appears, the likely root cause is:
 
 Do not assume:
 - external links have a special font rule
-- `strong` inside links is the cause
+- `strong` inside links is the cause of the font-family mismatch
 - only article MDX rendering is broken
 - ToC/article component CSS is the font culprit
 
 The article shell may be fine; the global font variable pipeline is usually the real issue.
+
+## Separate font-family bugs from link color/weight bugs
+
+After the font-family issue is understood, you may still see article links rendering differently by position. In `PublicationPostPage.tsx`, the body style currently combines:
+- `[&_a]:text-[#2563EB]` + underline rules
+- `[&_strong]:font-medium [&_strong]:text-slate-950`
+
+This creates a second, independent issue:
+- plain `<a>` links appear blue
+- `<a><strong>...</strong></a>` links appear dark because the inner `strong` overrides the link color
+- the mismatch is caused by markup structure plus descendant selectors, not by a different font-family
+
+### Proven inspection pattern for article link inconsistencies
+
+When a user says some inline article links are blue and others dark:
+1. Inspect `src/content/blog/<id>.mdx` and compare link markup
+2. Check whether the dark examples are wrapped as `<a><strong>...</strong></a>` or `**<a>...</a>**`
+3. Check whether the blue examples are plain `<a>...</a>`
+4. Confirm in DevTools / browser console whether the computed difference is color / font-weight only, while `font-family` is the same
+
+### Production parity guidance for inline text links
+
+For `querypie.com/ja` article pages, the observed pattern is:
+- most inline reference links use body-colored text rather than blue
+- some self-referential / next-action links (for example linked whitepapers) are selectively blue and underlined
+- related-content cards and sidebar links are not generally made blue just because they are internal links; they are differentiated mostly by layout/card treatment
+
+Do not generalize this as "all internal links should be blue." A better parity rule is:
+- default inline reference links: body-colored
+- selectively emphasized self-referential inline CTA links: blue + underline
+- related/sidebar links: keep body/card styling unless the design explicitly calls for CTA emphasis
 
 ## Recommended fix direction
 

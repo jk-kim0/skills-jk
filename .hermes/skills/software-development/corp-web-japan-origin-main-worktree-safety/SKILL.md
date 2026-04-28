@@ -43,11 +43,12 @@ gh pr list --state open --limit 30
 
 2. If local `main` is dirty or behind, do NOT edit there.
 
-3. Fetch and create a fresh worktree from `origin/main`.
+3. Fetch, re-check the remote tip, and create a fresh worktree from `origin/main`.
 
 ```bash
 git fetch origin main --quiet
-git worktree add .worktrees/<branch-name> -b <branch-name> origin/main
+git rev-parse origin/main
+git worktree add .worktrees/<flat-worktree-name> -b <branch-name> origin/main
 ```
 
 Example:
@@ -56,9 +57,23 @@ Example:
 git worktree add .worktrees/fix-issue-62-seo-baseline -b fix/issue-62-seo-baseline origin/main
 ```
 
+Important:
+- Re-check `origin/main` immediately before branching. It can advance between your earlier inspection step and the actual `git worktree add`, especially when other PRs are being merged actively.
+- Keep the worktree directory name flat even if the branch name contains slashes. Use a path like `.worktrees/fix-blog-28-toc-highlight` for branch `fix/blog-28-toc-highlight`.
+- Do not derive the worktree directory path mechanically from the branch name with slashes, or you can end up with confusing nested paths like `.worktrees/fix/...` that are easy to misread and mis-target in later tool calls.
+
 4. Re-read the actual files from the new worktree before patching.
 - Do not rely on earlier reads from local `main`.
 - This is mandatory if recent PRs may have touched the same files.
+- Also verify the new worktree really points at the expected base:
+
+```bash
+git -C .worktrees/<flat-worktree-name> rev-parse HEAD
+git -C .worktrees/<flat-worktree-name> rev-parse origin/main
+git -C .worktrees/<flat-worktree-name> merge-base HEAD origin/main
+```
+
+For a fresh branch with no new commits yet, these should all match.
 
 5. Preserve latest merged content exactly unless the user asked to change it.
 - Titles and branding labels are especially easy to regress.
