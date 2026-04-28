@@ -135,3 +135,5 @@ When restoring Korean website copy, the user is fine keeping expressions that we
 User does not want local dev servers started unless they explicitly instruct it first.
 §
 Local dev servers consume too many resources in the user's environment and interfere with work.
+§
+For corp-web-v2 documentation sidebar requests, preserve the exact ordered structure literally as specified by the user. Current required order: CMS label -> All -> Introduction -> Glossary -> Manuals -> White Papers -> Blogs -> separator -> MDX label -> White Papers -> Blogs. Do not omit CMS White Papers/Blogs, and do not reinterpret the request as either CMS-only or MDX-only.

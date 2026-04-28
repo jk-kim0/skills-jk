@@ -181,3 +181,5 @@ In corp-web-japan, the `/events` route currently exists as a functional page she
 The active Hermes runtime uses HERMES_HOME=~/workspace/skills-jk/.hermes in this setup; treat that as the primary home for session state, logs, and agent-local artifacts unless evidence shows a different profile/home.
 §
 Hermes session files for this setup are stored under ~/workspace/skills-jk/.hermes/sessions, and direct file inspection there can reveal recent Telegram sessions beyond what session_search returns.
+§
+User asked to roll back git-installed Hermes from unstable main HEAD to a recent stable release; local Hermes repo was checked out at tag v2026.4.16 and the gateway was restarted.

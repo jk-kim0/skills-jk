@@ -32,10 +32,10 @@ git push -u origin <new-branch-name>
 
 ```bash
 # PR 상태 확인
-gh pr list --head <branch-name> --state all --json number,state,mergedAt
+env -u GITHUB_TOKEN gh pr list --head <branch-name> --state all --json number,state,mergedAt
 
 # 또는 PR 번호를 알고 있는 경우
-gh pr view <pr-number> --json state,mergedAt
+env -u GITHUB_TOKEN gh pr view <pr-number> --json state,mergedAt
 ```
 
 | PR 상태 | 조치 |
@@ -59,7 +59,7 @@ git cherry-pick <commit-hash>  # 또는 수동으로 파일 복사
 
 # 4. 새 PR 생성
 git push -u origin <new-branch-name>
-gh workflow run create-pr.yml -f branch="<new-branch-name>" -f title="<type>: ..."
+env -u GITHUB_TOKEN gh workflow run create-pr.yml -f branch="<new-branch-name>" -f title="<type>: ..."
 ```
 
 ## 커밋 메시지 형식
