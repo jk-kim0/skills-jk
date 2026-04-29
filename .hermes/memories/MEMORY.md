@@ -38,8 +38,6 @@ In corp-web-v2, the built-in CMS is not a fully browser-operated remote CMS in p
 §
 In corp-web-v2 content gating discussions, the user prefers an explicit in-body marker/cut point (e.g. MDX/Tiptap markup) over percentage-based gating levels, because it makes the preview boundary clear and intentional.
 §
-In corp-web-v2, branch `fix/public-route-metadata-audit` corresponded to merged PR #35; treat it as stale and create a fresh branch before new commit/push if found checked out again.
-§
 In corp-web-v2, before creating a new PR branch, update from origin/main and verify the branch merge-base is origin/main (or its tip ancestor) so merged commits from stale branches are not accidentally included in the PR.
 §
 In corp-web-v2, origin/main already contains the blog and white-paper MDX migration from corp-web-contents: source/target counts matched at 62 blog locale files and 76 white-paper locale files under src/content/mdx.
