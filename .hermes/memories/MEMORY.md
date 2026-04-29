@@ -12,7 +12,7 @@ For portable Hermes setups in skills-jk, session-like records should remain loca
 §
 In the skills-jk repo, PR creation uses the repo's GitHub Actions workflow `.github/workflows/create-pr.yml` via `workflow_dispatch`; it is the preferred PR creation path for this repo.
 §
-In corp-web-v2, managed public content is currently loaded from authored files under src/content/** via src/features/content/authored.server.ts and contentState.server.ts, not from src/content/state/content-state.json.
+In corp-web-v2, managed public content is loaded from authored files under src/content/** via src/features/content/authored.server.ts and contentState.server.ts, not from src/content/state/content-state.json.
 §
 In corp-web-v2, the user expects each PR task to start from a fresh worktree and fresh branch; do not continue new requested work on a previously used PR branch because it can cause rebase conflicts and stale PR state.
 §
@@ -30,19 +30,13 @@ In querypie-docs confluence-mdx reverse-sync planning, the user considers curren
 §
 In querypie-docs confluence-mdx reverse-sync planning, the user supports using planner / strategy / proof as the main axis for codebase cleanup and architectural reorganization.
 §
-In querypie-docs confluence-mdx reverse-sync planning, the user treats `tests/reverse-sync/pages.yaml` complexity as non-core: in real data it is just a reference metadata catalog for reverse-sync, and extra fields were added only for testcase implementation; do not overcomplicate this point.
-§
-In querypie-docs confluence-mdx reverse-sync planning, the user views `tests/reverse-sync/pages.yaml` as straightforward: for reverse-sync it is just a reference metadata catalog based on real data, and extra fields only exist for testcase implementation; do not overcomplicate its role.
-§
-In querypie-docs confluence-mdx reverse-sync planning, the user considers pages.yaml straightforward in real-data usage: for reverse-sync it is just a reference metadata catalog; extra fields only exist for test-case implementation, so this should not be overcomplicated.
+In querypie-docs confluence-mdx reverse-sync planning, treat `tests/reverse-sync/pages.yaml` as straightforward and non-core: in real-data usage it is just a reference metadata catalog for reverse-sync, and extra fields exist only for testcase implementation; do not overcomplicate its role.
 §
 In querypie-docs confluence-mdx reverse-sync planning, the user prefers verifier taxonomy to be classified in more detail.
 §
-In corp-web-v2, the current CMS workflow still results in file changes that require git commit and push; it functions more like a GUI editor for file-based content than a fully git-free CMS.
+In corp-web-v2, the built-in CMS is not a fully browser-operated remote CMS in practice: it behaves more like a GUI editor for file-based content, and edits still require running a local CMS server plus committing/pushing the resulting file changes.
 §
 In corp-web-v2 content gating discussions, the user prefers an explicit in-body marker/cut point (e.g. MDX/Tiptap markup) over percentage-based gating levels, because it makes the preview boundary clear and intentional.
-§
-In corp-web-v2, the built-in CMS is not a fully browser-operated remote CMS in practice: content edits still require running a local CMS server and then committing/pushing the resulting file changes.
 §
 In corp-web-v2, branch `fix/public-route-metadata-audit` corresponded to merged PR #35; treat it as stale and create a fresh branch before new commit/push if found checked out again.
 §
@@ -53,8 +47,6 @@ In corp-web-v2, origin/main already contains the blog and white-paper MDX migrat
 In corp-web-v2, git worktrees use per-worktree local node_modules/package-lock state rather than a shared install. Fresh or older worktrees may have missing or stale dependencies, causing false baseline errors like 'Cannot find module mermaid'; run npm install inside the specific worktree before judging test/typecheck failures.
 §
 In corp-web-japan missing-path redirect work, the user wants runtime-log 404 candidates checked against the corresponding https://www.querypie.com path first; only paths that actually return 200 OK should be added as redirects, and paths already covered by existing namespace rules should not get redundant exact-path rules.
-§
-In corp-web-v2 origin/main (12bab42), public managed content is currently read from authored files under src/content/** via src/features/content/contentState.server.ts and authored.server.ts; src/content/state/content-state.json is absent in this repo snapshot.
 §
 In corp-web-v2 demo routing, the user wants the AIP Google OAuth demo canonical path shortened to /demo/aip/1/google-oauth-demo, with old /features/demo/aip-features/1/google-oauth-demo and /features/demo/google-oauth-demo treated as legacy paths.
 §

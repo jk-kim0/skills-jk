@@ -38,11 +38,7 @@ User prefers shorter, simpler file naming when a verbose component filename can 
 §
 User currently wants corp-web-v2 use-case demo detail routes to use plural /demo/use-cases/:id/:slug rather than singular /demo/use-case/:id/:slug.
 §
-In corp-web-v2, the user prefers PR titles, descriptions, and review comments to be written in Korean.
-§
-User prefers PR titles, descriptions, and repo-work comments to be written in Korean for this repo.
-§
-User currently wants corp-web-v2 use-case demo detail routes to use plural /demo/use-cases/:id/:slug.
+User prefers PR titles, descriptions, review comments, and repo-work comments to be written in Korean for this repo.
 §
 User expects example path fragments to be treated as illustrative, not literal. When aligning asset paths, mirror the actual src/app URI structure rather than copying placeholder segments like '/path/' into real public paths.
 §
@@ -64,11 +60,7 @@ For repo work, user does not want time spent on local build/test verification; p
 §
 In corp-web-v2, the user does not want node_modules kept inside worktrees.
 §
-User wants very fast acknowledgements during repo work and dislikes proposal-only pauses; after a brief status message, proceed directly with the clear requested change and report if commands run long.
-§
-User prioritizes very fast execution and fast replies; for slow tasks, prefer parallel execution and do not leave the user waiting without a response.
-§
-User expects an immediate brief verbal response first, then direct tool execution; during active PR follow-up, do not stop at analysis or proposals when the requested code change is already clear.
+User wants very fast acknowledgements during repo work and dislikes proposal-only pauses: give a brief status message first, then proceed directly with the clear requested change; for slower tasks prefer parallel execution and do not leave the user waiting without a response.
 §
 User wants root-cause investigations for Hermes latency to be thorough and evidence-based, not speculative.
 §
@@ -100,9 +92,7 @@ In corp-web-v2 static-page work, the user wants metadata/SEO data kept route-loc
 §
 In corp-web-v2 static-page work, the user prefers removing even thin shared helpers like route-specific page helpers when they reduce route-local explicitness; favor fully self-contained page.tsx files.
 §
-When the user asks to remove a helper or proceed with a refactor after review, they expect immediate execution rather than a proposal-only response.
-§
-User dislikes proposal-only pauses during active PR follow-up; after analysis, proceed directly with the requested code change unless clarification is truly needed.
+During active PR follow-up, when the user asks to remove a helper or proceed with a refactor after review, they expect immediate execution rather than a proposal-only response unless clarification is truly needed.
 §
 When the user says not to touch a scope like src/features/demo/**, do not change even a single line there for cleanup or path fixes without explicit permission, even if it seems like the minimal way to avoid a broken reference.
 §
