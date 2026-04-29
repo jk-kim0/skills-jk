@@ -137,9 +137,15 @@ Strong stale signals for branch-backed worktrees:
 - the branch tip is already equivalent to `origin/main`
 - the worktree only exists for an old review/rebase/squash/follow-up context
 
-Important practical lesson:
+Counter-signal that should usually preserve a branch-backed worktree even with no PR:
+- the worktree has real tracked modifications or meaningful untracked source files
+- the branch appears to be an active local exploratory/refactor branch not yet published
+- the local branch tracks a differently named upstream branch, indicating temporary local branch reshaping rather than stale residue
+
+Important practical lessons:
 - Do not assume every branch-backed worktree should be preserved.
-- In PR-heavy repos, the real source of truth is the set of currently open PR head branches, not merely whether a branch is attached to a worktree.
+- But also do not assume "no open PR" means removable; a dirty branch-backed worktree may be active unpublished work.
+- In PR-heavy repos, the real source of truth is the combination of open PR head branches plus actual local worktree dirtiness, not merely whether a branch is attached to a worktree.
 
 ## 6. Classify branches
 
@@ -177,6 +183,51 @@ If such a file is the only dirty item, remove it, re-check `git status --porcela
 
 Do not delete dirty worktrees automatically if the remaining changes are real project files.
 
+## 7a. Detached worktrees may need verification beyond `git status`
+
+A detached worktree can look clean in a simple `git status --short --branch` snapshot, yet `git worktree remove <path>` may still refuse with:
+
+```bash
+contains modified or untracked files, use --force to delete it
+```
+
+When this happens, do not immediately force-remove blindly. First inspect inside the worktree:
+
+```bash
+git -C <path> status --short --branch
+git -C <path> diff --stat || true
+git -C <path> ls-files --others --exclude-standard || true
+```
+
+Interpretation:
+- if `diff --stat` is empty and `ls-files --others` is empty, the refusal is just conservative Git behavior and `git worktree remove --force <path>` is acceptable
+- if tracked diffs or untracked files exist, preserve the worktree unless those files are clearly disposable temp artifacts
+
+This case showed up with detached PR follow-up worktrees that were effectively clean but still required `--force` to remove.
+
+## 7b. Root-worktree dirty files may actually be residue from another kept worktree
+
+In PR-heavy repos, the primary/root worktree on `main` can accumulate tracked-file edits that are not true `main` work. They may be accidental spillover from an open-PR worktree or another local worktree.
+
+Before deciding that root tracked-file changes must be preserved, compare them against relevant kept worktrees:
+
+```bash
+git diff --name-only
+```
+
+For each dirty tracked file, compare the root file against the corresponding file in likely source worktrees, especially open-PR worktrees:
+
+```bash
+git diff --no-index -- path/in/root path/in/other/worktree || true
+```
+
+Interpretation:
+- if files are identical, the root change is very likely residue copied from that worktree
+- if the diff is very small and clearly the same direction of change, treat it as likely residue/intermediate state and inspect before preserving
+- if the file differs materially from every kept worktree, treat it as genuine root-local work and preserve it
+
+This check is especially important before restoring dirty tracked files in `main` so that `main` can be fast-forwarded to `origin/main` safely.
+
 ## 8. Update local main safely
 
 If `main` is not checked out in any worktree, update it directly:
@@ -204,6 +255,12 @@ They should match.
 git worktree remove <path>
 ```
 
+If a stale entry is already marked `prunable` and its linked `.git`/gitdir is broken or missing, `git worktree remove` may fail validation instead of cleaning it up. In that case, do not force repeated removal attempts; rely on prune from the owning repo:
+
+```bash
+git worktree prune
+```
+
 After batch removal:
 
 ```bash
@@ -212,13 +269,25 @@ git worktree prune
 
 ### Delete safe local branches
 
-Use non-force delete:
+Use non-force delete first:
 
 ```bash
 git branch -d <branch>
 ```
 
-If `-d` refuses, keep the branch unless the user explicitly requested aggressive cleanup.
+If `-d` refuses, do not immediately keep the branch by default. First verify whether all of the following are true:
+- the branch is no longer attached to any kept worktree
+- `gh pr list --state all --head <branch>` confirms the PR is already merged or closed
+- the upstream ref is already gone or otherwise no longer authoritative
+- `git cherry origin/main <branch>` shows the branch is only carrying squash/rebase residue rather than active unpublished work
+
+When those checks confirm the branch is just post-merge local residue, force-delete is appropriate:
+
+```bash
+git branch -D <branch>
+```
+
+Only preserve the branch when those checks do not clearly prove it is stale.
 
 ## 8. Final verification
 

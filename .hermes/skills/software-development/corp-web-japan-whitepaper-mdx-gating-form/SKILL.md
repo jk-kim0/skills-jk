@@ -24,7 +24,7 @@ This pattern is for:
 - explicit content split via custom MDX marker `<GatingCut />`
 - same-page unlock after form submission
 - persistence via cookie
-- a dummy backend API that sets the cookie but does not actually submit/store lead data yet
+- a backend API that can either stay dummy or submit through the shared contact-style backend modules while setting the unlock cookie, depending on the current repo state
 
 Do not apply this by default to blog/event unless the user explicitly broadens scope.
 
@@ -77,19 +77,29 @@ Useful exports:
 - `splitMdxSourceAtGatingCut(source)`
 - `stripFrontmatterBlock(source)`
 
-### Dummy API route
+### Gating unlock API route
 
-Add:
+Add or update:
 - `src/app/api/gating-form/unlock/route.ts`
 
 Behavior:
 - accept `POST`
 - require `contentKey` in JSON body
 - return `400` if missing
-- set an httpOnly cookie for the content key
-- do not persist form payload anywhere yet
-- respond with `{ success: true, mode: "dummy" }`
+- delegate the form submission to a dedicated gating submit helper
+- set an httpOnly cookie for the content key only after a successful submit result
+- respond with `{ success: true }` on success
 
+Preferred implementation in the current repo state:
+- keep the route thin
+- reuse the shared server modules already introduced for contact-us submit handling
+- create a dedicated `src/lib/gating-form-submit.ts` orchestrator that mirrors `src/lib/contact-us-submit.ts` while reusing:
+  - `src/lib/forms/server/sanitize.ts`
+  - `src/lib/forms/server/email-deliverability.ts`
+  - `src/lib/forms/server/utm-attribution.ts`
+  - `src/lib/forms/server/slack-notification.ts`
+  - `src/lib/forms/server/salesforce-delivery.ts`
+- keep Salesforce delivery best-effort and Slack notification required, matching the current contact-us backend behavior unless the user asks to diverge
 Cookie settings:
 - `httpOnly: true`
 - `sameSite: "lax"`
@@ -171,9 +181,9 @@ Expected client flow:
 - show form when `initiallyUnlocked` is false
 - validate required fields client-side before submit
 - POST to `/api/gating-form/unlock`
+- include `contentKey`, `form`, `referrerUrl`, and optional `utmAttribution` when available
 - on success, reveal gated content inline on the same page
-- on failure, show a centered Japanese error message
-
+- on failure, surface the backend error message in Japanese instead of collapsing everything into a generic failure
 ### Whitepaper detail route
 
 In `src/app/whitepapers/[id]/[slug]/page.tsx`:

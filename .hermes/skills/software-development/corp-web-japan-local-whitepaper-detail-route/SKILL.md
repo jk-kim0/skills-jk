@@ -75,6 +75,12 @@ Preferred local file shape:
 - `src/app/whitepapers/[id]/page.tsx`
 - `public/whitepapers/<id>/*`
 
+Important asset convention learned later:
+- use `heroImageSrc: "/whitepapers/<id>/thumbnail.png"`
+- keep the thumbnail file colocated with the rest of that whitepaper's body assets under `public/whitepapers/<id>/`
+- do not keep a parallel legacy thumbnail copy under `public/assets/image/whitepapers/<id>/thumbnail.png`
+- if both paths exist, treat the route-aligned `public/whitepapers/<id>/thumbnail.png` file as canonical and remove the duplicate after updating references
+
 Do not keep these legacy files once migrated:
 - `src/content/publications/whitepaper.ts`
 - `src/content/publications/whitepaper-posts.ts`
@@ -94,7 +100,7 @@ title: "..."
 description: "..."
 listDescription: "..."
 date: "2026年2月27日"
-heroImageSrc: "/assets/image/whitepapers/28/thumbnail.png"
+heroImageSrc: "/whitepapers/28/thumbnail.png"
 author: "querypie"
 relatedIds:
   - "23"
@@ -202,13 +208,23 @@ This preserves fidelity to the source content while making the current implement
 
 Whitepaper MDX usually references many checked-in images. Copy the necessary assets into local public paths, ideally preserving route-aligned organization.
 
+Use this convention consistently:
+- all whitepaper-owned assets, including the hero thumbnail, live under `public/whitepapers/<id>/`
+- the frontmatter `heroImageSrc` should point at `/whitepapers/<id>/thumbnail.png`
+- supporting surfaces such as home-page cards and internal gating demos should reference the same route-aligned thumbnail path
+
 Useful examples:
-- `public/white-paper/21/**`
-- `public/white-paper/22/**`
-- `public/white-paper/23/**`
-- `public/white-paper/24/**`
-- `public/white-paper/26/**`
-- `public/white-paper/28/**`
+- `public/whitepapers/21/**`
+- `public/whitepapers/22/**`
+- `public/whitepapers/23/**`
+- `public/whitepapers/24/**`
+- `public/whitepapers/26/**`
+- `public/whitepapers/28/**`
+
+Important duplicate-file cleanup lesson:
+- older repo state may still have thumbnail copies under `public/assets/image/whitepapers/<id>/thumbnail.png`
+- verify whether the duplicate files are byte-identical before deleting them
+- if they differ, inspect which one is the intended localized/canonical thumbnail and copy that version into `public/whitepapers/<id>/thumbnail.png` before removing the legacy duplicate
 
 Also verify any author image paths referenced through the author registry. If an author profile image path is invalid locally, either:
 - copy the missing asset, or
@@ -245,6 +261,8 @@ Recommended assertions:
 - `src/content/publications/whitepapers.ts` no longer exists
 - `/whitepapers` page imports `whitepaperItems` from `@/content/publications/whitepaper`
 - the publication registry reads `.mdx` files from `src/content/whitepaper`
+- whitepaper MDX frontmatter no longer references the legacy `/assets/image/whitepapers/` thumbnail path
+- supporting surfaces such as top-page cards or internal whitepaper demos also avoid the legacy thumbnail path
 
 This is a good fit for the repo because it locks in the route/data-source contract without requiring a local dev server.
 

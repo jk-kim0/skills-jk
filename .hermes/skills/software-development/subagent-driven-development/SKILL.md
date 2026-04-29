@@ -32,6 +32,15 @@ Use this skill when:
 - Consistent quality checks across all tasks
 - Subagents can ask questions before starting work
 
+## Important execution model note
+
+`delegate_task` is not a true background job from the controller's perspective.
+
+- The parent turn remains occupied until the subagent returns a result.
+- Do not promise the user that you are "handing it off in the background" and immediately freeing the current turn.
+- If the user wants real background execution or delayed follow-up, prefer a true background-capable mechanism such as a cron job or a background process pattern instead of `delegate_task` alone.
+- If a delegated task is interrupted, check for partial completion before assuming failure. In repo workflows, the subagent may already have created a branch, edited files, pushed commits, or opened a PR before the interruption.
+
 ## The Process
 
 ### 1. Read and Parse Plan

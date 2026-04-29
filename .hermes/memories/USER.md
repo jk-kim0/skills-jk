@@ -6,7 +6,7 @@ User prefers the assistant to choose the method it can handle best for the task,
 §
 User prefers polite Korean and may use Korean chat shorthand like ㅇㅇ, ㅇㅋ, ㄱㄱ.
 §
-User prefers verification via Draft PR and CI pipeline instead of spending time on running local development servers.
+For repo work, default to PR+CI; use Closes/Fixes only when the PR fully resolves the linked issue.
 §
 User wants PR status checked before commit/push on repo work to avoid continuing on a merged PR branch.
 §
@@ -32,11 +32,13 @@ For querypie-docs reverse-sync discussions, the user values checking whether des
 §
 User prefers not to discuss speculative designs for unimplemented features; focus on current implementation unless they explicitly ask for future design.
 §
-사용자는 새 작업을 시작할 때 항상 latest main branch 기준으로 새 worktree 또는 새 branch를 만들어 진행하길 원한다.
+사용자는 모든 코드 작업을 항상 latest main branch 기준으로 시작하길 원한다. 작업 전 반드시 latest main을 업데이트/확인하고, 관련 commit log와 변경된 구현을 파악한 뒤에만 계획·수정해야 하며, 이 과정은 생략할 수 없다.
 §
 User prefers shorter, simpler file naming when a verbose component filename can be reduced without ambiguity.
 §
 User currently wants corp-web-v2 demo use-cases and webinars to use plural route-aligned naming consistently: detail routes should use `/demo/use-cases/:id/:slug`, and MDX content directories should mirror actual public URI naming such as `src/content/mdx/demo/use-cases/**` and `src/content/mdx/demo/webinars/**`.
+§
+For GitHub issue/report writing, the user prefers the body to present English first and then a Japanese translation below it, rather than mixing languages or leading with Japanese.
 §
 User prefers PR titles, descriptions, review comments, and repo-work comments to be written in Korean for this repo.
 §
@@ -80,7 +82,7 @@ In corp-web-v2 static-page work, the user prefers each page's content to stay co
 §
 The user is open to challenging existing corp-web-v2 repository conventions and does not consider the current overall structure inherently authoritative when evaluating better file placement.
 §
-In this repo, the user wants a strong route-aligned colocate principle for static-page work. Only truly reusable code should be promoted to features/ or components/common; page-local content/UI should stay close to its route.
+For static marketing pages, the user wants page.tsx to show the real marketing copy inline between semantic UX components. Avoid giant content-object props into section components; prefer slot-like APIs with copy passed directly in markup.
 §
 In corp-web-v2 follow-up work, the user does not want a new PR or reviewer requests created unless they explicitly ask for that PR/review action for the current scoped task; do not infer PR/reviewer permission from earlier broader requests.
 §
@@ -114,6 +116,30 @@ User prefers launch-readiness reviews and issues to focus on implemented reposit
 §
 User prefers repository guidance files like AGENTS.md to stay reasonably concise and not grow indefinitely; detailed procedures should be structured or split out before the file becomes too long.
 §
+Whenever showing Japanese text to the user, include the Korean translation immediately after it in parentheses.
+§
+In wiki documents, the user prefers links written in markdown [path](url) format.
+§
 When restoring Korean website copy, the user is fine keeping expressions that were already in English in the earlier Korean version instead of forcing full Korean translation.
 §
 For corp-web-v2 documentation sidebar requests, preserve the exact ordered structure literally as specified by the user. Current required order: CMS label -> All -> Introduction -> Glossary -> Manuals -> White Papers -> Blogs -> separator -> MDX label -> White Papers -> Blogs. Do not omit CMS White Papers/Blogs, and do not reinterpret the request as either CMS-only or MDX-only.
+§
+The user requires all repo work to start from the latest main branch by default unless explicitly instructed otherwise, and requires PR branches to be rebased onto the latest main branch again before push/PR update.
+§
+Across all repos, unless explicitly told to use the main workspace checkout, do not modify code there; use a git worktree for code changes.
+§
+User cares strongly about code structure and file paths, including tests: place test files on paths mirroring the source file paths they cover.
+§
+For corp-web-japan contact-us rollout, the user's intended strategy is: keep /t/contact-us as a feature-flag path until implementation and testing are fully complete, make all implementation other than the /t path production-ready, and then switch the existing /contact-us redirect endpoint at the end with a minimal route change.
+§
+For corp-web-japan contact-us rollout, the user wants /t/contact-us kept as the feature-flag public form route until final validation/testing is complete; only at the very end should the existing /contact-us public entry be switched with a minimal route change.
+§
+For corp-web-japan contact-us rollout, the correct approved structure is: keep the form page at /t/contact-us until final validation/testing, use /contact-us/submit as the submit endpoint, keep app route code thin, and place backend implementation in reusable shared locations such as src/lib or src/components rather than route-local heavy logic.
+§
+When delegating longer work, the user expects a true background-job style that returns control immediately so they can continue giving instructions; avoid using delegate_task as if it were non-blocking.
+§
+When the user requests a production-vs-stage web comparison for a specific domain/path, compare the exact requested page/domain literally and do not substitute a redirected target unless the user explicitly asks for that.
+§
+User does not want Python code used for simple Vercel CLI/environment inspection tasks; prefer pure Vercel CLI and basic shell output instead.
+§
+`workdir=~/workspace` is only a tool default; the agent's real live cwd may differ each run. For repo-context tasks, always verify the actual current directory first and never equate it with the tool workdir.
