@@ -36,12 +36,11 @@ tags: [pr, git, github, workflow, bot]
 ## 명령어
 
 ```bash
-# 커밋
 git commit -m "feat: ..." --trailer "Co-Authored-By: Atlas <atlas@jk.agent>"
 git push -u origin <branch>
 
 # PR 생성
-gh workflow run create-pr.yml -f branch="<branch>" -f title="<type>: ..."
+env -u GITHUB_TOKEN gh workflow run create-pr.yml -f branch="<branch>" -f title="<type>: ..."
 ```
 
 ## PR Scope Gate (필수)
@@ -98,16 +97,16 @@ PR 생성 실행 전에 아래 4개를 먼저 공유:
 
 ## gh 실행 환경 규칙
 
-로컬에서 `gh`를 실행할 때는 plain `gh` 명령을 사용합니다.
+로컬에서 `gh`를 실행할 때는 항상 `GITHUB_TOKEN`을 비운 형태를 사용합니다.
 
 ```bash
-gh <subcommand>
+env -u GITHUB_TOKEN gh <subcommand>
 ```
 
 이유:
-- repo와 사용자 환경에 맞는 기본 GitHub CLI 인증 경로를 그대로 사용한다.
-- 불필요한 wrapper 규칙을 문서화하지 않아도 된다.
-- 문서 예시와 실제 사용법을 단순하게 유지할 수 있다.
+- 로컬 keyring/ssh 기반 GitHub CLI 인증을 우선 사용해 토큰 충돌을 피한다.
+- 저장소 전역 GitHub CLI 안전 규칙과 일치시킨다.
+- 읽기 전용 조회와 PR/Actions 조작 모두 같은 호출 형식을 유지해 실수를 줄인다.
 
 
 `python3 script.py` 대신, 스크립트에 실행권한을 부여해 직접 실행합니다.

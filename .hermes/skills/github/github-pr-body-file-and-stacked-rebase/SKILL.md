@@ -61,6 +61,47 @@ If the branch is clean:
 git rebase origin/main
 ```
 
+## 2b. If the working tree is dirty, stash first and reapply after rebase
+
+A common practical case:
+- the branch has uncommitted tracked changes
+- there may also be untracked files
+- you need the current local work moved onto the latest `main` without discarding it
+
+Do not try to `checkout main` or start a rebase with a dirty tree.
+Instead:
+
+```bash
+git status --short --branch
+git stash push -u -m '<branch> pre-rebase'
+git rebase origin/main
+```
+
+Then reapply the local work:
+
+```bash
+git stash pop
+```
+
+Important observations from real use:
+- `git rebase origin/main` may report `skipped previously applied commit ...` when the branch commit already exists in `main`; this is often correct and not itself an error
+- after such a skip, `HEAD` can end up exactly at `origin/main`, and the real remaining work is only in the reapplied stash
+- if `git stash pop` hits conflicts, Git keeps the stash entry instead of dropping it; keep it until resolution is verified
+
+Useful checks before deciding whether a skipped commit is safe:
+
+```bash
+git rev-parse --short HEAD
+git rev-parse --short origin/main
+git merge-base HEAD origin/main | cut -c1-7
+git show --stat --name-status <skipped-commit>
+git diff --name-only HEAD...origin/main
+```
+
+Goal:
+- branch history rebased to latest `main`
+- local uncommitted work restored on top of that rebased state
+
 ## 2a. If the old stacked base branch was merged and deleted
 
 A common real-world case:
@@ -155,6 +196,9 @@ Then replace the body with a body file describing:
 - Do not forget to force-push after a rewritten history rebase.
 - Do not leave the PR body describing old stacked/base changes after rebasing onto `main`.
 - If you are rebasing a different open PR branch while your current checkout has unrelated local changes, do not perform the rebase in the dirty working tree. Create a temporary isolated worktree from the remote PR branch, rebase there, and force-push from that isolated worktree.
+- When `stash pop` conflicts on markdown memory/config files, merge by preserving both durable additions unless one clearly supersedes the other.
+- For `rename/delete` conflicts after upstream skill restructuring, decide explicitly whether your local intent was “delete this content” or “edit the moved file”; do not accept Git's default blindly.
+- If `stash pop` reported conflicts, do not drop the stash until `git status` shows no unmerged paths and the resulting diff matches your intended local work.
 
 ## Additional practical pattern: rebasing another open PR branch safely
 
@@ -195,8 +239,11 @@ Useful rule of thumb:
 ## Minimal checklist
 
 - verify PR base/head
+- if working tree is dirty, `git stash push -u` first
 - rebase onto `origin/main`
 - inspect conflicts
 - skip only duplicate already-merged stacked commits
+- `git stash pop` and resolve any post-rebase conflicts
+- verify `HEAD`, `origin/main`, and `merge-base` alignment
 - force-push updated history
 - refresh PR body with `--body-file`
