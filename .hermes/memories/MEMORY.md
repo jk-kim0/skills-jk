@@ -12,7 +12,7 @@ For portable Hermes setups in skills-jk, session-like records should remain loca
 §
 In the skills-jk repo, PR creation uses the repo's GitHub Actions workflow `.github/workflows/create-pr.yml` via `workflow_dispatch`; it is the preferred PR creation path for this repo.
 §
-In corp-web-v2, managed public content is currently loaded from authored files under src/content/** via src/features/content/authored.server.ts and contentState.server.ts, not from src/content/state/content-state.json.
+In corp-web-v2, managed public content is loaded from authored files under src/content/** via src/features/content/authored.server.ts and contentState.server.ts, not from src/content/state/content-state.json.
 §
 In corp-web-v2, the user expects each PR task to start from a fresh worktree and fresh branch; do not continue new requested work on a previously used PR branch because it can cause rebase conflicts and stale PR state.
 §
@@ -30,61 +30,35 @@ In querypie-docs confluence-mdx reverse-sync planning, the user considers curren
 §
 In querypie-docs confluence-mdx reverse-sync planning, the user supports using planner / strategy / proof as the main axis for codebase cleanup and architectural reorganization.
 §
-In querypie-docs confluence-mdx reverse-sync planning, the user treats `tests/reverse-sync/pages.yaml` complexity as non-core: in real data it is just a reference metadata catalog for reverse-sync, and extra fields were added only for testcase implementation; do not overcomplicate this point.
-§
-In querypie-docs confluence-mdx reverse-sync planning, the user views `tests/reverse-sync/pages.yaml` as straightforward: for reverse-sync it is just a reference metadata catalog based on real data, and extra fields only exist for testcase implementation; do not overcomplicate its role.
-§
-In querypie-docs confluence-mdx reverse-sync planning, the user considers pages.yaml straightforward in real-data usage: for reverse-sync it is just a reference metadata catalog; extra fields only exist for test-case implementation, so this should not be overcomplicated.
+In querypie-docs confluence-mdx reverse-sync planning, treat `tests/reverse-sync/pages.yaml` as straightforward and non-core: in real-data usage it is just a reference metadata catalog for reverse-sync, and extra fields exist only for testcase implementation; do not overcomplicate its role.
 §
 In querypie-docs confluence-mdx reverse-sync planning, the user prefers verifier taxonomy to be classified in more detail.
 §
-In corp-web-v2, the current CMS workflow still results in file changes that require git commit and push; it functions more like a GUI editor for file-based content than a fully git-free CMS.
+In corp-web-v2, the built-in CMS is not a fully browser-operated remote CMS in practice: it behaves more like a GUI editor for file-based content, and edits still require running a local CMS server plus committing/pushing the resulting file changes.
 §
 In corp-web-v2 content gating discussions, the user prefers an explicit in-body marker/cut point (e.g. MDX/Tiptap markup) over percentage-based gating levels, because it makes the preview boundary clear and intentional.
 §
-In corp-web-v2, the built-in CMS is not a fully browser-operated remote CMS in practice: content edits still require running a local CMS server and then committing/pushing the resulting file changes.
-§
-In corp-web-v2, branch `fix/public-route-metadata-audit` corresponded to merged PR #35; treat it as stale and create a fresh branch before new commit/push if found checked out again.
-§
 In corp-web-v2, before creating a new PR branch, update from origin/main and verify the branch merge-base is origin/main (or its tip ancestor) so merged commits from stale branches are not accidentally included in the PR.
 §
-In corp-web-v2, origin/main already contains the blog and white-paper MDX migration from corp-web-contents: source/target counts matched at 62 blog locale files and 76 white-paper locale files under src/content/mdx.
+In corp-web-v2, blog and white-paper MDX migration is already present under src/content/mdx; do not treat those families as still pending migration work.
 §
-In corp-web-v2, git worktrees use per-worktree local node_modules/package-lock state rather than a shared install. Fresh or older worktrees may have missing or stale dependencies, causing false baseline errors like 'Cannot find module mermaid'; run npm install inside the specific worktree before judging test/typecheck failures.
+In corp-web-v2, git worktrees keep per-worktree `node_modules` / `package-lock` state rather than a shared install, so fresh or older worktrees can show false baseline errors like `Cannot find module mermaid`; however, targeted Vitest runs may still resolve dependencies from the parent repo-root `node_modules`, so a separate worktree-local install is not always required.
 §
 In corp-web-japan missing-path redirect work, the user wants runtime-log 404 candidates checked against the corresponding https://www.querypie.com path first; only paths that actually return 200 OK should be added as redirects, and paths already covered by existing namespace rules should not get redundant exact-path rules.
 §
-In corp-web-v2 origin/main (12bab42), public managed content is currently read from authored files under src/content/** via src/features/content/contentState.server.ts and authored.server.ts; src/content/state/content-state.json is absent in this repo snapshot.
-§
-In corp-web-v2 demo routing, the user wants the AIP Google OAuth demo canonical path shortened to /demo/aip/1/google-oauth-demo, with old /features/demo/aip-features/1/google-oauth-demo and /features/demo/google-oauth-demo treated as legacy paths.
+In corp-web-v2 demo routing, canonical detail paths use short public routes: ACP `/demo/acp/:id/:slug`, AIP `/demo/aip/:id/:slug`, use-cases `/demo/use-cases/:id/:slug`, and webinars `/webinars/:id/:slug`; the AIP Google OAuth page is `/demo/aip/1/google-oauth-demo`, and older `/features/demo/**` or `/demo/webinar/**` paths should be treated as legacy/history rather than current canonical paths.
 §
 In corp-web-v2 author-box work, the component file was renamed from src/components/mdx-layout/ArticleAuthorBox.tsx to src/components/mdx-layout/AuthorBox.tsx per user preference for shorter names.
-§
-In corp-web-v2 public demo routing, ACP uses /demo/acp/:id/:slug, AIP uses /demo/aip/:id/:slug, and use-cases use singular /demo/use-case/:id/:slug with legacy feature paths redirecting to the short canonical route.
-§
-corp-web-v2 demo migration PR branch feat/demo-acp-mdx-migration remains the active follow-up branch for additional short-route changes on PR #40.
-§
-In corp-web-v2 demo routing, the user wants managed AIP demo canonical paths shortened to /demo/aip/:id/:slug, with legacy /features/demo/aip-features/:id/:slug and /features/demo/:slug redirected to the short canonical path.
-§
-In corp-web-v2 demo routing, the user wants use-cases demo canonical detail paths shortened to singular /demo/use-case/:id/:slug, with legacy /features/demo/use-cases/:id/:slug and /features/demo/:slug redirected to the short canonical path.
 §
 In corp-web-v2, article author profile assets live under public/crew/*, and locale author registry data now lives in src/features/mdx/authors/{en,ko,ja}.yaml with profileImage paths like crew/<file>; the server-only authors module parses the YAML at runtime.
 §
 In corp-web-v2 author-data work, the user is okay with converting YAML to JSON at runtime but does not want generated JSON author data files committed to git or managed in the repository.
 §
-In corp-web-v2, the user prefers PR titles, descriptions, and review comments to be written in Korean.
-§
 In corp-web-v2 MDX author data, the user prefers the structure src/features/mdx/authors/{en,ko,ja}.yaml with a server-only authors/index.ts runtime YAML loader, rather than flat locale files or git-tracked generated JSON.
 §
-In corp-web-v2 PR #40 follow-up, the user required ACP MDX routes/rendering to remain fully separate from CMS-managed demo content: do not couple new demo page routes to `readContentItem/readContentState` for AIP/use-cases/webinars or modify the existing CMS-managed `src/app/[locale]/features/demo/[slug]/page.tsx` rendering path when working on ACP MDX migration.
+In corp-web-v2 demo migration work, keep ACP MDX routes/rendering fully separate from CMS-managed demo content, source demo detail content from ../corp-web-contents original EN/KO/JA MDX files rather than CMS-authored Tiptap/HTML data, and do not modify the existing CMS-managed `src/app/[locale]/features/demo/[slug]/page.tsx` rendering path when working on ACP MDX migration.
 §
-In corp-web-v2 demo migration work, the user wants demo detail content to be sourced from ../corp-web-contents original EN/KO/JA MDX content and not from CMS-authored Tiptap/HTML data files.
-§
-In corp-web-v2, PR #40 for ACP MDX was merged into origin/main at commit e634bcf; new follow-up work should branch from latest origin/main after that merge.
-§
-In corp-web-v2, current full demo MDX migration work is being done in fresh worktree branch feat/demo-mdx-migration-all based on origin/main e634bcf, with corp-web-contents cloned locally at ~/workspace/corp-web-contents (origin/main 0ecd280).
-§
-In corp-web-contents, demo detail MDX source already exists under pages/features/demo/{aip-features,use-cases,webinars,acp-features}/... with counts: AIP 1, use-cases 29, webinars 26, ACP 26. The MDX frontmatter commonly uses legacy category slugs, hideOgImage, ogImage paths under public/demo/* or public/webinar/*, and relatedPosts paths pointing at legacy /features/demo/... URLs.
+In corp-web-contents, demo MDX source lives under pages/features/demo/{aip-features,use-cases,webinars,acp-features}/<id>/<slug>/<locale>/content.mdx; current counts are AIP 1, use-cases 29, webinars 26, ACP 26. The frontmatter commonly uses legacy category slugs, hideOgImage, ogImage paths under public/demo/* or public/webinar/*, and relatedPosts paths pointing at legacy /features/demo/... URLs; referenced assets come from public/demo, public/customer-success-cases, public/webinar, and for older ACP also public/tutorial.
 §
 In corp-web-v2 content migration audits, the user considers content migration complete only when the content is actually migrated to MDX; non-MDX managed content/HTML/Tiptap routes should be treated as not yet completed migration.
 §
@@ -92,19 +66,13 @@ In corp-web-v2 Solutions parity work, legacy canonical content lives under corp-
 §
 For corp-web-v2 Solutions page migration, required legacy public assets come mainly from corp-web-contents/public/{aip,acp,products,tutorial,introducing-querypie,key-feature-icon,integration-icon}, while /assets/dac-analyzer.json comes from corp-web-app/public/assets rather than corp-web-contents.
 §
-In corp-web-contents, demo MDX source lives under pages/features/demo/{aip-features,use-cases,webinars,acp-features}/<id>/<slug>/<locale>/content.mdx, and referenced demo assets come from public/demo, public/customer-success-cases, public/webinar, and (for older ACP) public/tutorial paths.
-§
-In corp-web-v2 origin/main around e634bcf, package.json has no lint script and the repo lacks an ESLint config file, so `npm run lint` / `npx eslint` are not available as standard verification steps; rely on the repo’s existing test/typecheck/build checks unless linting is added later.
-§
-In corp-web-contents, remaining demo MDX source lives under pages/features/demo/{aip-features,use-cases,webinars}/<id>/<slug>/<locale>/content.mdx, and corp-web-v2 demo MDX migration normalizes demo inline/OG assets to public/demo/<segment>/<id>/... while using short canonical routes /demo/aip/:id/:slug, /demo/use-case/:id/:slug, and /demo/webinar/:id/:slug.
+In corp-web-v2, do not assume `npm run lint` / `npx eslint` are available as standard verification steps; first verify the repo's package scripts and ESLint config, and otherwise rely on the repo’s actual test/typecheck/build checks.
 §
 In corp-web-v2 wiki migration planning, the user wanted duplicate planning/readiness pages removed entirely after consolidation, not just marked as superseded; Home/wiki should be rewritten around the latest canonical docs.
 §
-In corp-web-v2 public content routing, the user wants list-page paths and individual content-detail paths to share the same prefix. Canonical naming should use singular /blog, plural /white-papers, plural /demo/use-cases, and plural /demo/webinars; ACP/AIP demo routes keep short fixed segments /demo/acp and /demo/aip.
+In corp-web-v2 public content routing, list-page paths and individual content-detail paths should share the same prefix. Canonical naming uses singular `/blog`, plural `/white-papers`, plural `/demo/use-cases`, top-level `/webinars`, and short fixed demo segments `/demo/acp` and `/demo/aip`; older `/demo/webinar/**` or `/features/**` demo routes are legacy/history rather than current canonical paths.
 §
-In corp-web-v2 Solutions follow-up work on PR #42, the user wants inline images/assets reorganized under route-aligned public paths matching page structure, e.g. assets referenced by a Solutions page should live under public/path/solutions/<slug>/... rather than broad shared folders like public/aip or public/products.
-§
-In corp-web-v2 demo routing follow-up, the user wants webinar detail content to use canonical /webinars/:id/:slug paths instead of /demo/webinar/:id/:slug, with demo/webinar treated as legacy/redirect-only if present.
+In corp-web-v2 Solutions follow-up work, the user wants inline images/assets reorganized under route-aligned public paths matching page structure, e.g. assets referenced by a Solutions page should live under public/path/solutions/<slug>/... rather than broad shared folders like public/aip or public/products.
 §
 In corp-web-v2 demo migration follow-up, the user does not want legacy URL redirects included in the current PR; redirect rules should be audited and implemented later in a separate batch.
 §
@@ -122,9 +90,9 @@ In corp-web-v2 Solutions parity work, the user does not want placeholder or lega
 §
 In corp-web-v2, when squashing an open PR branch after origin/main has advanced, use the PR branch's merge-base with origin/main as the soft-reset point, not current origin/main, or unrelated main-only changes can be pulled into the squashed commit.
 §
-In corp-web-v2 origin/main 51ad0a6656b675202ea09e20e5cb58bbb4f2f792, Solutions parity is implemented via src/app/[locale]/solutions/[[...slug]]/page.tsx with MDX content under src/content/solutions/** and route mapping in src/features/solutions/routes.ts.
+In corp-web-v2, Solutions parity is implemented via src/app/[locale]/solutions/[[...slug]]/page.tsx with content under src/content/solutions/** and route mapping in src/features/solutions/routes.ts.
 §
-In corp-web-v2 origin/main around 51ad0a6, src/content/mdx contains blog and white-paper only; there is no demo MDX source tree yet.
+In corp-web-v2, if `src/content/mdx` contains only blog and white-paper families, treat demo MDX source as not yet migrated in that repo snapshot.
 §
 In corp-web-v2 worktrees under the repo root, targeted Vitest runs can resolve dependencies from the parent repo-root node_modules, so a separate worktree-local node_modules install is not always required.
 §
@@ -154,9 +122,7 @@ In corp-web-japan, the site is Japanese-only; translation and i18n/international
 §
 In corp-web-japan, the preferred final resource index URIs are /blog, /whitepapers, and /events. Blog and whitepaper articles should link to querypie.com/ja by default rather than using local /posts routes, while event content may be local, external to querypie.com/ja, or both.
 §
-In corp-web-japan, the site is not publicly launched yet; avoid adding legacy redirects solely for old public URLs unless explicitly requested.
-§
-In corp-web-japan, the user said the website is not publicly launched yet, so preserving existing local content/data and adding legacy redirects are not necessary constraints.
+In corp-web-japan, the site is not publicly launched yet, so preserving existing local content/data and adding legacy redirects for old public URLs are not necessary constraints unless explicitly requested.
 §
 In corp-web-japan review/doc text, the user's annotation convention is: `~~Text~~` means do not use that text, and `~~Old~~ => New` means replace the old text with the new text.
 §

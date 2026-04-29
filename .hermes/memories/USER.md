@@ -36,19 +36,13 @@ User prefers not to discuss speculative designs for unimplemented features; focu
 §
 User prefers shorter, simpler file naming when a verbose component filename can be reduced without ambiguity.
 §
-User currently wants corp-web-v2 use-case demo detail routes to use plural /demo/use-cases/:id/:slug rather than singular /demo/use-case/:id/:slug.
+User currently wants corp-web-v2 demo use-cases and webinars to use plural route-aligned naming consistently: detail routes should use `/demo/use-cases/:id/:slug`, and MDX content directories should mirror actual public URI naming such as `src/content/mdx/demo/use-cases/**` and `src/content/mdx/demo/webinars/**`.
 §
-In corp-web-v2, the user prefers PR titles, descriptions, and review comments to be written in Korean.
-§
-User prefers PR titles, descriptions, and repo-work comments to be written in Korean for this repo.
-§
-User currently wants corp-web-v2 use-case demo detail routes to use plural /demo/use-cases/:id/:slug.
+User prefers PR titles, descriptions, review comments, and repo-work comments to be written in Korean for this repo.
 §
 User expects example path fragments to be treated as illustrative, not literal. When aligning asset paths, mirror the actual src/app URI structure rather than copying placeholder segments like '/path/' into real public paths.
 §
 User prefers deployment/infrastructure fixes that are logically separate from feature work, such as CMS/public tracing fixes, to be split into separate PRs instead of bundled into the feature PR.
-§
-User wants corp-web-v2 demo MDX content directories to mirror actual src/app/public URI naming across categories, e.g. use plural `src/content/mdx/demo/use-cases/**` to match `/demo/use-cases/**` and plural `src/content/mdx/demo/webinars/**` to align with `/webinars/**`.
 §
 In corp-web-v2 asset migration work, the user prefers non-image assets like animation JSON files to be colocated under route-aligned public paths with the related page assets (e.g. under public/solutions/<route>/) rather than left in generic shared roots like public/assets when they are page-specific.
 §
@@ -64,11 +58,7 @@ For repo work, user does not want time spent on local build/test verification; p
 §
 In corp-web-v2, the user does not want node_modules kept inside worktrees.
 §
-User wants very fast acknowledgements during repo work and dislikes proposal-only pauses; after a brief status message, proceed directly with the clear requested change and report if commands run long.
-§
-User prioritizes very fast execution and fast replies; for slow tasks, prefer parallel execution and do not leave the user waiting without a response.
-§
-User expects an immediate brief verbal response first, then direct tool execution; during active PR follow-up, do not stop at analysis or proposals when the requested code change is already clear.
+User wants very fast acknowledgements during repo work and dislikes proposal-only pauses: give a brief status message first, then proceed directly with the clear requested change; for slower tasks prefer parallel execution and do not leave the user waiting without a response.
 §
 User wants root-cause investigations for Hermes latency to be thorough and evidence-based, not speculative.
 §
@@ -100,9 +90,7 @@ In corp-web-v2 static-page work, the user wants metadata/SEO data kept route-loc
 §
 In corp-web-v2 static-page work, the user prefers removing even thin shared helpers like route-specific page helpers when they reduce route-local explicitness; favor fully self-contained page.tsx files.
 §
-When the user asks to remove a helper or proceed with a refactor after review, they expect immediate execution rather than a proposal-only response.
-§
-User dislikes proposal-only pauses during active PR follow-up; after analysis, proceed directly with the requested code change unless clarification is truly needed.
+During active PR follow-up, when the user asks to remove a helper or proceed with a refactor after review, they expect immediate execution rather than a proposal-only response unless clarification is truly needed.
 §
 When the user says not to touch a scope like src/features/demo/**, do not change even a single line there for cleanup or path fixes without explicit permission, even if it seems like the minimal way to avoid a broken reference.
 §
@@ -114,11 +102,11 @@ In corp-web-v2 migration comparison wiki tables, the user wants memo/description
 §
 User prefers sitemap-style documentation to emphasize URI paths first, with nested bullet lists for page titles and translations, because it makes website structure easier to scan.
 §
-User does not need local build testing for corp-web-japan changes and prefers relying on CI for verification.
+User does not need local build testing or local dev servers for corp-web-japan changes and prefers relying on CI for verification; local dev servers consume too many resources in the user's environment and interfere with work unless explicitly requested.
 §
 When asking to rewrite repository wiki documentation, the user wants it based on the latest main branch implementation rather than an in-progress feature branch.
 §
-When documenting corp-web-japan issues or link audit tables, the user prefers all links written in [path](url) format and wants a Korean translation column next to Japanese labels.
+When documenting corp-web-japan issues or link audit tables, the user prefers all links written in markdown [path](url) format, wants a Korean translation column next to Japanese labels, and when showing Japanese text to the user expects a Korean translation in parentheses immediately after it.
 §
 PRs should only be closed after explicit user approval. Unless the user explicitly instructs 'close the PR', do not close it.
 §
@@ -126,14 +114,6 @@ User prefers launch-readiness reviews and issues to focus on implemented reposit
 §
 User prefers repository guidance files like AGENTS.md to stay reasonably concise and not grow indefinitely; detailed procedures should be structured or split out before the file becomes too long.
 §
-When showing Japanese text to the user, include a Korean translation in parentheses immediately after it.
-§
-In wiki documents, the user prefers links written in markdown [path](url) format.
-§
 When restoring Korean website copy, the user is fine keeping expressions that were already in English in the earlier Korean version instead of forcing full Korean translation.
-§
-User does not want local dev servers started unless they explicitly instruct it first.
-§
-Local dev servers consume too many resources in the user's environment and interfere with work.
 §
 For corp-web-v2 documentation sidebar requests, preserve the exact ordered structure literally as specified by the user. Current required order: CMS label -> All -> Introduction -> Glossary -> Manuals -> White Papers -> Blogs -> separator -> MDX label -> White Papers -> Blogs. Do not omit CMS White Papers/Blogs, and do not reinterpret the request as either CMS-only or MDX-only.
