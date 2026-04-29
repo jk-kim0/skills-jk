@@ -40,7 +40,7 @@ In corp-web-v2 content gating discussions, the user prefers an explicit in-body 
 §
 In corp-web-v2, before creating a new PR branch, update from origin/main and verify the branch merge-base is origin/main (or its tip ancestor) so merged commits from stale branches are not accidentally included in the PR.
 §
-In corp-web-v2, origin/main already contains the blog and white-paper MDX migration from corp-web-contents: source/target counts matched at 62 blog locale files and 76 white-paper locale files under src/content/mdx.
+In corp-web-v2, blog and white-paper MDX migration is already present under src/content/mdx; do not treat those families as still pending migration work.
 §
 In corp-web-v2, git worktrees keep per-worktree `node_modules` / `package-lock` state rather than a shared install, so fresh or older worktrees can show false baseline errors like `Cannot find module mermaid`; however, targeted Vitest runs may still resolve dependencies from the parent repo-root `node_modules`, so a separate worktree-local install is not always required.
 §
@@ -66,13 +66,13 @@ In corp-web-v2 Solutions parity work, legacy canonical content lives under corp-
 §
 For corp-web-v2 Solutions page migration, required legacy public assets come mainly from corp-web-contents/public/{aip,acp,products,tutorial,introducing-querypie,key-feature-icon,integration-icon}, while /assets/dac-analyzer.json comes from corp-web-app/public/assets rather than corp-web-contents.
 §
-In corp-web-v2 origin/main around e634bcf, package.json has no lint script and the repo lacks an ESLint config file, so `npm run lint` / `npx eslint` are not available as standard verification steps; rely on the repo’s existing test/typecheck/build checks unless linting is added later.
+In corp-web-v2, do not assume `npm run lint` / `npx eslint` are available as standard verification steps; first verify the repo's package scripts and ESLint config, and otherwise rely on the repo’s actual test/typecheck/build checks.
 §
 In corp-web-v2 wiki migration planning, the user wanted duplicate planning/readiness pages removed entirely after consolidation, not just marked as superseded; Home/wiki should be rewritten around the latest canonical docs.
 §
 In corp-web-v2 public content routing, list-page paths and individual content-detail paths should share the same prefix. Canonical naming uses singular `/blog`, plural `/white-papers`, plural `/demo/use-cases`, top-level `/webinars`, and short fixed demo segments `/demo/acp` and `/demo/aip`; older `/demo/webinar/**` or `/features/**` demo routes are legacy/history rather than current canonical paths.
 §
-In corp-web-v2 Solutions follow-up work on PR #42, the user wants inline images/assets reorganized under route-aligned public paths matching page structure, e.g. assets referenced by a Solutions page should live under public/path/solutions/<slug>/... rather than broad shared folders like public/aip or public/products.
+In corp-web-v2 Solutions follow-up work, the user wants inline images/assets reorganized under route-aligned public paths matching page structure, e.g. assets referenced by a Solutions page should live under public/path/solutions/<slug>/... rather than broad shared folders like public/aip or public/products.
 §
 In corp-web-v2 demo migration follow-up, the user does not want legacy URL redirects included in the current PR; redirect rules should be audited and implemented later in a separate batch.
 §
@@ -90,9 +90,9 @@ In corp-web-v2 Solutions parity work, the user does not want placeholder or lega
 §
 In corp-web-v2, when squashing an open PR branch after origin/main has advanced, use the PR branch's merge-base with origin/main as the soft-reset point, not current origin/main, or unrelated main-only changes can be pulled into the squashed commit.
 §
-In corp-web-v2 origin/main 51ad0a6656b675202ea09e20e5cb58bbb4f2f792, Solutions parity is implemented via src/app/[locale]/solutions/[[...slug]]/page.tsx with MDX content under src/content/solutions/** and route mapping in src/features/solutions/routes.ts.
+In corp-web-v2, Solutions parity is implemented via src/app/[locale]/solutions/[[...slug]]/page.tsx with content under src/content/solutions/** and route mapping in src/features/solutions/routes.ts.
 §
-In corp-web-v2 origin/main around 51ad0a6, src/content/mdx contains blog and white-paper only; there is no demo MDX source tree yet.
+In corp-web-v2, if `src/content/mdx` contains only blog and white-paper families, treat demo MDX source as not yet migrated in that repo snapshot.
 §
 In corp-web-v2 worktrees under the repo root, targeted Vitest runs can resolve dependencies from the parent repo-root node_modules, so a separate worktree-local node_modules install is not always required.
 §
