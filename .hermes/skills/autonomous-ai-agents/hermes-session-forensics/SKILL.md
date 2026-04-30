@@ -122,6 +122,29 @@ vercel
 - If `session_search` says there was only one recent session but the filesystem shows more, trust the filesystem for exact recent-session enumeration.
 - A long-lived CLI process can stay alive for days while the user uses `/clear`; process start time is not reliable evidence of recent work.
 - If the user asks about **currently alive CLI sessions**, inspect the running Hermes processes directly and do not infer recency from their launch timestamps alone.
+- If the user is trying to recover an **exact shell one-liner** they typed (for example a `git log`, `git show`, or `docker logs` command), Hermes session transcripts may only preserve summarized intent or tool arguments, not the literal shell history. In that case, after checking `state.db` and session files, fall back to the user's shell history such as `~/.zsh_history` and search the most recent few thousand lines for the relevant command family and keywords.
+
+## Exact shell-command recovery fallback
+
+Use this when the user says things like:
+- "I used a one-line git command yesterday; do you remember it?"
+- "Find the exact shell command I ran"
+- "Recover the one-liner from my history"
+
+Recommended order:
+1. Search `session_search` and raw session files for semantic clues.
+2. Query `state.db` messages for likely session IDs and timestamps.
+3. If the exact command string is still missing, inspect shell history directly:
+   - `~/.zsh_history`
+   - other shell history files if the environment indicates a different shell
+4. Search for both command family and domain keywords together, e.g.:
+   - `git` + `mdx`
+   - `git log` + `blog`
+   - `docker logs` + container name
+5. Report confidence honestly:
+   - exact command recovered
+   - probable candidates only
+   - no literal command found in preserved history
 
 ## Live CLI session workflow
 

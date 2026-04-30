@@ -151,3 +151,9 @@ The active Hermes runtime uses HERMES_HOME=~/workspace/skills-jk/.hermes in this
 Hermes session files for this setup are stored under ~/workspace/skills-jk/.hermes/sessions, and direct file inspection there can reveal recent Telegram sessions beyond what session_search returns.
 §
 User asked to roll back git-installed Hermes from unstable main HEAD to a recent stable release; local Hermes repo was checked out at tag v2026.4.16 and the gateway was restarted.
+§
+For searching all historical file paths in a git repo and filtering by substring, the user uses the one-liner: git log --all --name-only --pretty=format: | sed '/^$/d' | sort -u | grep '<substring>'.
+§
+In corp-web-japan top-page authoring follow-ups, tests/helpers/static-marketing-page-sources.mjs makes getTopPageDataSource() read src/content/top-page.ts before src/app/page.tsx; when hero/core-value authoring moves route-local into page.tsx, related tests may need to assert against combined content+page sources instead of only the content file.
+§
+In corp-web-v2, the intended staging environment for local-only contact-us E2E is https://stage.querypie.com, not https://stage-v2.querypie.com. The two domains currently serve different contact-us UI variants, so E2E assertions must be matched to the chosen stage domain.

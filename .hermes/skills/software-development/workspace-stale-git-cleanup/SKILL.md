@@ -35,6 +35,18 @@ Use when the user asks to clean stale branches/worktrees from the current worksp
    - `git branch -vv`
    - default branch via `git symbolic-ref refs/remotes/origin/HEAD` (fallback to current branch if needed)
 
+## Default interpretation for "workspace cleanup"
+
+In this user's setup, a request like `workspace 정리` means:
+
+1. refresh remote refs
+2. move each repo root checkout back to its default branch (`main`, `develop`, etc.) when the root worktree is clean
+3. fast-forward that default branch to `origin/<default>` when safe
+4. remove clearly stale local worktrees and branches
+5. preserve any dirty root repo or dirty worktree instead of forcing cleanup
+
+If the root worktree is dirty, do not switch branches or fast-forward it automatically. Report it as intentionally preserved.
+
 ## Conservative stale classification
 
 ### Worktree candidates
@@ -42,10 +54,11 @@ Use when the user asks to clean stale branches/worktrees from the current worksp
 Mark as removable only when one of these is true:
 - `prunable` in `git worktree list --porcelain`
 - detached worktree with clean `git status --porcelain`
+- branch-backed worktree whose head branch has no open PR and only closed/merged PR history, indicating it is a post-merge leftover
 
 Keep if:
 - detached but dirty
-- branch-backed worktree
+- branch-backed worktree with an open PR or active unpublished purpose
 - main/top-level repo even if detached
 
 ### Branch candidates
@@ -53,13 +66,43 @@ Keep if:
 Mark as removable only when one of these is true:
 - local branch has upstream `[gone]` in `git branch -vv` and is not checked out anywhere
 - local branch is fully merged into the repo default branch and is not checked out anywhere
+- local branch has no open PR and only closed/merged PR history, and is not checked out anywhere
 
 Exclude by default:
 - current branch
 - any branch present in any worktree
 - `main`, `master`, `develop`, `release`, `alpha`
 
-## Important command pitfall
+## GitHub PR cross-check for branch-backed worktrees
+
+When a worktree is branch-backed, do not rely only on `git merge-base --is-ancestor` or ahead/behind counts.
+Squash merges often leave the original branch commit graph appearing unmerged even though the PR was already merged.
+
+Preferred check:
+
+```bash
+repo=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+gh pr list --repo "$repo" --head <branch> --state open --json number,state,isDraft,url,title
+gh pr list --repo "$repo" --head <branch> --state closed --json number,state,mergedAt,closedAt,url,title
+```
+
+Interpretation:
+- open PR exists -> not stale by default
+- no open PR and closed PR is `MERGED` -> usually stale if the worktree is just leftover cleanup
+- closed PR without merge -> inspect before deleting
+
+Important practical follow-up:
+- after removing a merged PR's leftover worktree, `git branch -d` may still refuse deletion because squash/rebase merges are not direct ancestors
+- when the PR is confirmed merged and the branch is no longer attached anywhere, it is acceptable to delete the branch with `git branch -D <branch>`
+- do not use `-D` based only on `upstream: gone`; require merged-PR evidence first
+
+## Temporary PR-body files inside stale worktrees
+
+Files like `.tmp-pr-body.md` are often PR-process leftovers rather than meaningful work product.
+If the branch has no open PR and only merged PR history, an untracked temp PR-body file should not by itself block stale-worktree deletion.
+Inspect the file briefly, but if it is clearly a PR draft/body scratch file, treat it as disposable cleanup state.
+
+## Important command pitfalls
 
 When removing a worktree, run the command from the owning repo context:
 
@@ -68,6 +111,18 @@ git -C /path/to/main/repo worktree remove --force /path/to/worktree
 ```
 
 Do not run plain `git worktree remove ...` from an arbitrary non-repo directory. That can fail with `fatal: not a git repository`.
+
+If the main repo itself is dirty and you need to switch the root worktree back to `main`, be careful with nested linked worktrees stored under the repo directory such as `.claude/worktrees/...`.
+
+Observed behavior:
+- `git stash -u` does not absorb nested linked worktrees
+- Git can print lines like `Ignoring path .claude/worktrees/<name>/`
+- after switching branches, the parent repo may still show `?? .claude/worktrees/`
+
+Interpretation:
+- this does not by itself mean the root repo is unsafe or that the child worktrees are stale
+- do not delete nested worktree directories just to make `git status` look clean
+- treat them as active linked worktrees and inspect `git worktree list` first
 
 ## Recommended execution order
 

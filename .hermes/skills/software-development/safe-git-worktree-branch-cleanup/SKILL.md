@@ -174,12 +174,20 @@ Notes:
 
 Some worktrees look dirty only because of transient helper files created during agent workflows.
 
-Check for small obviously disposable artifacts such as:
+Check for obviously disposable artifacts such as:
 - `.tmp-pr-body.md`
 - temporary comment/body markdown files
+- untracked agent runtime directories like `.hermes/` when they are clearly local tool state rather than repo source
 - other one-off helper files clearly unrelated to source changes
 
-If such a file is the only dirty item, remove it, re-check `git status --porcelain`, and then treat the worktree according to normal stale rules.
+Practical rule:
+- if the only dirt is disposable untracked helper state, remove it or classify it separately and re-check `git status --porcelain`
+- if the remaining dirt is real project files (for example tracked deletions like `D postcss.config.mjs`), preserve the worktree
+
+Be especially careful with `.hermes/`-style directories:
+- they are often safe to ignore for stale classification, but confirm they are untracked local runtime artifacts before deleting
+- if you are not confident they are disposable, preserve the worktree and report it
+- if `.hermes/` is the only remaining dirt and the associated remote branch/PR is already merged, treat the worktree as stale and remove it with `git worktree remove --force ...` if needed
 
 Do not delete dirty worktrees automatically if the remaining changes are real project files.
 
