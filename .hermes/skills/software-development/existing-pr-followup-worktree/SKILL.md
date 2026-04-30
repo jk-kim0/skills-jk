@@ -26,6 +26,13 @@ Important distinction learned from review follow-up work:
 - If the referenced PR is already merged and its head branch has been deleted, you cannot continue on that original PR branch. In that case, verify the merge commit is now on `origin/main` (or the PR base branch), create a fresh worktree from that merged tip, and open a new follow-up branch/PR for the requested additional work.
 - Exception: if the requested "follow-up" actually depends on code or route structure that already landed on latest `origin/main` but is missing from the old PR branch, do not force the change onto the stale PR branch. Treat it as a new independent task: branch from latest `origin/main`, open a separate PR, and mention explicitly why the old PR branch was no longer the right base.
 - Practical heuristic for this exception: if you discover during inspection that the target route family, helper layer, sitemap shape, or canonical-path policy already changed on `origin/main` after the old PR branched, switching to a new main-based branch is usually safer than backporting those structural assumptions into the old PR.
+- Additional split-PR case: if the user explicitly asks to take part of an open PR (for example an extract/refactor-only subset) and make it a separate PR, do not assume it belongs on the existing PR branch just because the work originated there.
+- First inspect whether that subset is truly independent of the open PR's unmerged code.
+- If the subset can stand on its own against latest `origin/main`, recreate or reapply only that subset on a fresh latest-main branch.
+- If the requested separate PR depends on code that exists only on the still-open parent PR branch, create a stacked PR instead: start a fresh worktree from the parent PR head, create a new child branch from there, apply only the requested follow-up refactor, and open the child PR with the parent PR branch as its base.
+- If the parent PR has already grown beyond the exact comparison target (for example a broader semantic-composition rewrite landed on the parent PR, but the user now wants to compare only one subsection experiment), do not blindly branch from the latest parent head. First inspect the parent PR commits and choose the most appropriate parent commit baseline that still contains the prerequisite code but not the later broadening changes. Then create the child comparison branch from that exact commit and open the stacked PR against the parent branch. This keeps the comparison PR narrowly focused and avoids smuggling unrelated follow-up refactors into the experiment.
+- In the independent split-PR case, prefer reimplementation/cherry-picking only the minimal independent commit(s) rather than branching from the old PR head. The goal is a clean PR diff against `main`, not a PR that drags along the larger in-progress branch context.
+- In the dependency-on-parent case, prefer the stacked PR over forcing a fake `main`-based branch, because that keeps the review diff small and avoids duplicating the parent PR's not-yet-merged code.
 
 ## When to use
 - "PR 32에 수정사항 넣어줘"
@@ -147,6 +154,14 @@ Important user-expectation nuance learned from active-review follow-up:
 - When a PR is already open and you make additional requested changes, commit and push those changes promptly instead of letting local edits accumulate.
 - Treat each meaningful follow-up adjustment as reviewable progress on the existing PR branch unless the user explicitly asks you to batch changes before pushing.
 - After each push, re-check PR status and CI so the user can review the updated PR without waiting for a later "finalize" step.
+- If `git push origin HEAD:<pr-branch>` is rejected as non-fast-forward during PR follow-up, do not open a new PR or force-push blindly. First fetch and compare against `origin/<pr-branch>` because another follow-up worktree/session may already have advanced the same PR branch.
+  Recommended recovery flow:
+  ```bash
+  git fetch origin --prune
+  git rev-parse HEAD origin/<pr-branch>
+  git rebase origin/<pr-branch>
+  ```
+  Then resolve any conflicts and push again. This keeps the same PR branch linear while preserving already-pushed review follow-ups.
 - If the user later asks to clean up the PR title/body, rewrite them to describe only the final end state of the PR. Do not narrate intermediate implementation history unless the user explicitly wants that context.
 - If the user asks to squash the branch history for an open PR, use a fresh worktree from the PR branch tip, `git reset --soft <base-branch>`, recommit once with the final conventional-commit message, then `git push --force-with-lease origin HEAD:<pr-branch>` and re-check PR/CI status.
 - For small PR follow-ups such as squash, title/body edits, route/path renames, or other narrow review-driven fixes, do not automatically run local build/test verification unless the user explicitly asks for it. Prefer the fast path: edit -> commit -> push -> confirm PR updated -> watch CI.
@@ -176,6 +191,34 @@ Important practical findings:
   git push --force-with-lease origin HEAD:<pr-branch>
   ```
 - If conflicts occur, resolve them by preserving the existing PR's intended behavior unless the user explicitly asked to adopt the newer `main` behavior in that area. Rebase conflicts often happen because `main` has evolved policy/tests while the PR still represents a deliberate exception or targeted rollout.
+- Important special case: if a separate test-only PR was intentionally merged into `origin/main` before rebasing the implementation PR, and the implementation PR branch still contains overlapping test updates, prefer the latest-main test files during conflict resolution and keep only the implementation commits that are still unique to the PR. In practice:
+  - inspect `git rev-list --oneline origin/main..HEAD` after the rebase attempt
+  - if the remaining value of the PR is now only the implementation commits, resolve test-file conflicts with `--ours` from the rebasing `origin/main` side (or otherwise restore the latest-main test version)
+  - remove delete/modify conflicts for superseded old test files that were already replaced on `main`
+  - continue the rebase so the final PR branch contains the implementation changes on top of the already-merged shared test baseline, instead of duplicating or re-fighting the test-only refactor
+- Similar split-PR special case: if you previously split an extract/refactor subset out of the original PR and that new PR has already merged into `origin/main`, rebasing the original PR can hit add/add or modify/delete conflicts against those now-upstream files.
+  - First identify whether the conflicting file from the original PR is now already present on `origin/main` under the final intended name/path.
+  - If yes, prefer the latest-main version of that extracted file during conflict resolution, then keep only the original PR changes that still matter on top of it (for example updated imports/usages in `page.tsx` or removal of the old superseded file/path).
+  - Expect duplicate cleanup/rename commits near the end of the rebase to become empty or be auto-dropped as `patch contents already upstream`; this is normal and usually desirable.
+  - Practical heuristic: when the conflict is between an old pre-split file path from the original PR and the new extracted file already merged on `main`, do not resurrect the old path just to preserve history. Preserve the final main-side extracted file and continue the rebase with the original PR's remaining unique behavior changes only.
+- Stronger rewrite-on-main case: if the user explicitly asks not just for a mechanical rebase but for the PR to reflect the latest `main` implementation and recent merged follow-ups, a literal `git rebase origin/main` may be the wrong tool.
+  - Typical signs: the PR branched before one or more related refactor PRs merged, the old branch has stacked/split follow-up commits mixed in, or the user questions whether the current diff still matches the intended refactor goal.
+  - In that case, create a fresh worktree from latest `origin/main`, inspect the current PR branch's intended final file set, and reconstruct that intended end state on top of latest `main` as a new commit sequence (often one clean commit is enough).
+  - Then force-push that rewritten latest-main branch back to the same PR branch.
+  - Verify with `git merge-base origin/main <pr-branch>` that the PR branch now sits directly on the latest remote main tip (or that tip's exact ancestor if main advanced during work), and rerun local validation before pushing.
+  - This is not a normal-first choice; use it when preserving old commit ancestry would keep dragging stale pre-main structure into the PR or would obscure the user's desired final diff.
+- After a rewrite-on-main like this, re-check repository tests that assert source structure, not just runtime behavior. Structure-oriented tests may need helper updates when the user intentionally changes `page.tsx` from inline JSX to semantic section composition.
+- In non-interactive agent environments, `git rebase --continue` may try to open Vim and hang. Prefer:
+
+  - Create a fresh worktree from latest `origin/main`.
+  - Reconstruct the PR by applying only the current intended final file states onto that latest-main worktree (for example by checking out the relevant files from the PR head, while letting deleted files stay deleted and preserving newer `main`-side content where appropriate).
+  - Then run the local verification the user asked for, recommit once from the latest-main base, and `push --force-with-lease` back to the existing PR branch.
+  - This is effectively a rewrite of the PR branch on top of latest main, not just a commit-by-commit rebase. Use it when the user explicitly wants the PR brought in line with recent main changes and the old history is now more misleading than useful.
+  - Good indicators for choosing rewrite-over-literal-rebase:
+    - the PR branch merge-base is well behind `origin/main`
+    - a child stacked PR was merged and deleted, leaving the parent PR branch with overlapping but no longer clean history
+    - `gh pr view --json files` shows the desired PR is really about the current file set, not preserving intermediate commits
+    - local `test:ci` + `build` pass from a latest-main reconstruction more easily than from a conflict-heavy historical rebase
 - In non-interactive agent environments, `git rebase --continue` may try to open Vim and hang. Prefer:
   ```bash
   GIT_EDITOR=true git rebase --continue

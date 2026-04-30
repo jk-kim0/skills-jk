@@ -38,12 +38,25 @@ For the current blog/article system:
 
 ## Required investigation order
 
-1. Compare the live URLs first, not the code.
-2. Confirm console cleanliness.
-3. Extract computed style metrics from both pages.
-4. Only then inspect the repository to map the differences to files.
+1. Compare the exact live URLs the user requested first, not the code.
+2. Confirm whether each requested URL stays on that host/path or redirects.
+3. If one page redirects, record the redirect explicitly, but do not silently replace the user's requested comparison target with some other canonical page unless the user agrees.
+4. Confirm console cleanliness.
+5. Extract computed style metrics and resource/network behavior from both requested pages.
+6. Only then inspect the repository to map the differences to files.
 
 Do not start by reading local files and guessing.
+
+### Important host/path rule
+
+When the user's question is about runtime behavior such as font loading, caching, CDN warmth, or browser resource timing, the exact host and path matter.
+
+Examples:
+- `www.querypie.com/ja/solutions/aip`
+- `querypie.ai/`
+- `stage.querypie.ai/`
+
+These are not interchangeable, even if some pages share content or branding. Browser cache is origin-specific, CDN warmth can differ by host, and page-specific preload assets can differ by route. If the user asked to compare a page under `www.querypie.com/ja/`, keep that page in the comparison unless it truly redirects away.
 
 ## Browser investigation checklist
 

@@ -24,6 +24,14 @@ Use this when creating or editing a PR with `gh` and the body contains markdown 
 ## Safe default
 Prefer `--body-file` over inline `--body` for any non-trivial markdown body.
 
+Worktree-safe file location rule:
+- In a git worktree, `.git` is often a file that points to the shared gitdir, not a writable directory.
+- Do not assume paths like `.git/pr-body.md` or `.git/comment.md` are valid output locations.
+- Write temporary markdown files to a normal writable path such as:
+  - `/tmp/pr-body.md`
+  - `$(mktemp /tmp/pr-body.XXXXXX.md)`
+  - `<repo-root>/pr-body.md` or another ordinary workspace file
+
 ## Create a PR safely
 ```bash
 cat > /tmp/pr-body.md <<'EOF'
@@ -59,6 +67,7 @@ Shell command substitution can break PR bodies that contain backticks. The PR ma
 
 ## Minimal checklist
 - write the body to a temporary markdown file
+- if you are in a git worktree, do not write that file under `.git/`; use `/tmp` or a normal repo file instead
 - use `gh pr create --body-file`
 - inspect the created PR with `gh pr view --json body`
 - if needed, repair with `gh pr edit --body-file`

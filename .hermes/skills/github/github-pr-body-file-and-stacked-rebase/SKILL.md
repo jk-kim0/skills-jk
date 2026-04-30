@@ -168,6 +168,14 @@ git log --oneline --graph -5
 git push --force-with-lease origin HEAD:refs/heads/<branch-name>
 ```
 
+If `git rebase --continue` opens an editor in a non-interactive environment and hangs, continue without launching the editor:
+
+```bash
+GIT_EDITOR=true git rebase --continue
+```
+
+Use this only after verifying the staged resolution is correct and you want to keep the existing commit message.
+
 Use the fully-qualified destination ref when needed. This is especially useful if `HEAD` is detached during or right after rebase-related recovery.
 
 ## 5. Update the PR body after rebase

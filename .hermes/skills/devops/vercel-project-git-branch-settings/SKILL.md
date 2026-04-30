@@ -24,7 +24,8 @@ Use this when you need to verify or change which Git branch a Vercel project tre
 1. `vercel.json` can have `git.deploymentEnabled: false` and the Vercel project may still retain a linked Git repo with `link.productionBranch` set.
 2. `vercel project inspect` does not necessarily show `productionBranch`.
 3. `vercel target ls` shows branch tracking, but running it in an unlinked worktree can create/link a `.vercel` project for that directory. Do not use it casually in a fresh worktree.
-4. Direct project PATCH attempts like `PATCH /v9/projects/{id}` with `productionBranch` or `link.productionBranch` are rejected.
+4. `vercel project inspect --yes` can also create/link a local `.vercel` directory when the repo is not already linked. Treat it as a side-effecting inspection command and clean up `.vercel/` afterward if you only needed read-only inspection.
+5. Direct project PATCH attempts like `PATCH /v9/projects/{id}` with `productionBranch` or `link.productionBranch` are rejected.
 5. Re-POSTing to `/v9/projects/{id}/link` with `productionBranch` while already linked can return 200 without actually changing `link.productionBranch`.
 6. Reliable workaround: unlink the repo, then relink the same GitHub repo. The relink resets `link.productionBranch` to the repo default branch (for GitHub repos, usually `main`).
 

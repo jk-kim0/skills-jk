@@ -32,12 +32,14 @@ In querypie-docs confluence-mdx reverse-sync planning, the user supports using p
 §
 In querypie-docs confluence-mdx reverse-sync planning, treat `tests/reverse-sync/pages.yaml` as straightforward and non-core: in real-data usage it is just a reference metadata catalog for reverse-sync, and extra fields exist only for testcase implementation; do not overcomplicate its role.
 §
+When investigating legacy corp-web-contents blog/localization history, the user expects ID-based pattern matching across all historical path families and related MDX/meta files, not just current canonical `content.mdx` paths. Search broad `blog` + `/<id>/` matches first, then classify EN/JA/KO MDX vs meta.
+§
 In querypie-docs confluence-mdx reverse-sync planning, the user prefers verifier taxonomy to be classified in more detail.
 §
 In corp-web-v2, the built-in CMS is not a fully browser-operated remote CMS in practice: it behaves more like a GUI editor for file-based content, and edits still require running a local CMS server plus committing/pushing the resulting file changes.
 §
 In corp-web-v2 content gating discussions, the user prefers an explicit in-body marker/cut point (e.g. MDX/Tiptap markup) over percentage-based gating levels, because it makes the preview boundary clear and intentional.
-§
+
 In corp-web-v2, before creating a new PR branch, update from origin/main and verify the branch merge-base is origin/main (or its tip ancestor) so merged commits from stale branches are not accidentally included in the PR.
 §
 In corp-web-v2, blog and white-paper MDX migration is already present under src/content/mdx; do not treat those families as still pending migration work.
