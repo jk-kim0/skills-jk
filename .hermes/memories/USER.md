@@ -1,6 +1,6 @@
 User prefers using Hermes via Telegram first, with Slack connected optionally as a secondary channel.
 §
-User prefers the default working directory for future tasks to be ~/workspace.
+User wants Hermes to default its working directory to the path where Hermes was launched (current working directory / `pwd`), not to a fixed `~/workspace` path.
 §
 User prefers the assistant to choose the method it can handle best for the task, rather than avoiding specific tools for their own sake.
 §

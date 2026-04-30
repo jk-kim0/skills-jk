@@ -375,6 +375,29 @@ Why this matters:
 
 ### 8a. When JA is missing, support `ja -> ko -> en` fallback migration
 
+### 8a-1. When upstream JA later appears for posts that were previously migrated via fallback
+
+A later PR follow-up established a second important maintenance workflow:
+- sometimes a post was originally migrated from `ko` or `en` only because `ja` did not exist yet
+- later, `../corp-web-contents` can gain a new translated `ja/content.mdx` for that same `id/slug`
+- in that case, do not treat the existing local post as final just because the PR already passed earlier fallback-parity tests
+
+Use this follow-up workflow:
+1. inspect the open PR scope and identify which local blog ids were originally fallback-sourced
+2. confirm whether upstream `ja/content.mdx` now exists for those same `id/slug` directories
+3. re-migrate only that PR subset from upstream `ja`
+4. keep the local normalized target shape (`src/content/blog/<id>.mdx`, `public/blog/<id>/...`) while replacing title/description/body with the new JA source
+5. update the checked-in parity fixture so those posts change `sourceLocale` from `ko`/`en` to `ja`
+6. remove obsolete fallback-only assets that are no longer referenced by the JA source (for example an older `top-5` figure replaced by a new `top-10` figure)
+7. if test names or descriptions still mention fallback semantics that are no longer true for the updated scope, rename them to match the new JA-parity reality
+
+Practical lessons from real follow-up work:
+- checking only the existing local MDX is not enough; upstream may now contain a newer translated JA source for the same post ids
+- parity fixtures are part of the contract, not just the MDX files; update fixture `title`, `description`, and `sourceLocale` together
+- a stale fallback-only asset can remain in the PR diff even after the local file is deleted if it was introduced earlier on the branch; make sure the deletion is staged and committed explicitly
+- after remigrating fallback posts to JA, re-run the parity/count tests and make sure their wording still matches the actual migration mode
+
+
 A later follow-up established an additional reusable migration mode:
 - if a blog post has `ja`, migrate `ja`
 - if `ja` is missing but `ko` exists, migrate `ko`
