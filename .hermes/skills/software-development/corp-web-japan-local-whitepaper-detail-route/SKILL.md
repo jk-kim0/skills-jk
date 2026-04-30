@@ -226,6 +226,18 @@ Important duplicate-file cleanup lesson:
 - verify whether the duplicate files are byte-identical before deleting them
 - if they differ, inspect which one is the intended localized/canonical thumbnail and copy that version into `public/whitepapers/<id>/thumbnail.png` before removing the legacy duplicate
 
+Important filename-normalization lesson from the corpus import follow-up:
+- some imported upstream assets keep redundant filenames like `wp21-1-...png`, `wp24-graph1.png`, or `wp30-graph1-jp.png`
+- once the file already lives under `public/whitepapers/<id>/`, the `wp<id>-` prefix is redundant and should be removed
+- preferred normalization:
+  - `public/whitepapers/21/wp21-1-comparison.png` -> `public/whitepapers/21/1-comparison.png`
+  - `public/whitepapers/24/wp24-graph1.png` -> `public/whitepapers/24/graph1.png`
+  - `public/whitepapers/30/wp30-graph1-jp.png` -> `public/whitepapers/30/graph1-jp.png`
+- update all MDX references at the same time (`filepath="public/whitepapers/<id>/..."` and markdown image URLs)
+- if a prefix-free version already exists in the directory, do not overwrite it blindly; switch references to the prefix-free file and delete the redundant prefixed duplicate instead
+- after cleanup, search both `public/whitepapers/**` and `src/content/whitepapers/*.mdx` to confirm no `wp<id>-` filenames or references remain
+- a small regression test that asserts per-id asset directories do not contain `wp<id>-` filenames is worthwhile after a bulk import
+
 Also verify any author image paths referenced through the author registry. If an author profile image path is invalid locally, either:
 - copy the missing asset, or
 - normalize the author registry to a known local asset such as `querypie-logo.svg`

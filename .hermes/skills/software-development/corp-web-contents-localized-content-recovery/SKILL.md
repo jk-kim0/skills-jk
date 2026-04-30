@@ -56,6 +56,10 @@ Only use redirects when the real issue is legacy-route recovery and the user is 
 
 4. Decide recovery mode
 
+Before deciding, check whether the content family has paired locale-specific subpages such as `download/<locale>/content.mdx`.
+For `pages/features/documentation/white-paper/**`, a missing or corrected article locale may require the matching `download/<locale>/content.mdx` page to be created or fixed in the same PR.
+Also inspect frontmatter quality (`title`, `description`, `keywords`) and article-internal CTA/download links while you are there.
+
 ### A. Canonical file exists but content is wrong-language
 Restore the pre-overwrite Korean copy from the parent of the bad commit.
 Then optionally translate any remaining English UI labels if the page would otherwise feel mixed-language.
@@ -88,6 +92,37 @@ When the user says content under `/ko/features/demo` is not Korean:
 - Use commit log to distinguish:
   - migrated old tutorial/webinar/customer-success entries that truly had old `ko` pages
   - newer `use-cases`, `aip-features`, or webinar slugs that never had `ko` files and require new authoring
+
+## Duplicate slug diagnosis for whitepapers
+
+When two whitepaper IDs share the same slug or nearly the same content, do not guess which one is canonical. Use git evidence.
+
+1. Check creation history for both IDs.
+- Use `git log --all --diff-filter=A --name-status --format='COMMIT %h %ad %an %s' --date=short -- pages/features/documentation/white-paper/<idA> pages/features/documentation/white-paper/<idB>`.
+- If both IDs were introduced in the same commit, suspect accidental duplication rather than a deliberate replacement flow.
+
+2. Compare current and original locale files.
+- Read `en/ja/ko/content.mdx` for both IDs.
+- Watch for language anomalies such as:
+  - `en/content.mdx` containing Korean or Japanese text
+  - CTA/download links in one ID pointing to the other ID
+  - one ID missing locales from the start while the other has a complete locale set
+
+3. Check which ID was actually wired into the site.
+- Inspect list pages such as `pages/features/documentation/en/content.mdx` and `ja/content.mdx`.
+- If only one ID appears in the documentation list/manualList, treat that as strong evidence for canonical usage.
+
+4. Check downstream references.
+- Search later whitepapers/blogs for `relatedPosts` references to each candidate ID.
+- If later content consistently points to one ID and never the other, that strongly suggests the referenced ID is canonical and the unreferenced one is duplicate or abandoned.
+
+5. Compare the two files directly at the creation commit.
+- Use `git show <commit>:path > /tmp/file` for both, then `diff -u`.
+- If the contents are nearly identical and differ only by formatting, checklist spacing, or minor metadata problems, treat the extra ID as likely accidental duplication.
+
+6. Recommended conclusion style.
+- Phrase it as evidence-based probability, not certainty, unless the repo history is explicit.
+- Good wording: `24 appears canonical and 25 appears to be an accidental duplicate, because 24 was listed on the documentation page from the start, later whitepapers referenced 24, and 25 initially had broken locale/metadata wiring.`
 
 ## Pitfalls
 
@@ -125,6 +160,9 @@ When the user says content under `/ko/features/demo` is not Korean:
 - Do not assume redirect repair is the best restoration method; the user may explicitly dislike redirect complexity.
 - Do not inspect or change a different repo unless the user asks. Public routing can tempt you into `corp-web-app`, but content recovery may still belong only to `corp-web-contents`.
 - `git log --follow` only accepts one pathspec; inspect files individually when needed.
+- In `corp-web-contents`, generated public artifacts such as sitemap/RSS outputs may be ignored or untracked; when fixing MDX source content, do not assume those generated files belong in the PR unless the repo actually tracks them.
+- If you correct a slug typo in a canonical content subtree, update directory names and tracked internal references together, but leave independently generated or ignored inventory files alone unless explicitly requested.
+- If duplicate IDs exist, do not delete one immediately just because the content looks similar; first verify list-page inclusion, downstream references, and locale/metadata health.
 
 ## Good final output structure
 

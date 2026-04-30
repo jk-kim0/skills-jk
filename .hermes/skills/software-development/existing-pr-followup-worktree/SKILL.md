@@ -88,6 +88,13 @@ git rev-parse HEAD origin/<pr-branch>
 
 If local `HEAD` and `origin/<pr-branch>` differ before you start, stop and understand why.
 
+Important practical finding:
+- Do not trust an existing local worktree just because its directory name suggests it belongs to the target PR branch.
+- A previously used PR worktree can sit on a local tracking branch that is now `ahead`/`behind` the remote PR branch, which makes it unsafe as the starting point for a new follow-up edit.
+- If `git status -sb` shows divergence like `[ahead N, behind M]`, prefer creating a brand-new worktree directly from `origin/<pr-branch>` again, even if another PR-named worktree already exists.
+- In that situation, a detached-HEAD worktree at `origin/<pr-branch>` is usually the safest follow-up base. Make the edit there, commit, and push with `git push origin HEAD:<pr-branch>`.
+- This avoids accidentally stacking new follow-up commits on top of stale local-only history from an older attempt.
+
 ### 4. Make the requested fix
 Edit only the files needed for the follow-up request.
 
@@ -165,6 +172,7 @@ Important user-expectation nuance learned from active-review follow-up:
 - If the user later asks to clean up the PR title/body, rewrite them to describe only the final end state of the PR. Do not narrate intermediate implementation history unless the user explicitly wants that context.
 - If the user asks to squash the branch history for an open PR, use a fresh worktree from the PR branch tip, `git reset --soft <base-branch>`, recommit once with the final conventional-commit message, then `git push --force-with-lease origin HEAD:<pr-branch>` and re-check PR/CI status.
 - For small PR follow-ups such as squash, title/body edits, route/path renames, or other narrow review-driven fixes, do not automatically run local build/test verification unless the user explicitly asks for it. Prefer the fast path: edit -> commit -> push -> confirm PR updated -> watch CI.
+- Likewise, do not start a local dev server for visual/manual verification unless the user explicitly asks for that method. If you need confidence without a dev server, prefer scoped tests, code inspection, PR reviewability, and CI.
 - At the start of a follow-up task, give a short time estimate. If the work exceeds that estimate, stop and immediately report current status and next step instead of staying silent.
 
 ### 6a. If the user asks to rebase the existing PR branch onto the latest main
@@ -208,17 +216,14 @@ Important practical findings:
   - Verify with `git merge-base origin/main <pr-branch>` that the PR branch now sits directly on the latest remote main tip (or that tip's exact ancestor if main advanced during work), and rerun local validation before pushing.
   - This is not a normal-first choice; use it when preserving old commit ancestry would keep dragging stale pre-main structure into the PR or would obscure the user's desired final diff.
 - After a rewrite-on-main like this, re-check repository tests that assert source structure, not just runtime behavior. Structure-oriented tests may need helper updates when the user intentionally changes `page.tsx` from inline JSX to semantic section composition.
-- In non-interactive agent environments, `git rebase --continue` may try to open Vim and hang. Prefer:
-
-  - Create a fresh worktree from latest `origin/main`.
-  - Reconstruct the PR by applying only the current intended final file states onto that latest-main worktree (for example by checking out the relevant files from the PR head, while letting deleted files stay deleted and preserving newer `main`-side content where appropriate).
-  - Then run the local verification the user asked for, recommit once from the latest-main base, and `push --force-with-lease` back to the existing PR branch.
-  - This is effectively a rewrite of the PR branch on top of latest main, not just a commit-by-commit rebase. Use it when the user explicitly wants the PR brought in line with recent main changes and the old history is now more misleading than useful.
-  - Good indicators for choosing rewrite-over-literal-rebase:
-    - the PR branch merge-base is well behind `origin/main`
-    - a child stacked PR was merged and deleted, leaving the parent PR branch with overlapping but no longer clean history
-    - `gh pr view --json files` shows the desired PR is really about the current file set, not preserving intermediate commits
-    - local `test:ci` + `build` pass from a latest-main reconstruction more easily than from a conflict-heavy historical rebase
+- In stacked PR chains, `origin/main` may already contain one or more earlier sibling PR commits from the same series. During rebase you can see a warning like `skipped previously applied commit <sha>` and then still stop on the next older commit with conflicts. Before hand-merging, inspect `git rebase --show-current-patch` and the conflicted files. If the current patch is an already-upstream sibling change rather than this PR's unique change, prefer `git rebase --skip` instead of resolving the conflict manually.
+- A practical signal for this case: the conflict appears in files changed by a previously merged sibling PR, the patch title/message belongs to that older PR topic, and the current PR's intended diff still exists separately after skipping. This commonly happens when a feature PR was branched from another open PR and later rebased after the parent PR merged.
+- If an early conflicted commit is resolved by manually rebuilding the branch into the final intended architecture, inspect later commits in the old PR before blindly replaying them. A later commit may only re-introduce an obsolete intermediate abstraction (for example a temporary wrapper or page-sections registry) that is no longer desired after the manual resolution.
+- In that case, prefer this sequence:
+  1. inspect the pending commit with `git show --stat <commit>`
+  2. compare it against the already-resolved working tree and the user's final preferred structure
+  3. if the pending commit is redundant or moves the code away from the desired end state, keep the current resolved files, remove any obsolete files it tries to revive, and use `git rebase --skip`
+- Typical signal that skipping is correct: the pending commit mainly adds a now-unwanted intermediate abstraction layer while your current resolved tree already passes the intended structure and verification checks.
 - In non-interactive agent environments, `git rebase --continue` may try to open Vim and hang. Prefer:
   ```bash
   GIT_EDITOR=true git rebase --continue

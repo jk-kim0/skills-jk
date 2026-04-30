@@ -143,3 +143,13 @@ When the user requests a production-vs-stage web comparison for a specific domai
 User does not want Python code used for simple Vercel CLI/environment inspection tasks; prefer pure Vercel CLI and basic shell output instead.
 §
 `workdir=~/workspace` is only a tool default; the agent's real live cwd may differ each run. For repo-context tasks, always verify the actual current directory first and never equate it with the tool workdir.
+§
+User prefers shorter page-level component names in corp-web-japan; in page.tsx, component names should match UX element names directly (e.g. SolutionOverviewSection rather than TopPageSolutionOverviewSection).
+§
+User does not want dev servers started for testing unless they explicitly request it.
+§
+When cleaning stale corp-web-japan worktrees, a worktree whose only remaining dirt is .hermes/ local runtime state and whose remote branch/PR is already merged should be deleted rather than preserved.
+§
+For top-page refactors in corp-web-japan, the user's key requirement is not just moving copy into page.tsx, but authoring it as direct JSX like <Component>marketing text</Component> rather than large JSON-like props/objects in page.tsx.
+§
+When the user says 'workspace 정리', they mean: update local main to the latest origin/main, switch the current checkout to main, and delete stale local branches and stale worktrees safely.
