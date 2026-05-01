@@ -157,3 +157,7 @@ For searching all historical file paths in a git repo and filtering by substring
 In corp-web-japan top-page authoring follow-ups, tests/helpers/static-marketing-page-sources.mjs makes getTopPageDataSource() read src/content/top-page.ts before src/app/page.tsx; when hero/core-value authoring moves route-local into page.tsx, related tests may need to assert against combined content+page sources instead of only the content file.
 §
 In corp-web-v2, the intended staging environment for local-only contact-us E2E is https://stage.querypie.com, not https://stage-v2.querypie.com. The two domains currently serve different contact-us UI variants, so E2E assertions must be matched to the chosen stage domain.
+§
+In corp-web-app Korean /company/contact-us copy, direct email guidance to sales@querypie.com should be labeled as sales inquiry (영업 문의), not technical support (기술지원); the intent is to mask technical-support contact behind sales inquiry wording.
+§
+In corp-web-japan whitepaper migration work, external download CTA links are intentionally correct for at least whitepapers 24 and 30; do not remove them as regressions. Treat proper support for external whitepaper download CTA behavior as a follow-up implementation concern rather than deleting the CTA.

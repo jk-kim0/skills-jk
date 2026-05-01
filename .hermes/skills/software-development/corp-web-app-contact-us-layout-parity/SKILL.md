@@ -242,6 +242,30 @@ This keeps:
 - shared visual structure
 - locale-specific form behavior via shared i18n/form config
 
+Important practical follow-up for copy-only requests:
+- if the user asks to change the visible contact labels or guidance text on one locale page, check the locale route file first before touching shared `FormUI`
+- for the Korean page, the visible contact rows are authored directly in `src/app/ko/company/contact-us/page.tsx`
+- that means label/text changes like `Customer Support` -> `영업 문의`, `Careers` -> `채용`, `PR` -> `홍보/마케팅`, or adding a sales contact sentence belong in the KO route file and its route test, not in `src/components/widget/form/ui/contact-us-form-ui.component.tsx`
+- important wording intent learned from review follow-up: when `sales@querypie.com` is shown with named sales contacts on the Korean contact-us page, do not label that row as `기술지원`; the desired behavior is to present it as sales inquiry wording (`영업 문의`) even if it is functionally absorbing technical-support contact
+- use the shared contact-us form UI component only when the request is about the generic contact form composition itself, not when the request is limited to route-authored locale copy
+
+Important styling follow-up for route-authored contact-us copy:
+- shared spacing and list presentation for these route-authored blocks live in `src/app/company/contact-us/contact-us-page-section.module.css`
+- if the user only wants localized copy changes, start in the locale route file first and avoid touching shared `FormUI`
+- the intro two-line lead text and each contact row originally used helper wrappers like `ContactUsLead` / `ContactUsContactItem`, but those wrappers are optional when they hide trivial structure
+- when the user wants the route file to be more explicit, it is acceptable to remove route-only wrapper helpers such as `ContactUsLead`, `ContactUsChecklist`, `ContactUsChecklistItem`, `ContactUsContacts`, and `ContactUsContactItem` from `src/app/ko/company/contact-us/page.tsx` and replace them with direct `StaticHeader`, `ul/li`, and `div` markup while still reusing shared CSS classes from `contact-us-page-section.module.css`
+- keep broader layout wrappers such as `ContactUsSection`, `ContactUsIntro`, and `ContactUsFormPanel` unless the user explicitly asks to inline those too; the main win is to make the content structure visible in the route file without necessarily deleting every shared layout primitive
+- for the two-line intro lead paragraph, an intermediate `line-height: 1.4` plus custom `.lead br { margin-bottom: ... }` can look plausible but is not the best long-term match when the user wants parity with another page
+- a browser-side computed-style check against `https://querypie.ai/contact-us` showed the visible lead paragraph there is effectively `font-size: 16px` and `line-height: 28px` (`leading-7` / `1.75`)
+- however, an even better final source of truth emerged from the user's follow-up: the certifications page `/ko/company/certifications` already uses the repo's own shared text system for the comparable description block
+- that certifications description is authored as `StaticHeader color="var(--text-body)"` with no extra contact-us-specific max-width/line-height wrapper
+- therefore, when the user asks to make Contact Us description text match other site pages consistently, prefer converting `ContactUsLead` itself to render `StaticHeader color="var(--text-body)"` and remove contact-us-only lead container overrides rather than keeping a bespoke `.lead` typography stack
+- if the user later asks for the whole text area to be visually unified, extend that same `StaticHeader color="var(--text-body)"` treatment to the checklist item text and contact rows as well, removing local text-only overrides like `.contactItem { line-height: 1.4; }`
+- use browser inspection to confirm external/live reference values when needed, but if the user points at an in-repo page like certifications as the desired standard, align to the shared in-repo component pattern instead of preserving custom lead CSS
+- if checklist bullets disappear, check whether the list container was styled with `display: grid`; that can interfere with expected marker rendering, and a vertical flex list with explicit `list-style: disc`, `list-style-position: outside`, and `li { display: list-item; }` is a reliable fix
+- if checklist bullets disappear, check whether the list container was styled with `display: grid`; that can interfere with the expected bullet rendering
+- the proven fix was to keep the checklist as a real list by using a vertical flex container plus explicit list styling, e.g. `display: flex`, `flex-direction: column`, `list-style: disc`, `list-style-position: outside`, and `li { display: list-item; }`, while slightly reducing left padding to make the bullets more visible
+
 Useful route-level regression tests:
 - `src/__tests__/app/company/contact-us/page.test.tsx`
 - `src/__tests__/app/ko/company/contact-us/page.test.tsx`
@@ -251,6 +275,35 @@ Those tests should verify:
 - heading and intro copy come from the route file
 - contact email rows are present in the route output
 - the route wires the expected locale into `ContactSalesForm`
+- any locale-specific contact guidance sentence and replacement labels are asserted in the locale route test when changed
+
+### 11a. If the user wants wrapper layers removed from the locale route, inline the text markup directly in `page.tsx`
+A later proven follow-up for the contact-us static routes was:
+- keep only broad layout wrappers like `ContactUsSection`, `ContactUsIntro`, and `ContactUsFormPanel` if they still provide obvious structure
+- remove thin text-only wrappers such as:
+  - `ContactUsLead`
+  - `ContactUsChecklist`
+  - `ContactUsChecklistItem`
+  - `ContactUsContacts`
+  - `ContactUsContactItem`
+- in each locale route file, author the text block directly with:
+  - `StaticHeader`
+  - `ul` / `li`
+  - `div`
+  - `sectionStyles.checklist` / `sectionStyles.contacts` / `sectionStyles.contactItem`
+
+This matched the user's preference for route-local explicitness: the visible page text structure should be readable directly from `src/app/<locale>/company/contact-us/page.tsx` without following a chain of tiny wrapper exports.
+
+Recommended cleanup sequence after inlining the route markup:
+1. update `src/app/ko/company/contact-us/page.tsx`
+2. apply the same change to `src/app/en/company/contact-us/page.tsx` and `src/app/ja/company/contact-us/page.tsx`
+3. search for the removed wrapper names across `src/`
+4. if no external usages remain, delete those unused exports from `src/app/company/contact-us/contact-us-page-section.component.tsx`
+
+Practical end state that worked well:
+- locale pages own all intro/checklist/contact row markup directly
+- `contact-us-page-section.component.tsx` only keeps the broad structural wrappers still worth sharing
+- the shared CSS module remains the source of spacing/list/card layout styles
 
 ### 12. Prefer targeted tests over spending time on local dev if the worktree environment is noisy
 Targeted verification that passed:

@@ -175,6 +175,7 @@ Before finalizing the migration, inspect the selected MDX pages for component us
 - `ArticleFileImage`
 - `ArticleGatingForm`
 - `InfoNote`
+- `Youtube`
 
 Recommended behavior for these local render components:
 - `ButtonLink`: internal links use `Link`, external links use `<a target="_blank" rel="noopener noreferrer">`
@@ -182,14 +183,35 @@ Recommended behavior for these local render components:
 - `ArticleGatingForm`: if the local site does not support full gating behavior yet, keep the gated source wrapper in MDX but render children pass-through rather than breaking the page
 - `Box`: minimal alignment wrapper is usually enough
 - `InfoNote`: provide a simple local note/callout renderer, including support for upstream props like `hideIcon`
+- `Youtube`: render a responsive iframe wrapper and register it in the MDX component map before importing whitepapers that embed video demos
 
 Important CI lesson:
 - do not assume only the obvious components (`Table`, `Box`, `ButtonLink`, `ArticleFileImage`) are needed
-- after migrating MDX, audit the imported files for additional custom components such as `InfoNote`
-- if one is missing, `next build` can fail during prerender with errors like `Expected component \`InfoNote\` to be defined`
+- after migrating MDX, audit the imported files for additional custom components such as `InfoNote` and `Youtube`
+- if one is missing, `next build` can fail during prerender with errors like `Expected component \`InfoNote\` to be defined` or a server error on affected whitepaper detail pages
 - when CI fails this way, patch the publication MDX component registry first before assuming the content itself is broken
+- in practice, multiple migrated whitepapers reused the same missing `Youtube` component, so fixing the shared MDX registry was the correct root-cause fix rather than patching pages one by one
 
 This lets the local MDX render without needing the full upstream component system.
+
+Important migration cleanup lesson:
+- when a whitepaper detail page already renders the hero image from frontmatter (`heroImageSrc`) in the page shell, do not keep the same thumbnail again at the top of the MDX body
+- imported MDX may contain either a markdown image like `![...]( /whitepapers/<id>/thumbnail.png )` or an `ArticleFileImage filepath="public/whitepapers/<id>/thumbnail.png"` block near the top
+- remove that duplicated in-body thumbnail for migrated posts, or the detail page will show two thumbnails
+- this is especially easy to miss when validating content only from source files rather than the rendered page
+
+Important gating-flow cleanup lesson:
+- for local gated whitepapers, do not keep an old top-of-body CTA button that links to the upstream `querypie.com` `/download` URL
+- if the local page uses the current gated whitepaper flow (`gated: true` + `<GatingCut />`), that external download CTA bypasses the intended on-site experience and creates inconsistent navigation
+- remove the external download CTA from the MDX when migrating a gated whitepaper into the local flow
+- add a regression test that asserts gated local whitepapers do not retain upstream `/download` CTA links in source
+
+Important follow-up lesson from whitepaper migration fixes:
+- do not automatically remove an external whitepaper download CTA from migrated MDX just because the local site also has a detail route or gated rendering support
+- some migrated whitepapers intentionally keep a top-of-body external download CTA pointing to the upstream `querypie.com/ja/features/documentation/white-paper/.../download` flow
+- treat this as a content-policy decision, not a cleanup target
+- if the intended behavior is unclear, preserve the CTA and confirm the policy before normalizing it into a local-only gated flow
+- if these external download CTAs need first-class support later, track that as a separate follow-up task instead of silently rewriting the current content behavior
 
 ## Gated-source preservation rule
 
