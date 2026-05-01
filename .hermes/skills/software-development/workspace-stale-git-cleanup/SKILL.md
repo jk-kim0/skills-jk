@@ -16,6 +16,19 @@ Use when the user asks to clean stale branches/worktrees from the current worksp
 - There may be many sibling repos, some with linked worktrees.
 - The user wants safe cleanup, not aggressive pruning.
 
+## Scope interpretation rule
+
+Distinguish carefully between these two user intents:
+
+1. `workspace 정리해줘` or similar, when the user clearly means the whole local workspace root
+   - interpret as cross-repository cleanup under `~/workspace`
+2. `이 repo 의 workspace 정리` / `this repo's workspace cleanup`
+   - interpret as repo-local cleanup only
+   - clean only the current repository's worktrees, local branches, and obvious temp leftovers
+   - do **not** scan or modify sibling repositories
+
+If the user is currently inside a repo and the phrasing mentions `this repo`, prefer repo-local interpretation even if the word `workspace` appears.
+
 ## Safety rules
 
 1. Do not delete the current checked-out branch.
@@ -41,11 +54,15 @@ In this user's setup, a request like `workspace 정리` means:
 
 1. refresh remote refs
 2. move each repo root checkout back to its default branch (`main`, `develop`, etc.) when the root worktree is clean
-3. fast-forward that default branch to `origin/<default>` when safe
+3. update that default branch to the latest remote HEAD with a safe fast-forward when possible
 4. remove clearly stale local worktrees and branches
 5. preserve any dirty root repo or dirty worktree instead of forcing cleanup
 
-If the root worktree is dirty, do not switch branches or fast-forward it automatically. Report it as intentionally preserved.
+User-specific requirement:
+- include default-branch update as a standard part of workspace cleanup, not an optional extra
+- for `main`-based repos, this normally means aligning local `main` to the latest `origin/main`
+- if the root worktree is dirty, do not switch branches or fast-forward automatically; report it as intentionally preserved
+- if the update is not a clean fast-forward, stop and report rather than forcing history changes
 
 ## Conservative stale classification
 
@@ -61,6 +78,20 @@ Keep if:
 - branch-backed worktree with an open PR or active unpublished purpose
 - main/top-level repo even if detached
 
+### Escalation rule for repeated repo-local cleanup requests
+
+If the user repeatedly asks to clean "this repo's workspace" after conservative cleanup already removed the obvious clean/prunable items, treat that as permission to escalate one level further:
+
+- preserve root worktrees with real local modifications
+- preserve normal branch-backed worktrees that correspond to open PR head branches
+- preserve open-PR local branches even if their detached helper worktrees are removed
+- remove detached helper worktrees used only for rebase/conflict/follow-up scratch state, even when they are dirty, if all of the following are true:
+  - they are not the primary/root worktree
+  - they are detached rather than branch-backed
+  - they are clearly helper names like `pr157-rebase`, `pr158-rebase-latest`, `pr157-followup`, `pr158-mainrewrite2`, etc.
+  - the meaningful open-PR branch or kept branch-backed worktree remains elsewhere
+
+This matches the practical user expectation that repeated cleanup requests mean "stop preserving conflict scratchpads and helper clones; keep only real active worktrees."
 ### Branch candidates
 
 Mark as removable only when one of these is true:
