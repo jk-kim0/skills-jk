@@ -76,6 +76,13 @@ Browser-side confirmation:
 
 Prefer a central fix in `src/lib/authors/resolve-authors.ts` instead of editing many YAML rows.
 
+Special case discovered for the `querypie` editorial/team author:
+- some migrated content may use `author: "querypie"`
+- the local author registry may still point at `profileImage: querypie-logo.svg`
+- the live upstream page can instead be using the square QueryPie icon asset (`qp-logo-icon.png`) as the rendered author avatar
+- when the user explicitly asks to match the live upstream page's author image, verify the actual rendered image first in the browser, then copy the matching source asset into `public/crew/` and update the `querypie` author YAML entry to `profileImage: crew/<copied-file>`
+- do not assume an existing local asset like `public/assets/images/07-blog/author-querypie.png` matches the live page; compare hashes/dimensions or inspect the live `img` source directly before reusing it
+
 ### Variant A: assets still live under `public/crew/authors/`
 
 Recommended normalization logic:

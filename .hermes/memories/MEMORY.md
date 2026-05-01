@@ -154,10 +154,12 @@ User asked to roll back git-installed Hermes from unstable main HEAD to a recent
 §
 For searching all historical file paths in a git repo and filtering by substring, the user uses the one-liner: git log --all --name-only --pretty=format: | sed '/^$/d' | sort -u | grep '<substring>'.
 §
-In corp-web-japan top-page authoring follow-ups, tests/helpers/static-marketing-page-sources.mjs makes getTopPageDataSource() read src/content/top-page.ts before src/app/page.tsx; when hero/core-value authoring moves route-local into page.tsx, related tests may need to assert against combined content+page sources instead of only the content file.
-§
-In corp-web-v2, the intended staging environment for local-only contact-us E2E is https://stage.querypie.com, not https://stage-v2.querypie.com. The two domains currently serve different contact-us UI variants, so E2E assertions must be matched to the chosen stage domain.
-§
-In corp-web-app Korean /company/contact-us copy, direct email guidance to sales@querypie.com should be labeled as sales inquiry (영업 문의), not technical support (기술지원); the intent is to mask technical-support contact behind sales inquiry wording.
+In corp-web-japan blog migration work, the user does not want broad synthetic labels like 'multilingual route support'; prefer explicit per-locale facts such as 'EN/JA/KO detail pages and public blog list route are implemented.'
 §
 In corp-web-japan whitepaper migration work, external download CTA links are intentionally correct for at least whitepapers 24 and 30; do not remove them as regressions. Treat proper support for external whitepaper download CTA behavior as a follow-up implementation concern rather than deleting the CTA.
+§
+For repo-specific E2E/stage assertions, first verify the current workspace via cwd/pwd and do not mix corp-web-v2, corp-web-app, and corp-web-japan environments.
+§
+E2E stage targets are repo-specific: corp-web-v2 -> https://stage-v2.querypie.com, corp-web-app -> https://stage.querypie.com, corp-web-japan -> https://stage.querypie.ai.
+§
+In corp-web-japan, follow the repo AGENTS rule that PR titles/descriptions (and repo-internal docs/guidance/comments) must be written in English, even if the user's broader repo preference elsewhere may differ.
