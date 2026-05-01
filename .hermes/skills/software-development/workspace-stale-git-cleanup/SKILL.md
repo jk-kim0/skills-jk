@@ -132,7 +132,11 @@ Interpretation:
 4. Run `git -C <repo> worktree prune` after removals.
 5. Delete clearly stale local branches.
 6. Re-run `git worktree list --porcelain` and `git branch -vv` to verify the result.
-7. Summarize what was deleted and what was intentionally left alone.
+7. If a `git worktree remove --force <path>` attempt fails, do not assume the worktree is still present. Re-check both:
+   - whether the filesystem path still exists
+   - whether `git worktree list --porcelain` still tracks that path
+   In practice, some "failed" removals are already effectively cleaned up, especially after prune or when the path disappeared earlier.
+8. Summarize what was deleted and what was intentionally left alone.
 
 ## Good final-report format
 
@@ -146,3 +150,24 @@ Interpretation:
 - detached worktree with untracked temp files
 - generic local branch names with possible policy meaning
 - top-level repo in detached HEAD state
+
+## Additional safe cleanup win: empty worktree namespace directories
+
+In large workspaces, after `git worktree prune` there may be no real removable worktrees left, but empty namespace directories can remain under containers like:
+
+- `.worktrees/<group>`
+- `.claude/worktrees/<name>/.claude`
+
+These are not worktrees themselves; they are just leftover empty directories.
+
+Safe rule:
+- only remove them if the directory is completely empty
+- do not remove non-empty grouping directories just because they are not registered worktrees
+- do not recurse into populated worktree trees looking for arbitrary empty subdirectories; limit cleanup to obvious top-level namespace shells or clearly empty helper dirs
+
+Recommended sequence:
+1. run `git worktree prune`
+2. verify there are no prune candidates with `git worktree prune --dry-run --verbose`
+3. optionally delete only clearly empty namespace/helper directories
+
+This is a good conservative fallback when the user wants the workspace "cleaned up" but branch/worktree deletion is not clearly safe.
