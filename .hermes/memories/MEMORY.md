@@ -1,18 +1,8 @@
-User stores personal Hermes runtime secrets in 1Password item 'skills-jk-hermes-local' in the Private vault.
+User stores personal Hermes runtime secrets in 1Password item `skills-jk-hermes-local` in the Private vault.
 §
-In the repo-local Hermes setup, `hermes gateway install/start/restart/status` are the supported service controls, and only one gateway instance should run per `HERMES_HOME`; additional `hermes gateway run` attempts with the same home compete or are refused.
-§
-In the skills-jk repository, the local `skills/` directory currently has 35 top-level discovered skills, plus one nested duplicate path under `skills/cc-codex-debate-review/skills/cc-codex-debate-review`. The repo's AGENTS rules require per-turn skill discovery from `skills/` and system skills.
-§
-In corp-web-japan, the user prefers local-only worktree configuration on their PC rather than shared repo changes; do not add scripts for this. Use repo-local git aliases instead, with worktrees under corp-web-japan/.worktrees.
-§
-In the skills-jk repo, portable Hermes state should live in tracked `.hermes/config.yaml`, tracked markdown memories under `.hermes/memories/`, tracked skills under both `.hermes/skills/` and the repo `skills/` tree; runtime artifacts like `.hermes/checkpoints/`, `.hermes/sessions/`, logs, `state.db*`, caches, and generated `.hermes/.env` should stay untracked/ignored.
-§
-For portable Hermes setups in skills-jk, session-like records should remain local to each machine/instance and should not be migrated between PCs; only durable memories and config should be synced.
+In the skills-jk repo, Hermes runtime/setup facts are: portable state lives in tracked `.hermes/config.yaml`, `.hermes/memories/`, `.hermes/skills/`, and repo `skills/`; session-like records remain machine-local; runtime artifacts such as checkpoints, sessions, logs, caches, generated `.hermes/.env`, and other transient state stay untracked; the active runtime in this setup uses `HERMES_HOME=~/workspace/skills-jk/.hermes`, with session files under `.hermes/sessions`; the local Hermes CLI is git-installed under `~/.hermes/hermes-agent` and exposed via `~/.local/bin/hermes`.
 §
 In the skills-jk repo, PR creation uses the repo's GitHub Actions workflow `.github/workflows/create-pr.yml` via `workflow_dispatch`; it is the preferred PR creation path for this repo.
-§
-In corp-web-v2, managed public content is loaded from authored files under src/content/** via src/features/content/authored.server.ts and contentState.server.ts, not from src/content/state/content-state.json.
 §
 In corp-web-v2, the user expects each PR task to start from a fresh worktree and fresh branch; do not continue new requested work on a previously used PR branch because it can cause rebase conflicts and stale PR state.
 §
@@ -118,27 +108,9 @@ In corp-web-v2 Public-Content-URL-Naming-Convention updates, treat src/app/[loca
 §
 In corp-web-v2 blog/white-paper MDX, the canonical upstream slug from corp-web-contents is now stored explicitly as frontmatter `slug` in each `src/content/mdx/blog/<id>/<locale>.mdx` and `src/content/mdx/white-papers/<id>/<locale>.mdx`, while the directory name remains the numeric content ID.
 §
-In corp-web-japan, repo-internal text should be in English, including comments, docs, AGENTS guidance, and PR titles/descriptions.
+In corp-web-japan, repo-internal docs/guidance/comments and PR titles/descriptions should be in English; the site itself is Japanese-only unless the user explicitly reintroduces i18n. The preferred final resource index URIs are `/blog`, `/whitepapers`, and `/events`, with blog/whitepaper articles linking to querypie.com/ja by default. Because the site is not publicly launched yet, preserving existing local content/data or adding legacy redirects for old public URLs is not a default requirement. In review/doc text, `~~Text~~` means do not use that text and `~~Old~~ => New` means replace the old text with the new text.
 §
-In corp-web-japan, the site is Japanese-only; translation and i18n/internationalization are fully out of scope and should not be considered unless the user explicitly reintroduces them.
-§
-In corp-web-japan, the preferred final resource index URIs are /blog, /whitepapers, and /events. Blog and whitepaper articles should link to querypie.com/ja by default rather than using local /posts routes, while event content may be local, external to querypie.com/ja, or both.
-§
-In corp-web-japan, the site is not publicly launched yet, so preserving existing local content/data and adding legacy redirects for old public URLs are not necessary constraints unless explicitly requested.
-§
-In corp-web-japan review/doc text, the user's annotation convention is: `~~Text~~` means do not use that text, and `~~Old~~ => New` means replace the old text with the new text.
-§
-In corp-web-japan, the staging URL is https://stage.querypie.ai. The representative production URL should be https://querypie.ai, and alternate URLs including https://www.querypie.ai should redirect to it.
-§
-In corp-web-japan, general-change rollbacks should be handled by creating an appropriate branch and performing a new deployment. JK is the rollback authority, and major deploy/rollback issues should be shared in Slack channel #jp-marketing.
-§
-In corp-web-japan, deployment secrets and vars ownership belongs to JK <jk@chequer.io>.
-§
-In corp-web-japan, production deploy approvers are Keizo and Brant.
-§
-In corp-web-japan, general minor-change deployments can proceed based on the judgment of Chikako, Jane, and JK.
-§
-In corp-web-japan, broader-impact production deploys require approval from either Keizo or Brant; one of the two is sufficient.
+In corp-web-japan, deployment/governance facts are: staging URL `https://stage.querypie.ai`; representative production URL `https://querypie.ai` with alternate URLs redirecting there; JK owns deployment secrets/vars and is rollback authority; major deploy/rollback issues go to `#jp-marketing`; broader-impact production deploys require approval from either Keizo or Brant, while minor general-change deploys can proceed on the judgment of Chikako, Jane, or JK.
 §
 In corp-web-japan, the user does not want repository documentation added for operational facts that are already clear internally unless there is a strong need.
 §

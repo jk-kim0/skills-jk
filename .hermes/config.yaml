@@ -221,8 +221,8 @@ context:
 memory:
   memory_enabled: true
   user_profile_enabled: true
-  memory_char_limit: 22000
-  user_char_limit: 13750
+  memory_char_limit: 33000
+  user_char_limit: 20625
   provider: ''
 delegation:
   model: ''
