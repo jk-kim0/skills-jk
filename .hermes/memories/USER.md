@@ -10,7 +10,7 @@ For repo work, default to PR+CI; use Closes/Fixes only when the PR fully resolve
 §
 User wants PR status checked before commit/push on repo work to avoid continuing on a merged PR branch.
 §
-User prefers brief progress updates while work is in progress.
+For repo work, the user wants brief progress updates, immediate execution once the requested change is clear, and no long passive waits. Give a short status/estimate first, avoid proposal-only pauses, and if commands run long or estimates are exceeded, stop and report status promptly instead of waiting silently.
 §
 User prioritizes actual website appearance over technical implementation details when evaluating stakeholder-facing UI changes.
 §
@@ -22,8 +22,6 @@ User prefers polite speech and does not want banmal.
 §
 User expects Git tasks to be completed through commit and push, and considers them complete only when reviewable via PR or web URL.
 §
-User expects long-running external commands to be actively monitored; if a command takes longer than expected, stop waiting, interrupt or switch strategy promptly instead of passively waiting.
-§
 User wants major work stages to be reflected in GitHub wiki documents during ongoing analysis/planning so they can track progress and review incrementally.
 §
 For confluence-mdx reverse-sync work, the user prefers two separate PRs in sequence: first update docs to reflect the current implementation state, then open a separate Draft PR for a new replacement plan document and refine that plan through review.
@@ -32,7 +30,7 @@ For querypie-docs reverse-sync discussions, the user values checking whether des
 §
 User prefers not to discuss speculative designs for unimplemented features; focus on current implementation unless they explicitly ask for future design.
 §
-사용자는 모든 코드 작업을 항상 latest main branch 기준으로 시작하길 원한다. 작업 전 반드시 latest main을 업데이트/확인하고, 관련 commit log와 변경된 구현을 파악한 뒤에만 계획·수정해야 하며, 이 과정은 생략할 수 없다.
+User wants repo work to start from the latest main branch, use a git worktree rather than the main workspace checkout by default, verify the actual current directory / cwd instead of assuming a fixed `~/workspace`, and rebase PR branches onto the latest main again before push/PR update.
 §
 User prefers shorter, simpler file naming when a verbose component filename can be reduced without ambiguity.
 §
@@ -41,8 +39,6 @@ User currently wants corp-web-v2 demo use-cases and webinars to use plural route
 For GitHub issue/report writing, the user prefers the body to present English first and then a Japanese translation below it, rather than mixing languages or leading with Japanese.
 §
 User prefers PR titles, descriptions, review comments, and repo-work comments to be written in Korean for this repo.
-§
-User expects example path fragments to be treated as illustrative, not literal. When aligning asset paths, mirror the actual src/app URI structure rather than copying placeholder segments like '/path/' into real public paths.
 §
 User prefers deployment/infrastructure fixes that are logically separate from feature work, such as CMS/public tracing fixes, to be split into separate PRs instead of bundled into the feature PR.
 §
@@ -130,11 +126,7 @@ Across all repos, unless explicitly told to use the main workspace checkout, do 
 §
 User cares strongly about code structure and file paths, including tests: place test files on paths mirroring the source file paths they cover.
 §
-For corp-web-japan contact-us rollout, the user's intended strategy is: keep /t/contact-us as a feature-flag path until implementation and testing are fully complete, make all implementation other than the /t path production-ready, and then switch the existing /contact-us redirect endpoint at the end with a minimal route change.
-§
-For corp-web-japan contact-us rollout, the user wants /t/contact-us kept as the feature-flag public form route until final validation/testing is complete; only at the very end should the existing /contact-us public entry be switched with a minimal route change.
-§
-For corp-web-japan contact-us rollout, the correct approved structure is: keep the form page at /t/contact-us until final validation/testing, use /contact-us/submit as the submit endpoint, keep app route code thin, and place backend implementation in reusable shared locations such as src/lib or src/components rather than route-local heavy logic.
+For corp-web-japan contact-us rollout, keep `/t/contact-us` as the feature-flag public form route until final validation/testing is complete; only at the very end should the existing `/contact-us` public entry be switched with a minimal route change. The approved structure is: use `/contact-us/submit` as the submit endpoint, keep app route code thin, and place backend implementation in reusable shared locations such as `src/lib` or `src/components` rather than route-local heavy logic.
 §
 When delegating longer work, the user expects a true background-job style that returns control immediately so they can continue giving instructions; avoid using delegate_task as if it were non-blocking.
 §
