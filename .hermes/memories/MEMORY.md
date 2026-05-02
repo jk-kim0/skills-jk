@@ -163,3 +163,5 @@ For repo-specific E2E/stage assertions, first verify the current workspace via c
 E2E stage targets are repo-specific: corp-web-v2 -> https://stage-v2.querypie.com, corp-web-app -> https://stage.querypie.com, corp-web-japan -> https://stage.querypie.ai.
 §
 In corp-web-japan, follow the repo AGENTS rule that PR titles/descriptions (and repo-internal docs/guidance/comments) must be written in English, even if the user's broader repo preference elsewhere may differ.
+§
+For this user, when they say 'repo 의 workspace 정리' or similar, interpret it as repo-local cleanup only: clean the current repository's stale worktrees/branches and local residue, not the whole ~/workspace. Keep going across follow-up turns until the repo is as clean as safely possible, including cleaning root-local residue and fast-forwarding root main to origin/main when safe.
