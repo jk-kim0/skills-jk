@@ -24,6 +24,7 @@ Important distinction learned from review follow-up work:
 - "Please update PR #N" or any review/follow-up on work already under review means: use a fresh worktree, but attach it to the existing PR branch and push back to that same branch.
 - Do not satisfy the fresh-worktree requirement by creating a second branch/PR for the same review cycle.
 - If the referenced PR is already merged and its head branch has been deleted, you cannot continue on that original PR branch. In that case, verify the merge commit is now on `origin/main` (or the PR base branch), create a fresh worktree from that merged tip, and open a new follow-up branch/PR for the requested additional work.
+- Important branch-reuse rule learned from post-merge follow-up work: even if you still have the old local branch or recreate the same branch name after the PR merged, do not use that same branch name for a new follow-up PR. Reusing the merged branch name can make the next PR carry the already-merged commit(s) together with the new follow-up commit(s), producing a misleading multi-commit diff. For post-merge follow-up, create a fresh branch name from latest `origin/main`.
 - Exception: if the requested "follow-up" actually depends on code or route structure that already landed on latest `origin/main` but is missing from the old PR branch, do not force the change onto the stale PR branch. Treat it as a new independent task: branch from latest `origin/main`, open a separate PR, and mention explicitly why the old PR branch was no longer the right base.
 - Practical heuristic for this exception: if you discover during inspection that the target route family, helper layer, sitemap shape, or canonical-path policy already changed on `origin/main` after the old PR branched, switching to a new main-based branch is usually safer than backporting those structural assumptions into the old PR.
 - Additional split-PR case: if the user explicitly asks to take part of an open PR (for example an extract/refactor-only subset) and make it a separate PR, do not assume it belongs on the existing PR branch just because the work originated there.
@@ -61,6 +62,25 @@ Record:
 - PR number
 - head branch name
 - PR URL
+- PR state (`OPEN`, `MERGED`, or `CLOSED`)
+
+Important precondition check learned from real follow-up work:
+- Before doing any worktree/rebase/update flow, confirm the PR is still open.
+- Also confirm the remote head branch still exists.
+- A PR can already be merged while `gh pr view` still shows the historical `headRefName` and `headRefOid`.
+- In that case, `git fetch origin <head-branch>:...` or `git worktree add ... origin/<head-branch>` will fail because the remote branch has already been deleted.
+
+Recommended check sequence:
+```bash
+env -u GITHUB_TOKEN gh pr view <pr-number> --json state,headRefName,headRefOid,baseRefName,url
+git ls-remote origin refs/heads/<head-branch>
+```
+
+How to interpret it:
+- If PR state is `OPEN` and the remote head branch exists: continue with the normal existing-PR follow-up workflow.
+- If PR state is `MERGED` or `CLOSED`: do not treat it as an update-in-place target anymore.
+- If PR state is merged/closed and the branch is deleted: stop treating it as a live PR branch task and switch to a new latest-main follow-up branch/PR workflow if further changes are still needed.
+- If PR state says open but `ls-remote` returns nothing, re-check the PR metadata because the branch may have been deleted manually or the PR may have just been merged.
 
 ### 2. Create a fresh worktree from the PR branch
 From the repo root:
@@ -215,7 +235,33 @@ Important practical findings:
   - Then force-push that rewritten latest-main branch back to the same PR branch.
   - Verify with `git merge-base origin/main <pr-branch>` that the PR branch now sits directly on the latest remote main tip (or that tip's exact ancestor if main advanced during work), and rerun local validation before pushing.
   - This is not a normal-first choice; use it when preserving old commit ancestry would keep dragging stale pre-main structure into the PR or would obscure the user's desired final diff.
+  - Practical stale-top-page pattern: if multiple sibling PRs were split from an older top-page refactor branch and newer `main` has already absorbed some intermediate sections (for example platform/security, then whitepapers), do not blindly preserve the old mixed diff. First identify which sections are already on `origin/main`, then rebuild each PR so it keeps only its still-unique intended scope (for example whitepapers only, or later final CTA only) on top of latest main.
+  - Important terminal state: after enough sibling PRs merge, an older PR's remaining intended diff may become fully absorbed by `origin/main`.
+  - Before force-pushing a rebased/reconstructed branch, always check whether any unique commits or diff still remain:
+    ```bash
+    git rev-list --oneline origin/main..HEAD
+    git diff --stat origin/main...HEAD
+    ```
+  - If both become effectively empty, the PR is no longer a meaningful review target. Pushing that branch to the exact latest `origin/main` tip can leave GitHub showing `no commit found on the pull request`, and the PR may effectively become a closed/empty historical shell rather than an active reviewable PR.
+  - In that situation, do not present the result as a normal successful PR update. Explicitly tell the user that the branch's content has already been absorbed by latest `main`, and that rebasing to main removes the PR's independent diff.
+  - If the user still wants the branch mechanically aligned for bookkeeping, you can push it to the latest main tip, but call out that the PR will no longer behave like a normal open diff review.
+  - If an earlier sibling PR from the same split series has already merged and its remote branch was deleted, do not depend on diffing against that deleted sibling branch name. Instead:
+    - inspect the current PR file list with `gh pr view <pr-number> --json files --jq '.files[].path'`
+    - inspect `git diff --stat origin/main...origin/<pr-branch>`
+    - compare the latest-main versions of the overlapping files directly (`git show origin/main:<path>`)
+    - infer the surviving unique scope by subtracting what is now already present on `origin/main`
+  - In practice, this often means preserving latest-main content for sections already merged from a sibling PR, while rewriting `src/app/page.tsx` and related helpers/tests so only the current PR's still-unique route-local section remains.
+  - Useful checks before rewriting in this situation:
+    - `gh pr view <pr-number> --json files --jq '.files[].path'`
+    - `git diff --stat origin/main...origin/<pr-branch>`
+    - if there is a still-existing suspected parent/sibling branch, `git diff --stat origin/<older-pr-branch>..origin/<current-pr-branch>`
+  - Useful reconstruction pattern:
+    - copy over whole files whose latest intended state is clearly owned by the PR and not already on `main`
+    - keep `src/app/page.tsx` or similar route files on latest-main shape, then patch only the minimal imports/sections needed for the PR's surviving scope
+    - if an old shared container like `TopPageSections` still exists on main but the PR intends to inline/remove only part of it, decide explicitly whether that PR should still depend on the container or should remove it as part of the rewritten final state
+  - After rewriting, compare both against `origin/main` and against the old PR branch so you can confirm the new diff kept the intended scope while dropping already-merged stale pieces.
 - After a rewrite-on-main like this, re-check repository tests that assert source structure, not just runtime behavior. Structure-oriented tests may need helper updates when the user intentionally changes `page.tsx` from inline JSX to semantic section composition.
+- In route-local/static-marketing refactor PRs, also rerun tests that read source files via helpers such as `tests/helpers/static-marketing-page-sources.mjs`; these helper-based tests are often what break after a rewrite-on-main because the source-of-truth path moves from shared content/container files to route-local section files.
 - Common docs/memory conflict case: append-only markdown files such as `.hermes/memories/*.md` or skill `SKILL.md` files often conflict during rebase when both `main` and the PR added new bullets near the end of the same section.
   - Do not blindly take one side.
   - Read the conflict block and keep both sides' new entries unless one is a true duplicate.

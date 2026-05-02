@@ -106,8 +106,29 @@ For PR follow-up work:
 
 This avoids blocking the conversation on `gh pr checks --watch`.
 
+### Important: stale watcher alerts after later pushes
+
+If you start multiple background CI watchers across several pushes, older watcher sessions can keep reporting failures for superseded runs.
+
+Typical case:
+- push A starts watcher A
+- CI for push A fails
+- you fix the issue and push B
+- watcher A later emits a `fail` notification even though the latest PR head for push B is already green
+
+Safe handling:
+1. after any watcher fail alert, verify the latest PR head SHA
+2. list the newest workflow runs for the branch
+3. check whether the alerting run belongs to the current head or to an older push
+4. only report the PR as currently failing if the failing run matches the latest head/run set
+
+Practical rule:
+- treat background watcher alerts as provisional until reconciled against the latest branch head and latest run list
+- after each fix push, prefer starting a fresh watcher rather than relying on earlier watch sessions
+
 ## Pitfalls
 
 - assuming `delegate_task` behaves like a detached async worker
 - starting background commands with `workdir` set to `~/...` instead of an absolute path
 - using `cronjob` for work that depends on immediate user feedback
+- treating any delayed `gh pr checks --watch` fail alert as the current truth without checking whether it came from an older run

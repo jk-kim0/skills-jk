@@ -159,6 +159,102 @@ Recommended contact-us helper shape:
 - add a reusable `fillRequiredFields(page, { email, message })`
 - keep the final submit-flow test separate from prefill/validation tests so failures are easier to localize
 
+## News coverage on stage
+
+When the user asks for browser E2E around the local news flow, keep the coverage in two separate files rather than one mixed publication file:
+
+- `tests-local/src/app/t/news/page.e2e.mjs`
+- `tests-local/src/app/news/page.e2e.mjs`
+- helper fixture file: `tests-local/helpers/news-stage-fixtures.mjs`
+
+Recommended script names:
+- `e2e:local:news-list:stage`
+- `e2e:local:news-detail:stage`
+
+Recommended assertions for the list file:
+- `/t/news` title and primary heading are visible
+- the page description is visible
+- representative cards point to local `/news/:id/:slug` hrefs rather than directly to external destinations
+
+Recommended assertions for the detail file:
+- for one redirect-backed post (for example news 12), verify both `/news/:id` and `/news/:id/:slug` resolve to the configured external target
+- for local-body posts (currently news 13 and 14), verify:
+  - `/news/:id` redirects to the canonical local slug route
+  - a mismatched slug redirects to the canonical local slug route
+  - the canonical local route renders the local MDX body instead of redirecting away
+  - author metadata and a representative body heading are visible
+  - the related-news heading is visible
+
+Important practical lesson from this work:
+- respect the exact stage target the user names and verify it literally before encoding assertions or scripts
+- if the requested stage host/path currently returns a not-found page or serves a different app than expected, do not silently substitute another host in the final implementation without calling it out
+- if the user later corrects the exact target, update the scripts and docs to match that exact host
+
+## Publication blog/whitepaper coverage on stage
+
+When the user asks for browser E2E around blog/whitepaper rendering on `https://stage.querypie.ai`, keep blog and whitepaper coverage in separate files rather than grouping them into generic publication list/detail files.
+
+Recommended structure:
+- `tests-local/src/app/blog/page.e2e.mjs`
+- `tests-local/src/app/whitepapers/page.e2e.mjs`
+- `tests-local/helpers/blog-stage-fixtures.mjs`
+- `tests-local/helpers/whitepaper-stage-fixtures.mjs`
+- shared utility file such as `tests-local/helpers/stage-page-helpers.mjs`
+
+Recommended script names:
+- `e2e:local:blog:stage`
+- `e2e:local:whitepapers:stage`
+
+Stage-backed fixtures that were verified as useful:
+- visible blog list card sample:
+  - title: `AI攻撃ツールが55カ国のファイアウォール600台を突破──ファイアウォールの先にある"データ"をどう守るか`
+  - current href on stage: `/blog/29/ai-attack-tool-firewall-breach-data-protection`
+- visible blog detail sample:
+  - `/blog/1/agentless-philosophy`
+  - title: `QueryPieがAgentless哲学にこだわる理由`
+- hidden blog sample that stays directly reachable while excluded from `/blog`:
+  - `/blog/23/querypie-payroll-partnership`
+  - title: `株式会社ペイロールとQueryPieがAIセキュリティ分野で技術提携`
+- gated whitepaper sample:
+  - `/whitepapers/24/ai-transformation-japan`
+  - title: `なぜ今、日本企業がAIトランスフォーメーションに取り組むべきなのか`
+  - cookie: `qp-gated-whitepaper-24=1`
+- hidden redirect whitepaper sample:
+  - `/whitepapers/25/ai-transformation-japan`
+  - redirects to `/whitepapers/24/ai-transformation-japan`
+
+Important stage findings:
+- blog hidden posts are intentionally absent from the list but still render on direct local detail URLs
+- whitepaper hidden redirect shadow records are absent from the list
+- current whitepaper list cards still point to upstream `querypie.com/ja` hrefs rather than local detail URLs, so list tests should assert the actual hosted href contract, not assume local links
+- the whitepaper gating form on the real detail page uses custom select markup; generic selectors like `select[name="inquiry"]` may fail there even if they work on other forms
+- a robust gating fill helper for the current stage page is:
+  - `page.locator('form select').first().selectOption('demo-request')`
+  - `page.getByLabel('社内業務効率化｜AI Crew').check()`
+  - `page.locator('form select').nth(1).selectOption({ label: '3ヶ月以内' })`
+
+Recommended assertions for the blog file:
+- list page title `ブログ | QueryPie AI`
+- list heading is visible
+- a representative visible card is present and its local href matches the current stage route
+- a representative hidden blog title is absent from the list
+- `/blog/:id` redirects to the canonical `/blog/:id/:slug` route
+- a mismatched slug also redirects to the canonical route
+- visible blog detail renders title, author metadata, a representative body heading, and the related-posts section
+- hidden blog detail remains directly reachable and renders like a normal article page
+
+Recommended assertions for the whitepaper file:
+- list page title `ホワイトペーパー | QueryPie AI`
+- list heading is visible
+- a representative visible card is present and its href matches the current upstream QueryPie destination
+- a representative hidden redirect/shadow whitepaper title is absent from the list
+- `/whitepapers/:id` redirects to the canonical `/whitepapers/:id/:slug` route
+- a mismatched slug also redirects to the canonical route
+- gated whitepaper preview renders title, author metadata, CTA link, preview copy, and `全文を読む` before submit
+- submit starts disabled, becomes enabled after filling the required fields, and reveals gated-only content on success
+- unlock cookie is set and unlocked state persists after reload
+- hidden redirect whitepaper shadow record lands on the canonical local whitepaper route
+
 ## Practical pitfalls
 - A local main branch can be behind origin; create the worktree from `origin/main`, not local `main`.
 - In this repo specifically, local E2E files such as `tests-local/` and `playwright.local.config.mjs` may exist on latest `origin/main` even when they are absent from a stale local `main`; verify from a fresh worktree before assuming the setup is missing.

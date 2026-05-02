@@ -152,6 +152,14 @@ Common affected test themes:
 - not-found page checks using top-page constants
 - asset path checks that read a specific old content file
 
+Important practical lesson from `corp-web-japan` relocation work:
+- many tests may not show up from one narrow grep because they fail by calling `readSource("old/path.tsx")` or `sourceExists("old/path.ts")` rather than importing the old module name
+- in relocation PRs, expect CI to reveal additional exact-path tests in waves; one grep pass is often not enough
+- after the first CI failure, use `gh run view <RUN_ID> --log-failed` and update every remaining hard-coded source path mentioned in the failing tests before re-pushing
+- likely hotspots include publication/page architecture tests, canonical endpoint tests, launch-readiness tests, inline-link style tests, metadata integrity tests, and any tests asserting loader import paths directly
+- for pure relocation PRs where the user wants one combined implementation PR, it is acceptable to update these exact-path tests in the same PR rather than splitting a separate test-only PR
+- when the old file truly no longer exists, rewrite the assertion to target the new path or to validate the same semantic contract from the new file, rather than trying to preserve a stale compatibility shim just for tests
+
 ### 7. Verify on latest main before opening the test-only PR
 
 Run the repo’s normal verification flow from the new worktree on latest main.
