@@ -69,17 +69,41 @@ Do not remove if it is still the only place storing a durable, repo-specific fac
 
 Read both files fully, then use a scripted pass to detect exact and near duplicates.
 
+In practice, a topic-cluster pass works better than pure pairwise similarity alone.
+After the initial duplicate scan, group entries into broad clusters such as:
+- repo workflow / latest-main / worktree / cwd
+- corp-web-japan deployment / governance / rollout
+- corp-web-v2 CMS / route-policy / legacy-scope restrictions
+- Hermes runtime / HERMES_HOME / sessions
+- querypie-docs reverse-sync
+
+Then review each cluster as a set and ask:
+1. which lines are the current durable rule?
+2. which lines are just older phrasings of the same rule?
+3. which lines are historical snapshots that can be replaced by one current general statement?
+
+This cluster-first pass often finds better compression wins than string similarity alone.
+
 Suggested script logic:
 - split entries on `§`
 - normalize whitespace and lowercase for exact-match detection
 - run pairwise similarity checks for near-duplicates
 - run a separate regex scan for snapshot-style entries that similarity checks will miss
+- group entries into topic clusters and review each cluster together before editing
 - also manually review clusters like:
   - route policy
   - PR/worktree workflow
   - CMS limitations
   - localization preferences
   - repo-specific implementation snapshots
+
+A practical clustering approach that worked well in real use:
+- assign coarse topic buckets such as `repo_workflow`, `corp_web_v2_demo`, `corp_web_v2_scope`, `corp_web_japan`, `querypie_docs_reverse_sync`, `hermes_runtime`
+- print per-cluster counts and total character size
+- sort entries inside each cluster by length so the longest, most repetitive rules are reviewed first
+- use this to decide whether several entries should become one merged durable rule
+
+This helps catch not just textual duplicates, but families of overlapping rules that should be rewritten as one current instruction.
 
 Important practical finding:
 - similarity-based duplicate detection is not enough by itself
@@ -119,6 +143,21 @@ Good thresholds:
 Important: similarity results are only a review queue, not an auto-delete rule.
 Always inspect meaning before merging.
 
+## Bulk-edit safety rule
+
+When applying large markdown replacements, do not patch an overly broad block unless you have re-read the surrounding entries carefully.
+
+Practical lesson from use:
+- a broad `replace` can accidentally remove neighboring non-duplicate rules that merely happen to sit between duplicated entries
+- after any bulk merge/edit, immediately re-read the edited region and confirm that unrelated durable preferences were not dropped
+- if a bulk replacement accidentally removes valid neighboring entries, restore them right away and continue with narrower, more targeted patches
+
+Good pattern:
+1. read the exact region around the duplicate cluster
+2. patch only that cluster
+3. re-read the region
+4. rerun duplicate detection after each large merge pass
+
 ## Good edit patterns
 
 ### 1. Merge three repeated notes into one
@@ -154,6 +193,7 @@ After:
 - Do not keep multiple historical versions when one current rule is enough.
 - Do not aggressively compress unrelated preferences into one vague sentence if it loses operational meaning.
 - Do not work in a dirty unrelated branch if a fresh worktree can isolate the change.
+- Do not use overly broad replace ranges when merging cluster entries. Large block replacements can accidentally drop neighboring still-valid rules. Re-read the affected section after each large merge and restore any durable rule that disappeared unintentionally.
 
 ## Verification
 
@@ -172,6 +212,14 @@ wc -c .hermes/memories/MEMORY.md .hermes/memories/USER.md
 ```
 
 And rerun the duplicate-detection script after edits.
+
+Useful reporting metrics that proved helpful:
+- entry count before vs after for each file
+- total character count before vs after for each file
+- exact duplicate count after edit
+- near-duplicate review queue count after edit
+
+These make it easier to show that the dedupe was real compression rather than just rewriting text.
 
 ## Commit/PR guidance
 

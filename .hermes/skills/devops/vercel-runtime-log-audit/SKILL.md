@@ -250,6 +250,41 @@ Interpretation:
 - response may be cached
 - runtime logs may not contain the request even though the user definitely saw a 404 page
 
+### I. When your own verification requests pollute the audit window
+
+During path-specific incident work, your own `curl`, browser, or synthetic checks can immediately appear in the same runtime-log window and distort a tiny sample.
+
+Use this pattern:
+
+1. First collect the recent broad/path-specific sample.
+2. Note the timestamp when you started manual verification.
+3. Re-run the path query with an `--until '<timestamp>'` bound just before your own checks.
+4. Report both if useful:
+   - the raw recent sample including your probes
+   - the cleaned sample excluding self-generated verification traffic
+
+This is especially important when only a few requests exist in the window.
+
+### J. Path-specific redirect audits: parse the structured JSON embedded in `message`
+
+For custom runtime handlers that log structured payloads such as:
+- `[runtime-missing-redirect] {...}`
+- `[runtime-404] {...}`
+
+Do not stop at top-level fields like `requestPath` and `responseStatusCode`.
+Parse the trailing JSON object from `message` and extract fields such as:
+- `requestedPath`
+- `redirectTarget`
+- `host`
+- `referer`
+- `userAgent`
+
+This is often the only place where referrer and redirect-target evidence exists.
+
+Practical implication:
+- `referer: null` plus crawler user agents often means direct bot/unfurl fetches rather than normal in-site navigation
+- repeated `redirectTarget` values let you verify whether an allowlisted redirect is sending traffic to the intended upstream URL
+
 ## Useful one-off commands
 
 ### Show recent 5xx samples for one project

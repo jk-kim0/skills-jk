@@ -21,10 +21,15 @@ This workflow is for repositories that may have many old worktrees, detached rev
 
 ## Goals
 
-1. Update local `main` to match `origin/main`
+1. Update the local default branch (usually `main`) to match the latest remote HEAD when the root worktree is clean
 2. Remove only clearly safe stale worktrees
 3. Remove only clearly safe stale local branches
 4. Preserve dirty worktrees, active work, and unmerged branches
+
+User-specific requirement:
+- treat default-branch update as part of workspace cleanup by default
+- for `main`-based repos, align local `main` with the latest `origin/main` via fetch + fast-forward when safe
+- if the root worktree is dirty or the update is not a clean fast-forward, preserve and report instead of forcing
 
 ## Safety rules
 
@@ -142,8 +147,15 @@ Counter-signal that should usually preserve a branch-backed worktree even with n
 - the branch appears to be an active local exploratory/refactor branch not yet published
 - the local branch tracks a differently named upstream branch, indicating temporary local branch reshaping rather than stale residue
 
+Special case: open PRs can still have removable helper worktrees.
+- In some repos, there are detached helper worktrees named like `pr157-mainrewrite`, `pr158-mainrewrite`, `pr157-rebase`, etc.
+- Do not preserve these automatically just because the corresponding PR is open.
+- If such a worktree is detached, clean, and its `HEAD` exactly matches the open PR's remote head commit, it is just a redundant local clone of the PR state and is safe to remove.
+- Keep the worktree if it contains conflicts, tracked modifications, or untracked project files; those indicate real local intermediate state rather than a disposable helper clone.
+
 Important practical lessons:
 - Do not assume every branch-backed worktree should be preserved.
+- Do not assume every worktree related to an open PR should be preserved either; clean detached helper clones can still be stale.
 - But also do not assume "no open PR" means removable; a dirty branch-backed worktree may be active unpublished work.
 - In PR-heavy repos, the real source of truth is the combination of open PR head branches plus actual local worktree dirtiness, not merely whether a branch is attached to a worktree.
 
@@ -235,6 +247,30 @@ Interpretation:
 - if the file differs materially from every kept worktree, treat it as genuine root-local work and preserve it
 
 This check is especially important before restoring dirty tracked files in `main` so that `main` can be fast-forwarded to `origin/main` safely.
+
+## 7c. Repo-internal worktree directories can leave root `?? .worktrees/` noise
+
+Some repositories keep linked worktrees under a repo-internal directory such as `.worktrees/<name>`.
+After cleanup, the root worktree can still appear dirty with:
+
+```bash
+?? .worktrees/
+```
+
+This does not mean the remaining worktree is stale. It often just means the repo does not ignore its own local worktree container directory.
+
+Safe handling:
+- if the remaining worktree is intentionally kept, do not delete the directory just to make `git status` clean
+- prefer a local-only ignore entry in `.git/info/exclude` such as:
+
+```bash
+.worktrees/
+```
+
+Why this is useful:
+- it keeps the root checkout visually clean without changing tracked repo files
+- it avoids committing `.gitignore` noise for machine-local worktree layout
+- it is appropriate when the user wants a "workspace cleanup" result that leaves active internal worktrees intact
 
 ## 8. Update local main safely
 

@@ -34,10 +34,36 @@ git checkout -b <prefix>/<descriptive-name>
 
 ### 1. Main 브랜치 업데이트
 
+기본 흐름:
+
 ```bash
 git checkout main
 git pull origin main
 ```
+
+하지만 현재 worktree가 dirty이거나, 다른 작업 브랜치에 미커밋 변경이 많은 상태에서 단순히 `checkout main` 하면 불필요한 충돌/오염이 생길 수 있다.
+그런 경우에는 **현재 작업트리는 그대로 두고 local `main` ref만 최신 `origin/main`으로 맞추는 방식**을 우선 고려한다.
+
+안전한 대안:
+
+```bash
+git fetch origin --prune
+git branch -f main origin/main
+```
+
+이 방식은 다음 조건에서 특히 유용하다:
+- 사용자는 단지 "main branch update"만 원한다
+- 현재 체크아웃 브랜치에 미커밋 변경이 있다
+- `main` 브랜치가 다른 worktree에 체크아웃되어 있지 않다
+
+업데이트 후 반드시 확인:
+
+```bash
+git rev-parse main
+git rev-parse origin/main
+```
+
+두 SHA가 같아야 한다.
 
 ### 2. 로컬 브랜치 정리
 

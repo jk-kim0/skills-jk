@@ -11,6 +11,17 @@ fallback_providers: []
 credential_pool_strategies: {}
 toolsets:
 - hermes-cli
+mcp_servers:
+  chrome-devtools:
+    command: "npx"
+    args:
+      - "-y"
+      - "chrome-devtools-mcp@latest"
+      - "--autoConnect"
+      - "--no-usage-statistics"
+      - "--logFile=/tmp/chrome-devtools-mcp-hermes.log"
+    env:
+      PATH: "/opt/homebrew/opt/node@20/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 agent:
   max_turns: 90
   gateway_timeout: 1800
