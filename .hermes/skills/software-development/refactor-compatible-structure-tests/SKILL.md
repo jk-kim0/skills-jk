@@ -188,6 +188,48 @@ During a staged refactor, tests may need to accept both layouts temporarily. Tha
 ### D. Keep implementation PRs cleaner by landing test decoupling first
 If a separate test-only PR is available, later rebases of the implementation PR become easier. Prefer the latest-main version of the tests during conflict resolution and keep the implementation diff focused.
 
+## Component-level UI state coverage in this repo
+
+Additional practical pattern from `corp-web-japan` UI follow-up work:
+- this repo's existing fast tests are mostly `node:test` files that inspect source text, not browser/runtime-rendered component tests
+- when the user asks for tests around a small presentational UI component and there is no existing lightweight React component test harness, prefer a narrow source-based contract test under `tests/src/components/**`
+- this is especially appropriate for components whose main risk is preserving explicit state branches and UI contract details such as:
+  - guard clauses like `return null` when a terminal state is reached
+  - progress/percentage calculation expressions
+  - loading vs idle button branches
+  - required class-based affordances for hover/disabled/spinner/icon states
+  - stable visible copy that the product/review cares about
+
+Recommended shape:
+- place the test near its source path mirror, for example:
+  - source: `src/components/ui/progressive-load-more.tsx`
+  - test: `tests/src/components/ui/progressive-load-more.test.mjs`
+- use `node:test` + `node:assert/strict`
+- read the source from `process.cwd()` with `readFileSync(path.join(repoRoot, relativePath), "utf8")`
+- assert the expected state branches with targeted regexes
+
+Example covered states:
+- progress math safety guard such as `Math.max(totalCount, 1)`
+- hidden/completed branch such as `if (currentCount >= totalCount) return null`
+- default idle state copy and progress bar markup
+- loading state spinner + disabled button branch
+- interactive/disabled affordance classes and icon path contract
+
+Why this is useful here:
+- avoids introducing a new runtime test stack just for one UI component
+- stays consistent with the repository's existing source-contract test style
+- gives fast regression coverage for review-sensitive UI state branches
+
+Important limitation:
+- this verifies code-level UI contract, not actual rendered browser behavior
+- if the user's concern is visual parity, spacing, or deployed preview behavior, add browser/preview verification separately instead of treating the source-based test as sufficient UX proof
+
+## Worktree recovery note for test follow-up
+
+Practical follow-up finding:
+- if a supposedly fresh worktree path turns out not to be a real checkout and only contains a partial subtree (for example only `tests/`), do not salvage it
+- remove that directory, run `git worktree prune`, recreate the worktree at a clean path, and re-verify with `git rev-parse --show-toplevel`, `git status -sb`, and a shallow `find` listing before editing or running tests
+
 ## Done criteria
 
 A good result means:

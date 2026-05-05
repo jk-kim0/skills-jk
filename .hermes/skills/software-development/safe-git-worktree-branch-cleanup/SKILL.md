@@ -235,6 +235,12 @@ Practical interpretation:
   - transplant only the meaningful current dirty patch onto the fresh branch
 - do not classify the whole worktree as stale just because the branch/PR lineage is stale
 
+User-specific validation heuristic for repo-local cleanup:
+- branches or worktrees not connected to any open PR should be treated as stale candidates by default, not preserved by default just because they are branch-backed
+- however, validate any remaining local work against the latest `main`/`origin/main` tree before deleting
+- when a branch has multiple commits, judge meaningfulness by the net effect versus latest main rather than by raw commit count; conceptually treat it like a squashed diff against latest main
+- when a branch is behind latest main, a disposable rebase onto `origin/main` is a fast way to tell whether the branch history itself is stale; broad immediate conflicts are evidence that the branch lineage is stale even if a small current dirty patch is still worth preserving
+
 Useful summary language:
 - `stale branch history + meaningful local dirty work`
 - this is distinct from both `fully stale residue` and `actively healthy branch`

@@ -125,6 +125,40 @@ Exclude by default:
 When a worktree is branch-backed, do not rely only on `git merge-base --is-ancestor` or ahead/behind counts.
 Squash merges often leave the original branch commit graph appearing unmerged even though the PR was already merged.
 
+User-specific stale-candidate default learned from repo cleanup work:
+- if a local branch/worktree is not connected to any currently open PR head branch, treat it as a stale candidate by default
+- but do not delete it immediately; first validate whether it still contains meaningful local work relative to the latest `origin/main`
+- this is stricter than the older heuristic of preserving most branch-backed worktrees automatically
+
+Important interpretation rule for the validation step:
+- prefer `git diff --stat origin/main..branch` and `git diff --name-only origin/main..branch` to compare the candidate tip tree directly against the latest main tree
+- do not treat `origin/main...branch` diff or only `git rev-list --left-right --count` as sufficient proof of meaningful remaining work
+- triple-dot and left/right history counts are still useful to understand ancestry drift, but they can dramatically overstate residual scope after squash merges or after main absorbed later sibling work
+- the direct question for stale cleanup is usually: "what does this branch/worktree tip still change compared with latest main right now?"
+
+Special evaluation case: stale branch history with a meaningful dirty patch on top
+
+A branch/worktree can be stale in its commit history while still containing a meaningful last local modification in the working tree.
+This showed up in a repo-local cleanup where:
+- the branch was not tied to any open PR
+- the associated old PR was closed or merged elsewhere
+- rebasing the branch history onto latest `origin/main` produced immediate large conflicts
+- but the current dirty worktree contained a narrow 2-file UI/component refactor that was still useful
+
+Recommended handling:
+1. evaluate the branch history separately from the dirty patch
+2. if the branch history is stale, do not preserve the whole branch just because the worktree is dirty
+3. extract the dirty patch with:
+   ```bash
+   git -C <worktree> diff -- <paths...> > /tmp/<name>.patch
+   ```
+4. create a fresh latest-main review branch/worktree
+5. apply only that dirty patch there
+6. verify with targeted lint/typecheck
+7. preserve or hand off the fresh review branch, then treat the old branch as stale
+
+This is especially appropriate when the branch's older commits drag in broad outdated route/content/test structure, but the final uncommitted patch is small and clearly intentional.
+
 Preferred check:
 
 ```bash

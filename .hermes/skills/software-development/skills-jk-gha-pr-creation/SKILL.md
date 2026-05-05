@@ -99,9 +99,13 @@ When the user asks to create a PR from the current local workspace state rather 
    - `git branch -f main origin/main`
    - This updates local `main` without disturbing the dirty current branch.
 5. If the current branch corresponds to an already merged/closed PR, do **not** keep committing on that branch even if it still has useful local changes.
-   - Check with `env -u GITHUB_TOKEN gh pr list --head <branch> --state all --json number,state,mergedAt,url,title`
+   - Fast detection: run `env -u GITHUB_TOKEN gh pr status` first. In `skills-jk`, this often surfaces the problem immediately as `Current branch  #<N> ... Merged` even when the remote branch has already been deleted.
+   - Confirm with `env -u GITHUB_TOKEN gh pr list --head <branch> --state all --json number,state,mergedAt,url,title` when needed.
    - If the branch was already used for merged PRs, preserve the dirty workspace first:
      - `git stash push -u -m "<temp-name>"`
+   - Refresh repository refs and fast-forward local `main` before branching:
+     - `git fetch origin --prune`
+     - `git branch -f main origin/main`
    - Then create a fresh branch from latest `origin/main`:
      - `git checkout -b <new-branch> origin/main`
    - If there is an unmerged local commit you still need, cherry-pick it onto the new branch.

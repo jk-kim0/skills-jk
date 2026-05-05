@@ -167,3 +167,9 @@ When the user gives a clear implementation instruction, do not reply with 'if yo
 User does not use /rollback and prefers Hermes checkpoints disabled unless explicitly needed.
 §
 For workspace/repo cleanup, the user considers stash-based preservation low value; prefer keeping a worktree/branch over stashing local changes when preservation is needed.
+§
+In corp-web-japan resource-list refactors, the user wants page.tsx to keep route-authored hero (`ResourceListHeroSection`, `ResourceListHeroTitle`, `ResourceListHeroDescription`) and CTA sections visible, while only the repeated sidebar block may be extracted. For naming, prefer context-specific React terms and names over vague ones: keep `ResourceListSidebar*` primitives rather than renaming them to `Generic*`, and prefer a specific composed name like `ResourceCategorySidebar`/`ResourceListCategorySidebar` over broad names like `PublicResourceSidebar` when possible.
+§
+For repo-local workspace cleanup, the user wants branches/worktrees not connected to an open PR treated as stale candidates by default, but local changes must be validated against the latest main branch HEAD first; if a branch has multiple commits, judge meaningfulness after squashing conceptually to the net diff vs latest main, and if the branch is behind, use rebase onto latest main as a quick signal of whether the branch history is stale.
+§
+In corp-web-japan resource-list route work, the user wants each page.tsx to keep direct route-authored hero markup (`ResourceListHeroSection`, `ResourceListHeroTitle`, `ResourceListHeroDescription`) and CTA sections; only the repeated sidebar structure may be extracted into a shared concrete component.
