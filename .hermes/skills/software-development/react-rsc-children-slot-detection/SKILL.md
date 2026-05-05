@@ -34,6 +34,12 @@ Do not detect slot children by exact component identity.
 
 Instead, detect them by stable prop shape or explicit marker props.
 
+Important practical rule from corp-web-japan AI Crew PR 219:
+- when the server-authored route already has distinct semantic child roles like category/title/body, the most reliable fix is to add an explicit marker prop such as `slot="card-category"`, `slot="card-title"`, and `slot="card-body"`
+- then parse children in the client component by `child.props.slot` rather than by `child.type === SomeSlotComponent`
+- for repeatable child items such as tabs, use required prop-shape checks (`label`, `detailHref`, `videoHref`) instead of exact type identity
+- this preserves route-local JSX authoring while surviving the RSC -> client boundary
+
 Example replacement:
 
 Bad:
@@ -160,3 +166,22 @@ Minimum:
 Strong signal the fix worked:
 - authored strings that previously vanished are visible again in the rendered surface
 - client component still supports both initial render and interaction state (for example tab switching)
+
+## Important follow-up: restoring hidden slot content can expose visual regressions in nested controls
+
+A practical lesson from the AI Crew use-case tabbed card:
+- after replacing brittle `node.type === ...` checks with prop-shape or marker-prop detection, the missing body text came back correctly
+- but the restored nested tab chips (`見積分析`, `見積書作成`) then rendered slightly taller than the stage reference because they inherited a larger line-height from the restored body wrapper context
+- the correct runtime fix was not another slot-detection change, but an explicit button text line-height on the nested chip control
+
+What to verify after the slot-content fix:
+1. compare the affected nested interactive controls in the browser, not just the restored text blocks
+2. inspect `getComputedStyle()` for
+   - `line-height`
+   - `padding-top` / `padding-bottom`
+   - final element height
+3. if stage/live and preview differ only because of inherited typography rhythm, set the control's own text metrics explicitly (for example `leading-[18px]` on a small 12px chip button)
+
+Typical signal:
+- the restored slot content is correct, but small pills/tabs/buttons inside that content become 2–4 px taller than the reference while padding values stayed the same
+- this usually means inherited line-height changed, not padding

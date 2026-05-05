@@ -128,6 +128,58 @@ git -C .worktrees/<flat-worktree-name> merge-base HEAD origin/main
 
 For a fresh branch with no new commits yet, these should all match.
 
+5.1 Verify that the checkout is materially complete, not just logically registered.
+
+A practical failure mode in this repo: a path under `.worktrees/` can appear to succeed during `git worktree add`, and `git worktree list --porcelain` can still show the entry, but the actual directory can end up containing only a tiny partial subtree instead of a real checkout.
+
+Minimum filesystem sanity check before editing:
+
+```bash
+find .worktrees/<flat-worktree-name> -maxdepth 2 | sed -n '1,30p'
+```
+
+You should see a normal repository root shape such as `src/`, `tests/`, `public/`, `package.json`, and the linked `.git` file. If you only see a sparse fragment such as one nested directory or a handful of files, do **not** trust that worktree.
+
+Recovery rule:
+- delete that broken directory
+- run `git worktree prune`
+- recreate the worktree at a clean, flat path outside the repo root when needed, for example `~/workspace/<repo>-<topic>`
+- repeat the branch/base checks and the filesystem sanity check before editing
+
+This is safer than trying to salvage a half-populated checkout whose path name happens to match the intended worktree.
+
+5.2 Prefer repo-external flat worktree paths when repo-local `.worktrees/` paths behave strangely.
+
+Practical fallback pattern:
+
+```bash
+git worktree add -b <branch-name> ~/workspace/<repo>-<topic> origin/main
+```
+
+Then verify with:
+
+```bash
+git -C ~/workspace/<repo>-<topic> branch --show-current
+git -C ~/workspace/<repo>-<topic> rev-parse --show-toplevel
+find ~/workspace/<repo>-<topic> -maxdepth 2 | sed -n '1,30p'
+```
+
+Only start editing after those checks pass.
+
+5.3 After recreating a worktree because of this failure mode, discard the bad path entirely.
+- Do not keep mixing reads or edits between the broken repo-local path and the replacement worktree.
+- Treat the replacement worktree as the only authoritative checkout for the task.
+
+5.4 Also verify the new worktree really points at the expected base:
+
+```bash
+git -C .worktrees/<flat-worktree-name> rev-parse HEAD
+git -C .worktrees/<flat-worktree-name> rev-parse origin/main
+git -C .worktrees/<flat-worktree-name> merge-base HEAD origin/main
+```
+
+For a fresh branch with no new commits yet, these should all match.
+
 6. Preserve latest merged content exactly unless the user asked to change it.
 - Titles and branding labels are especially easy to regress.
 - If a recent PR finalized labels/titles, keep them untouched while adding new metadata fields.

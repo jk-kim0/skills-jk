@@ -165,3 +165,5 @@ For corp-web-japan static marketing copy, the user prefers semantic emphasis in 
 When the user gives a clear implementation instruction, do not reply with 'if you want' / proposal-only follow-ups or hand the choice back; execute the full requested comparison/fix end-to-end without making the user restate scope.
 §
 User does not use /rollback and prefers Hermes checkpoints disabled unless explicitly needed.
+§
+For workspace/repo cleanup, the user considers stash-based preservation low value; prefer keeping a worktree/branch over stashing local changes when preservation is needed.

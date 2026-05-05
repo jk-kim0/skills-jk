@@ -112,9 +112,10 @@ Practical note:
 - Before editing with file tools, confirm which checkout the path resolves against.
 - Safe patterns:
   - prefer absolute paths into the target worktree when the specific file tool supports them reliably
+  - for follow-up terminal commands as well (`git -C`, push, status, rev-parse, diff), prefer an absolute worktree path over a repo-relative `.worktrees/<topic>` path; in practice the agent/session cwd can differ between calls, and a relative worktree path that worked earlier can later fail with `No such file or directory`
   - do not assume all file tools behave the same way: in practice, `write_file` and `read_file` may accept absolute worktree paths while `patch` can still resolve against the repo root or fail on the same path style
   - if a `patch` or similar edit behaves unexpectedly, stop and verify whether the change landed on the root checkout instead of the PR worktree before continuing
-  - otherwise edit only after confirming your file-tool path base, then verify with `git -C <worktree> status --short`
+  - otherwise edit only after confirming your file-tool path base, then verify with `git -C <absolute-worktree-path> status --short`
   - after any file-tool edit during PR follow-up, immediately compare both the repo root and the target worktree so you do not accidentally leave changes on `main`
 - Practical verification loop:
   ```bash
@@ -122,6 +123,25 @@ Practical note:
   git -C .worktrees/<topic> status --short
   ```
   If the root checkout changed but the PR worktree did not, stop and move the change onto the PR worktree before committing.
+- Important diff-base pitfall learned from PR scope-reduction follow-up work: in a fresh detached-HEAD PR worktree, `git diff origin/main...HEAD` only compares committed history. It does **not** include your current uncommitted edits, so after you start rewriting the PR scope it can misleadingly keep showing the old PR file list/stat even though your worktree has already changed direction.
+- When you are actively editing an open PR branch and want to understand the current in-progress result, use both views explicitly:
+  ```bash
+  # What is currently uncommitted in the worktree?
+  git diff --stat
+  git diff --name-only
+
+  # What committed PR history currently differs from main?
+  git diff --stat origin/main...HEAD
+
+  # What would the final result look like if committed right now?
+  git diff --stat origin/main
+  git diff --name-only origin/main
+  ```
+- Heuristic:
+  - use `origin/main...HEAD` to inspect the already-pushed/committed PR scope
+  - use plain `git diff` to inspect your local follow-up edits
+  - use `git diff origin/main` when reducing or rewriting the PR scope and you need to see the combined final tree-vs-main result before committing
+- This matters especially when the user asks to narrow an existing PR (for example, revert public-route rollout and keep only an internal demo). If you rely only on `origin/main...HEAD`, you can think the unwanted old scope is still present even after you already removed it locally.
 
 ### 3. Verify you are on the PR line before editing
 ```bash
@@ -182,15 +202,26 @@ Special case: the user asks you to remove forbidden-scope changes from an alread
   ```
 - This pattern is especially important when the forbidden scope is CMS-managed data or routes that the user explicitly said must not be touched. Do not try to "partially keep" those edits unless the user explicitly names the exact file/subtree they still want changed.
 
-When the follow-up request is a broad cleanup of repeated link behavior on the existing PR branch (for example removing all `target="_blank"` / `rel="noreferrer"` patterns in that PR's surfaces), use an exhaustive search-and-verify loop instead of editing only the first example the user mentions:
+When the follow-up request is a broad cleanup of repeated behavior on the existing PR branch (for example removing all `target="_blank"` / `rel="noreferrer"` patterns, or fully eliminating a wrapper component the user no longer wants), use an exhaustive search-and-verify loop instead of editing only the first example the user mentions:
 
-1. search the fresh PR worktree for the exact pattern across `src/` (and tests if relevant)
-2. patch every matching implementation site
-3. re-run the same search and confirm zero matches remain in the intended scope
-4. run targeted tests that cover the affected surfaces
-5. then commit and push back to the same PR branch
+1. search the fresh PR worktree for the exact pattern or wrapper usage across `src/` (and tests if relevant)
+2. patch every matching implementation site, not just the originally discussed route/file
+3. if the request is to eliminate a shared wrapper/abstraction entirely, confirm remaining usage count reaches zero and then delete the wrapper file itself
+4. add or update a narrow structure test when useful so the undesired wrapper/pattern does not silently return
+5. re-run the same search and confirm zero matches remain in the intended scope
+6. run targeted tests that cover the affected surfaces
+7. if the PR's title/body now understates or misstates the final broader scope, rewrite them to describe the actual end state before pushing or immediately after the push
+8. then commit and push back to the same PR branch
 
-This is especially useful when the user phrases the request as "all links" and gives only one example. The example is a clue, not the full edit set.
+Important follow-up nuance learned from wrapper-removal work:
+- the user may first ask for a shared wrapper to disappear entirely, then immediately ask for a more concrete shared component to be re-extracted from the resulting duplicated code
+- when that happens, do not treat it as a contradiction or a new PR; it usually means the previous abstraction level was too generic, but a narrower concrete component is still desired
+- search for all current duplicates after the wrapper removal, then separate true variants before re-extracting:
+  - keep the routes that share the exact same links/behavior together on one concrete component
+  - leave variant routes alone if their destinations or semantics differ (for example preview `/t/...` sidebars versus public `/...` sidebars)
+- after the re-extraction, rerun structure tests so they assert the new concrete component is used only by the intended subset and that the removed generic wrapper stays gone
+
+This is especially useful when the user phrases the request as "all links" or says a wrapper should disappear entirely. The cited example file is only a clue, not the full edit set.
 
 ### 6. Commit and push back to the same PR branch
 ```bash
@@ -310,8 +341,9 @@ Important practical findings:
     git diff --stat origin/main...HEAD
     ```
   - If both become effectively empty, the PR is no longer a meaningful review target. Pushing that branch to the exact latest `origin/main` tip can leave GitHub showing `no commit found on the pull request`, and the PR may effectively become a closed/empty historical shell rather than an active reviewable PR.
+  - Practical outcome from real maintenance work: after force-pushing an open PR branch so its head exactly matches the latest base-branch tip, GitHub can stop treating it as an open review diff and `gh pr view` may start reporting the PR as `CLOSED`, with `gh pr checks` returning `no commit found on the pull request`.
   - In that situation, do not present the result as a normal successful PR update. Explicitly tell the user that the branch's content has already been absorbed by latest `main`, and that rebasing to main removes the PR's independent diff.
-  - If the user still wants the branch mechanically aligned for bookkeeping, you can push it to the latest main tip, but call out that the PR will no longer behave like a normal open diff review.
+  - If the user still wants the branch mechanically aligned for bookkeeping, you can push it to the latest main tip, but call out that the PR will no longer behave like a normal open diff review and may appear closed/empty afterward.
   - If an earlier sibling PR from the same split series has already merged and its remote branch was deleted, do not depend on diffing against that deleted sibling branch name. Instead:
     - inspect the current PR file list with `gh pr view <pr-number> --json files --jq '.files[].path'`
     - inspect `git diff --stat origin/main...origin/<pr-branch>`
@@ -334,16 +366,48 @@ Important practical findings:
     3. verify there are no unrelated file changes in `git diff --stat`
     4. commit once on top of latest main
     5. push with `git push --force-with-lease origin HEAD:<pr-branch>`
-  - Practical cleanup pattern for `PR contains unrelated commits` follow-up:
+  - Practical PR-cleanup pattern for `PR contains unrelated commits` follow-up:
     - First inspect `git rev-list --oneline origin/main..origin/<pr-branch>` and `git diff --stat origin/main...origin/<pr-branch>` to identify which commits/files are actually unrelated to the PR's intended scope.
     - Then create a fresh worktree from latest `origin/main` and do **not** branch-checkout the PR branch there if that branch name is already occupied by another local worktree.
     - Instead, use a temporary local branch name in the clean worktree (for example `pr205-rewrite`) and selectively copy only the intended paths from `origin/<pr-branch>` with `git checkout origin/<pr-branch> -- <paths...>`.
     - This is often faster and safer than rebasing a stale branch that has picked up unrelated commits from other topics.
     - After copying, verify again with `git diff --stat origin/main...HEAD` that only the intended scope remains, run validation, and then force-push the clean rewrite back to the original PR branch with `git push --force-with-lease origin HEAD:<pr-branch>`.
-  - If dependency availability differs between the stale PR worktree and the clean latest-main worktree, it is acceptable to do one round of confidence verification in the existing PR worktree (where dependencies are already present), then reconstruct the final file set again in the clean latest-main worktree before committing and force-pushing. The key invariant is that the branch you push must be built from clean latest main, not from the stale PR checkout.
+  - Additional practical rebase conflict pattern from PR 219 CI follow-up: when a one-commit open PR is rebased onto a newer `origin/main` and several files stop with conflict markers, it can be faster and safer to restore those conflicted files fully from `origin/main` first, then reapply only the PR's surviving scope on top, rather than hand-merging each conflict block.
+    - Good candidates for this reset-and-reapply flow:
+      - route files where latest main already contains major neighboring refactors
+      - shared content files where the PR is supposed to delete one old content block entirely
+      - structure tests where latest main already changed the canonical baseline and the PR only needs extra assertions for its surviving section scope
+    - Practical sequence:
+      1. `git checkout origin/main -- <conflicted-files>`
+      2. reapply the PR's intended latest-main diff manually with file edits
+      3. rerun narrow regression tests before `git rebase --continue`
+    - This avoids preserving stale conflict-marker decisions from an older branch shape and is especially useful when the user asked for the PR to reflect the latest canonical refactor pattern, not just to replay history mechanically.
+  - Fresh-worktree CI note from the same case: after conflict resolution in a newly created worktree, repo scripts like `npm run test:ci` can fail immediately with environment/setup issues such as `sh: eslint: command not found` because that worktree has no local install.
+    - If the user prefers avoiding repeated installs in fresh worktrees, do not default to `npm install` just to satisfy a local CI wrapper.
+    - Instead, run the narrowest meaningful regression tests already available in that worktree, push the fix, and use the repository CI rerun as the full verification path.
+    - Still report clearly that the local `test:ci` wrapper was not runnable in that fresh worktree due to missing tooling, so the remaining confidence comes from targeted tests plus GitHub CI.
+  - Additional stale-open-PR pattern from AI Crew PR 219 follow-up:
+    - Sometimes the open PR has only one commit and looks simple, but latest `origin/main` has since absorbed adjacent sibling refactors that change the correct page section order and shared-shell boundaries.
+    - In that case, a normal rebase can preserve the wrong final composition even if it applies cleanly.
+    - Safer flow:
+      1. inspect the live/latest-main section order and the open PR's target section scope
+      2. create a clean worktree from latest `origin/main`
+      3. reconstruct only the target section's final intended latest-main placement there
+      4. run the narrow structure/regression tests that prove both route-local ownership and preserved order/CTA semantics
+      5. force-push that clean rewrite back to the existing PR branch
+    - This is especially useful when the user explicitly says the PR should be rewritten to match the repository's canonical refactor pattern rather than merely rebased mechanically.
+
 - After a rewrite-on-main like this, re-check repository tests that assert source structure, not just runtime behavior. Structure-oriented tests may need helper updates when the user intentionally changes `page.tsx` from inline JSX to semantic section composition.
 - Additional practical rebase pattern from PR 214 maintenance: when rebasing a stacked follow-up PR branch onto latest `origin/main`, the first implementation commit can conflict in structure-test helpers (for example `tests/helpers/static-marketing-page-sources.mjs`) because `main` has gained new sibling-section coverage since the PR branched. Resolve that first conflict by keeping the latest-main helper/test baseline and merging in the rebased PR's newly introduced section files/assertions together.
 - Shared primitive/component rebase pattern from PR 217 maintenance: if the conflict is in a shared list/page primitive that both `main` and the PR extended in different ways, do not choose one side wholesale. Inspect the latest-main file and the PR-head file side by side, keep the latest-main API additions that other routes now depend on (for example a new `sidebarBasePath` prop or normalized sidebar key handling), then layer the PR-only feature hook-up on top (for example `initialVisibleCount` plus the conditional `ResourceListLoadMore` branch). After resolving, verify the rebased tree still preserves both behaviors: the new main-side compatibility path for existing callers and the PR-side behavior for the targeted routes.
+- Shared type-contract drift pattern from the same PR 217 maintenance: after rebasing a PR that changed a broadly reused type or interface (for example adding `id` to a shared `ResourceItem` type), do not stop at the files that originally belonged to the PR. Latest `main` may now contain new helper layers, preview-item registries, or abstract repositories that were added after the PR branched and that still construct the old shape. CI and Vercel type-check failures can therefore surface in files the original PR never touched.
+  Recommended recovery flow:
+  1. inspect failed CI/build logs first rather than guessing from the original PR diff
+  2. search for every constructor/mapper of the changed shared type across the fresh rebased worktree
+  3. patch both data-driven mappers and handwritten preview/manual item arrays so they emit the new required field
+  4. rerun the same repo-level validation the CI uses (`npm run test:ci`, and `npm run build` if preview deploy failed)
+  5. only after the shared contract is fully restored should you squash/force-push the PR branch
+  Practical example: adding `id` to `ResourceItem` required not only publication list mappers but also latest-main `src/lib/resources/base-resource-publication.ts` and `src/lib/resources/resource-preview-items.ts` to be updated before Verify/Vercel would pass.
 - Important follow-on nuance from the same case: later follow-up commits in the same rebase can then conflict again in the same test file, but only because the test should reflect the repository state at that specific historical commit.
   - Example shape: commit 1 adds a new `why` section and its initial assertions; commit 2 changes only the `Before` card API; commit 3 changes only the `After` card API.
   - During rebase, if commit 2 stops on the already hand-merged test file, do **not** keep commit 3's assertions prematurely just because you know they will be added later. Instead, reduce the conflict to the test state that matches commit 2 only, continue the rebase, and let commit 3 add its own assertions in the next step.

@@ -98,8 +98,18 @@ When the user asks to create a PR from the current local workspace state rather 
 4. If local `main` is behind and is not currently checked out, fast-forward it safely with:
    - `git branch -f main origin/main`
    - This updates local `main` without disturbing the dirty current branch.
-5. Commit only the meaningful files on the current branch.
-6. Before push/PR creation, rebase the current branch onto latest `origin/main`.
+5. If the current branch corresponds to an already merged/closed PR, do **not** keep committing on that branch even if it still has useful local changes.
+   - Check with `env -u GITHUB_TOKEN gh pr list --head <branch> --state all --json number,state,mergedAt,url,title`
+   - If the branch was already used for merged PRs, preserve the dirty workspace first:
+     - `git stash push -u -m "<temp-name>"`
+   - Then create a fresh branch from latest `origin/main`:
+     - `git checkout -b <new-branch> origin/main`
+   - If there is an unmerged local commit you still need, cherry-pick it onto the new branch.
+   - If the cherry-pick becomes empty because latest `main` already contains that change, use `git cherry-pick --skip` and continue.
+   - Restore the dirty workspace onto the fresh branch with `git stash pop`.
+   - Only then continue with staging/committing. This preserves the current file state while ensuring the new PR is based on clean latest main rather than a previously merged PR branch.
+6. Commit only the meaningful files on the current branch.
+7. Before push/PR creation, rebase the current branch onto latest `origin/main`.
    - This is especially important when the branch was created from an older local `main` or its remote tracking branch is gone.
    - If rebase conflicts come from settings already present on latest `main`, keep the newer `main` values and continue so the PR diff stays focused on the still-local changes.
 7. After any manual conflict resolution, explicitly scan the touched files for leftover merge markers before committing or pushing.

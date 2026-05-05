@@ -146,14 +146,20 @@ Important practical follow-up:
 
 Additional practical root-cleanup case:
 - sometimes the only thing preventing a safe fast-forward of `main` is unpublished local repo-maintenance work under paths like `.agents/skills/**`
-- when the user asks for workspace cleanup rather than immediate repo-content work, preserve those local-only edits with a named `git stash push -u -m 'workspace-cleanup preserve local skill updates' -- <paths...>` before cleaning stale worktrees and fast-forwarding `main`
-- this keeps the root checkout clean while avoiding accidental loss of agent-skill or local guidance work
+- do **not** assume stash is the best preservation method; many users consider stash-based preservation lower value than keeping an inspectable worktree/branch
+- preferred order:
+  1. keep the work on a branch/worktree when preservation meaningfully matters
+  2. only use a narrowly-scoped stash when the user clearly prioritizes finishing cleanup over keeping that work visible in git state, or when the same work is already preserved elsewhere
+- this avoids turning meaningful local work into easy-to-forget stash entries just to make cleanup appear complete
 - another safe stale case is a branch-backed worktree whose branch has no PR, is clean, and its tip is already exactly `origin/main` (or tracks `origin/main` with no unique commits); in that case both the worktree and local branch are just redundant local clones of main and can be removed
 
 Additional practical root-cleanup case:
 - sometimes the only thing preventing a safe fast-forward of `main` is unpublished local repo-maintenance work under paths like `.agents/skills/**`
-- when the user asks for workspace cleanup rather than immediate repo-content work, preserve those local-only edits with a named `git stash push -u -m 'workspace-cleanup preserve local skill updates' -- <paths...>` before cleaning stale worktrees and fast-forwarding `main`
-- this keeps the root checkout clean while avoiding accidental loss of agent-skill or local guidance work
+- do **not** assume stash is the best preservation method; many users consider stash-based preservation lower value than keeping an inspectable worktree/branch
+- preferred order:
+  1. keep the work on a branch/worktree when preservation meaningfully matters
+  2. only use a narrowly-scoped stash when the user clearly prioritizes finishing cleanup over keeping that work visible in git state, or when the same work is already preserved elsewhere
+- this avoids turning meaningful local work into easy-to-forget stash entries just to make cleanup appear complete
 - in PR-heavy repos this can happen repeatedly during one cleanup session because `origin/main` keeps advancing while the user continues asking for cleanup; each new root-local skill tweak should be stashed before the next fast-forward so `main` can return to a clean synced state
 
 Worktree-local variant:
@@ -175,6 +181,12 @@ Redundant branch-backed clone-of-main variant:
   - branch/worktree clean
   - `git rev-parse <branch>` equals `git rev-parse origin/main` (or no unique commits relative to `origin/main`)
   - branch is not the current branch and not attached to another worktree you intend to keep
+
+Important counter-case:
+- do **not** delete the worktree just because the branch currently equals `origin/main` if the worktree itself is dirty
+- a clone-of-main helper worktree can accumulate real unpublished local edits and then cease to be redundant, even if its branch started as an exact alias of `origin/main`
+- in that situation, preserve the worktree and treat it as active local work until the dirt is explicitly resolved or discarded
+- after stashing or otherwise changing root-local cleanup residue, re-check the helper worktree again; its branch head or classification may no longer match the earlier snapshot
 
 Worktree-local variant:
 - a merged stale worktree can also contain small local-only skill/doc tweaks under `.agents/skills/**`
@@ -232,6 +244,7 @@ Preferred pattern:
 - after any timeout, immediately re-query `git worktree list --porcelain` and `git branch -vv`
 - treat the refreshed Git state as source of truth rather than assuming the timed-out command failed completely
 - only then continue with the remaining candidates
+- expect another cleanup wave after updating `main`; newly merged PRs or helper clones can become obviously stale only after remote refs and root `main` advance
 
 Why this matters:
 - cleanup often partially succeeds before the tool timeout fires
@@ -248,6 +261,41 @@ Helpful sequence:
 - if root contains local-only helper or skill work, stash just that scoped path before the fast-forward
 
 This is especially useful when the root dirt came from untracked repo-local agent skill files. Preserve them with a narrowly-scoped stash instead of leaving `main` behind remote.
+
+## Practical execution lesson: repeated cleanup passes can reveal new sibling helper worktrees
+
+In PR-heavy repos, a later cleanup pass can surface new worktrees that were not present in the previous pass, especially after:
+- a fast-forward of `main`
+- another local agent session creating scratch worktrees
+- a related PR merging and leaving behind comparison/revert/fix helper trees
+
+Common examples are sibling worktrees outside the repo root such as:
+- `<repo>-platform-first-followup`
+- `<repo>-platform-first-revert`
+- `<repo>-platform-first-xfix`
+- `<repo>-pr219-followup`
+- `<repo>-pr219-ci-fix`
+
+Practical rule:
+- after each cleanup wave, re-run `git worktree list --porcelain`
+- do not assume the candidate set is stable across passes
+- if these late-appearing worktrees are detached and clean, treat them as stale helper clones and remove them
+- if they are branch-backed but tied to a branch whose PR is already merged and whose upstream is gone, treat them as stale unless they contain real unpublished work
+
+## Practical stopping rule: leave the final unpublished local branch alone unless the user clearly wants destructive cleanup
+
+After aggressive-but-safe cleanup, you may reach a point where only one or a few local branches remain that:
+- are clean
+- have no open or closed PR metadata
+- are still attached to a worktree
+- carry unique commits relative to `origin/main`
+
+Example pattern: a branch like `pr205-rewrite` that looks old, but still has unique local commits and no authoritative PR history proving it is disposable.
+
+At that point:
+- stop deleting automatically
+- report that this is now an unpublished-local-work judgment call, not ordinary stale cleanup
+- only remove it if the user explicitly wants destructive cleanup of the remaining unpublished branch
 
 ## Good final-report format
 

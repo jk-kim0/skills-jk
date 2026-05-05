@@ -197,6 +197,48 @@ Notes:
 
 Some worktrees look dirty only because of transient helper files created during agent workflows.
 
+## 7e. A branch can be stale while its current dirty worktree changes are still meaningful
+
+Important practical case from repo-local workspace cleanup:
+- a branch/worktree may no longer be attached to any open PR
+- the branch history may be stale relative to latest `origin/main`
+- but the worktree can still contain meaningful uncommitted local edits that should not be deleted blindly
+
+Typical signal pattern:
+- PR for the branch is `CLOSED` or `MERGED`, or no open PR exists
+- `git rev-list --left-right --count origin/main...<branch>` shows the branch is far from latest main
+- a rebase of the branch tip onto latest `origin/main` quickly produces broad structural conflicts
+- yet `git status --short` inside the worktree shows a small focused set of dirty files
+- `git diff --stat` for those dirty files shows coherent implementation work rather than conflict junk or temp-file residue
+
+Recommended decision flow for this case:
+1. inspect the worktree dirt directly:
+   ```bash
+   git -C <worktree> status --short --branch
+   git -C <worktree> diff --stat
+   git -C <worktree> diff -- <paths...>
+   ```
+2. compare those same dirty files against latest main, not just against branch history:
+   ```bash
+   git -C <worktree> diff --stat origin/main -- <paths...>
+   ```
+3. if needed, simulate `git rebase origin/main` in a disposable helper worktree to judge whether the branch history itself is salvageable or just stale
+4. separate the verdict into two parts:
+   - branch history stale vs not stale
+   - current dirty local edits meaningful vs disposable
+
+Practical interpretation:
+- if the branch history is stale but the current dirty edits are narrow, coherent, and purposeful, preserve the worktree even if you intend to retire the branch history later
+- in that situation, the best follow-up is often:
+  - discard or retire the stale branch history
+  - recreate a fresh latest-main branch/worktree
+  - transplant only the meaningful current dirty patch onto the fresh branch
+- do not classify the whole worktree as stale just because the branch/PR lineage is stale
+
+Useful summary language:
+- `stale branch history + meaningful local dirty work`
+- this is distinct from both `fully stale residue` and `actively healthy branch`
+
 Check for obviously disposable artifacts such as:
 - `.tmp-pr-body.md`
 - temporary comment/body markdown files
@@ -279,13 +321,13 @@ git diff --name-only
 git restore --staged --worktree -- <paths...>
 ```
 
-4. if a small remaining root-local edit is genuinely unpublished work, preserve it with a named stash before fast-forwarding `main`:
+4. if a small remaining root-local edit is genuinely unpublished work, do **not** default to stashing it just to make cleanup look finished.
 
-```bash
-git stash push -m 'workspace-cleanup preserve local edit' -- <path>
-```
+Preferred rule:
+- when preservation matters, prefer keeping a branch/worktree over converting the state into a stash
+- use a stash only as a narrow last resort when the user explicitly prefers cleanup completion over branch/worktree preservation, or when the work is already duplicated elsewhere and the stash is just a temporary escape hatch
 
-This is safer than preserving all root dirt blindly, and safer than forcing a branch update that would overwrite a real local edit.
+This is safer than forcing a branch update that would overwrite a real local edit, and aligns better with users who find stash-based preservation low value compared with keeping an inspectable worktree/branch.
 
 ## 7c. Repo-internal worktree directories can leave root `?? .worktrees/` noise
 

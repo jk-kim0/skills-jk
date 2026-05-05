@@ -97,6 +97,20 @@ Additional stale-PR lesson from PR 210 follow-up:
 - then rebuild the old PR's surviving unique scope only on top of latest main, preserving the newer merged route-local sections exactly as they now exist
 - in practice this often means: keep the latest-main `page.tsx` structure, insert only the target section's route-local JSX back into the correct place, remove the old section data from shared content files, and keep newly merged neighboring sections untouched
 - for section-scoped static-page PRs, this reconstruction is usually safer and clearer than trying to replay the old branch commit-for-commit with a normal rebase
+- practical follow-up from AI Crew PR 218 rewrite: if the stale PR tried to localize one section (for example `results`) but also re-externalized already-migrated neighboring sections back into `src/content/**` or a shared `*Sections` wrapper, throw away that stale branch shape
+- rebuild from latest `origin/main`, preserve the latest-main route-local sections exactly as they are, add only the target section's route-local JSX to `page.tsx`, create a UI-only section component file for that target section if needed, remove only that target section's rendering from the shared wrapper, and delete only that target section's content blob from the shared content module
+- after that rewrite, update the structure test so it asserts the latest-main route-local sections plus the newly localized target section together, instead of weakening the test contract to permit the old wrapper/content regression
+- important section-order lesson from AI Crew platform/use-cases follow-up: when a shared wrapper still contains a section that appears *before* the target section in the rendered page order, do not localize the later middle section first by rendering it outside that wrapper. Doing so can silently reorder the page even if the copied JSX is otherwise correct.
+- practical example: on AI Crew, the `platform` section (`実務での安全なAI活用を支える...`) appears before `use-cases`. Localizing `use-cases` first while `platform` still lived inside the shared shell caused the preview page to render `process -> use-cases -> platform -> results` instead of `process -> platform -> use-cases -> results`.
+- safe rule: for section-scoped PRs, either (a) localize sections in actual render order, or (b) split the shared shell around the target section first so the target can be reinserted in the exact original slot. If neither is done, treat the PR plan as structurally unsafe before editing.
+- review check for this failure mode: after moving one section, compare the live/latest-main section order against the new `page.tsx` render order explicitly. Do not assume preserving the copied JSX preserves the page order.
+- practical follow-up from AI Crew PRs 219 and 224: when the page still contains a shared shell that renders multiple later sections in order, do **not** localize a section from the middle/end of that shell first if pulling it out will change the rendered section order
+- concrete example: if the shared shell currently renders `platform -> use-cases`, moving `use-cases` out to `page.tsx` before `platform` is localized or before the shell is split will often produce `use-cases -> platform` on preview, even if each section works in isolation
+- before choosing the next section-scoped PR, inspect the live/current route order and identify whether the candidate section has a still-shared predecessor in the same shell
+- if yes, either:
+  - localize the predecessor section first, or
+  - split the shell into explicit before/after pieces so the extracted section can be reinserted at the exact original slot
+- treat "preserve relative section order on the rendered page" as a hard done criterion, not a nice-to-have verification step after the refactor
 
 ## Preferred extraction rule
 
