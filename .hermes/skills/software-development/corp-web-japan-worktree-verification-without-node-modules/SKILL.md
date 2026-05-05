@@ -22,14 +22,23 @@ Use this skill when working in `corp-web-japan` from a fresh git worktree and th
 
 ## Key finding
 
-In this repo, pointing `PATH` at the parent repo's `node_modules/.bin` can be enough for some direct CLI entrypoints to start, but it is **not sufficient for reliable full local verification** from the worktree.
+In this repo, simply pointing `PATH` at the parent repo's `node_modules/.bin` can be enough for some direct CLI entrypoints to start, but it is **not sufficient by itself** for reliable verification from a fresh worktree.
 
 Observed failure modes:
 - `npm run test:ci` may fail immediately with `eslint: command not found` if the worktree has no local install.
 - Even with `PATH=~/workspace/corp-web-japan/node_modules/.bin:$PATH`, `npm run typecheck` can still fail with widespread module-resolution errors for `next`, `react`, `yaml`, Node built-ins, and JSX runtime types.
 - `npm run build` can fail because Next/Turbopack cannot resolve `next/package.json` from the worktree and infers the wrong workspace root.
 
-So: shared parent `.bin` is only a partial workaround, not a trustworthy substitute for a proper worktree-local install.
+However, an important practical workaround worked in a later task:
+- creating a worktree-local symlink `node_modules -> ~/workspace/corp-web-japan/node_modules`
+- then rerunning narrow verification such as touched-file `npm run lint -- ...` and `npm run typecheck`
+
+This is materially different from only exporting `.bin` on `PATH`: the symlink lets module resolution succeed from the worktree without paying the cost of a fresh install inside that worktree.
+
+So the rule is:
+- shared parent `.bin` alone is only a partial workaround
+- a worktree-local `node_modules` symlink to the root checkout can be a good fast-path for narrow verification when the user wants to avoid repeated installs
+- if even the symlink path is not acceptable or does not work, fall back to targeted source-based tests and rely on PR CI for full verification
 
 ## Recommended workflow
 

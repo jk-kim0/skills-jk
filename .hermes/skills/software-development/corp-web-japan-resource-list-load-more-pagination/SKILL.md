@@ -5,7 +5,12 @@ description: Add opt-in load-more pagination to corp-web-japan resource list pag
 
 # corp-web-japan resource-list load-more pagination
 
-Use this when a corp-web-japan list page built on `ResourceListPage` / `ResourceListItems` should switch from rendering the full list at once to a bottom-of-list "Load more" pattern.
+Use this when a corp-web-japan list page should switch from rendering the full list at once to a bottom-of-list "Load more" pattern.
+
+Latest practical repo note:
+- older iterations used a shared `ResourceListPage` wrapper
+- current main-line implementation can be more direct and route-local: public `/blog` and `/whitepapers` now wire `ResourceListLoadMore` directly inside each route's `ResourceListContentSection`
+- do not assume `ResourceListPage` is still the active integration point; inspect latest main first
 
 Primary proven targets:
 - `src/app/blog/page.tsx`
@@ -21,22 +26,27 @@ Primary proven targets:
 
 ## Proven implementation pattern
 
-### 1. Use 8 as the default chunk size
+### 1. Use a shared chunk-size constant in the helper
 
-For corp-web-japan resource cards, `8` worked well because:
-- it is even
-- it fits desktop 2-column composition cleanly
-- it still feels reasonable on mobile 1-column tall-card layouts
-- common counts like 28 whitepapers fall into neat chunks (8/8/8/4)
+Current practical repo lesson:
+- the chunk size should be controlled from one shared helper constant, not repeated in routes/components/tests
+- after follow-up tuning work, the current preferred value in this repo became `12`
+- if the user later wants another value, change the helper constant first and verify the URL-restoration math still works
 
-Create a shared helper such as:
+Create or keep a shared helper such as:
 - `src/lib/resource-list-load-more.ts`
 
 Keep in it:
-- `DEFAULT_RESOURCE_LIST_CHUNK_SIZE = 8`
+- `DEFAULT_RESOURCE_LIST_CHUNK_SIZE = 12`
 - `resolveResourceListVisibleCount(items, untilId, chunkSize)`
 - `getResourceListNextVisibleCount(currentVisibleCount, totalCount, chunkSize)`
 - `getResourceListLoadedRange(items, visibleCount)`
+
+Focused follow-up rule learned from PR maintenance:
+- if the task is only "change the default/incremental number of items" then a one-line constant change in `src/lib/resource-list-load-more.ts` is usually the right implementation
+- add a narrow helper test that locks the constant to the intended value instead of rewriting unrelated route/component tests
+- good path for that targeted regression test:
+  - `tests/src/lib/resource-list-load-more.test.mjs`
 
 ### 2. Preserve range with `?until=<id>`, not `?page=N`
 
@@ -68,24 +78,32 @@ Keep the route page server-side and thin.
 
 Recommended split:
 - server page computes items + initial visible count from `searchParams`
-- shared list page delegates only the interactive behavior to a small client component
+- a small shared client component owns the interactive visible-count state
 
-Good file split:
-- `src/components/sections/resource-list-page.tsx` (server-compatible shared shell)
+Current good file split in this repo:
 - `src/components/sections/resource-list-load-more.tsx` (`"use client"`)
+- `src/components/ui/progressive-load-more.tsx` (presentational button/progress UI)
 
-### 4. Make shared `ResourceListPage` opt-in, not globally changed
+Current practical route-local integration pattern:
+- route imports `ResourceListLoadMore`
+- route imports `resolveResourceListVisibleCount`
+- route accepts `searchParams?: Promise<{ until?: string | string[] }>`
+- route loads `[items, resolvedSearchParams]` with `Promise.all`
+- route computes `initialVisibleCount = resolveResourceListVisibleCount(items, resolvedSearchParams?.until)`
+- route renders `ResourceListLoadMore` directly inside `ResourceListContentSection`
+- use a stable remount key like `key={`blog:${initialVisibleCount}`}` or `key={`whitepaper:${initialVisibleCount}`}` on the route-side caller when needed
+
+### 4. Keep load-more opt-in and route-scoped
 
 Important finding:
-`ResourceListPage` is reused by other list pages (`/events`, preview/demo/use-case pages, etc.).
+resource list routes in this repo do not all want the same behavior.
 
-Do NOT make load-more mandatory on the shared component.
-Instead:
-- add an optional prop like `initialVisibleCount?: number`
-- if provided, render the load-more client component
-- if omitted, keep rendering the existing full `ResourceListItems`
+Current safe rule:
+- wire load-more only in the target routes the user asked for
+- today that means public `/blog`, public `/whitepapers`, and the internal `/internal/load-more` demo route
+- keep other list pages such as `/events` or preview/resource routes on their existing rendering path unless the user explicitly expands scope
 
-This avoids breaking unrelated pages and keeps the rollout scoped to blog/whitepapers.
+This avoids accidental UX changes outside the intended surfaces.
 
 ### 5. Ensure `ResourceItem`-like list items carry `id`
 
@@ -106,15 +124,20 @@ At minimum, check these files if they type their list items as `ResourceItem`:
 
 Also switch list rendering keys from unstable title-based keys to `item.id` when possible.
 
-### 6. Read `searchParams` in the route and compute the initial count server-side
+### 6. Read `searchParams` in each target route and compute the initial count server-side
 
 Pattern for the route:
 - accept `searchParams?: Promise<{ until?: string | string[] }>`
 - load items and resolved search params in parallel
 - compute `initialVisibleCount = resolveResourceListVisibleCount(items, resolvedSearchParams?.until)`
-- pass `initialVisibleCount` into `ResourceListPage`
+- render `ResourceListLoadMore` with `items` and `initialVisibleCount`
 
-This keeps the initial render/restoration deterministic.
+Current proven targets:
+- `src/app/blog/page.tsx`
+- `src/app/whitepapers/page.tsx`
+- `src/app/internal/load-more/page.tsx`
+
+This keeps the initial render/restoration deterministic while staying route-local.
 
 ### 7. Update the URL from the client with `router.replace(..., { scroll: false })`
 
@@ -155,25 +178,13 @@ Recommended copy used in this repo:
 ## Verification checklist
 
 Run at least:
-- targeted ESLint on touched files
+- focused node tests for the touched route/helper files
 - `npm run typecheck`
 
-Suggested touched-file lint pattern:
+Current useful targeted tests:
 ```bash
-npm run lint -- \
-  src/app/blog/page.tsx \
-  src/app/whitepapers/page.tsx \
-  src/components/sections/resource-list-page.tsx \
-  src/components/sections/resource-list-load-more.tsx \
-  src/components/sections/resource-list-section.tsx \
-  src/content/resources.ts \
-  src/lib/resource-list-load-more.ts \
-  src/lib/publications/blog-publication-records.ts \
-  src/lib/publications/whitepaper-publication-records.ts \
-  src/lib/publications/event-publication-records.ts \
-  src/lib/publications/use-case-publication-records.ts \
-  src/lib/publications/aip-demo-publication-records.ts \
-  src/lib/publications/acp-demo-publication-records.ts
+node --test tests/src/lib/resource-list-load-more.test.mjs
+node --test tests/src/app/blog/page.test.mjs tests/src/app/whitepapers/page.test.mjs
 ```
 
 Then:
@@ -193,9 +204,9 @@ npm run typecheck
 
 ## Done criteria
 
-- `/blog` and `/whitepapers` initially show 8 cards
-- the bottom button appends 8 more cards at a time
-- the currently loaded ID range is shown below the grid
+- `/blog` and `/whitepapers` initially show 12 cards
+- the bottom button appends 12 more cards at a time
 - the URL uses `?until=<id>` to restore the opened range
-- back/forward restoration works through URL-derived initial state + remount keying
-- unrelated shared list pages still render normally unless explicitly opted in
+- the internal `/internal/load-more` demo still uses the same shared helper logic
+- back/forward restoration works through URL-derived initial state + route-side initial-count wiring
+- unrelated list pages still render normally unless explicitly opted in

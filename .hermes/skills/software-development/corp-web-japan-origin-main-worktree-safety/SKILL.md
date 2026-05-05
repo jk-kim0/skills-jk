@@ -188,6 +188,39 @@ For a fresh branch with no new commits yet, these should all match.
 - Prefer a small repository-level regression test that checks file contents or metadata patterns.
 - Then implement the minimum code to satisfy the test.
 
+## Turning a meaningful dirty root-local change into its own PR
+
+A common cleanup follow-up in this repo is:
+- local `main` is behind `origin/main`
+- local `main` has one meaningful uncommitted file change
+- the user wants that exact change turned into a PR without carrying the stale local `main` state forward
+
+Safe pattern:
+
+1. identify the exact changed file(s) on dirty local `main`
+2. create a fresh worktree from latest `origin/main`
+3. copy only those file(s) into the fresh worktree
+4. verify the diff is limited to the intended file set
+5. commit, push, and open the PR from that fresh branch
+
+Example use case:
+- a repo-local skill file under `.agents/skills/**` was edited during investigation on dirty local `main`
+- the user later wants that skill update submitted as its own PR
+
+Recommended command flow:
+
+```bash
+git fetch origin --prune
+git worktree add -b docs/<topic> ~/workspace/<repo>-<topic> origin/main
+cp /path/to/dirty-main/<file> ~/workspace/<repo>-<topic>/<file>
+git -C ~/workspace/<repo>-<topic> diff --stat -- <file>
+```
+
+Important rule:
+- do not branch directly from the dirty local `main` just because the uncommitted file already exists there
+- do not mix unrelated stale local-main state into the PR branch
+- treat the dirty local file as a patch source, and the fresh latest-main worktree as the only PR-authoring checkout
+
 ## Pre-push rule
 
 Before pushing or updating a PR branch:

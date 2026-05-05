@@ -116,6 +116,9 @@ Practical note:
   - do not assume all file tools behave the same way: in practice, `write_file` and `read_file` may accept absolute worktree paths while `patch` can still resolve against the repo root or fail on the same path style
   - if a `patch` or similar edit behaves unexpectedly, stop and verify whether the change landed on the root checkout instead of the PR worktree before continuing
   - otherwise edit only after confirming your file-tool path base, then verify with `git -C <absolute-worktree-path> status --short`
+  - important read/write pitfall learned from follow-up refactors: `read_file` output is a display format, not raw file bytes. It includes `LINE|content` prefixes, and repeated reads can sometimes return a dedup placeholder like `File unchanged since last read...` instead of the raw file body.
+  - because of that, do **not** round-trip `read_file(...)["content"]` directly back into `write_file`/scripted rewrites unless you first strip the line-number prefixes and confirm you are holding real source text rather than a dedup message.
+  - if you need lossless programmatic rewrites in a PR follow-up worktree, prefer shell/Python file I/O in `terminal` or use `write_file` only with content you constructed explicitly, not blindly copied from `read_file` display output.
   - after any file-tool edit during PR follow-up, immediately compare both the repo root and the target worktree so you do not accidentally leave changes on `main`
 - Practical verification loop:
   ```bash
@@ -220,6 +223,8 @@ Important follow-up nuance learned from wrapper-removal work:
   - keep the routes that share the exact same links/behavior together on one concrete component
   - leave variant routes alone if their destinations or semantics differ (for example preview `/t/...` sidebars versus public `/...` sidebars)
 - after the re-extraction, rerun structure tests so they assert the new concrete component is used only by the intended subset and that the removed generic wrapper stays gone
+- important route-authoring nuance from corp-web-japan resource-list follow-up work: if the user explicitly wants hero/title/description blocks or CTA sections to remain authored in each `page.tsx`, do not respond to wrapper-removal follow-up by extracting those authored sections into the new concrete component. Keep route-owned hero/CTA markup in `page.tsx`, and extract only the repeated structural body that the user actually wants centralized (for example the sidebar markup and its link set).
+- related specialization pattern: when the remaining duplicates share the same visual/sidebar structure but differ only by link destinations (for example public `/...` resource links vs preview `/t/...` resource links), prefer a single concrete component with a small `links` prop or variant prop over recreating multiple near-identical concrete components. This preserves the narrower abstraction level the user asked for while still avoiding repeated sidebar markup across routes.
 
 This is especially useful when the user phrases the request as "all links" or says a wrapper should disappear entirely. The cited example file is only a clue, not the full edit set.
 
@@ -432,6 +437,12 @@ Important practical findings:
   - Example shape from real work: an old PR first added a simple `/t` path helper, then refactored environment detection, then later replaced that whole approach with a cookie-based preview-mode toggle and server/client wrapper split. Replaying the old helper commits onto latest main produced noisy conflicts, but copying the final branch tip file set onto latest main yielded a clean and correct result.
   - Important guardrail: when you use this pattern, verify that the latest-main calling sites still match the final copied component API. If latest `main` has moved a callsite or prop contract since the old PR branched, make the smallest backward-compatible adjustment needed before pushing.
 - In route-local/static-marketing refactor PRs, also rerun tests that read source files via helpers such as `tests/helpers/static-marketing-page-sources.mjs`; these helper-based tests are often what break after a rewrite-on-main because the source-of-truth path moves from shared content/container files to route-local section files.
+- Practical single-file test-conflict pattern from AI Crew PR follow-up work: when rebasing a small one-commit PR onto newer `origin/main`, the only conflict can be a structure-oriented test file that latest `main` already expanded for a sibling section while the PR adds assertions for its own still-unique section behavior. In that case:
+  1. read the conflicted test file, the latest-main implementation, and the PR's unique touched component/route files together
+  2. keep the latest-main test setup/assertions that reflect already-merged sibling work
+  3. add back only the current PR's still-unique assertions (for example new route-authored labels/aria text and negative assertions against the extracted section file)
+  4. avoid reverting the test to either side wholesale just because only one file conflicted
+  5. rerun the narrowest targeted tests before `rebase --continue`
 - Common docs/memory conflict case: append-only markdown files such as `.hermes/memories/*.md` or skill `SKILL.md` files often conflict during rebase when both `main` and the PR added new bullets near the end of the same section.
   - Do not blindly take one side.
   - Read the conflict block and keep both sides' new entries unless one is a true duplicate.
@@ -466,6 +477,19 @@ Important practical findings:
     ```
   - If they differ, do not continue CI/debug follow-up in that old worktree. Create a fresh detached worktree directly from `origin/<pr-branch>` and continue there.
   - This is especially important after squash+force-push maintenance tasks, where the old local branch/worktree can remain on an orphaned pre-rewrite commit even though the PR itself is healthy.
+- Additional fresh-worktree sanity check from PR 233 follow-up: if a newly created follow-up worktree path is not recognized by Git (`fatal: not a git repository`) or only contains a partial subtree such as `tests/`, treat it as broken immediately.
+  - Do not try to edit or run tests there.
+  - Recovery flow:
+    ```bash
+    rm -rf <bad-worktree>
+    git worktree prune
+    git fetch origin --prune
+    git worktree add <new-clean-path> origin/<pr-branch>
+    git -C <new-clean-path> rev-parse --show-toplevel
+    git -C <new-clean-path> status -sb
+    find <new-clean-path> -maxdepth 2 | sed -n '1,30p'
+    ```
+  - Only continue after those checks show a real checkout root with normal repo contents.
 
 ### 7. Re-check the PR and CI
 ```bash

@@ -38,6 +38,9 @@ For a compliance audit on latest `origin/main`:
 Practical implication learned from repo follow-up:
 - routes such as `/t/about-us`, `/t/certifications`, and `/t/services/**` may already satisfy the route-local authoring goal even if they are newer than the examples in the docs
 - the main current non-compliant pages can therefore be a smaller set than “all static-looking pages,” especially when newer preview pages were authored directly in `page.tsx`
+- do not treat documentation labels like "partial" or "wrong / pre-refactor" as authoritative without checking the live code on latest `origin/main`; those labels can lag behind after a sequence of section-scoped PRs merges
+- when a page is explicitly called out in docs as non-compliant, verify the current `page.tsx`, current `src/components/sections/**` files, and recent git history for that route before recommending more route-local-authoring work
+- practical example: `src/app/solutions/ai-crew/page.tsx` was still described in docs as a wrong/pre-refactor example even after multiple merged PRs had already moved most section copy and composition into the route; the correct conclusion was that the docs had become stale, not that the page still needed the same refactor class
 
 ## When this applies
 
