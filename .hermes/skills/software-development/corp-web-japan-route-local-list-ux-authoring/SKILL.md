@@ -84,6 +84,12 @@ For internal MDX list UX demo work, the user wanted the same route-local authori
 - shared component owns rendering primitives
 - old wrapper remains only as a compatibility layer
 
+Additional reusable follow-up pattern learned from PR layout polishing:
+- If a PR first proves a desired UI by attaching many `className` overrides directly in `page.tsx`, and the user then asks to apply that validated design to the shared components, do not keep the route as the permanent source of spacing/typography fixes.
+- Instead, promote the proven layout defaults into the shared primitives themselves (for example hero typography, sidebar width/sticky behavior, CTA spacing, shared CTA-button geometry/icon sizing), then remove the now-redundant page-level overrides.
+- After promoting the defaults, also update any compatibility wrapper such as `ResourceListPage` so existing list routes inherit the same validated structure and a11y/container pattern (for example shared sidebar viewport + nav labeling), not just the one demo page.
+- Verify by searching the route file for the old sizing/spacing override classes and confirming they are gone, while the shared component now carries the intended default values.
+
 ## Done criteria
 
 - `page.tsx` visibly owns the page copy and links

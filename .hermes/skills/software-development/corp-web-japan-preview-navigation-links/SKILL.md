@@ -108,6 +108,9 @@ This pattern was used for PR 179 follow-up work.
   - client toggle button that POSTs to the API route and then `router.refresh()`
 - `src/components/layout/site-footer.tsx`
   - server component that reads the same cookie and applies the same `t(..., previewModeEnabled)` logic
+  - can also add preview-only footer columns by conditionally appending them when `previewModeEnabled` is true
+- `src/components/layout/site-footer.module.css`
+  - if a preview-only footer column changes desktop column count, add a preview-only layout class (for example a six-column desktop grid) and apply it only when `previewModeEnabled` is true
 
 #### Why this split matters
 The header was already a client component for dropdown state, while footer/sidebar links need server-consistent href generation. The safest low-scope pattern is:
@@ -160,9 +163,30 @@ Keep the change minimal:
 - no broad layout-mode refactor unless the user explicitly asks for it
 - no speculative remapping for nonexistent preview pages
 
-## Existing helper preservation rule
+## Footer preview-only internal menu pattern
 
-Before adding or changing `src/lib/is-production.ts`, check whether the file already exists on the current `main` branch.
+Use this when the user wants footer-only preview navigation that should appear only while the Preview Toggle is enabled.
+
+Recommended implementation:
+- define a small `internalFooterColumn` object inside `src/components/layout/site-footer.tsx`
+- append it with `...(previewModeEnabled ? [internalFooterColumn] : [])`
+- keep the links canonical to the internal routes themselves, for example:
+  - `/internal`
+  - `/internal/whitepaper-gating-demo`
+  - `/internal/mdx-list-demo`
+  - `/internal/load-more`
+- do not show this column when preview mode is off
+
+Recommended regression test shape:
+- add a source-based test file such as `tests/footer-preview-navigation.test.mjs`
+- assert all of the following in `site-footer.tsx`:
+  - the conditional append based on `previewModeEnabled`
+  - the `Internal` section title
+  - each expected internal footer label and href
+- also rerun existing footer/navigation regression tests because this repo already has string-based source assertions for footer contents
+
+Practical note from this task:
+- adding a new preview-only footer column can require a separate preview-only desktop grid class in `site-footer.module.css`; otherwise the normal five-column desktop layout can become cramped when the sixth column appears
 
 Practical lesson from this task:
 - `src/lib/is-production.ts` was already present on `origin/main`
