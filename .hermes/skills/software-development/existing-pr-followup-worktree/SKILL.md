@@ -92,12 +92,36 @@ cd .worktrees/<topic>
 git checkout -b <pr-branch>-local --track origin/<pr-branch> 2>/dev/null || git checkout <pr-branch>
 ```
 
+Important path rule learned from real PR follow-up work:
+- Keep the worktree directory name flat even if the branch name contains slashes.
+- Good: branch `feat/internal-mdx-list-demo-whitepaper-ux` with worktree path `.worktrees/internal-mdx-list-demo-whitepaper`
+- Risky: deriving the worktree path mechanically from the branch name, such as `.worktrees/feat/internal-mdx-list-demo-whitepaper-ux`
+- Why this matters:
+  - Git will happily create nested directories for the worktree path
+  - later file-tool calls can target the wrong nested path or fail because you mentally tracked the branch name instead of the actual directory path
+  - this becomes especially confusing when mixing `terminal` commands with absolute file-tool paths during follow-up edits
+- Prefer choosing a short flat `<topic>` path first, then attach it to the PR branch tip.
+
 Practical note:
 - If the branch is already checked out in another worktree, `git checkout <pr-branch>` in the fresh worktree will fail. In that case, staying on the detached `origin/<pr-branch>` checkout is acceptable for a small follow-up.
 - You can make the fix, commit on detached HEAD, and push with `git push origin HEAD:<pr-branch>`.
 - In this detached state, some `gh pr ...` commands that rely on the current branch can fail with errors like `could not determine current branch`. Prefer explicit branch/PR arguments, e.g. `gh pr view <pr-branch> --json ...` or `gh pr view <pr-number> --json ...` instead of assuming branch autodetection will work.
 - This still satisfies the core requirement because the fresh worktree starts from the PR branch tip and updates the same remote PR branch.
 - The important thing is: the new worktree must start from the PR's remote head, not from `main` and not from some old local branch.
+- Important tool-path pitfall from real follow-up work: Hermes file-edit tools (`patch`, `write_file`, sometimes `read_file`) do not automatically follow a `terminal` command's `workdir`, and repo-root-relative file paths can silently hit the main checkout instead of the fresh PR worktree.
+- Before editing with file tools, confirm which checkout the path resolves against.
+- Safe patterns:
+  - prefer absolute paths into the target worktree when the specific file tool supports them reliably
+  - do not assume all file tools behave the same way: in practice, `write_file` and `read_file` may accept absolute worktree paths while `patch` can still resolve against the repo root or fail on the same path style
+  - if a `patch` or similar edit behaves unexpectedly, stop and verify whether the change landed on the root checkout instead of the PR worktree before continuing
+  - otherwise edit only after confirming your file-tool path base, then verify with `git -C <worktree> status --short`
+  - after any file-tool edit during PR follow-up, immediately compare both the repo root and the target worktree so you do not accidentally leave changes on `main`
+- Practical verification loop:
+  ```bash
+  git status --short
+  git -C .worktrees/<topic> status --short
+  ```
+  If the root checkout changed but the PR worktree did not, stop and move the change onto the PR worktree before committing.
 
 ### 3. Verify you are on the PR line before editing
 ```bash
@@ -189,10 +213,26 @@ Important user-expectation nuance learned from active-review follow-up:
   git rebase origin/<pr-branch>
   ```
   Then resolve any conflicts and push again. This keeps the same PR branch linear while preserving already-pushed review follow-ups.
-- If the user later asks to clean up the PR title/body, rewrite them to describe only the final end state of the PR. Do not narrate intermediate implementation history unless the user explicitly wants that context.
+- Important detached-HEAD follow-up case learned from PR maintenance work: if you created the fresh worktree directly from `origin/<pr-branch>` and then rebased that detached HEAD onto `origin/main` before pushing, your local history may accidentally rewrite the PR's existing head commit(s), not just add your new follow-up commit.
+  - Typical signal:
+    ```bash
+    git log --oneline --left-right HEAD...origin/<pr-branch>
+    ```
+    shows your local side contains both your new follow-up commit and a rewritten copy of the old PR tip, while the remote side still has the original old PR tip.
+  - In that case, do not force-push the rewritten stack for a normal review follow-up.
+  - Instead, transplant only your new follow-up commit(s) onto the current remote PR head:
+    ```bash
+    git fetch origin --prune
+    git rebase --onto origin/<pr-branch> <old-local-pr-tip> HEAD
+    ```
+    where `<old-local-pr-tip>` is the local commit that used to correspond to the original PR tip before your new follow-up commit(s).
+  - After that, verify `git log --oneline --decorate -n 5` shows `origin/<pr-branch>` followed by only your intended new follow-up commit(s), rerun the targeted test, and push normally.
+  - This preserves the existing open PR history while still letting you rebase your new work onto the remote PR head.- If the user later asks to clean up the PR title/body, rewrite them to describe only the final end state of the PR. Do not narrate intermediate implementation history unless the user explicitly wants that context.
 - If the user asks to squash the branch history for an open PR, use a fresh worktree from the PR branch tip, `git reset --soft <base-branch>`, recommit once with the final conventional-commit message, then `git push --force-with-lease origin HEAD:<pr-branch>` and re-check PR/CI status.
 - For small PR follow-ups such as squash, title/body edits, route/path renames, or other narrow review-driven fixes, do not automatically run local build/test verification unless the user explicitly asks for it. Prefer the fast path: edit -> commit -> push -> confirm PR updated -> watch CI.
 - Likewise, do not start a local dev server for visual/manual verification unless the user explicitly asks for that method. If you need confidence without a dev server, prefer scoped tests, code inspection, PR reviewability, and CI.
+- Important visual-follow-up caveat learned from preview-UI work: if the user points to a specific Preview Deployment URL and says the rendered result still looks wrong, verify that exact deployed preview in the browser before trusting your local render. Small spacing/icon/asset differences can still show up differently on the deployed preview even when a local dev server looked acceptable.
+- If the preview and local render disagree, treat the preview as the source of truth for that follow-up, adjust from the current PR branch, and then use local render only as a quick iteration loop before pushing another preview update.
 - At the start of a follow-up task, give a short time estimate. If the work exceeds that estimate, stop and immediately report current status and next step instead of staying silent.
 
 ### 6a. If the user asks to rebase the existing PR branch onto the latest main
@@ -229,6 +269,12 @@ Important practical findings:
   - If yes, prefer the latest-main version of that extracted file during conflict resolution, then keep only the original PR changes that still matter on top of it (for example updated imports/usages in `page.tsx` or removal of the old superseded file/path).
   - Expect duplicate cleanup/rename commits near the end of the rebase to become empty or be auto-dropped as `patch contents already upstream`; this is normal and usually desirable.
   - Practical heuristic: when the conflict is between an old pre-split file path from the original PR and the new extracted file already merged on `main`, do not resurrect the old path just to preserve history. Preserve the final main-side extracted file and continue the rebase with the original PR's remaining unique behavior changes only.
+- Same-file neighboring-refactor case: the current PR may refactor one section of a large route file while latest `origin/main` has already merged a different route-local refactor in a nearby section of that same file.
+  - Typical signal: rebase conflicts in one large `page.tsx` plus companion structure tests, even though the PR scope is still valid.
+  - In that case, do not blindly take either side wholesale.
+  - Keep the latest-main refactor that already landed for the neighboring section, then layer the current PR's still-unique section refactor on top of that updated file shape.
+  - Also merge the structure tests so both route-local sections are asserted after the rebase, rather than restoring an older single-section test state.
+  - After resolving the main conflict this way, a later small follow-up commit from the PR (for example a visual/icon restore fix) may be auto-dropped as `patch contents already upstream` because its effect was already incorporated into the resolved tree. Treat that as normal if the intended final file content is still present.
 - Stronger rewrite-on-main case: if the user explicitly asks not just for a mechanical rebase but for the PR to reflect the latest `main` implementation and recent merged follow-ups, a literal `git rebase origin/main` may be the wrong tool.
   - Typical signs: the PR branched before one or more related refactor PRs merged, the old branch has stacked/split follow-up commits mixed in, or the user questions whether the current diff still matches the intended refactor goal.
   - In that case, create a fresh worktree from latest `origin/main`, inspect the current PR branch's intended final file set, and reconstruct that intended end state on top of latest `main` as a new commit sequence (often one clean commit is enough).
@@ -236,6 +282,27 @@ Important practical findings:
   - Verify with `git merge-base origin/main <pr-branch>` that the PR branch now sits directly on the latest remote main tip (or that tip's exact ancestor if main advanced during work), and rerun local validation before pushing.
   - This is not a normal-first choice; use it when preserving old commit ancestry would keep dragging stale pre-main structure into the PR or would obscure the user's desired final diff.
   - Practical stale-top-page pattern: if multiple sibling PRs were split from an older top-page refactor branch and newer `main` has already absorbed some intermediate sections (for example platform/security, then whitepapers), do not blindly preserve the old mixed diff. First identify which sections are already on `origin/main`, then rebuild each PR so it keeps only its still-unique intended scope (for example whitepapers only, or later final CTA only) on top of latest main.
+  - Practical partially-absorbed PR pattern from AI Crew route-local follow-up work: a rebase request can target an open PR whose branch still contains several commits, but latest `origin/main` already includes part of that branch's intent from an earlier sibling PR. In that case, a literal `git rebase origin/main` often collides because the PR is half superseded rather than fully independent.
+    Recommended recovery flow:
+    1. inspect `git rev-list --oneline origin/main..origin/<pr-branch>` and `git diff --stat origin/main...origin/<pr-branch>` to see the branch's total residual scope
+    2. create a fresh clean worktree directly from latest `origin/main`
+    3. copy the PR's touched file set from `origin/<pr-branch>` into that clean worktree with `git checkout origin/<pr-branch> -- <paths...>`
+    4. then explicitly restore files that should stay on latest-main shape because that part of the refactor already landed via another PR (for example the route file's why-section structure, shared section exports, or data formerly moved into `main`)
+    5. keep only the still-unique remainder of the current PR, run the narrowest meaningful regression test, commit once, and `git push --force-with-lease origin HEAD:<pr-branch>`
+    This is especially useful when the final desired result is not "replay every historical commit" but "same open PR branch, rewritten so only its surviving unique review scope remains on top of latest main."
+  - Consecutive sibling route-local PR pattern from AI Crew follow-up work: when latest `origin/main` already contains earlier sibling PRs that localized adjacent sections (for example `why`, then `design-elements`), and the current PR localizes the next section in sequence (for example `process`), do not revive the old branch's transitional wrapper such as `HomePagePreProcessSections` or re-import older content-backed sections wholesale.
+    Safer reconstruction pattern:
+    1. start from clean latest `origin/main`
+    2. copy the current PR's touched files from `origin/<pr-branch>`
+    3. immediately restore the main-owned route file, shared sections file, shared content file, and related tests from `origin/main`
+    4. reapply only the current PR's unique section-local pieces onto the latest-main route shape (for example insert the route-local `process` section between the already-main `design-elements` section and the remaining shared post-process sections)
+    5. trim the shared sections file so it contains only the remaining sections after the newly localized one
+    6. delete any now-redundant content-backed data block from shared content files
+    7. update structure/helper tests so they assert the latest-main route-local sections plus the newly localized section together
+    8. if launch-readiness or CTA tests previously matched only content-file frontmatter/data, widen them to also accept the equivalent route-local JSX action pattern
+    9. rerun the narrow route structure test plus any CTA/launch-readiness regression that inspects the same source paths, then squash to one clean commit and force-push back to the PR branch
+    Heuristic: if the current PR's true value is "one more section becomes route-local" and latest main already contains the previous section-local PRs, reconstruct that final latest-main composition directly instead of preserving the old branch's intermediate split points.
+  - Practical PR-cleanup pattern for "this PR includes unrelated commits": create a fresh detached worktree directly from latest `origin/main`, create a temporary local branch there, and then copy only the PR's intended scoped files from `origin/<pr-branch>` into that clean worktree with `git checkout origin/<pr-branch> -- <paths...>`. Verify the resulting diff with `git diff --stat origin/main...HEAD` and `git diff --name-only origin/main...HEAD`, run validation, commit once, then `git push --force-with-lease origin HEAD:<pr-branch>`. This is safer than trying to interactively prune old mixed branch history when the desired result is a clean single-scope PR.
   - Important terminal state: after enough sibling PRs merge, an older PR's remaining intended diff may become fully absorbed by `origin/main`.
   - Before force-pushing a rebased/reconstructed branch, always check whether any unique commits or diff still remain:
     ```bash
@@ -260,7 +327,45 @@ Important practical findings:
     - keep `src/app/page.tsx` or similar route files on latest-main shape, then patch only the minimal imports/sections needed for the PR's surviving scope
     - if an old shared container like `TopPageSections` still exists on main but the PR intends to inline/remove only part of it, decide explicitly whether that PR should still depend on the container or should remove it as part of the rewritten final state
   - After rewriting, compare both against `origin/main` and against the old PR branch so you can confirm the new diff kept the intended scope while dropping already-merged stale pieces.
+  - Important practical guardrail from stale route-authoring PR work: do NOT try to "cleanly rebase" by taking the old PR worktree, staging your intended edits there, and then doing `git reset --soft origin/main`. On an old PR branch this can stage a huge mixed diff containing unrelated pre-main history plus later main-side changes, which is exactly what you are trying to avoid.
+  - Safer pattern when the open PR branch is stale but the user wants the same PR rewritten on latest main:
+    1. create a completely clean detached worktree directly from latest `origin/main`
+    2. reapply or copy only the final intended file set for the PR's surviving scope
+    3. verify there are no unrelated file changes in `git diff --stat`
+    4. commit once on top of latest main
+    5. push with `git push --force-with-lease origin HEAD:<pr-branch>`
+  - Practical cleanup pattern for `PR contains unrelated commits` follow-up:
+    - First inspect `git rev-list --oneline origin/main..origin/<pr-branch>` and `git diff --stat origin/main...origin/<pr-branch>` to identify which commits/files are actually unrelated to the PR's intended scope.
+    - Then create a fresh worktree from latest `origin/main` and do **not** branch-checkout the PR branch there if that branch name is already occupied by another local worktree.
+    - Instead, use a temporary local branch name in the clean worktree (for example `pr205-rewrite`) and selectively copy only the intended paths from `origin/<pr-branch>` with `git checkout origin/<pr-branch> -- <paths...>`.
+    - This is often faster and safer than rebasing a stale branch that has picked up unrelated commits from other topics.
+    - After copying, verify again with `git diff --stat origin/main...HEAD` that only the intended scope remains, run validation, and then force-push the clean rewrite back to the original PR branch with `git push --force-with-lease origin HEAD:<pr-branch>`.
+  - If dependency availability differs between the stale PR worktree and the clean latest-main worktree, it is acceptable to do one round of confidence verification in the existing PR worktree (where dependencies are already present), then reconstruct the final file set again in the clean latest-main worktree before committing and force-pushing. The key invariant is that the branch you push must be built from clean latest main, not from the stale PR checkout.
 - After a rewrite-on-main like this, re-check repository tests that assert source structure, not just runtime behavior. Structure-oriented tests may need helper updates when the user intentionally changes `page.tsx` from inline JSX to semantic section composition.
+- Additional practical rebase pattern from PR 214 maintenance: when rebasing a stacked follow-up PR branch onto latest `origin/main`, the first implementation commit can conflict in structure-test helpers (for example `tests/helpers/static-marketing-page-sources.mjs`) because `main` has gained new sibling-section coverage since the PR branched. Resolve that first conflict by keeping the latest-main helper/test baseline and merging in the rebased PR's newly introduced section files/assertions together.
+- Important follow-on nuance from the same case: later follow-up commits in the same rebase can then conflict again in the same test file, but only because the test should reflect the repository state at that specific historical commit.
+  - Example shape: commit 1 adds a new `why` section and its initial assertions; commit 2 changes only the `Before` card API; commit 3 changes only the `After` card API.
+  - During rebase, if commit 2 stops on the already hand-merged test file, do **not** keep commit 3's assertions prematurely just because you know they will be added later. Instead, reduce the conflict to the test state that matches commit 2 only, continue the rebase, and let commit 3 add its own assertions in the next step.
+  - Practical heuristic: at each stopped rebase commit, inspect the implementation files first and make the conflicted test describe exactly the code that currently exists in the tree at that step — no less, but also no future-state assertions from later commits.
+  - This avoids accidentally making a follow-up commit empty for the wrong reason or hiding whether a later API-shape commit still replays correctly.
+- Additional practical rebase pattern learned from PR follow-up work: sometimes an open PR branch contains several early "intermediate" commits that introduced a temporary helper or transitional architecture, while a later final commit on the same PR fully supersedes that intermediate path.
+  - Typical signs:
+    - rebasing onto latest `origin/main` stops first on an old early commit, not on the final intended commit
+    - conflict files are the same surfaces later rewritten again on the PR branch
+    - the old commit tries to revive deleted helper files or older prop/component shapes that the final PR state no longer uses
+    - after skipping or dropping some early commits, only the final intended PR diff remains meaningful
+  - In that case, do not spend time perfectly replaying each intermediate commit.
+  - Prefer this recovery flow instead:
+    1. inspect `git rev-list --oneline origin/main..origin/<pr-branch>` to see the full branch commit stack
+    2. identify whether the early commits are transitional steps that are superseded by the PR branch tip
+    3. create or keep a fresh worktree from latest `origin/main`
+    4. copy the final intended file set directly from `origin/<pr-branch>` onto the latest-main worktree with `git checkout origin/<pr-branch> -- <paths...>`
+    5. run the relevant verification
+    6. squash the result to one clean commit on top of latest `origin/main`
+    7. `git push --force-with-lease origin HEAD:<pr-branch>`
+  - This is especially useful when a rebase leaves you with conflict churn from outdated helper-based commits but the user only cares about the final PR behavior on latest main.
+  - Example shape from real work: an old PR first added a simple `/t` path helper, then refactored environment detection, then later replaced that whole approach with a cookie-based preview-mode toggle and server/client wrapper split. Replaying the old helper commits onto latest main produced noisy conflicts, but copying the final branch tip file set onto latest main yielded a clean and correct result.
+  - Important guardrail: when you use this pattern, verify that the latest-main calling sites still match the final copied component API. If latest `main` has moved a callsite or prop contract since the old PR branched, make the smallest backward-compatible adjustment needed before pushing.
 - In route-local/static-marketing refactor PRs, also rerun tests that read source files via helpers such as `tests/helpers/static-marketing-page-sources.mjs`; these helper-based tests are often what break after a rewrite-on-main because the source-of-truth path moves from shared content/container files to route-local section files.
 - Common docs/memory conflict case: append-only markdown files such as `.hermes/memories/*.md` or skill `SKILL.md` files often conflict during rebase when both `main` and the PR added new bullets near the end of the same section.
   - Do not blindly take one side.
@@ -287,6 +392,15 @@ Important practical findings:
   gh pr view <pr-number> --json headRefOid,updatedAt,url
   ```
   If they differ momentarily, wait a few seconds and re-check before concluding the push failed.
+- Important stale-worktree lesson from PR 190 follow-up work: after a force-push/rewrite of an open PR branch, any older local worktree that still has the same branch checked out can be left behind at the pre-push commit and become misleadingly stale.
+  - Do not assume the branch-named worktree is now at the rewritten remote tip.
+  - Re-check with:
+    ```bash
+    git -C <old-worktree> rev-parse HEAD
+    git rev-parse origin/<pr-branch>
+    ```
+  - If they differ, do not continue CI/debug follow-up in that old worktree. Create a fresh detached worktree directly from `origin/<pr-branch>` and continue there.
+  - This is especially important after squash+force-push maintenance tasks, where the old local branch/worktree can remain on an orphaned pre-rewrite commit even though the PR itself is healthy.
 
 ### 7. Re-check the PR and CI
 ```bash
@@ -296,9 +410,10 @@ gh pr checks <pr-number>
 
 Important practical note:
 - `gh pr checks <pr-number>` returns a non-zero exit code not only for hard failures, but also while checks are still pending.
-- Do not treat the non-zero exit by itself as proof that your branch update failed.
-- Read the printed check table first, then classify each check as `pass`, `pending`, or `fail`.
-- If needed, follow up with `gh pr view <pr-number> --json headRefOid,updatedAt,url` and/or rerun `gh pr checks <pr-number>` after a short wait.
+- Immediately after a force-push/rebase update, it can also briefly print `no checks reported on the '<branch>' branch` before GitHub attaches the new workflow runs to the PR head.
+- Do not treat either the non-zero exit or that temporary `no checks reported` message as proof that your branch update failed.
+- First confirm the new head landed with `gh pr view <pr-number> --json headRefOid,updatedAt,url` and/or `git ls-remote origin refs/heads/<pr-branch>`.
+- Then rerun `gh pr checks <pr-number>` after a short wait and classify the resulting checks as `pass`, `pending`, or `fail`.
 
 Confirm:
 - the PR still points to the intended branch

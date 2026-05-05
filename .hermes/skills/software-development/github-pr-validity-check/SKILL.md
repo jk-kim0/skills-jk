@@ -100,6 +100,8 @@ For the verdict, gather several of:
 - When a newer main-branch fix already defines the current contract for shared files, a PR that reworks the same area under a different approach should not be treated as straightforwardly valid.
 - "The idea is good" is not enough. Separate whether the proposed improvement should exist from whether this specific PR should merge.
 - For asset optimization PRs, it is common for the optimization itself to be valid while the branch becomes invalid because unrelated changes were bundled later.
+- For dead-code-removal PRs, do not trust old assumptions about "unused" branches. Re-validate both runtime references and real content/data markers on latest main. Example pattern: search the current source tree for imports/usages, then search the real content corpus for markers that activate the branch (for example HTML wrapper markers). A branch is only a good removal target when both the code references and the activating data markers are absent or can be safely narrowed.
+- If only part of a stale PR remains valid on latest main, salvage it by narrowing scope instead of forcing the original broader thesis. Reconstruct the still-valid subset on top of latest main, update the PR title/body to match the reduced scope, and treat the result as a rewritten PR rather than a mechanical rebase.
 
 ## Output style
 

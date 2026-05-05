@@ -176,6 +176,41 @@ Example pattern:
 - new `route.ts` added
 - documentation should say the current link is the local endpoint and mention the redirect destination
 
+### Important content-family audit lesson: local index, local detail, and upstream card hrefs can diverge
+
+For publication-family wiki pages such as Blog / WhitePapers / Events, do not assume there is only one "current route" per item.
+A latest-main audit may reveal three different surfaces that all matter:
+
+1. local public index/list route
+2. local canonical detail route
+3. current visible card href from the public index, which may still point upstream or elsewhere
+
+A common failure mode is to document only the local detail route and miss that the user-facing public list currently links to a different destination.
+This makes the wiki look cleaner than the actual implementation and hides important transition state.
+
+When auditing a content family, explicitly inspect:
+- the public list page route file
+- the preview/local list page route file if one exists
+- the list-item source or href-builder used by the public list
+- the local detail route files and redirect behavior
+- robots/canonical metadata on local detail pages
+- any hidden/shadow records used only for redirects
+
+Recommended wiki structure when this divergence exists:
+- implementation status summary
+- current route behavior by surface
+- per-item inventory that lists:
+  - local canonical detail route
+  - current public list card link
+  - upstream equivalent if different
+- separate hidden/shadow redirect section when needed
+
+This is especially important when:
+- the local detail flow exists but is `noindex,nofollow`
+- the public list is local but intentionally links to upstream content
+- preview/local MDX routes exist alongside the public list
+- a hidden record preserves an old ID while redirecting to another visible canonical record
+
 ### Important CTA-inventory lesson from later main-branch updates
 
 Do not preserve stale wiki `Current link` cells based on older design assumptions like `#contact` when latest `origin/main` has since centralized the real href values into exported constants.

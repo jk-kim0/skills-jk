@@ -139,3 +139,23 @@ In corp-web-japan, follow the repo AGENTS rule that PR titles/descriptions (and 
 For this user, when they say 'repo 의 workspace 정리' or similar, interpret it as repo-local cleanup only: clean the current repository's stale worktrees/branches and local residue, not the whole ~/workspace. Keep going across follow-up turns until the repo is as clean as safely possible, including cleaning root-local residue and fast-forwarding root main to origin/main when safe.
 §
 In this Hermes setup with provider openai-codex and a ChatGPT account, a session that switches in-place from gpt-5.4 to open-ai/codex can later fail auxiliary compression/child-session startup with HTTP 400 "The 'codex' model is not supported when using Codex with a ChatGPT account." Other sessions can still work if their session model remains gpt-5.4.
+§
+In corp-web-japan about-us preview work, the user prefers the migrated static assets under public/about-us rather than public/t/about-us, even when the preview route itself is /t/about-us.
+§
+In corp-web-japan, when a refactor workflow is likely to be repeated across sessions/pages, the user wants it generalized into a repo-local skill under `.agents/skills/` and delivered as a PR rather than kept only as an ad hoc prompt.
+§
+In corp-web-japan static-page route-local authoring, docs/code-location-conventions.md can be outdated; the user's desired target pattern is current src/app/page.tsx on latest main, src/app/solutions/ai-dashi/page.tsx is only partially refactored toward that goal, and src/app/solutions/ai-crew/page.tsx is the archetypal pre-refactor anti-pattern.
+§
+In corp-web-japan static-page authoring, src/app/**/page.tsx should contain the copy text and the calls/composition that use components, while src/components/sections/** should define the components used by page.tsx and hold the style/UI/UX implementation details such as classes, JavaScript, and styling behavior.
+§
+In corp-web-japan main as of 2026-05-03, local `next build --webpack` fails on an existing baseline CSS Modules error in `src/components/layout/site-header.module.css`: `:root` selector is not pure. This is independent of the use-cases MDX migration branch.
+§
+In corp-web-japan static-page route-local authoring work, the user wants PR 155–158 style section-scoped migration: move one section's copy ownership into page.tsx per PR, keep temporary shared shells if needed, and do not implement by passing giant raw JSX section blobs as props from the route.
+§
+In corp-web-japan static-page route-local authoring, the user does not consider it sufficient to move prose-heavy top-level arrays into large local helper functions inside page.tsx (e.g. SupportSection/ReleaseFlowSection). The route body itself should remain readable: reviewers should be able to see migrated section heading/body/CTA/composition directly from the default export body, not just opaque helper calls.
+§
+In corp-web-japan latest main, the shared gradient CTA button component is `src/components/ui/brand-gradient-cta-button.tsx` exporting `BrandGradientCtaButton`; if the user refers to a shared 'Brant/Brand gradient CTA button', this is the component to use.
+§
+In corp-web-japan, for resource/documentation migration work, the user does not want glossary, introduction-deck, and manuals grouped under a single generic `documentation` type. Treat them as distinct content types like blog/whitepaper/event. If shared logic is needed, prefer a common `resource` abstraction layer (e.g. TypeScript abstract base class + concrete per-type implementations) rather than one merged `documentation-publications.ts` style loader.
+§
+In corp-web-japan resource preview/publication work, the user explicitly does not want the source content directory name `documentation` used for these families either; avoid paths like `src/content/documentation/**` and prefer route/resource-aligned roots such as `src/content/resources/<family>`.

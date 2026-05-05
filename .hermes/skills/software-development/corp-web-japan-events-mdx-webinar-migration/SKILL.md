@@ -63,6 +63,8 @@ title: "..."
 description: "..."
 date: "2026年4月9日"
 heroImageSrc: "/events/27/thumbnail.png"
+eventLabel: "ウェビナー"
+hideHeroImageOnDetail: true
 author: "querypie"
 relatedIds:
   - "26"
@@ -73,6 +75,9 @@ relatedIds:
 
 Notes:
 - keep `id` as a string
+- `eventLabel` is the single event-type badge shown on `/t/events`; use values like `イベント`, `ウェビナー`, `ワークショップ`, or `研修`
+- `hideHeroImageOnDetail: true` hides the top hero image only on the detail page; omit it or set `false` to keep the current default rendering
+- the current list-page fallback remains `イベント` when `eventLabel` is omitted
 - convert source ISO dates to display-ready Japanese date strings used by the local site
 - convert source `relatedPosts` legacy webinar paths into `relatedIds`
 - use `author: "querypie"` unless a different local author is explicitly needed
