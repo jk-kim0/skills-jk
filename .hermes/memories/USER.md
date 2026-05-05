@@ -145,3 +145,23 @@ When cleaning stale corp-web-japan worktrees, a worktree whose only remaining di
 For top-page refactors in corp-web-japan, the user's key requirement is not just moving copy into page.tsx, but authoring it as direct JSX like <Component>marketing text</Component> rather than large JSON-like props/objects in page.tsx.
 §
 When the user says 'workspace 정리', they mean: update local main to the latest origin/main, switch the current checkout to main, and delete stale local branches and stale worktrees safely.
+§
+When the user points to a specific Preview Deployment URL and reports a visual discrepancy, verify that exact deployed URL directly in the browser; local render alone is not sufficient because preview and local spacing/UX can differ.
+§
+User finds cross-repo mixed Hermes CLI history via arrow-key/session recall very inconvenient and prefers per-working-directory or per-repo conversation/history isolation when possible.
+§
+In corp-web-japan static-page route-local authoring refactors, even when the scope is reduced to one or a few sections, the user expects each targeted section to be fully refactored: section implementation should be extracted under src/components/sections, while page.tsx should retain the section copy/data/composition. Page-local helper section components inside page.tsx are not considered complete.
+§
+For static marketing page refactors, the user explicitly wants direct JSX authoring like <Tag>copy</Tag> instead of JSON-like content objects or prop blobs passed into components; treat JSON/array copy declarations and prop-shaped content APIs as a core anti-pattern unless the data is truly tiny and non-marketing.
+§
+In corp-web-japan static-page route-local authoring refactors, the user expects refactor-only PRs to preserve the existing UI exactly unless they explicitly request a design change. Preserve box/button wrapper classes, icons, spacing, and overall visual parity rather than re-styling while moving copy ownership.
+§
+In corp-web-japan static-page route-local authoring refactors, the user does not want section components to infer highlighted marketing copy by string matching; highlighted words/phrases should be authored explicitly in page.tsx JSX so copy emphasis ownership stays route-local.
+§
+In corp-web-japan route-local authoring, the user prefers section/card subtitles and similar small marketing copy to be authored as child elements in page.tsx rather than passed via prop fields like subtitle=.
+§
+For corp-web-japan static marketing copy, the user prefers semantic emphasis in route-local JSX via `<strong>...</strong>` rather than presentation-heavy inline `<span className=...>` markup; visual highlight styling should live in the wrapper/section component.
+§
+When the user gives a clear implementation instruction, do not reply with 'if you want' / proposal-only follow-ups or hand the choice back; execute the full requested comparison/fix end-to-end without making the user restate scope.
+§
+User does not use /rollback and prefers Hermes checkpoints disabled unless explicitly needed.

@@ -22,7 +22,8 @@ Use this when a repo needs a local preview but `next dev` is blocked by an exist
 ## Core findings
 - A browser check against `localhost:3000` can accidentally hit an unrelated or stale dev server.
 - In the same repo, a second `next dev` instance may fail even on a different port because Next.js holds a repo-local dev lock under `.next/dev/lock`.
-- To get a trustworthy preview, first identify and stop the existing same-repo dev instance, then start a fresh server on a known port.
+- `next start` serves the last completed production build, not your current source tree. If you changed code after the previous build, the browser can keep showing an older page until you run `npm run build` again and restart the `next start` process.
+- To get a trustworthy preview, first identify and stop the existing same-repo server, then rebuild/restart on a known port.
 
 ## Workflow
 
@@ -50,13 +51,49 @@ Then restart:
 npm run dev -- --port 3456
 ```
 
-### 4. Verify the correct server, not just any server
-Open the exact port you started, for example:
-```text
-http://127.0.0.1:3456
+### 4a. If you are using `next start`, rebuild before trusting the browser
+After any source change:
+```bash
+npm run build
+```
+Then stop the old `next start` process and restart it:
+```bash
+npm run start -- --port 3456
 ```
 
-Do not fall back to `:3000` unless you verified that the current repo owns it.
+Why:
+- `next start` serves the previous build output until you rebuild.
+- It is easy to think your latest edit is live when the browser is actually showing an older compiled page.
+- This is especially dangerous during layout-parity work, where stale production output can make you chase the wrong visual diff.
+
+### 4b. For visual parity work, verify layout with DOM measurements, not vision alone
+When comparing a live page and a local preview of a long static marketing page:
+- use the browser screenshot/vision tools for general impressions
+- but also extract concrete measurements with `browser_console`, such as:
+  - heading positions (`getBoundingClientRect()`)
+  - image/logo sizes and positions
+  - section background colors and padding values
+
+Useful patterns:
+```js
+Array.from(document.querySelectorAll('main h2, main h3')).map((h) => {
+  const r = h.getBoundingClientRect();
+  return { text: h.textContent?.trim(), left: Math.round(r.left), top: Math.round(r.top + window.scrollY) };
+})
+```
+
+```js
+Array.from(document.images).map((img) => {
+  const r = img.getBoundingClientRect();
+  return { alt: img.alt, w: Math.round(r.width), h: Math.round(r.height), left: Math.round(r.left), top: Math.round(r.top + window.scrollY) };
+})
+```
+
+Why:
+- Vision summaries can misread very long pages, blank space, or off-screen sections.
+- DOM measurements are much more reliable for matching hero media width/height, logo row sizing, section start positions, and multi-column alignment.
+- Use vision for qualitative checks, DOM measurements for final layout decisions.
+
 
 ### 5. Confirm rendered assets or changes in-browser
 For image optimizations or asset swaps, inspect actual loaded image URLs in the page and confirm the expected extension/path is being served.

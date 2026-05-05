@@ -63,8 +63,21 @@ browser:
   dialog_timeout_s: 300
   camofox:
     managed_persistence: false
+mcp_servers:
+  chrome-devtools:
+    command: npx
+    args:
+      - -y
+      - chrome-devtools-mcp@latest
+      - --autoConnect
+      - --no-usage-statistics
+      - --logFile=/tmp/chrome-devtools-mcp-hermes.log
+    env:
+      PATH: /opt/homebrew/opt/node@20/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+    timeout: 120
+    connect_timeout: 60
 checkpoints:
-  enabled: true
+  enabled: false
   max_snapshots: 50
 file_read_max_chars: 100000
 tool_output:

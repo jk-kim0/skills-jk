@@ -245,14 +245,15 @@ Extend the publication framework to recognize news:
 
 ## Tests to add
 
+## Tests to add
+
 1. routing/preview test
 - `/t/news` exists and uses `listNewsPublicationItems()`
 - `/news/[id]` redirects canonically
 - `/news/[id]/[slug]` loads by `id` and redirects on slug mismatch
 - loader uses `renderPublicationMdx` and `extractHeadingsFromMdx`
 - publication type/href mapping includes `news`
-- if you strip the leading in-body H1 from local news details to avoid duplicate page titles, assert that the loader derives TOC from the stripped source
-- if list cards intentionally stay local even for redirect-backed records, assert the list-page source no longer emits external `target="_blank"` behavior
+- if the preview copy is passed from `src/app/t/news/page.tsx` into a dedicated list component, assert the copy on the page route source rather than assuming the text lives inside the shared list component file
 
 2. imported corpus test
 - expected local news IDs exist under `src/content/news/*.mdx`
@@ -319,9 +320,68 @@ The generic `ResourceListPage` is acceptable for initial preview work, but the p
 Useful refinements:
 - remove preview-only wording such as `プレビュー一覧` or `ローカル MDX`
 - explain clearly that official QueryPie announcements open local details while media coverage opens the original article
-- use a company-information sidebar/nav treatment rather than a generic resources taxonomy if that better matches the site IA
+- do not assume the live company-news page uses the same sidebar/nav treatment as other company pages; if the target is `https://www.querypie.com/ja/company/news`, verify the live page directly in a browser first. In practice, the main content area there follows a simpler editorial pattern: `News` H1, vertical article rows with right-side thumbnails, then a bottom CTA band.
+- when matching spacing around the `News` H1, browser reality can differ from source-level expectations. Check the exact deployed preview URL, not only a local dev render, because the visible balance between the header-to-H1 gap and H1-to-list gap may differ on Preview. If the user cares about pixel-level parity, compare the exact Preview Deployment page in the browser and tune the top and bottom gaps separately instead of assuming one numeric source value will read the same everywhere.
+- if the user asks for spacing proportional to the H1 itself, prefer encoding it on the heading directly with `py-[0.4em]` (or the requested proportion) so the spacing scales with responsive type size. This was verified in-browser as 22.4px top/bottom padding for a 56px H1.
 - label cards so users can distinguish `公式発表` vs `メディア掲載`
 - for external items, use direct external anchors with `target="_blank" rel="noopener noreferrer"`
+- for the bottom `無料で試してみる` CTA, the live site does not use a plain `>` character. It uses a text span plus a separate small chevron SVG (`viewBox="0 0 7 12"`) with about `9.375px` gap, `15px` text size, and dark icon color. If visual parity is requested, inspect the live button DOM in the browser and match that structure rather than improvising with plain text or a generic icon.
+
+- when the user asks for `/t/news` to visually match `https://www.querypie.com/ja/company/news`, the target content-area UX is **not** the earlier sidebar/card-grid treatment
+- the live page’s content area is a simple editorial layout:
+  - heading text is `News` (English), not `ニュース`
+  - no left company-information sidebar inside the body content
+  - a vertical list of article rows, each with left text and a right-side thumbnail block
+  - a bottom light-gray CTA band before the footer
+- if parity with the live page is the goal, prefer replacing any existing sidebar + grid/card UI with this simpler list-row structure instead of trying to preserve the earlier `/t/news` local information architecture
+
+Live-page CTA details worth reusing for parity work:
+- headline: `まずは小さく、失敗しないAXを始めよう`
+- body: `簡単サインアップで、14日間の無料トライアルをお試しください`
+- CTA label: `無料で試してみる`
+- CTA button uses the live gradient `linear-gradient(100deg,#0762D4 34.93%,#875AC5 76.81%,#C55A8C 99.98%)`
+- CTA band background is a light gray close to `#F6F8FA`
+
+Spacing / browser-verification lesson:
+- for title-spacing polish requests like “make the gap above and below the `News` heading equal,” raw DOM/CSS measurements may be misleading because the apparent top gap is influenced by the header divider and section padding
+- use an actual browser visual check after each spacing tweak, and optimize for **perceived** equality rather than only matching computed pixel values
+- in practice, adjusting the section `pt-*` values while leaving the list `mt-*` rhythm intact was the safest minimal change for this page
+
+
+Treat this as a browser-verified content-area parity task, not just a generic local news-list cleanup.
+
+Important findings from implementation:
+- the live page's main content area does **not** use the local company-information sidebar treatment
+- the live page uses an editorial list pattern:
+  - top H1 is literally `News`
+  - vertically stacked news rows
+  - each row is left text (`date -> title -> summary`) plus a right-side thumbnail around `400x225`
+  - rows are separated mainly by vertical spacing, not card borders/shadows
+- the live page also includes a lower CTA band inside the main content area, above the footer
+  - heading: `まずは小さく、失敗しないAXを始めよう`
+  - body: `簡単サインアップで、14日間の無料トライアルをお試しください`
+  - button label: `無料で試してみる`
+  - button target observed in-browser: `https://app.querypie.com/`
+  - CTA styling observed in-browser:
+    - background `rgb(246, 248, 250)`
+    - button gradient `linear-gradient(100deg, rgb(7, 98, 212) 34.93%, rgb(135, 90, 197) 76.81%, rgb(197, 90, 140) 99.98%)`
+    - button radius about `5.625px`
+
+Recommended implementation approach for this request:
+1. Inspect the live page in the browser first.
+2. Use browser console/vision to capture:
+   - H1 text
+   - row/list structure
+   - image width/height
+   - row gap / CTA padding / CTA button gradient
+3. Replace any existing sidebar + card-grid `/t/news` layout with a dedicated editorial list component.
+4. Keep header/footer out of scope unless the user explicitly asks.
+5. Verify in a real browser against the live page before finalizing.
+
+Practical verification lessons:
+- if the local preview port is occupied, do not assume the existing process serves the current worktree; find a free port and retry
+- browser vision may report lower-page thumbnails as placeholder gray boxes when they are merely lazy-loaded; confirm with DOM inspection (`img.complete`, `naturalWidth`, `currentSrc`) before treating them as broken assets
+- if source-level tests still mention the old preview description copy, update them to assert the new `News` heading and CTA content instead
 
 ### News detail UX refinements
 

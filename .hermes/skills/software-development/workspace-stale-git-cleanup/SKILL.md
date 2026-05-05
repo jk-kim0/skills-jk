@@ -80,7 +80,23 @@ Keep if:
 
 ### Escalation rule for repeated repo-local cleanup requests
 
-If the user repeatedly asks to clean "this repo's workspace" after conservative cleanup already removed the obvious clean/prunable items, treat that as permission to escalate one level further:
+If the user repeatedly asks to clean "this repo's workspace" after conservative cleanup already removed the obvious clean/prunable items, treat that as permission to escalate one level further.
+
+Important practical nuance:
+- do not assume the previous cleanup result is still current
+- in PR-heavy repos, another fetch or a little time passing can turn formerly active PR worktrees into stale residue because their PRs just merged and upstream refs become `[gone]`
+- on each repeated cleanup request, re-run the full discovery pass (`git fetch --prune`, `git worktree list --porcelain`, `git branch -vv`, open-PR query) before deciding there is nothing left to do
+- expect cleanup to happen in waves: one pass removes the already-stale items, the next pass may reveal newly stale merged-PR worktrees and branches
+
+Then escalate one level further:
+
+Important practical nuance:
+- do not assume the previous cleanup result is still current
+- in PR-heavy repos, another fetch or a little time passing can turn formerly active PR worktrees into stale residue because their PRs just merged and upstream refs become `[gone]`
+- on each repeated cleanup request, re-run the full discovery pass (`git fetch --prune`, `git worktree list --porcelain`, `git branch -vv`, open-PR query) before deciding there is nothing left to do
+- expect cleanup to happen in waves: one pass removes the already-stale items, the next pass may reveal newly stale merged-PR worktrees and branches
+
+Then escalate one level further:
 
 - preserve root worktrees with real local modifications
 - preserve normal branch-backed worktrees that correspond to open PR head branches
@@ -126,6 +142,44 @@ Important practical follow-up:
 - after removing a merged PR's leftover worktree, `git branch -d` may still refuse deletion because squash/rebase merges are not direct ancestors
 - when the PR is confirmed merged and the branch is no longer attached anywhere, it is acceptable to delete the branch with `git branch -D <branch>`
 - do not use `-D` based only on `upstream: gone`; require merged-PR evidence first
+- another safe stale case is a branch-backed worktree whose branch has no PR, is clean, and its tip is already exactly `origin/main` (or tracks `origin/main` with no unique commits); in that case both the worktree and local branch are just redundant local clones of main and can be removed
+
+Additional practical root-cleanup case:
+- sometimes the only thing preventing a safe fast-forward of `main` is unpublished local repo-maintenance work under paths like `.agents/skills/**`
+- when the user asks for workspace cleanup rather than immediate repo-content work, preserve those local-only edits with a named `git stash push -u -m 'workspace-cleanup preserve local skill updates' -- <paths...>` before cleaning stale worktrees and fast-forwarding `main`
+- this keeps the root checkout clean while avoiding accidental loss of agent-skill or local guidance work
+- another safe stale case is a branch-backed worktree whose branch has no PR, is clean, and its tip is already exactly `origin/main` (or tracks `origin/main` with no unique commits); in that case both the worktree and local branch are just redundant local clones of main and can be removed
+
+Additional practical root-cleanup case:
+- sometimes the only thing preventing a safe fast-forward of `main` is unpublished local repo-maintenance work under paths like `.agents/skills/**`
+- when the user asks for workspace cleanup rather than immediate repo-content work, preserve those local-only edits with a named `git stash push -u -m 'workspace-cleanup preserve local skill updates' -- <paths...>` before cleaning stale worktrees and fast-forwarding `main`
+- this keeps the root checkout clean while avoiding accidental loss of agent-skill or local guidance work
+- in PR-heavy repos this can happen repeatedly during one cleanup session because `origin/main` keeps advancing while the user continues asking for cleanup; each new root-local skill tweak should be stashed before the next fast-forward so `main` can return to a clean synced state
+
+Worktree-local variant:
+- a merged stale worktree can also contain small local-only skill/doc tweaks under `.agents/skills/**`
+- if the worktree is otherwise stale and removable, stash those edits from inside that worktree first, then remove the worktree
+- this avoids preserving the whole stale worktree just for a tiny local procedural note
+
+Disposable scratch-file variant:
+- active or still-kept worktrees can accumulate untracked helper files such as `.tmp_pr_body.md` or `.tmp_pr_body_<name>.md`
+- if these are clearly PR-body scratch files and the user asked for workspace cleanup, delete them even in otherwise-kept worktrees so they do not keep the worktree looking dirty
+- do not treat these files as meaningful project work unless their contents or path clearly indicate something more substantial than a temporary PR description draft
+
+Redundant branch-backed clone-of-main variant:
+- sometimes a branch-backed worktree is neither detached nor tied to an open PR, but its branch tip is exactly the current `origin/main`
+- if that worktree is clean and the branch has no open PR, it is just a redundant local clone of `main` with a leftover feature-ish branch name
+- in that case it is safe to remove both the worktree and the local branch on repeated cleanup passes
+- verify by checking all of the following:
+  - no open PR for the branch
+  - branch/worktree clean
+  - `git rev-parse <branch>` equals `git rev-parse origin/main` (or no unique commits relative to `origin/main`)
+  - branch is not the current branch and not attached to another worktree you intend to keep
+
+Worktree-local variant:
+- a merged stale worktree can also contain small local-only skill/doc tweaks under `.agents/skills/**`
+- if the worktree is otherwise stale and removable, stash those edits from inside that worktree first, then remove the worktree
+- this avoids preserving the whole stale worktree just for a tiny local procedural note
 
 ## Temporary PR-body files inside stale worktrees
 
@@ -168,6 +222,32 @@ Interpretation:
    - whether `git worktree list --porcelain` still tracks that path
    In practice, some "failed" removals are already effectively cleaned up, especially after prune or when the path disappeared earlier.
 8. Summarize what was deleted and what was intentionally left alone.
+
+## Practical execution lesson: prefer incremental cleanup over giant batch commands
+
+In a repo with many nested worktrees, giant shell loops or monolithic cleanup scripts can hit tool timeouts even when Git is making progress.
+
+Preferred pattern:
+- remove safe worktrees in smaller batches or one-by-one
+- after any timeout, immediately re-query `git worktree list --porcelain` and `git branch -vv`
+- treat the refreshed Git state as source of truth rather than assuming the timed-out command failed completely
+- only then continue with the remaining candidates
+
+Why this matters:
+- cleanup often partially succeeds before the tool timeout fires
+- retrying the same full batch blindly wastes time and can misclassify already-removed items
+- a path reported later as `is not a working tree` usually means the earlier cleanup already succeeded and only verification remained
+
+## Practical execution lesson: fast-forward main only after confirming root is truly clean
+
+When workspace cleanup includes bringing root `main` to `origin/main`, verify the root checkout again after stale worktree/branch cleanup.
+
+Helpful sequence:
+- `git status --short --branch`
+- if root is clean, run `git pull --ff-only origin main`
+- if root contains local-only helper or skill work, stash just that scoped path before the fast-forward
+
+This is especially useful when the root dirt came from untracked repo-local agent skill files. Preserve them with a narrowly-scoped stash instead of leaving `main` behind remote.
 
 ## Good final-report format
 

@@ -151,7 +151,18 @@ Special case: open PRs can still have removable helper worktrees.
 - In some repos, there are detached helper worktrees named like `pr157-mainrewrite`, `pr158-mainrewrite`, `pr157-rebase`, etc.
 - Do not preserve these automatically just because the corresponding PR is open.
 - If such a worktree is detached, clean, and its `HEAD` exactly matches the open PR's remote head commit, it is just a redundant local clone of the PR state and is safe to remove.
+- Also, if multiple detached helper worktrees for the same PR are clean and all point to the same non-remote local commit, they are still usually removable as redundant local clones, as long as the meaningful PR state is preserved elsewhere (for example the draft/open PR itself remains on GitHub, and optionally a local branch remains for that fallback commit).
 - Keep the worktree if it contains conflicts, tracked modifications, or untracked project files; those indicate real local intermediate state rather than a disposable helper clone.
+
+Additional practical stale signals for branch-backed worktrees:
+- the branch's PR is already `MERGED` and the upstream ref is `[gone]`
+- the worktree is clean and exists only as leftover local residue after the PR merged
+- the only remaining dirt is a disposable helper file such as `.tmp-pr-body.md`
+
+In that case, it is usually safe to:
+1. remove the disposable helper file
+2. remove the worktree
+3. delete the local branch afterward
 
 Important practical lessons:
 - Do not assume every branch-backed worktree should be preserved.
@@ -248,6 +259,34 @@ Interpretation:
 
 This check is especially important before restoring dirty tracked files in `main` so that `main` can be fast-forwarded to `origin/main` safely.
 
+### Additional practical case: root staged residue copied from a merged detached helper worktree
+
+Sometimes the root `main` worktree is not just dirty; it contains a staged set of files that exactly matches a clean detached helper worktree from a recently merged PR.
+This can happen after ad hoc comparison, cherry-pick, or conflict-resolution experiments.
+
+Safe handling:
+1. inspect staged vs unstaged root changes separately:
+
+```bash
+git diff --cached --name-only
+git diff --name-only
+```
+
+2. compare the suspicious staged file set against likely merged helper worktrees
+3. if the root staged files are just residue from a merged PR helper worktree and do not represent new intended `main` work, drop them with targeted restore:
+
+```bash
+git restore --staged --worktree -- <paths...>
+```
+
+4. if a small remaining root-local edit is genuinely unpublished work, preserve it with a named stash before fast-forwarding `main`:
+
+```bash
+git stash push -m 'workspace-cleanup preserve local edit' -- <path>
+```
+
+This is safer than preserving all root dirt blindly, and safer than forcing a branch update that would overwrite a real local edit.
+
 ## 7c. Repo-internal worktree directories can leave root `?? .worktrees/` noise
 
 Some repositories keep linked worktrees under a repo-internal directory such as `.worktrees/<name>`.
@@ -271,6 +310,25 @@ Why this is useful:
 - it keeps the root checkout visually clean without changing tracked repo files
 - it avoids committing `.gitignore` noise for machine-local worktree layout
 - it is appropriate when the user wants a "workspace cleanup" result that leaves active internal worktrees intact
+
+## 7d. After deleting a worktree, your shell/session cwd may become invalid
+
+If you remove the worktree that your current shell session is effectively rooted in, subsequent shell startup or commands can fail with errors like:
+
+```bash
+getcwd: cannot access parent directories: No such file or directory
+```
+
+This is especially common when agent sessions were launched from a repo-internal `.worktrees/...` path.
+
+Safe handling:
+- after batch worktree deletion, run subsequent commands with an explicit stable repo-root working directory
+- prefer `workdir=<repo-root>` in tool calls or `git -C <repo-root> ...` command forms
+- do not assume the session's inherited cwd is still valid after removing a sibling or current worktree path
+
+Practical rule:
+- once cleanup starts deleting worktrees, switch all remaining destructive/verification commands to explicit repo-root context
+- this avoids false command failures unrelated to git state itself
 
 ## 8. Update local main safely
 
