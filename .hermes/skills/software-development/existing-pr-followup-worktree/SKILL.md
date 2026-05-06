@@ -280,6 +280,18 @@ Important user-expectation nuance learned from active-review follow-up:
   git rebase origin/<pr-branch>
   ```
   Then resolve any conflicts and push again. This keeps the same PR branch linear while preserving already-pushed review follow-ups.
+- Additional stale-followup-branch lesson from PR 273 maintenance: if the local follow-up worktree still carries the PR branch's pre-rewrite or pre-squash history, a normal `git rebase origin/<pr-branch>` after a non-fast-forward rejection can explode into add/add conflicts on files that were already rewritten on the remote PR branch.
+  - Typical signal:
+    - your local branch contains many old follow-up commits that no longer exist on the remote PR branch
+    - `git log --oneline --left-right HEAD...origin/<pr-branch>` shows the remote side is a new squashed/rebuilt history while the local side still has the old stacked commits
+    - rebasing starts replaying obsolete commits and immediately conflicts in renamed/rewritten files
+  - In that case, stop using that stale local branch/worktree as the recovery base.
+  - Safer recovery flow:
+    1. `git rebase --abort` if a rebase is in progress
+    2. create a brand-new detached worktree directly from `origin/<pr-branch>`
+    3. reapply only the tiny intended follow-up delta there
+    4. commit once and push with `git push origin HEAD:<pr-branch>`
+  - This is especially useful right after a latest-main rewrite + squash force-push, where the correct recovery for a one-line follow-up is to start from the rewritten remote PR head, not to replay the stale local review history onto it.
 - Important detached-HEAD follow-up case learned from PR maintenance work: if you created the fresh worktree directly from `origin/<pr-branch>` and then rebased that detached HEAD onto `origin/main` before pushing, your local history may accidentally rewrite the PR's existing head commit(s), not just add your new follow-up commit.
   - Typical signal:
     ```bash
@@ -414,6 +426,14 @@ Important practical findings:
     6. run the narrowest relevant regression tests for just that scope
     7. commit once and force-push back to the same PR branch
   - This is especially useful when the open PR only intends a few route/test files, but the branch has accumulated unrelated stale diffs from earlier work or older main history. The GitHub PR file list can be a better statement of intended scope than the raw branch-vs-main diff.
+  - Follow-on test-file guardrail from the same PR 255 maintenance: if one of the intended copied files is a broad repository structure test (for example `tests/redirect-endpoints.test.mjs`), do not assume the PR-branch copy is still valid on latest `origin/main` just because that file belongs to the intended scope.
+    - After copying the intended test file onto latest main, compare it against `origin/main` immediately and inspect whether it reintroduces stale expectations unrelated to the PR's real behavior (for example asserting old redirect route files that latest main intentionally removed).
+    - Safe recovery pattern:
+      1. read the latest-main version of the test file
+      2. keep the latest-main baseline assertions for unrelated route families
+      3. reapply only the PR-specific assertions that prove the intended new behavior
+      4. rerun the targeted tests before pushing
+    - Heuristic: for latest-main rewrites, test files should usually be merged, not blindly copied wholesale, unless the PR truly owns the full current baseline of that test.
   - Important terminal state: after enough sibling PRs merge, an older PR's remaining intended diff may become fully absorbed by `origin/main`.
   - Before force-pushing a rebased/reconstructed branch, always check whether any unique commits or diff still remain:
     ```bash
@@ -621,6 +641,18 @@ Important practical note:
 - Do not treat either the non-zero exit or that temporary `no checks reported` message as proof that your branch update failed.
 - First confirm the new head landed with `gh pr view <pr-number> --json headRefOid,updatedAt,url` and/or `git ls-remote origin refs/heads/<pr-branch>`.
 - Then rerun `gh pr checks <pr-number>` after a short wait and classify the resulting checks as `pass`, `pending`, or `fail`.
+- Additional practical recovery from corp-web-japan PR 259: sometimes the PR head SHA updates successfully, but GitHub never attaches fresh `pull_request` runs for the new head (`gh pr checks` keeps saying `no checks reported on the '<branch>' branch`, and querying check-runs/actions by the new head SHA returns zero results).
+- In that case, do not assume the code fix failed. Treat it as a workflow-trigger problem first.
+- Recovery flow:
+  1. confirm the remote PR branch tip and PR `headRefOid` match your pushed SHA
+  2. inspect the relevant workflow files for `workflow_dispatch` support (for example `ci.yml`, preview-deploy workflow)
+  3. if dispatch is available, manually run the workflows on the PR branch head, e.g.
+     ```bash
+     gh workflow run ci.yml --ref <pr-branch>
+     gh workflow run deploy-preview.yml --ref <pr-branch> -f BRANCH=<pr-branch>
+     ```
+  4. watch those dispatched runs and use them as the validation result for the current head
+- This is especially useful when you already reproduced the original failure locally, fixed it, and local verification passes, but GitHub's automatic synchronize event appears to be dropped or delayed.
 
 Confirm:
 - the PR still points to the intended branch

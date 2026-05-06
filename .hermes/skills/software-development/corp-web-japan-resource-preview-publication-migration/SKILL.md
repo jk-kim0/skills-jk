@@ -74,7 +74,23 @@ Typical targets:
   - `public/introduction-deck/1/thumbnail.png`
   - `public/glossary/1/thumbnail.png`
   - `public/manuals/4/thumbnail.png`
-  - `public/manuals/1/install-guide-1.png`
+  - `public/manuals/7/install-guide-1.png`
+- Introduction-deck specific follow-up lessons:
+  - if the user wants original downloadable PDFs localized into this repo, place them under the same route-aligned asset directory as the matching MDX item, for example:
+    - `public/introduction-deck/1/QueryPie_AIP_Intro_JP.pdf`
+    - `public/introduction-deck/2/QueryPie_ACP_Intro_JP.pdf`
+  - then update the gated download CTA in the MDX body from the upstream `https://www.querypie.com/public/downloads/...` URL to the local asset path such as `/introduction-deck/1/QueryPie_AIP_Intro_JP.pdf`
+  - if the user later asks for shorter canonical slugs/file names, keep the file-name pattern `<id>-<slug>.mdx` and update both the filename and frontmatter `slug` together (for example `1-querypie-aip.mdx` with `slug: "querypie-aip"`)
+  - introduction-deck items can cross-link each other through frontmatter `relatedItems` using the existing local preview detail route shape and each item's own thumbnail, for example:
+    - `href: "/t/introduction-deck/2/querypie-acp"`
+    - `imageSrc: "/introduction-deck/2/thumbnail.png"`
+    - `title: "QueryPie ACP 製品紹介書"`
+  - when the downloadable PDF has no embedded PDF creation date (`CreateDate` / `ModifyDate` absent), and the user still wants a frontmatter `date`, inspect the upstream source repo git history carefully:
+    - first-added date is only a fallback
+    - if the file was later replaced, copied/renamed from another source file, or otherwise updated, prefer the date when the current final blob/version was introduced on the canonical path
+  - important loader behavior lesson: `BaseResourcePublicationRepository.listSourceFiles()` loads every `*.mdx` file under `src/content/introduction-deck`
+  - therefore, when renaming introduction-deck files (for example `1-querypie-aip-introduction.mdx` -> `1-querypie-aip.mdx`), leaving the old files behind will make the preview list show duplicate items
+  - if you reconstruct or rewrite a PR on latest `origin/main`, do not just copy in the new filenames; explicitly delete the old `*-introduction.mdx` files in the same commit so the final tree contains only the canonical pair
 - Additional filename/ID convention lesson from corp-web-japan PR 223 follow-up:
   - preferred content filename shape for localized preview resources is `<id>-<slug>.mdx`
   - keep `frontmatter.id` as the stable numeric lookup key
@@ -84,6 +100,31 @@ Typical targets:
     - `src/content/glossary/1-querypie-ai-glossary.mdx`
     - `src/content/manuals/2-acp-administrator-manual.mdx`
 - This is usually a better steady-state than either plain `1.mdx` or slug-as-id files, because it preserves route stability while keeping filenames readable in reviews and IDE navigation.
+- Follow-up naming lesson from introduction-deck PR work: if the user wants shorter canonical slugs later, it is acceptable to further shorten both the filename and frontmatter slug together while keeping the numeric `id` stable.
+  - Example:
+    - `1-querypie-aip-introduction.mdx` with `slug: querypie-aip-introduction`
+    - -> `1-querypie-aip.mdx` with `slug: querypie-aip`
+    - `2-querypie-acp-introduction.mdx` with `slug: querypie-acp-introduction`
+    - -> `2-querypie-acp.mdx` with `slug: querypie-acp`
+  - When doing this, also update any tests that assert concrete file paths.
+- Additional introduction-deck content pattern lesson:
+  - these preview introduction-deck MDX files can use frontmatter `relatedItems` just like other resource families
+  - a valid shape is:
+    - `href: "/t/introduction-deck/<id>/<slug>"`
+    - `imageSrc: "/introduction-deck/<id>/thumbnail.png"`
+    - `title: "..."`
+  - For small cross-linking between deck variants (for example AIP <-> ACP), reusing the sibling deck's existing thumbnail as the related card image is acceptable and avoids creating extra assets.
+  - If you need a publication `date` for localized intro-deck PDFs and the PDF itself has no embedded `CreateDate`/`ModifyDate`, inspect the upstream `corp-web-contents` git history carefully:
+    - do not stop at the first-added date if the file was later replaced, copied from another file, or otherwise updated
+    - use the commit date where the current final blob/version on the canonical intro-deck path was introduced
+    - practical examples learned from the JP decks:
+      - AIP final JP blob was introduced by `AIP Intro Deck 업데이트 PR (#768)` on `2025-10-29 19:16:35 +0900`
+      - ACP final JP blob was introduced by `ACP 소개資料 업데이트 및 화이트페이퍼 이관 PR (#769)` on `2025-10-30 15:39:13 +0900`
+  - When shortening intro-deck file names/slugs in a PR, also update any file-path-based tests outside the route-family test file itself.
+    - A concrete example is `tests/button-link-external-prop.test.mjs`, which can still read the old `*-introduction.mdx` paths and fail CI with `ENOENT` even if the main route tests were updated.
+  - Preserve the current intro-deck PDF button contract unless the user explicitly changes it:
+    - keep `external={true}` on `ButtonLink` for the downloadable PDF CTAs when that is the current tested behavior
+    - if a rewrite-on-main or squash/reconstruction drops that prop accidentally, CI can still fail even when the renamed MDX paths are otherwise correct.
 - Avoid leaving legacy flat assets like `public/documentation/docu-thumb-*` or content roots like `src/content/documentation/<family>` once the new canonical paths exist.
 
 4. Inline MDX images need the same cleanup as hero thumbnails.

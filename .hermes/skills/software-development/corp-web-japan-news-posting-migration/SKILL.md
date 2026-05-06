@@ -117,8 +117,24 @@ Use this when the live/source news item points to a blog URL but the user wants 
 ### Desired outcome
 - keep the existing news route canonical, e.g. `/news/13/...`
 - move the full article body into the existing `src/content/news/<id>.mdx`
+- if the news item should remain a media/news-style card after removing external redirect behavior, preserve that list labeling explicitly with news frontmatter `sourceLabel: "メディア掲載"`
 - hide the old blog post from `/blog`
 - redirect `/blog/<id>` and `/blog/<id>/<slug>` to the canonical news URL using blog frontmatter `redirectUrl`
+
+### Important implementation lesson: `redirectUrl` is no longer enough once the article body is localized
+Historically the local news list inferred:
+- `record.redirectUrl ? "メディア掲載" : "公式発表"`
+
+That works only while external-link news items still redirect away.
+If you migrate an external article into a local body-backed news post and remove `redirectUrl`, the list will incorrectly flip to `公式発表` unless you add an explicit frontmatter field.
+
+Recommended pattern:
+- extend `src/lib/publications/news-publication-records.ts`
+- support optional frontmatter `sourceLabel?: string`
+- set list item label as `record.sourceLabel ?? (record.redirectUrl ? "メディア掲載" : "公式発表")`
+- for migrated former external articles, set `sourceLabel: "メディア掲載"`
+
+This lets local-body news posts remain canonical/local while still truthfully presenting them as media coverage in the list UI.
 
 ### Practical approach
 
@@ -128,6 +144,7 @@ Use this when the live/source news item points to a blog URL but the user wants 
 
 2. Preserve the news frontmatter.
 - keep the news `id`, `slug`, `heroImageSrc`, and `relatedIds` unless the user asks otherwise
+- if the article originated as external/media coverage but is now rendered locally, add `sourceLabel: "メディア掲載"`
 - replace only the body content after the frontmatter block
 
 3. Replace route-aligned asset paths.
@@ -141,7 +158,9 @@ Use this when the live/source news item points to a blog URL but the user wants 
 - set `hidden: true`
 - set `redirectUrl: "/news/<news-id>/<news-slug>"`
 - keep enough frontmatter for lookup/redirect behavior
-- the file body may remain temporarily, but the route should redirect before rendering it
+- keep the original title/slug/author metadata intact
+- keep source-parity-sensitive metadata such as `description` unchanged unless you also update the parity fixtures/tests
+- the file body may be reduced to a tiny redirect note because the route should redirect before rendering it
 
 ### Example asset rename lesson
 When copying blog-only body assets into news, do not keep stale blog-specific prefixes if they make the route-aligned asset tree noisy.
@@ -153,9 +172,61 @@ Rule of thumb:
 - prefer short, route-local names under the final canonical asset root
 - avoid carrying historical source-family prefixes like `blog25-` into `public/news/<id>/...` unless they meaningfully disambiguate files
 
-## Testing strategy
+## Localizing imported non-Japanese news posts for the Japan site
 
-Add targeted tests rather than relying only on manual reasoning.
+When a migrated local news post is sourced from an English or Korean article, the user expects the local `corp-web-japan` news detail page itself to become Japanese-first rather than remaining an untranslated archive.
+
+Recommended pattern for imported non-Japanese news posts:
+
+1. Translate the visible frontmatter fields used by the local list/detail UI.
+- translate `title` into natural Japanese
+- translate `description` into natural Japanese
+- keep `slug`, `id`, `date`, `sourceLabel`, and route-aligned assets unchanged unless separately requested
+
+2. Make the local MDX body Japanese-first while preserving provenance.
+- keep the source provenance quote block near the top, for example:
+  - `> Source article: ...`
+  - `> Original source: ...`
+  - `> Imported from syndicated copy: ...`
+- add a `## 日本語訳` section immediately before the original-language body content
+- preserve the original imported body below it under either:
+  - `## 原文（英語）`
+  - `## 原文（韓国語）`
+
+3. Do not add redundant original-language sections to news posts that are already Japanese local-body content.
+- existing Japanese-native posts should stay as-is
+- only add `日本語訳` / `原文` sections for migrated non-Japanese article bodies
+
+4. Keep the route-local content structure simple.
+- the MDX file itself should remain the source of truth
+- do not move the translation into helper files or code-side constants just to avoid touching the MDX
+
+Practical regression coverage that proved useful:
+- assert imported non-Japanese news ids now have Japanese `title` and `description`
+- assert `## 日本語訳` appears before `## 原文（英語）` / `## 原文（韓国語）`
+- assert already-Japanese local-body news posts do not gain redundant `原文` sections
+
+## External-source fallback lessons
+
+When the configured original news URL is dead or blocked, do not stop at the first failure. In real news migration work these fallback classes were reusable:
+
+- direct original URL still loads -> import from that page
+- original URL times out but the article is otherwise mirrorable -> use a text mirror such as `r.jina.ai/http://...` to recover the body
+- original domain no longer resolves -> search for a syndicated copy on another outlet and import from that copy
+- original URL returns 404 -> search for the same press release on PR Newswire / Business Wire / other syndication targets
+- original consumer-news URL returns 403 -> prefer the company’s own source release PDF or official press page if available
+
+Concrete examples encountered:
+- TechSeoul source dead -> imported from KSValley / BoanNews syndicated copies
+- Yahoo Finance 404 -> imported from PR Newswire syndicated copy
+- Nico 403 -> imported from Payroll PDF source release
+
+Record the fallback source in the MDX body with a short quote block such as:
+- `> Source article: ...`
+- `> Original source: ...`
+- `> Imported from syndicated copy: ...`
+
+This keeps provenance visible after removing the external redirect behavior.
 
 ### A. Source parity test
 Create a test that:

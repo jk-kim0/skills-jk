@@ -136,14 +136,31 @@ Important:
 
 ### `/events/[id]/[slug]`
 - load record by `id`
-- redirect if `slug` mismatches the canonical slug
+- if `record.redirectUrl` exists, redirect there before any local slug handling or MDX rendering
+- otherwise redirect if `slug` mismatches the canonical slug
 - render `getEventPublicationPost(id)`
 - set canonical metadata to `/events/:id/:slug`
-- set robots to `index: false, follow: false`
+- if `record.redirectUrl` exists, return only `robots: { index: false, follow: false }` metadata, matching the blog/news/whitepaper shadow-record contract
+- otherwise set canonical metadata normally and keep `robots` as `index: false, follow: false`
 
 ### `/events/[id]`
 - load record by `id`
-- redirect to `/events/:id/:slug`
+- if `record.redirectUrl` exists, redirect there directly
+- otherwise redirect to `/events/:id/:slug`
+
+## Shared redirectUrl parity rule
+
+Do not stop at the detail route. In this repo, a latent bug can appear when detail routes honor `redirectUrl` but list cards or related-item builders still generate the local canonical href.
+
+For event work, verify all three surfaces together:
+- detail routes
+- list-item href generation
+- related-item href generation
+
+Reusable rule that turned out to matter across the whole MDX publication family:
+- every list item href should resolve as `record.redirectUrl ?? localCanonicalHref`
+- every related item href should resolve as `record.redirectUrl ?? localCanonicalHref`
+- if you add a helper such as `resolveRedirectablePublicationHref(redirectUrl, fallbackHref)`, reuse it across blog, whitepaper, news, use-cases, AIP demo, ACP demo, and events so list/detail/related behavior stays aligned
 
 ### `/t/events`
 - list page backed by `listEventPublicationItems()`

@@ -25,6 +25,8 @@ Use this when adding redirect-only public endpoints in `corp-web-japan`.
 2. Implement one `route.ts` per endpoint under `src/app/<path>/route.ts`.
 3. Keep each endpoint's destination URL in that route file, not in a shared registry.
 4. Use `NextResponse.redirect(destination, 307)`.
+   - For external targets, `destination` can be an absolute string constant.
+   - For same-origin local targets inside route handlers, do not pass a bare relative string such as `"/whitepapers/..."` directly. Build an absolute URL with `new URL(destinationPath, request.url)` first.
 5. Export `HEAD = GET` so HEAD requests behave consistently.
 6. Add or update a single table-driven test that lists all redirect rules in one place.
 7. Do not add redirect-only endpoints to `src/app/sitemap.ts` unless the user explicitly asks for that behavior.
@@ -85,6 +87,24 @@ export const HEAD = GET;
 
 Use this same-origin pattern for lightweight alias routes created only to avoid 404s, such as redirecting `/ja` back to `/` on whatever host handled the request.
 
+Important runtime lesson from the legacy whitepaper detail redirects on `stage.querypie.ai`:
+- In App Router `route.ts` handlers, a same-origin relative string passed directly to `NextResponse.redirect()` can fail at runtime with errors like `URL is malformed` / `Please use only absolute URLs`.
+- This is especially easy to miss when the intended canonical target itself is valid and returns 200, because the bug is in the redirect handler implementation rather than the destination content.
+- For dynamic legacy detail redirects such as `/resources/discover/whitepapers/[id]/[slug] -> /whitepapers/:id/:slug`, prefer this pattern:
+
+```ts
+import { NextResponse } from "next/server";
+
+export async function GET(request: Request) {
+  const destinationPath = "/whitepapers";
+  const destination = new URL(destinationPath, request.url);
+
+  return NextResponse.redirect(destination, 307);
+}
+```
+
+If the destination path is computed dynamically, compute the path string first, then wrap it with `new URL(destinationPath, request.url)` before calling `NextResponse.redirect()`.
+
 If the requirement is to strip a legacy prefix from all nested paths, use an optional catch-all route such as `src/app/ja/[[...path]]/route.ts` and derive the redirect target from `request.nextUrl.pathname`:
 
 ```ts
@@ -112,6 +132,12 @@ Recommended file layout:
 - `src/app/services/fde/route.ts`
 
 This keeps rule ownership at the route directory level.
+
+Exact-match dotted paths are also valid route directories when the public URI literally includes an extension-like segment. For example, implement `/api-docs.html` as:
+
+- `src/app/api-docs.html/route.ts`
+
+Do not rename these to a normalized slug such as `/api-docs`; if the user asks for an exact-match redirect to fix a broken in-repo link, preserve the literal request path.
 
 ## Test pattern
 

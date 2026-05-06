@@ -262,6 +262,22 @@ git rebase origin/main
 
 Use the latest `main` again as the final integration baseline. Do not skip this just because the branch originally started from latest `main`.
 
+Practical follow-up nuance:
+- If you are on a fresh latest-main worktree branch with uncommitted changes, `git rebase origin/main` will fail with `cannot rebase: You have unstaged changes`.
+- In that situation, do not stash reflexively.
+- First verify whether the branch is still exactly based on the current remote main tip:
+
+```bash
+git fetch origin --prune
+printf 'HEAD '; git rev-parse HEAD
+printf 'origin/main '; git rev-parse origin/main
+printf 'merge-base '; git merge-base HEAD origin/main
+```
+
+- If all three SHAs match, your branch has not diverged from latest `origin/main`; it is safe to commit the local change directly without doing a redundant pre-commit rebase.
+- Then commit, push, and let the normal PR workflow continue.
+- Only perform an actual rebase after committing if `origin/main` advanced or those SHAs differ.
+
 ## Recommended test approach for SEO baseline work
 
 Add a small node test under `tests/` that verifies:

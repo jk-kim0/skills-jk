@@ -177,3 +177,9 @@ In corp-web-japan PR follow-up work, gh pr view can briefly lag after push; veri
 In corp-web-japan typography work, the user prefers site-wide consistency over route-local parity exceptions: do not keep `/t/about-us` as a special text-color or body-typography exception; align it to shared site defaults instead. Current documented defaults are route-level `main` `text-slate-950`, ordinary descriptive/body copy `text-slate-600`, and for marketing/company body copy the preferred default is `15px/28px` (`text-[15px] leading-7`) unless a different shared pattern is explicitly required.
 §
 In corp-web-japan demo list-route rollout work, canonical list paths should stay under the demo namespace: use-cases `/demo/use-cases`, AIP `/demo/aip`, ACP `/demo/acp`. Do not invent `/demo-acp` or lift use-cases to `/use-cases` unless the user explicitly changes the route policy.
+§
+In corp-web-japan, .github/workflows/ci.yml and deploy-preview.yml both support workflow_dispatch. If a PR branch push updates head SHA but GitHub does not attach new synchronize runs, manual dispatch on the PR branch can still validate the current head.
+§
+In corp-web-japan manuals work, the real replacement target for legacy /api-docs.html is https://docs.querypie.com/ja/api-reference.
+§
+On this machine, exiftool is installed and available in PATH.
