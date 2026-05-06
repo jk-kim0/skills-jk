@@ -143,6 +143,44 @@ and rewrite MDX references accordingly.
 
 Do not leave migrated news-body assets under `public/blog/...` once the canonical body has moved to `/news/...`.
 
+## Content-shape rule for local news MDX
+
+Keep local news MDX files free of a duplicated leading page-title H1.
+
+## Exact-source replacement rule for original-language follow-ups
+
+When the user provides corrected source text for a specific local news post (for example a replacement English original article body for one `src/content/news/<id>.mdx` file):
+- edit the existing news MDX file directly
+- preserve the current frontmatter (`id`, `slug`, `title`, `description`, `date`, `heroImageSrc`, `relatedIds`, `sourceLabel`, `author`) unless the user explicitly asks to change it
+- preserve the existing Japanese translation section unless the user explicitly asks to revise it
+- replace only the targeted original-language section body under the matching heading such as `## 原文（英語）`
+- keep the `**Original title:** ...` line unless the user explicitly supplies a replacement for it
+- after the edit, rerun the narrow news regression tests rather than broad repo verification
+
+When the user provides a source-language article (for example Korean) and asks for a better Japanese translation for an existing local news post:
+- rewrite only the `## 日本語訳` section
+- keep the existing frontmatter, route identity, source attribution line, and original-language section unless the user explicitly asks to change them too
+- prefer natural Japanese news/article prose over literal sentence-by-sentence translation
+- preserve key factual details from the supplied source text, especially chronology, company/product names, funding figures, and quoted future-plan statements
+- if a brand or product typo is discovered nearby while doing the translation update (for example `query-Fi` vs `QueryPie`), fix it in the same follow-up when it is clearly an error in the same article body
+- after the edit, rerun the narrow news regression tests rather than broad repo verification
+
+This avoids accidental rewrites of translated copy, metadata, or routing when the requested task is only to correct the embedded source article text.
+
+Required shape:
+- frontmatter `title` is the canonical page title
+- the body starts directly with the article content, source blockquote, or real section headings
+- do **not** keep a duplicated first line like `# <same title as frontmatter>` immediately after frontmatter
+
+Why:
+- the shared `PublicationPostPage` already renders `post.title` as the page H1
+- duplicating the title in MDX forces loader-side cleanup and can pollute the TOC extraction path
+
+Implementation preference:
+- remove the redundant H1 from `src/content/news/*.mdx`
+- keep the loader simple so it renders `bodySource` directly and extracts headings from `bodySource`
+- do not preserve a special-case strip helper unless there is a truly exceptional news-body shape that cannot be normalized at the content layer
+
 ## Tests to keep or add
 
 Keep/add these regression checks:
@@ -155,11 +193,13 @@ Keep/add these regression checks:
 - `/t/news` exists and is driven by news publication records
 - `/news/[id]` redirects canonically
 - `/news/[id]/[slug]` loads by id and redirects only on slug mismatch
+- the news loader renders the MDX directly from `bodySource` and does not rely on a title-stripping helper
 
 3. imported corpus test
 - each news file keeps `heroImageSrc: "/news/<id>/thumbnail.png"`
 - no file reuses the thumbnail in-body via `filepath="public/news/<id>/thumbnail.png"`
 - route-aligned assets exist
+- no news MDX file keeps a duplicated leading `# ` heading immediately after frontmatter
 
 4. blog shadow redirect test
 - affected blog records are `hidden: true`
@@ -170,6 +210,10 @@ Keep/add these regression checks:
 - `news/13` and `news/14` contain the expected migrated section headings/body markers
 - migrated `news/13` asset references point to `public/news/13/...`
 - migrated bodies no longer point back to `public/blog/25/...` or `関連ブログを見る`
+
+6. localization test
+- verify Japanese `title` and `description` in frontmatter for translated imported news posts
+- do not require a body-leading H1 in localization tests, because the canonical title now lives only in frontmatter/page chrome
 
 ## Verification commands
 

@@ -188,8 +188,15 @@ Expected client flow:
 
 In `src/app/whitepapers/[id]/[slug]/page.tsx`:
 - read cookies via `cookies()`
-- if `post.gating` exists, set `post.gating.initiallyUnlocked = cookieStore.has(buildGatingCookieName(post.gating.contentKey))`
+- also read the preview-navigation cookie and resolve it through `getPreviewNavigationState(...)`
+- if `post.gating` exists, set `post.gating.initiallyUnlocked = previewModeEnabled || cookieStore.has(buildGatingCookieName(post.gating.contentKey))`
 - then render `PublicationPostPage`
+
+Preview-mode rule for this repo:
+- when the Preview Toggle is ON, gated publication pages should behave as if the gating form was already submitted
+- apply the same bypass rule to internal gating demos and preview resource detail routes that reuse the gated publication pattern
+- keep the real gating cookie path intact for non-preview browsing; preview mode is an additive bypass, not a replacement for the normal unlock flow
+- the preview toggle itself should default to OFF unless its cookie is explicitly `on`
 
 ### Internal demo route
 

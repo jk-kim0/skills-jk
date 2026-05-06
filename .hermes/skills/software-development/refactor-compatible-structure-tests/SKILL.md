@@ -188,6 +188,45 @@ During a staged refactor, tests may need to accept both layouts temporarily. Tha
 ### D. Keep implementation PRs cleaner by landing test decoupling first
 If a separate test-only PR is available, later rebases of the implementation PR become easier. Prefer the latest-main version of the tests during conflict resolution and keep the implementation diff focused.
 
+### E. When shared helpers absorb logic, assert delegation or contract — not the old inline implementation site
+Practical lesson from publication-records refactoring in `corp-web-japan`:
+- a structure/regression test can become falsely red even when runtime behavior is still correct if it insists that a wrapper file must literally contain a direct helper call such as `href: resolveRedirectablePublicationHref(...)`
+- after extracting common logic into a shared repository/helper, the wrapper may only contain a call like `createStandardPublicationRecordsRepository(...)` while the actual redirect-aware href logic moved into the shared helper
+- in that situation, the old test is over-coupled to implementation placement, not validating the real contract
+
+Preferred rewrite pattern:
+- for files that still own the logic directly, keep the explicit inline assertion
+- for files intentionally migrated onto a shared helper, assert one of:
+  - they delegate to the expected shared helper/factory
+  - the shared helper itself still contains the required contract implementation
+  - both, if you want stronger coverage
+
+Example shape:
+
+```js
+const sharedRepositoryFiles = new Set([
+  "src/lib/publications/use-case-publication-records.ts",
+  "src/lib/publications/aip-demo-publication-records.ts",
+  "src/lib/publications/acp-demo-publication-records.ts",
+]);
+
+for (const filePath of redirectAwareRecordFiles) {
+  const source = readSource(filePath);
+
+  if (sharedRepositoryFiles.has(filePath)) {
+    assert.match(source, /createStandardPublicationRecordsRepository/);
+    continue;
+  }
+
+  assert.match(source, /href:\s*resolveRedirectablePublicationHref\(/);
+}
+```
+
+Why this matters:
+- preserves regression intent during abstraction extraction
+- avoids CI failures caused only by moving code into a shared helper
+- keeps structure tests aligned with refactor-safe contracts rather than one historical file shape
+
 ## Component-level UI state coverage in this repo
 
 Additional practical pattern from `corp-web-japan` UI follow-up work:

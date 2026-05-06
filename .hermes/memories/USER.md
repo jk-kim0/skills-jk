@@ -181,3 +181,5 @@ In corp-web-japan PR follow-up scope, removing demo /t entrypoints does not impl
 When reviewing corp-web-japan publication/routing changes, the user expects priority on finding missing hidden-posting or redirect configuration/canonicalization gaps, not just whether a PR is stale or mergeable.
 §
 In corp-web-japan copy/content follow-up work, if the user asks to correct a mistaken title/label in an existing content item, prefer preserving the item and fixing the exact wording rather than deleting the page or replacing it with a broader structural change.
+§
+In corp-web-japan publication/routing audits, the user wants review focus on actual missing redirects and wrong redirect targets on the latest origin/main baseline, not on 'shrink/removal candidates.' Evidence should be prioritized from latest main code, route implementation, and stage/live behavior.

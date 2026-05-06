@@ -177,6 +177,32 @@ Why it is wrong:
 - hidden posts disappear from static params
 - detail routes may 404 even though the requirement was “hide only from list”
 
+Additional route-handler pitfall learned from corp-web-japan:
+- For App Router `route.ts` handlers, do not assume an optional catch-all or optional segment shape like `[[slug]]` is supported just because page routes support optional params in some contexts.
+- In practice, a route handler such as:
+
+```text
+src/app/features/demo/webinars/[id]/[[slug]]/route.ts
+```
+
+can fail build on Next 16 with:
+
+```text
+Optional route parameters are not yet supported ("[[slug]]") in route ...
+```
+
+Safe pattern for static redirect endpoints:
+- create two explicit handlers instead of one optional-segment handler
+
+```text
+src/app/<section>/[id]/route.ts
+src/app/<section>/[id]/[slug]/route.ts
+```
+
+and make both perform the same lookup/redirect behavior.
+
+This is especially useful when implementing legacy compatibility redirects for hidden shadow records.
+
 ## Optional hardening
 
 If the codebase prefers stricter validation, consider validating `redirectUrl` format or allowed schemes during frontmatter normalization so invalid values fail fast.

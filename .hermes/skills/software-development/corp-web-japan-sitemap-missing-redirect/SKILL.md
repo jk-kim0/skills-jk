@@ -84,6 +84,33 @@ Important lesson:
 
 ## Helper design
 
+### 0. Prefer local canonical recovery before querypie.com fallback for known legacy content paths
+
+When a missing path is a historical content-detail route whose content now exists locally under a different canonical family, do not immediately fall back to `querypie.com`.
+
+Add a small repo-local helper (for example `src/lib/corp-web-japan-legacy-redirect.ts`) and call it from `src/app/[...missing]/page.tsx` before `buildQueryPieContentRedirectUrl()`.
+
+Proven case from `corp-web-japan`:
+- incoming legacy paths:
+  - `/resources/discover/whitepapers/:id/:slug`
+  - `/resources/discover/white-paper/:id/:slug`
+- desired behavior:
+  - if local whitepaper record `<id>` exists, redirect to `/whitepapers/:id/:canonical-slug`
+  - preserve the query string
+  - log via the existing `[runtime-missing-redirect]` path so runtime evidence remains visible
+
+Why this matters:
+- production/runtime 404s can exist for historical resource-center whitepaper URLs even though the content is already migrated locally
+- `querypie.com` may no longer have a stable working destination for one or both legacy families
+- local canonical recovery is better than external fallback when the local site already owns the content
+
+Implementation pattern:
+1. parse the legacy path with narrow regexes
+2. extract `id`
+3. look up the local record (for example `getWhitepaperPublicationRecord(id)`)
+4. if found, build `/whitepapers/${record.id}/${record.slug}`
+5. in `[...missing]/page.tsx`, redirect to that local path before trying the general querypie.com allowlist helper
+
 ### 1. querypie sitemap redirect helper
 
 Put querypie-target rules in a helper such as:
@@ -114,14 +141,20 @@ When the request is specifically to fix real production 404s seen in Vercel Runt
 
 Recommended decision rule:
 1. collect the distinct 404 request paths from the requested runtime-log window
-2. for each candidate path, check `https://www.querypie.com<same-path>` directly
-3. only consider paths that return `200 OK`
-4. before adding any exact-path redirect, check whether the current generic namespace rules already cover it
-5. only add new exact allowlist entries for the remaining uncovered paths
+2. classify each candidate before choosing a redirect target:
+   - scanner / junk path -> keep 404
+   - upstream-owned path that still returns `200` on `querypie.com` -> redirect externally
+   - legacy content path whose upstream path is now dead but whose local canonical content exists -> redirect same-origin to the local canonical path
+   - path with no live upstream target and no local canonical target -> keep 404
+3. before adding any exact-path redirect, check whether the current generic namespace rules already cover it
+4. only add new exact allowlist entries for the remaining uncovered paths
 
 Why this split matters:
 - it prevents redirecting arbitrary 404 noise that does not exist on `querypie.com`
 - it avoids redundant exact entries for paths already handled by namespace rules
+- it preserves the more important distinction between:
+  - `external exact redirects` for paths that are still truly upstream-owned
+  - `local canonical redirects` for legacy content families that have already been migrated locally
 - it keeps the code small and reviewable
 
 A proven helper shape for this follow-up work was:
@@ -130,6 +163,50 @@ A proven helper shape for this follow-up work was:
 - `isQueryPieExactRedirectPath()`
 
 In the observed Apr 25–26 runtime-log remediation, six paths returned `200` on `querypie.com`, but only two needed new exact rules because four were already covered by namespace matching.
+
+### 1.6 content-family migration audit lesson: do not always mirror the same upstream path
+
+A later `corp-web-japan` audit found an important failure mode: some runtime 404 paths looked like old upstream content URLs, but the best fix was **not** to redirect to the same path on `querypie.com`.
+
+Examples discovered during the audit:
+- `/resources/discover/whitepapers/15/redefining-pam-for-the-mcp-era`
+- `/resources/discover/whitepapers/16/next-step-mcp-pam`
+- `/resources/discover/whitepapers/17/ai-autonomous-access-control`
+- `/resources/discover/whitepapers/18/uncovering-mcp-security`
+- `/resources/discover/whitepapers/19/google-agentspace-vs-querypie-mcp-pam`
+- `/resources/discover/white-paper/17/mcp-security-threats`
+- `/resources/discover/white-paper/18/uncovering-mcp-security`
+- `/resources/discover/white-paper/19/google-agentspace-vs-querypie-mcp-pam`
+
+What was learned:
+- some of these legacy paths still appear in production runtime 404 logs
+- the plural `/resources/discover/whitepapers/...` family can be dead on `querypie.com`
+- the singular `/resources/discover/white-paper/...` family may still resolve on `querypie.com`
+- meanwhile, local canonical pages may already exist under `/whitepapers/:id/:slug`
+
+Operational rule:
+- if the runtime 404 path corresponds to a locally migrated whitepaper that already has a live local canonical detail page, prefer redirecting to the local `/whitepapers/:id/:slug` route instead of blindly copying the old upstream family path
+- only keep an external redirect when the upstream destination is still the real canonical owner and there is no better local canonical page
+
+This is especially important for migration-complete or migration-mostly-complete families, where preserving the legacy entrypoint should strengthen local ownership rather than bypass it.
+
+### 1.7 separate broken in-content links from missing route redirects
+
+A useful audit split from the same investigation:
+- missing route redirect = incoming request path 404s and should be mapped somewhere
+- broken in-content link = current repo content links directly to a dead URL and should usually be edited at the source
+
+Concrete example found in `corp-web-japan`:
+- `src/content/manuals/4-acp-api-reference.mdx` linked to `/api-docs.html`
+- `https://querypie.ai/api-docs.html` returned `404`
+- `https://www.querypie.com/api-docs.html` returned `200`
+
+This should be treated as either:
+- a missing redirect endpoint for `/api-docs.html`, or
+- a broken internal content link to be corrected at the source,
+not merely as a generic catch-all missing-path case.
+
+Likewise, if current MDX files link to dead external URLs such as old `https://www.querypie.com/resources/discover/whitepapers/...` paths that now return `404`, prefer updating those links to the local canonical route or the surviving upstream canonical route instead of relying only on runtime catch-all behavior.
 
 ### 2. local-content helper for `/ja/...`
 

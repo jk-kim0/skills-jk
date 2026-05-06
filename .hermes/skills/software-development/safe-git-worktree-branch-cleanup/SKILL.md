@@ -374,6 +374,88 @@ Practical rule:
 - clean detached helper clones that exactly match an open PR remote head are stale and removable
 - clean detached worktrees whose `HEAD` is an orphan local commit are not stale by default
 
+### Additional practical case: when the user wants a cleaner workspace, preserve orphan detached commits by promoting them to backup branches first
+
+Sometimes the user wants the workspace itself cleaned up even when several detached worktrees are still worth preserving as local history.
+In that case, the right move is often **not** to keep many detached worktrees around.
+Instead:
+
+1. classify detached worktrees into:
+   - `dirty detached keep as worktree`
+   - `clean detached keep as commit`
+   - `clean detached stale/remove`
+2. for each `clean detached keep as commit`, create a named local backup branch first:
+
+```bash
+git branch backup/<descriptive-name> <detached-sha>
+```
+
+Examples:
+- `backup/pr103-image-click-close`
+- `backup/pr223-numeric-ids`
+- `backup/pr240-typography-refresh`
+
+3. after the backup branch exists, remove the detached worktree:
+
+```bash
+git worktree remove --force <path>
+```
+
+Why this is valuable:
+- preserves the local-only commit without leaving many detached worktrees cluttering the repo
+- gives the user an inspectable named ref instead of an anonymous detached directory
+- makes future cleanup easier because remaining worktrees more closely reflect active PRs or real dirty work
+
+Practical rule:
+- if a detached worktree is clean and orphaned but not obviously disposable, prefer `promote to backup branch + remove worktree` over leaving the detached worktree in place
+- keep a dirty detached worktree as a worktree until its dirty patch is classified separately
+
+### Additional practical case: multiple detached helpers can form a linear history, and only the latest one needs to survive
+
+Some repositories accumulate many detached helper worktrees for one investigation or PR follow-up, for example:
+- `pr103-zoomable-figure`
+- `pr103-value-diagram-webp`
+- `pr103-value-diagram-modal`
+- `pr103-image-click-close`
+
+These may all be orphan local commits, yet still be safely reducible if they form a strict ancestry chain.
+
+Check this with:
+
+```bash
+git merge-base --is-ancestor <older-sha> <newer-sha>
+```
+
+Interpretation:
+- if `A` is an ancestor of `B`, keeping `B` preserves reachability to `A`
+- if you have a chain `A -> B -> C -> D`, you do **not** need four detached worktrees to preserve that history
+- you may keep only the newest representative detached worktree (for example `D`) and remove the older detached helpers (`A`, `B`, `C`), because their commits remain reachable from `D`
+
+Practical rule:
+- exact SHA duplication is not the only removable-detached case
+- linear detached helper chains can be compressed to the newest kept commit, as long as you are intentionally preserving that newest commit somewhere
+- do not apply this rule to a dirty detached worktree unless you separately classify its current dirty patch
+
+### Additional practical case: a detached helper can exactly equal a merged PR head commit
+
+A detached worktree may match the final remote head commit of an already merged PR.
+That detached worktree is usually just a leftover local clone of the merged PR state.
+
+Check this with:
+
+```bash
+env -u GITHUB_TOKEN gh pr view <number> --json headRefOid,state
+```
+
+Then compare the detached `HEAD` to `headRefOid`.
+
+Interpretation:
+- if the PR is `MERGED` and the detached `HEAD` exactly equals `headRefOid`, the detached worktree is redundant and removable
+- this is true even if no local branch currently contains that exact detached commit, because the merged PR itself already records that state remotely
+
+Practical rule:
+- treat `detached HEAD == merged PR remote head` as stale helper residue, not as a unique local preservation obligation
+
 ### Additional practical case: local helper branches/worktrees can be redundant aliases of an open PR under a different name
 
 A local branch/worktree may have no PR of its own yet still be redundant because it simply points to the same commit as another open-PR branch.
@@ -542,7 +624,45 @@ git branch -D <branch>
 
 Only preserve the branch when those checks do not clearly prove it is stale.
 
-## 8. Final verification
+## 8. Review backup branches before deleting them
+
+Local `backup/*` branches often accumulate during repeated workspace cleanup and PR follow-up work. Do not treat every backup branch as automatically preservable just because it is not attached to a worktree.
+
+For each backup branch, collect:
+
+```bash
+git rev-parse <backup-branch>
+git show -s --format='%s' <backup-branch>
+git rev-list --left-right --count origin/main...<backup-branch>
+git cherry origin/main <backup-branch> || true
+git branch --contains $(git rev-parse <backup-branch>)
+env -u GITHUB_TOKEN gh pr list --state all --head <backup-branch> --json number,state,title,url,headRefName
+```
+
+Then validate portability with a disposable rebase worktree:
+
+```bash
+tmp=$(mktemp -d)
+wt="$tmp/rebase-check"
+git worktree add --detach "$wt" <backup-branch>
+git -C "$wt" rebase origin/main
+# if conflicting, inspect `git -C "$wt" status --short --branch` and abort
+```
+
+Interpretation:
+- if the backup branch is already contained in a more official kept branch (for example an open-PR branch or an intentionally kept follow-up branch), it is usually redundant and can be deleted
+- if the disposable rebase exits clean but reports `skipped previously applied commit`, the branch is effectively already absorbed by latest `main` and is stale
+- if the branch immediately produces broad structural conflicts on rebase and is only an old backup of an abandoned line, that is strong stale evidence
+- if the branch is the newest representative of a local experimental line, keep it and consider deleting older backup branches from the same chain
+- if two backup branches preserve the same exploratory area, prefer keeping the newer or more representative one and delete the older helper copy
+
+Useful summary labels:
+- `stale backup: absorbed by main`
+- `stale backup: redundant with kept branch`
+- `keep backup: latest representative of local line`
+- `uncertain backup: orphan local line with no clear replacement`
+
+## 9. Final verification
 
 Run:
 

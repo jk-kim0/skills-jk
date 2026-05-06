@@ -140,6 +140,88 @@ Missing route implementation:
 - events [id] and [id]/[slug] routes do not apply redirectUrl before canonical redirect/render
 ```
 
+## Extra latest-main and runtime checks
+
+When the user asks for a latest-main audit rather than a PR review, add these checks:
+
+1. Verify the actual latest `origin/main` SHA first and avoid reasoning from older snippets quoted in chat.
+2. Re-open any previously suspected shadow record directly from current source before repeating it as a candidate. A record that looked like `hidden` without `redirectUrl` earlier may already have been fixed on latest main.
+3. Distinguish local index pages from explicit redirect routes. In particular, do not assume `/demo/use-cases`, `/demo/aip`, or `/demo/acp` are redirect endpoints if current code serves local index pages there.
+4. For any confirmed shadow record, test stage and production URLs directly. Code/static audit can pass while production still behaves differently from stage/latest main, revealing deployment drift.
+5. Keep two buckets separate in the report:
+   - code/route defects on latest main
+   - stage vs production behavior mismatches
+
+## Runtime and deployment cross-checks
+
+After the static content/route audit, do a quick live verification pass before concluding that nothing is wrong.
+
+Recommended order:
+
+1. verify the latest `origin/main` SHA again right before the final conclusion
+2. test representative legacy URLs on both:
+   - `https://stage.querypie.ai`
+   - `https://querypie.ai`
+3. separate:
+   - code-level breakage on latest main
+   - stage-only breakage
+   - production drift where stage/latest main are fixed but production is still stale
+
+Important lesson:
+- in this repo, `origin/main` can advance during the audit itself
+- a finding that was true at one SHA can become obsolete minutes later
+- re-read the relevant `origin/main:` files before finalizing
+
+## Runtime-log heuristics for redirect audits
+
+When `src/app/[...missing]/page.tsx` emits `[runtime-missing-redirect]` and `[runtime-404]`, use Vercel logs to distinguish three classes of candidates:
+
+### A. Strong missing-redirect candidates
+
+Pattern:
+- repeated runtime 404s on a legacy path
+- the current canonical local route or asset is known and returns `200`
+- git history shows the legacy path previously existed
+
+Example shape:
+- `/assets/image/blog/21/thumbnail.png` returns `404`
+- `/blog/21/thumbnail.png` returns `200`
+- git history shows `public/assets/image/blog/21/thumbnail.png`
+
+This is stronger evidence than a purely speculative path guess.
+
+### B. Production drift, not code regression
+
+Pattern:
+- latest `origin/main` code is correct
+- stage behaves correctly
+- production still serves the old behavior
+
+Report this separately from code bugs.
+Do not mislabel it as a current-main implementation defect.
+
+### C. Candidate needs more evidence
+
+Pattern:
+- runtime 404 exists
+- but there is no confirmed current canonical target yet
+- or upstream/querypie.com does not clearly resolve to a valid replacement
+
+Keep these as tentative candidates rather than confirmed redirect bugs.
+
+## Route-handler redirect verification
+
+For `route.ts` handlers that use `NextResponse.redirect`, do not assume a relative path is safe just because page routes accept `redirect("/path")`.
+
+Verify the actual HTTP behavior on stage and inspect deployment logs when needed.
+
+Practical finding from this repo:
+- a legacy whitepaper `route.ts` that returned `NextResponse.redirect("/whitepapers/...", 307)` produced stage `500`
+- Vercel logs showed: `URL is malformed "/whitepapers/..."`
+- in route handlers, construct an absolute URL with the request context when needed
+
+This is a different failure mode from page-route `redirect()` and is easy to miss in a static-only audit.
+
 ## Pitfalls
 
 - Spending the whole review on whether the PR is stale while missing the actual publication-routing defect
@@ -147,6 +229,10 @@ Missing route implementation:
 - Checking only the slug route and forgetting the `[id]` route
 - Assuming a family is fine because another family already implements the pattern
 - Confusing external-news archive items with local canonical content; decide whether the intent is local rendering, redirect, or shadow preservation
+- Finalizing against a stale SHA when `origin/main` advanced during the audit
+- Treating production drift as if it were a latest-main code bug
+- Assuming `NextResponse.redirect("/relative")` in a route handler is safe without stage/runtime verification
+- Stopping at static code inspection when stage or production runtime behavior may still differ from latest main
 
 ## When this matters most
 
