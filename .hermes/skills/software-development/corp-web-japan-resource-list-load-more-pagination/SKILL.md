@@ -100,8 +100,8 @@ resource list routes in this repo do not all want the same behavior.
 
 Current safe rule:
 - wire load-more only in the target routes the user asked for
-- today that means public `/blog`, public `/whitepapers`, and the internal `/internal/load-more` demo route
-- keep other list pages such as `/events` or preview/resource routes on their existing rendering path unless the user explicitly expands scope
+- current proven targets include public `/blog`, public `/whitepapers`, preview `/t/use-cases`, and the internal `/internal/load-more` demo route
+- keep other list pages such as `/events`, preview resource routes, or preview demo routes like `/t/demo/aip` and `/t/demo/acp` on their existing rendering path unless the user explicitly expands scope
 
 This avoids accidental UX changes outside the intended surfaces.
 

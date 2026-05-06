@@ -170,14 +170,18 @@ At minimum:
    - `/events/[id]` redirects canonically
    - `/events/[id]/[slug]` loads by id and redirects only on slug mismatch
    - event loader uses `renderPublicationMdx` and `extractHeadingsFromMdx`
+   - if a fixture spot-checks a specific imported event like `27.mdx`, keep its `hideHeroImageOnDetail` expectation aligned with the current MDX corpus rather than an older migration snapshot
 
 2. imported corpus test
    - exact expected Japanese event IDs are present as local MDX files
    - each event MDX uses `heroImageSrc: "/events/<id>/thumbnail.png"`
+   - when an event body still embeds the same hero thumbnail via `ArticleFileImage filepath="public/events/<id>/thumbnail.png"`, require `hideHeroImageOnDetail: true`
    - no `public/webinar/` references remain
    - no `/features/demo/webinars/` references remain
 
 3. component support test
+   - `ArticleYoutubeGatingForm` and `EmailLink` are registered in the MDX components map
+
    - `ArticleYoutubeGatingForm` and `EmailLink` are registered in the MDX components map
 
 ## Verification

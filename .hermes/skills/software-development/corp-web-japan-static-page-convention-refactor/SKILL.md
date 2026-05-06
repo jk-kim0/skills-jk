@@ -41,6 +41,10 @@ Practical implication learned from repo follow-up:
 - do not treat documentation labels like "partial" or "wrong / pre-refactor" as authoritative without checking the live code on latest `origin/main`; those labels can lag behind after a sequence of section-scoped PRs merges
 - when a page is explicitly called out in docs as non-compliant, verify the current `page.tsx`, current `src/components/sections/**` files, and recent git history for that route before recommending more route-local-authoring work
 - practical example: `src/app/solutions/ai-crew/page.tsx` was still described in docs as a wrong/pre-refactor example even after multiple merged PRs had already moved most section copy and composition into the route; the correct conclusion was that the docs had become stale, not that the page still needed the same refactor class
+- additional example: `src/app/solutions/ai-dashi/page.tsx` remained labeled as a partial/intermediate reference in docs even though the latest-main implementation already kept authored copy and section order directly in the route while `src/components/sections/ai-dashi-*` mainly owned presentation structure
+- after the later merged AI Dashi follow-up PRs that extracted hero/about/values/whitepaper/contact section primitives and tightened comparison/support/release-flow composition, treat AI Dashi as an aligned solution-page reference rather than a partial/intermediate one
+- if a user asks whether a route-local refactor should be applied to a page like AI Dashi, and latest-main inspection shows the page already satisfies the route-local-authoring rule, do not manufacture another code refactor just to match stale documentation
+- in that situation, prefer the smallest truthful outcome: explain that no further broad code refactor is needed, and if repository docs or wiki pages still describe the route as partial/intermediate or a primary target, submit docs/wiki updates that reclassify it instead of widening scope into unnecessary code churn
 
 ## When this applies
 
@@ -165,6 +169,9 @@ Important anti-regression rule from AI Dashi follow-up work:
 - when a route-localized section is still a large raw JSX/class blob in `page.tsx`, treat the refactor as incomplete even if the copy has already been removed from `src/content/**`
 - the next step is usually to promote that section file from a thin container into several semantic section components, while keeping the actual user-facing sentences and CTA labels authored in `page.tsx`
 - practical pattern confirmed in AI Crew lost-section follow-up: move `RevealOnScroll`, background-image rendering, card geometry, and CTA button implementation into `src/components/sections/<section>.tsx`, then let `page.tsx` read as `<LostProblemCard>`, `<LostProblemTitle>`, `<LostProblemBody>`, `<LostWhitepaperCard>`, and `<LostWhitepaperAction href={...}>...`
+- additional pattern confirmed in AI Dashi route-local follow-up: when the page already keeps most marketing copy in `page.tsx` but still contains several large inline implementation blocks, do not force a fake "move more copy" refactor. Instead, extract those blobs into new section-primitive files such as `ai-dashi-hero-section.tsx`, `ai-dashi-about-section.tsx`, `ai-dashi-values-section.tsx`, `ai-dashi-whitepaper-section.tsx`, and `ai-dashi-contact-section.tsx`, while preserving the visible copy and section order in the route.
+- in this pattern, `page.tsx` should keep the authored JSX sentences and CTA labels, while the new section files absorb background-image rendering, panel chrome, card shells, repeated badge/title/body wrappers, and action-link styling.
+- this is especially useful for pages like AI Dashi that are already route-local in principle but still read as large implementation-heavy blobs in the route. The goal is to improve readability and ownership boundaries without widening scope into unrelated sections or redesign work.
 
 ## Practical pattern used successfully
 

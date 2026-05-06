@@ -158,6 +158,7 @@ Additional practical stale signals for branch-backed worktrees:
 - the branch's PR is already `MERGED` and the upstream ref is `[gone]`
 - the worktree is clean and exists only as leftover local residue after the PR merged
 - the only remaining dirt is a disposable helper file such as `.tmp-pr-body.md`
+- the branch has a small local-only post-merge commit, but the worktree is clean and that commit is just narrow follow-up residue (for example a tiny docs/skill cleanup) with no open PR or active dirty worktree depending on it
 
 In that case, it is usually safe to:
 1. remove the disposable helper file
@@ -222,8 +223,25 @@ Recommended decision flow for this case:
    ```bash
    git -C <worktree> diff --stat origin/main -- <paths...>
    ```
-3. if needed, simulate `git rebase origin/main` in a disposable helper worktree to judge whether the branch history itself is salvageable or just stale
-4. separate the verdict into two parts:
+3. test whether the current dirty patch still has unique value on latest `origin/main`
+   - export only the dirty diff for the focused files:
+     ```bash
+     git -C <worktree> diff -- <paths...> > /tmp/current-dirty.patch
+     ```
+   - create a disposable detached worktree at `origin/main`
+   - run:
+     ```bash
+     git -C <temp-main-worktree> apply --check --3way /tmp/current-dirty.patch
+     git -C <temp-main-worktree> apply --3way /tmp/current-dirty.patch
+     git -C <temp-main-worktree> status --short --branch
+     git -C <temp-main-worktree> diff --stat
+     ```
+   Interpretation:
+   - if `apply --check --3way` fails, the patch is not cleanly portable and may need manual salvage
+   - if apply succeeds and the temp worktree then shows the expected modified files, the dirty patch is still a real candidate for transplant onto fresh main
+   - if apply succeeds but `status` and `diff` remain empty afterward, the patch is effectively already absorbed by latest `main` (a practical no-op) and usually does **not** justify preserving the dirty worktree by itself
+4. if needed, simulate `git rebase origin/main` in a disposable helper worktree to judge whether the branch history itself is salvageable or just stale
+5. separate the verdict into two parts:
    - branch history stale vs not stale
    - current dirty local edits meaningful vs disposable
 
@@ -307,6 +325,76 @@ Interpretation:
 
 This check is especially important before restoring dirty tracked files in `main` so that `main` can be fast-forwarded to `origin/main` safely.
 
+### Additional practical case: root dirt can come from repo-local skill/doc residue rather than intended code work
+
+In repositories that check in agent skills or guidance under paths like `.agents/skills/**` or `docs/**`, the root `main` worktree can become dirty because of local exploratory edits to a skill or guidance file while you were debugging or documenting a different task.
+
+Safe handling:
+1. inspect the root diff directly:
+
+```bash
+git diff -- .agents/skills/... docs/...
+```
+
+2. compare that file against likely source worktrees if relevant
+3. if the file is not part of any open PR worktree and the change is just local procedural residue, restore it instead of preserving it as meaningful repo work:
+
+```bash
+git restore --worktree -- <path>
+```
+
+Practical rule:
+- do not let a stray local skill/doc edit block `main` fast-forward during workspace cleanup
+- but only restore it when it is clearly not the active subject of an open PR or a kept dirty worktree
+
+Additional lesson from repeated repo-local cleanup:
+- the same kind of residue can appear in non-root worktrees too, especially in merged feature worktrees that touched repo-local checked-in skills
+- if a merged/closed PR worktree is otherwise clean and its only remaining dirt is repo-local skill residue under `.agents/skills/**`, restore those files first and then re-evaluate the worktree for removal
+- this is safer than preserving a merged stale worktree just because of incidental local guidance edits
+
+### Additional practical case: detached worktrees may hold orphan local commits
+
+Not every clean detached worktree is disposable.
+A detached worktree can point at a commit that is not contained in any local branch or remote branch.
+Deleting it blindly can lose the only remaining reference to that local commit.
+
+Check this before removing a clean detached worktree whose purpose is unclear:
+
+```bash
+head=$(git -C <path> rev-parse HEAD)
+git branch --contains "$head"
+git tag --contains "$head"
+```
+
+Interpretation:
+- if the commit is already represented by an open PR branch, remote branch, local branch, or another intentional preserved ref, the detached worktree is usually safe to remove
+- if the commit is not contained in any branch or tag, preserve it by default or convert it into a named local branch before removing the worktree
+
+Practical rule:
+- clean detached helper clones that exactly match an open PR remote head are stale and removable
+- clean detached worktrees whose `HEAD` is an orphan local commit are not stale by default
+
+### Additional practical case: local helper branches/worktrees can be redundant aliases of an open PR under a different name
+
+A local branch/worktree may have no PR of its own yet still be redundant because it simply points to the same commit as another open-PR branch.
+This often happens with helper names like `pr240-rewrite-main`, `pr240-rebase-main`, or other local-only convenience branches.
+
+Check for aliasing before preserving a no-PR branch-backed worktree:
+
+```bash
+git rev-parse <local-helper-branch>
+git rev-parse <open-pr-branch>
+git rev-list --left-right --count <local-helper-branch>...<open-pr-branch>
+```
+
+Interpretation:
+- if the local helper branch points at exactly the same commit as an open PR branch or its remote head, the helper branch/worktree is redundant and can be removed
+- if the helper branch has its own unique commits or dirty worktree changes, preserve it until you classify that work explicitly
+
+Practical rule:
+- `no open PR for this branch name` is not enough to preserve a helper branch/worktree
+- first check whether it is merely an alternate local alias of an already-preserved open PR state
+
 ### Additional practical case: root staged residue copied from a merged detached helper worktree
 
 Sometimes the root `main` worktree is not just dirty; it contains a staged set of files that exactly matches a clean detached helper worktree from a recently merged PR.
@@ -380,7 +468,22 @@ Practical rule:
 
 ## 8. Update local main safely
 
-If `main` is not checked out in any worktree, update it directly:
+Important practical case: the current/root checkout itself may still be sitting on a stale merged PR branch.
+In that case, workspace cleanup should not stop at pruning sibling worktrees; switch the root checkout back to `main`, fast-forward it, then delete the old current branch only after you are no longer on it.
+
+Decision rule:
+- if the current branch is already `main`, fast-forward `main` normally
+- if the current branch is a stale merged/closed-PR branch or otherwise an obviously disposable branch and the root worktree is clean, first check out `main`, then fast-forward `main`, then delete the old branch
+- if the current branch has real local work, preserve it and report instead of switching blindly
+
+Typical commands:
+
+```bash
+git checkout main
+git merge --ff-only origin/main
+```
+
+If `main` is not checked out in any worktree, you may also update it directly:
 
 ```bash
 git branch -f main origin/main

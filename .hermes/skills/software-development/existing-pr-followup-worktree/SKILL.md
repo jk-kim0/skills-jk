@@ -81,6 +81,13 @@ How to interpret it:
 - If PR state is `MERGED` or `CLOSED`: do not treat it as an update-in-place target anymore.
 - If PR state is merged/closed and the branch is deleted: stop treating it as a live PR branch task and switch to a new latest-main follow-up branch/PR workflow if further changes are still needed.
 - If PR state says open but `ls-remote` returns nothing, re-check the PR metadata because the branch may have been deleted manually or the PR may have just been merged.
+- Important closed-PR branch-name lesson from corp-web-japan PR 223 follow-up: if a PR has already become `CLOSED`, pushing new commits to a branch with the same historical name does **not** reliably resume or update that PR. GitHub can treat it as a newly created branch ref while the closed PR remains pinned to its old head SHA.
+- Always verify both pieces separately after pushing to a historical PR branch name:
+  ```bash
+  git ls-remote origin refs/heads/<pr-branch>
+  gh pr view <pr-number> --json state,headRefName,headRefOid,url
+  ```
+- If the remote branch tip advances but the PR stays `CLOSED` and its `headRefOid` does not move, do not claim the PR was updated. Report clearly that the branch was pushed but the PR is no longer attached, and ask whether to reopen the PR or open a new PR from that branch.
 
 ### 2. Create a fresh worktree from the PR branch
 From the repo root:
@@ -155,12 +162,36 @@ git rev-parse HEAD origin/<pr-branch>
 
 If local `HEAD` and `origin/<pr-branch>` differ before you start, stop and understand why.
 
+Additional worktree-path sanity check learned from PR follow-up maintenance:
+- After `git worktree add ...`, do not assume the path you requested is the path you should keep using.
+- Immediately verify the registered worktree list and the target top-level path before file edits:
+  ```bash
+  git worktree list --porcelain
+  git -C <expected-worktree-path> rev-parse --show-toplevel
+  ```
+- If the expected path is missing from `git worktree list`, or `git -C <expected-worktree-path> ...` fails, stop and fix that first.
+- In practice, this protects you from editing against an imagined path while the real PR branch checkout is still an older existing worktree such as `.worktrees/<old-topic>`.
+- If the branch is already checked out elsewhere and you decide to reuse that existing worktree, explicitly verify that it is on the remote PR tip and not on stale divergent local history before editing.
+
 Important practical finding:
 - Do not trust an existing local worktree just because its directory name suggests it belongs to the target PR branch.
 - A previously used PR worktree can sit on a local tracking branch that is now `ahead`/`behind` the remote PR branch, which makes it unsafe as the starting point for a new follow-up edit.
 - If `git status -sb` shows divergence like `[ahead N, behind M]`, prefer creating a brand-new worktree directly from `origin/<pr-branch>` again, even if another PR-named worktree already exists.
 - In that situation, a detached-HEAD worktree at `origin/<pr-branch>` is usually the safest follow-up base. Make the edit there, commit, and push with `git push origin HEAD:<pr-branch>`.
 - This avoids accidentally stacking new follow-up commits on top of stale local-only history from an older attempt.
+- Additional selection heuristic from PR 253 follow-up work: if the user specifically asks you to reuse an existing worktree, inspect the actual registered worktree names first and choose the cleanest worktree whose name is closest to the requested topic or route family.
+- Do not opportunistically reuse a clearly unrelated worktree just because it is clean; for example, a typography/about-us worktree is a poor fit for a demo-route rollout follow-up.
+- If the user objects that the chosen worktree is for another active task, stop using it immediately, restore it to its prior detached/branch state if you changed it, and switch to a better-named existing worktree before making further edits.
+- In practice, this means the worktree-name audit itself can be a required step: compare all registered `.worktrees/*` names, identify the best topical match, and only then attach the PR follow-up branch there.
+- Additional scope-correction lesson from the same PR 253 follow-up: if you widened the scope beyond the user's intent while updating an open PR branch, do not defend the broader interpretation or leave the extra removals in place.
+- First identify the exact mistaken expansion, then restore only that wrongly touched scope on the same PR branch.
+- Practical example: removing specific demo `/t/...` preview entrypoints did **not** imply removing the global Preview Toggle UI or its API route.
+- In that situation, the correct recovery was to restore only:
+  - `src/components/layout/preview-mode-toggle.tsx`
+  - `src/app/api/preview-navigation/route.ts`
+  - the header wiring that renders the toggle
+  while keeping the originally requested demo-route rollout intact.
+- Heuristic: when the user says your previous interpretation was too broad, treat that as an instruction to narrow the PR back to the exact intended scope immediately, then rerun the smallest relevant tests and push the correction to the same PR branch.
 
 ### 4. Make the requested fix
 Edit only the files needed for the follow-up request.
@@ -265,6 +296,41 @@ Important user-expectation nuance learned from active-review follow-up:
   - After that, verify `git log --oneline --decorate -n 5` shows `origin/<pr-branch>` followed by only your intended new follow-up commit(s), rerun the targeted test, and push normally.
   - This preserves the existing open PR history while still letting you rebase your new work onto the remote PR head.- If the user later asks to clean up the PR title/body, rewrite them to describe only the final end state of the PR. Do not narrate intermediate implementation history unless the user explicitly wants that context.
 - If the user asks to squash the branch history for an open PR, use a fresh worktree from the PR branch tip, `git reset --soft <base-branch>`, recommit once with the final conventional-commit message, then `git push --force-with-lease origin HEAD:<pr-branch>` and re-check PR/CI status.
+- Important latest-main squash/rebase guardrail learned from PR #240 maintenance: before doing a mechanical squash or rebase, inspect `git diff --stat origin/main..HEAD` and `git diff --name-only origin/main..HEAD`. If the open PR branch is carrying unrelated old file diffs from previous branch history (for example an old content/test topic unrelated to the current PR scope), do not preserve that history with a raw rebase/reset flow.
+  Safer recovery pattern:
+  1. create or reuse a fresh worktree based on latest `origin/main`
+  2. copy only the intended PR file set from `origin/<pr-branch>` with `git checkout origin/<pr-branch> -- <intended-paths...>`
+  3. verify the resulting diff against latest main contains only the intended scope
+  4. commit once
+  5. `git push --force-with-lease origin HEAD:<pr-branch>`
+  This is effectively a latest-main rewrite, not a historical replay, and is the right choice when the user asked for "rebase onto latest main + squash" but the existing branch ancestry would otherwise keep dragging unrelated stale diffs into the PR.
+- Additional repetition guardrail from later PR #240 maintenance: do not assume a previous cleanup/rewrite remains valid on the next turn. If the user asks again to rebase/squash the same open PR after `origin/main` has advanced or after more follow-up pushes landed, re-run the full `origin/main..origin/<pr-branch>` diff audit from scratch. Unrelated scope can reappear in the remote PR branch even if you already cleaned it once.
+  Practical pattern:
+  1. fetch `origin --prune`
+  2. inspect `git rev-list --left-right --count origin/main...origin/<pr-branch>`
+  3. inspect `git diff --stat origin/main..origin/<pr-branch>`
+  4. if unrelated files are present again, create a brand-new latest-main detached worktree and re-copy only the intended scoped files from `origin/<pr-branch>`
+  5. recommit once and force-push again
+  This avoids trusting stale assumptions such as "the branch was already squashed last time, so a plain rebase is safe now."
+- Additional scope-isolation pattern from PR #103 maintenance: when the user asks to rebase/squash an old open PR but also says "revert all font changes" or "leave only the implementation related to <component/file>", do not start by replaying the old PR's original route/page wiring. First inspect latest `origin/main` to find the component's current real usage site(s).
+  - The stale PR branch may reference the component from an older page shape that no longer exists on main.
+  - Safer flow:
+    1. inspect the remote PR file list and diff against latest main
+    2. read the latest-main version of the target component and grep for its current usage sites on `origin/main`
+    3. read the stale PR branch's version to understand the intended enhancement
+    4. reconstruct the smallest latest-main diff by applying the enhancement to the component plus only the current caller(s) that still need to pass new props or assets
+    5. include any required optimized asset file only if the latest-main caller truly needs it
+    6. verify the final diff against `origin/main` contains only that minimal component-related scope before committing
+  - This prevents preserving obsolete page rewrites or unrelated font/layout work just because that was how the old PR originally delivered the component change.
+- Additional instance-specific follow-up pattern from later PR #103 work: if the user asks for behavior that should apply only to one current usage of a shared component on the open PR branch (for example making a single zoomable image open larger on one page), do not hard-code the broader behavior globally first.
+  - Prefer adding a small configurable prop surface to the shared component, keeping defaults identical for all existing callers.
+  - Then update only the intended current caller in the PR scope to pass the more aggressive values.
+  - Practical example: `ZoomableFigure` gained `modalViewportWidth` / `modalViewportHeight` defaults that preserved the old `94vw` / `88vh` behavior, while the AI Dashi value-diagram caller alone opted into `98vw`, `94vh`, and a larger `modalScale`.
+  - Verification heuristic:
+    1. grep for all current callers in the fresh PR worktree
+    2. confirm only the intended caller changed
+    3. confirm the shared component defaults still match the pre-follow-up behavior
+  - This keeps the follow-up diff small, avoids accidental UX shifts on unrelated pages, and matches user intent when they refer to a specific page/image rather than the component globally.
 - For small PR follow-ups such as squash, title/body edits, route/path renames, or other narrow review-driven fixes, do not automatically run local build/test verification unless the user explicitly asks for it. Prefer the fast path: edit -> commit -> push -> confirm PR updated -> watch CI.
 - Likewise, do not start a local dev server for visual/manual verification unless the user explicitly asks for that method. If you need confidence without a dev server, prefer scoped tests, code inspection, PR reviewability, and CI.
 - Important visual-follow-up caveat learned from preview-UI work: if the user points to a specific Preview Deployment URL and says the rendered result still looks wrong, verify that exact deployed preview in the browser before trusting your local render. Small spacing/icon/asset differences can still show up differently on the deployed preview even when a local dev server looked acceptable.
@@ -339,6 +405,15 @@ Important practical findings:
     9. rerun the narrow route structure test plus any CTA/launch-readiness regression that inspects the same source paths, then squash to one clean commit and force-push back to the PR branch
     Heuristic: if the current PR's true value is "one more section becomes route-local" and latest main already contains the previous section-local PRs, reconstruct that final latest-main composition directly instead of preserving the old branch's intermediate split points.
   - Practical PR-cleanup pattern for "this PR includes unrelated commits": create a fresh detached worktree directly from latest `origin/main`, create a temporary local branch there, and then copy only the PR's intended scoped files from `origin/<pr-branch>` into that clean worktree with `git checkout origin/<pr-branch> -- <paths...>`. Verify the resulting diff with `git diff --stat origin/main...HEAD` and `git diff --name-only origin/main...HEAD`, run validation, commit once, then `git push --force-with-lease origin HEAD:<pr-branch>`. This is safer than trying to interactively prune old mixed branch history when the desired result is a clean single-scope PR.
+  - Additional narrow-PR reconstruction pattern from PR 255 maintenance: when an open PR is supposed to contain only a very small follow-up scope, first treat the PR's current GitHub file list as the authoritative intended scope before trusting the branch diff. In practice:
+    1. inspect `gh pr view <pr-number> --json files,commits` and note the exact intended file set
+    2. compare that to `git diff --stat origin/main..origin/<pr-branch>`
+    3. if the branch diff is much larger than the PR's intended file set, do not attempt a mechanical rebase or soft-reset squash
+    4. create a fresh detached worktree from latest `origin/main`
+    5. copy only the intended PR files from `origin/<pr-branch>` into the clean worktree
+    6. run the narrowest relevant regression tests for just that scope
+    7. commit once and force-push back to the same PR branch
+  - This is especially useful when the open PR only intends a few route/test files, but the branch has accumulated unrelated stale diffs from earlier work or older main history. The GitHub PR file list can be a better statement of intended scope than the raw branch-vs-main diff.
   - Important terminal state: after enough sibling PRs merge, an older PR's remaining intended diff may become fully absorbed by `origin/main`.
   - Before force-pushing a rebased/reconstructed branch, always check whether any unique commits or diff still remain:
     ```bash
@@ -477,6 +552,28 @@ Important practical findings:
     ```
   - If they differ, do not continue CI/debug follow-up in that old worktree. Create a fresh detached worktree directly from `origin/<pr-branch>` and continue there.
   - This is especially important after squash+force-push maintenance tasks, where the old local branch/worktree can remain on an orphaned pre-rewrite commit even though the PR itself is healthy.
+- Additional local-ref drift lesson from PR 223 follow-up: if you pushed updates to the PR branch from a detached-HEAD worktree (`git push origin HEAD:<pr-branch>`), the remote PR branch moves but your ordinary local branch ref `refs/heads/<pr-branch>` may stay behind on its old commit stack.
+  - Typical signal:
+    ```bash
+    git branch -vv
+    git log --oneline --left-right <pr-branch>...origin/<pr-branch>
+    ```
+    shows the local branch both ahead and behind, even though the PR itself is healthy and the remote head is correct.
+  - In that case, do not treat the divergence as a remote problem first. It can be just a stale local branch ref left behind by detached-HEAD pushes.
+  - Safe recovery flow:
+    ```bash
+    git fetch origin --prune
+    git branch backup/<topic>-stale <pr-branch>   # optional safety snapshot
+    git branch -f <pr-branch> origin/<pr-branch>
+    git branch --set-upstream-to=origin/<pr-branch> <pr-branch>
+    ```
+  - Verify with:
+    ```bash
+    git rev-parse <pr-branch>
+    git rev-parse origin/<pr-branch>
+    ```
+    They should match afterward.
+  - This is especially useful before starting another PR maintenance step such as squash/rebase, because otherwise you may accidentally inspect or reuse an obsolete local branch history instead of the actual PR head.
 - Additional fresh-worktree sanity check from PR 233 follow-up: if a newly created follow-up worktree path is not recognized by Git (`fatal: not a git repository`) or only contains a partial subtree such as `tests/`, treat it as broken immediately.
   - Do not try to edit or run tests there.
   - Recovery flow:
@@ -490,6 +587,27 @@ Important practical findings:
     find <new-clean-path> -maxdepth 2 | sed -n '1,30p'
     ```
   - Only continue after those checks show a real checkout root with normal repo contents.
+- Additional stale-path recovery lesson from PR 240 follow-up: a path that previously worked as the active PR worktree can later disappear or become unusable between turns (for example after earlier rewrite/squash maintenance), and a local branch with the same PR name may still exist but be stale/ahead-behind relative to the remote PR branch.
+  - Typical signal:
+    - `cd <old-worktree>` or any command using that absolute path fails with `No such file or directory`
+    - `git worktree list` no longer contains the expected active path
+    - an older local branch for the PR still exists, but `git branch -vv` shows it is diverged from `origin/<pr-branch>`
+  - In that case, do not continue from the stale local branch or try to recreate history there.
+  - First re-check the live environment:
+    ```bash
+    pwd
+    git rev-parse --show-toplevel
+    git worktree list --porcelain
+    git branch -vv | sed -n '1,40p'
+    ```
+  - Then create a fresh detached worktree directly from the remote PR tip and reapply only the final intended local delta there:
+    ```bash
+    git fetch origin --prune
+    git worktree add -f <new-clean-path> origin/<pr-branch>
+    git -C <new-clean-path> status -sb
+    ```
+  - This is especially useful when the requested follow-up is a very small change (for example one typography or spacing adjustment): just reapply that tiny final diff, rerun the narrow validation, and push with `git push origin HEAD:<pr-branch>` from the fresh detached worktree.
+  - Practical rule: when the active PR worktree path fails unexpectedly, re-discover the real current checkout before any commit/push step; do not assume the last successful worktree path is still valid.
 
 ### 7. Re-check the PR and CI
 ```bash

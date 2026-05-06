@@ -159,6 +159,7 @@ git worktree add -b <branch-name> ~/workspace/<repo>-<topic> origin/main
 Then verify with:
 
 ```bash
+git worktree list
 git -C ~/workspace/<repo>-<topic> branch --show-current
 git -C ~/workspace/<repo>-<topic> rev-parse --show-toplevel
 find ~/workspace/<repo>-<topic> -maxdepth 2 | sed -n '1,30p'
@@ -166,7 +167,36 @@ find ~/workspace/<repo>-<topic> -maxdepth 2 | sed -n '1,30p'
 
 Only start editing after those checks pass.
 
-5.3 After recreating a worktree because of this failure mode, discard the bad path entirely.
+Important follow-up lesson:
+- after creating a repo-external worktree, confirm that the path still appears in `git worktree list` from the main repository before you invest edits there
+- if the path does not appear in `git worktree list`, do not assume the checkout is a durable linked worktree even if the initial `git worktree add` output looked successful
+- in that case, recreate the branch in a clearly registered path and re-check `git worktree list` immediately
+
+5.3 If a repo-external worktree vanishes from `git worktree list`, prefer falling back to a repo-local `.worktrees/<flat-name>` path.
+- a repo-external checkout may look valid during creation but later fail the practical durability test if it no longer appears in `git worktree list`
+- when this happens, recreate the branch under a repo-local `.worktrees/` path if that path family is behaving normally
+- re-verify branch name, `HEAD`, `origin/main`, and filesystem shape before editing
+
+5.3a If the user explicitly asks to reuse an existing worktree, treat that as a separate requirement.
+- do not repurpose an unrelated clean detached worktree just because it is available
+- first inspect both the registered worktree list and the actual `.worktrees/*` directory names
+- choose the candidate whose name/topic is semantically closest to the requested task
+- if a previously chosen worktree is revealed to belong to another active task, abandon it immediately and switch before editing further
+
+Recommended discovery flow:
+
+```bash
+git worktree list
+for d in .worktrees/*; do [ -d "$d" ] && basename "$d"; done | sort
+```
+
+Then narrow by task keywords such as `demo`, `preview`, `route`, `resource`, `aip`, `acp`, or similar.
+
+Heuristic:
+- a worktree named for the same content family or route/root concern is preferable to a generic clean worktree
+- names like `typography-refresh` or `about-us-preview-parity` should not be reused for unrelated demo-route rollout work unless the user explicitly says so
+
+5.4 After recreating a worktree because of this failure mode, discard the bad path entirely.
 - Do not keep mixing reads or edits between the broken repo-local path and the replacement worktree.
 - Treat the replacement worktree as the only authoritative checkout for the task.
 

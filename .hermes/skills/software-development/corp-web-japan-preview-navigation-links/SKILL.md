@@ -120,6 +120,12 @@ The header was already a client component for dropdown state, while footer/sideb
 
 This avoids trying to make environment-based navigation decisions independently in multiple client components.
 
+Important extension learned from follow-up debugging:
+- any shared sidebar used by both preview and public resource-list pages must also read the same preview-navigation cookie by default
+- do not rely only on page-level explicit `links={previewResourceCategorySidebarLinks}` overrides for `/t/...` routes
+- otherwise, navigating from a preview-enabled state into a public page like `/whitepapers` can silently reset the sidebar back to public links even while header/footer still show preview navigation
+- preferred fix: make the shared sidebar component itself resolve its default link set from `PREVIEW_NAVIGATION_COOKIE` + `getPreviewNavigationState(...)`, while still allowing an explicit `links` prop override where a page intentionally needs a fixed link set
+
 Examples:
 - `src/components/layout/site-header.tsx`
 - `src/components/layout/site-footer.tsx`
@@ -156,12 +162,117 @@ Practical example from this task:
 - `/t/certifications` did not exist on `main`
 - therefore `/certifications` was intentionally left unchanged until the preview page lands
 
+## Preview-toggle-only resource link pattern
+
+Use this when the user wants a preview-only link added under existing header/footer resource menus, but only while Preview Toggle is enabled.
+
+Example requirement:
+- add `イベント` under `ブログ` in the GNB resource menu
+- add the same `イベント` link under `ブログ` in the footer resource menu
+- link target should resolve to `/t/events` only when preview navigation is enabled
+- production / preview-toggle-off should keep the existing canonical menu without the extra item
+
+Recommended implementation in both:
+- `src/components/layout/site-header-client.tsx`
+- `src/components/layout/site-footer.tsx`
+
+Pattern:
+
+```ts
+{ label: "ホワイトペーパー", href: "/whitepapers" },
+{ label: "ブログ", href: "/blog" },
+...(previewModeEnabled ? [{ label: "イベント", href: t("/events", previewModeEnabled) }] : []),
+```
+
+Why this exact pattern:
+- preserves existing canonical links for non-preview mode
+- keeps the extra item absent unless Preview Toggle is actually on
+- still routes through the shared `t()` helper so the preview target becomes `/t/events`
+
+Do not:
+- replace the canonical blog/whitepaper links with `t(...)` unless the task explicitly asks for that
+- add the events item unconditionally if the request is specifically tied to Preview Toggle behavior
+
+## Test alignment for preview-only resource items
+
+When adding a preview-only item to header/footer resource menus, update existing source-string tests in the same PR.
+
+Current relevant tests:
+- `tests/canonical-endpoints.test.mjs`
+- `tests/link-and-metadata-integrity.test.mjs`
+
+Expected string to add:
+
+```ts
+'label: "イベント", href: t("/events", previewModeEnabled)'
+```
+
+If the repo uses the shared resource sidebar component in `src/components/sections/resource-category-sidebar.tsx`, also update its preview link set in the same PR.
+
+Current required preview sidebar entry:
+
+```ts
+{ label: "イベント", href: "/t/events" }
+```
+
+Why:
+- header/footer preview menus can already show `イベント` correctly while the shared resource sidebar still omits it
+- public resource pages like `/whitepapers` can therefore reproduce a partial preview-navigation mismatch even when GNB and footer are already fixed
+- the sidebar uses explicit preview/public link arrays, so this is not automatically inherited from header/footer changes
+
+Recommended test alignment:
+- update `tests/resource-list-page-structure.test.mjs`
+- assert the preview sidebar link set contains `イベント -> /t/events`
+
+Keep the change minimal:
+- no new route work if `src/app/t/events/page.tsx` already exists
+- no footer/sidebar refactor if only one new preview-only resource item is needed
+
 ## Preferred scope
 
 Keep the change minimal:
 - no duplicated header/footer components
 - no broad layout-mode refactor unless the user explicitly asks for it
 - no speculative remapping for nonexistent preview pages
+
+## Demo navigation links that follow Preview Toggle
+
+Use this when the user wants the `デモ` section in the GNB or footer to switch between preview and public destinations with the same Preview Toggle behavior used elsewhere.
+
+Recommended implementation:
+- in `src/components/layout/site-header-client.tsx`
+- in `src/components/layout/site-footer.tsx`
+- use the existing helper form with the already-resolved `previewModeEnabled` value
+
+Current proven pattern:
+
+Header:
+```ts
+{ label: "活用事例", href: t("/use-cases", previewModeEnabled) }
+{ label: "AIP機能", href: t("/demo/aip", previewModeEnabled) }
+{ label: "ACP機能", href: t("/demo/acp", previewModeEnabled) }
+```
+
+Footer:
+```ts
+{ label: "活用事例", href: t("/use-cases", previewModeEnabled) }
+{ label: "AIP 機能", href: t("/demo/aip", previewModeEnabled) }
+{ label: "ACP 機能", href: t("/demo/acp", previewModeEnabled) }
+```
+
+Result:
+- preview on -> `/t/use-cases`, `/t/demo/aip`, `/t/demo/acp`
+- preview off -> `/use-cases`, `/demo/aip`, `/demo/acp`
+
+Important repo-specific nuance learned here:
+- for this repo's current GNB/footer behavior, the public use-case destination should be `/use-cases`, not `/demo/use-cases`, when using the Preview Toggle helper pattern
+- the header label strings are `AIP機能` / `ACP機能`, but the footer currently uses `AIP 機能` / `ACP 機能` with a space; keep string-based tests aligned with the actual component text instead of normalizing them speculatively
+
+Recommended verification:
+- `tests/link-and-metadata-integrity.test.mjs`
+- `tests/canonical-endpoints.test.mjs`
+- `tests/footer-preview-navigation.test.mjs`
+- `npm run typecheck`
 
 ## Footer preview-only internal menu pattern
 

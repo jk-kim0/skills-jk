@@ -127,6 +127,22 @@ Practical findings:
 
 If imported MDX uses unsupported components, add the smallest presentational implementation to `src/lib/publications/mdx/components.tsx` rather than rewriting all content.
 
+## Hero-image duplication rule for YouTube-first demo/publication entries
+
+A reusable corpus-specific finding from the local demo/publication migrations:
+- when a migrated MDX entry presents a `<Youtube ... />` embed directly in the article body, the detail-page hero image can become visually redundant with the embedded video
+- this has been confirmed for:
+  - `/use-cases/:id/:slug`
+  - `/demo/aip/:id/:slug`
+  - `/demo/acp/:id/:slug`
+- in those cases, add `hideHeroImageOnDetail: true` to the MDX frontmatter
+- make sure the family-specific publication frontmatter parser and `get-*-publication-post.ts` loader pass this flag through to `PublicationPost`
+- `PublicationPostPage` already respects `post.hideHeroImageOnDetail`, so the migration/follow-up work only needs the frontmatter + loader wiring and regression coverage
+
+Practical verification rule:
+- add/keep a regression that asserts `if source includes <Youtube, source also includes hideHeroImageOnDetail: true`
+- also prefer the inverse assertion for these families: if `hideHeroImageOnDetail: true` is present, the MDX should include `<Youtube`
+
 ## Verification commands
 
 Use these first:

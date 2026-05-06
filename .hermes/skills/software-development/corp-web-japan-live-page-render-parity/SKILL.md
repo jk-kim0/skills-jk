@@ -161,6 +161,21 @@ npm run start -- --port 3456
 Important nuance:
 - `next start` serves the last build output. If you change code without rebuilding, the browser can show old layout.
 
+### 4.1 For exact cross-URL browser comparisons, normalize viewport with emulation, not only window resize
+A useful practical lesson from preview-vs-stage parity verification:
+- page window resize alone may still leave slightly different `innerWidth` values across tabs/pages
+- those small viewport mismatches can create false left-offset differences in otherwise identical layouts
+- before trusting geometry deltas, explicitly verify `window.innerWidth`, `window.innerHeight`, and `devicePixelRatio` on both pages
+
+Preferred method in DevTools-based verification:
+- apply the same emulated viewport to both pages (for example `1440x2200x2`)
+- then confirm with browser evaluation that both pages report the same `innerWidth`, `innerHeight`, and DPR
+- only after that should you compare `getBoundingClientRect()` numbers or full-page screenshots
+
+Practical rule:
+- prefer viewport emulation over plain window resizing when the task is "are these two rendered pages identical?"
+- if a first pass shows small but systematic horizontal offsets, re-run after emulation before concluding there is a real layout mismatch
+
 ### 5. Prefer measured parity over generic CSS intuition
 Do not guess that a page "looks close enough."
 
@@ -209,6 +224,27 @@ A page can have all the same headings and paragraphs yet still differ due to:
 ### C. Remove decorative wrappers if live is flatter
 If the preview wraps a map or media asset in a padded rounded panel but the live page presents the asset flat/full-width, remove the wrapper rather than endlessly tweaking padding.
 
+### C1. Before changing image corner radius, verify whether the asset file already contains baked-in rounded transparency
+A practical `/t/about-us` finding:
+- the hero image looked more rounded in preview than on the live page
+- the initial assumption was that the wrapper radius needed tuning
+- but the actual cause was that the PNG asset itself already had subtle rounded transparent corners
+- adding an extra wrapper radius (`rounded-*` + `overflow-hidden`) made the corners look doubly rounded and visually too soft
+
+Practical rule:
+- when matching image corner radius, do not inspect only the wrapper's computed `border-radius`
+- also verify whether the image file already encodes corner transparency or anti-aliased rounded edges
+- if the asset already contains the intended subtle rounding, prefer removing the extra wrapper radius and background chrome rather than stacking another rounded mask on top
+
+Useful verification methods:
+1. inspect the DOM ancestor chain around the image and compare live vs preview wrapper radius/overflow
+2. inspect the image asset itself for alpha in the corners
+3. if needed, decode the PNG and sample corner alpha values to confirm whether transparency is baked in
+
+Practical heuristic:
+- if the PNG corners are transparent at the outermost pixels and become fully opaque only a few pixels inward, the visible rounding may be coming from the asset, not the wrapper
+- in that case, wrapper `rounded-*` usually exaggerates the curve and should be removed for parity
+
 ### D. Natural image sizes may matter more than neat symmetry
 For people/team sections, live may intentionally use different portrait sizes per column. If the preview forces equal card widths/heights, parity can look wrong even though the grid is technically cleaner.
 
@@ -225,6 +261,113 @@ Practical rule:
 - do not assume that because the hero is visually two-column, the headline itself belongs only to the left column
 
 This matters a lot for perceived parity, because users notice immediately when the title width is constrained compared with the live page.
+
+### E1. For corp-web-japan preview routes, body parity can matter more than shared local header/footer parity
+A practical lesson from `/t/about-us` follow-up work:
+- the local preview route may intentionally keep the repo's shared `SiteHeader` and `SiteFooter`
+- the upstream live page may use a different cross-site header/footer implementation
+- if the user's complaint is specifically that the page implementation "looks too different" from the source page, the fastest and usually correct target is the page body area, not a full chrome rewrite
+
+Practical rule:
+- first classify whether the mismatch is in global chrome or in the page body
+- if the request is about the page implementation and not the site shell, prioritize matching:
+  - hero typography and hero media geometry
+  - section heading typography
+  - body paragraph line-height and weight
+  - section spacing rhythm
+  - card/grid treatment inside the page body
+- only widen scope into shared header/footer replacement if the user explicitly asks for full-page chrome parity
+
+### E2. When the live page uses a strong repo-local house pattern for the first visible section, measure that internal reference page and reuse its spacing rhythm
+A useful `/t/about-us` lesson:
+- the upstream page alone may not be the best source for the exact top-of-page spacing once the preview route lives inside the local corp-web-japan shell
+- for the first visible section after the local header, an existing local route such as `/news` can provide the correct house-style spacing anchor
+
+Practical rule:
+- if the mismatch is specifically the gap from the local site header to the page title or the title block rhythm inside the first section, measure an already-approved local route with the same shell
+- copy the local section/container rhythm first, then continue matching the rest of the body to the upstream page
+
+Typical values to compare:
+- first section top padding
+- first section bottom padding
+- title font size / line height / weight
+- inner container max width
+
+Why:
+- this avoids overfitting the top spacing to an upstream shell that the preview route is not actually using
+- it produces better visual parity inside the local site chrome while preserving upstream body intent
+
+### E3. For partner/investor logo rows, prefer natural-width flex spacing measured from the live page instead of equal-width grid distribution
+A recurring mismatch on marketing/company pages:
+- the preview can look too loose or too synthetic when logos are distributed through equal-width grid columns
+- the live page may instead use natural logo widths with a specific measured horizontal gap
+
+Practical rule learned from `/t/about-us`:
+- measure the actual live horizontal gaps between named logos
+- if the preview gaps are materially wider, switch the row to `flex` with natural image widths and an explicit `gap-x` close to the live measurement
+- keep `justify-center` and allow wrapping only as needed
+
+Why:
+- equal-width grid tracks often exaggerate whitespace around narrow logos
+- natural-width flex spacing usually matches the visual density of the live page much more closely
+
+### E4. For timeline/history sections, do not assume generic card separators; verify whether the live page uses a left vertical rule with content offset
+A practical `/t/about-us` finding:
+- the preview timeline initially used row separators/dividers
+- the live page visually communicated the sequence with a left vertical rule and content indented to the right
+
+Practical rule:
+- inspect the live section structure and not just the text order
+- if the visual cue is a single left rule, rebuild the timeline around that cue rather than stacking horizontal separators between items
+- measure indentation and vertical spacing after the structural switch
+
+Why:
+- timeline parity is often dominated by the organizing line rather than by typography alone
+- getting the structural cue wrong makes the whole section feel like a different design even when the copy matches
+
+### E5. For leadership/profile card parity, measure content usage across the full column width before assuming the problem is only image sizing
+A key late-stage `/t/about-us` lesson:
+- leadership cards can look visibly narrower than the live page even when the outer grid column width is technically correct
+- the real cause may be inner `max-w-*` wrappers on the image or text block that prevent the card from using the full available column width
+
+Practical rule:
+- measure all of these separately on both live and preview:
+  - outer card width
+  - image wrapper width
+  - image rendered width/height
+  - text block width
+  - social-link wrapper width and alignment
+  - social icon width/height
+- if the preview card reads too narrow, remove unnecessary inner `max-w-*` constraints before changing the grid itself
+- make the image wrapper and text block `w-full` when the live card uses the full column more evenly
+
+For social/profile links like LinkedIn:
+- do not assume a tiny inline icon at the left edge is correct
+- measure whether the live page places the social icon/link at the right edge of the info block
+- if so, use a full-width link wrapper with end alignment (for example `flex w-full justify-end`) and match the icon size more closely to the live page
+
+Why:
+- many apparent grid-width problems are actually inner-content-width problems
+- fixing the icon anchor position and removing narrow inner wrappers can materially improve perceived parity without redesigning the card grid
+
+### E6. If a parity page later needs to align with site-wide design-system defaults, prefer the repository's shared text-color convention over route-local custom hex values
+A practical `/t/about-us` follow-up lesson:
+- parity work against the upstream page can temporarily introduce route-local custom text colors such as `#24292F` and `#57606A`
+- later, the user may explicitly decide that whole-site consistency matters more than preserving that route as a one-off visual exception
+- in this repository, the stable shared convention is:
+  - route-level `main`: `text-slate-950`
+  - ordinary descriptive/body/secondary copy: `text-slate-600`
+
+Practical rule:
+- when the user asks to stop treating a parity page as an exception, remove route-local custom hex text colors from that route
+- normalize primary headings / names / labels back to `text-slate-950`
+- normalize descriptive and secondary copy back to `text-slate-600`
+- if the route currently repeats those values many times, consolidate them into local semantic class constants first, then switch the constants to the shared site defaults
+
+Why:
+- it keeps one preview/static page from drifting away from the site's overall visual system
+- it makes later maintenance easier because the page follows the same color hierarchy as `/news`, `/whitepapers`, the top page, and solution pages
+- it documents that parity work can be intentionally superseded by an explicit user request for design-system consistency
 
 ### F. When matching a CTA section, compare every child element, not just the outer box
 A recurring parity failure is to "mostly match" the CTA by changing only the background, button, or one text node.
@@ -260,10 +403,53 @@ Another strong lesson from CTA parity work:
 - seeing the "right" utility classes in source does not prove the browser is using the intended values
 - shared component base classes can keep winning in the final cascade, especially for padding, font size, and responsive variants
 - if preview still looks wrong, inspect computed styles directly before assuming the fix landed
+- also distinguish carefully between author/token values shown in CSS rules and the final computed value the browser actually renders
 
 Useful verification pattern:
 - compare live and preview `getComputedStyle()` values for the exact element
 - if the class list still produces the wrong computed result, use a more reliable override (for example a stronger class, responsive override, or inline `style` where appropriate)
+
+Important practical finding from corp-web-japan CTA parity debugging:
+- a live page can appear to use a `52px` heading token in DevTools Styles while the actual rendered computed size is `48.75px`
+- this happened because the site defined the heading token as `3.25rem` (`--rem-52px`) while the live page root `html` font-size was `15px`
+- `3.25rem × 15px = 48.75px`, so the token name and the final used value differed
+
+Practical rule:
+- when a user says "DevTools shows 52px" and your computed-style measurement says `48.75px`, do not assume one of them is wrong yet
+- inspect all of these together on the exact same element:
+  - the matching CSS rule / token name
+  - the CSS variable value if present
+  - `html` root font-size
+  - final `getComputedStyle(element).fontSize`
+- for rem-based systems, explicitly compute `rem × root-font-size` before concluding there is a real mismatch
+- if needed, explain the difference as `author/token value` vs `final computed value`
+
+### G1. When a preview site intentionally keeps the standard `16px` root, do not copy a live site's shrunken computed px values if the live site uses a non-standard smaller root
+A crucial follow-up lesson from the generic CTA refactor work:
+- the live QueryPie documentation CTA used `52px` / `16px` / `14px`-style tokens expressed as rems
+- but the live site root `html` font-size was `15px`, so those rem tokens produced smaller computed values such as `48.75px`, `15px`, `13.125px`, and `5.625px`
+- a separate preview site that intentionally keeps the more standard `16px` root should not blindly copy those computed values into its own component tokens
+- doing so makes the preview look slightly undersized, even if a first computed-style comparison seemed to "match" the live used values
+
+Practical rule:
+- first decide which environment is canonical for token semantics
+- if the preview/product intentionally keeps a standard `16px` root, prefer matching the live page's author/token intent rather than its shrunken used values from a `15px` root
+- in practice this means converting CTA primitives back to the `16px`-root token sizes, for example:
+  - heading `52px / 62px`
+  - body `16px / 26px`
+  - button padding `14px 28px`
+  - button radius `6px`
+  - button gap `10px`
+- only use the live computed values directly when the preview shares the same root font-size strategy as the live site
+
+Verification pattern:
+1. inspect the exact live element's CSS rule/token values
+2. inspect the live `html` root font-size
+3. inspect the preview `html` root font-size
+4. if the roots differ, decide whether parity should follow:
+   - final rendered used values, or
+   - the live design tokens normalized for the preview's root scale
+5. if the preview is intended to remain standards-based, normalize to token-level values for that root before changing the component
 
 ### H. Sticky failures often come from an unexpected scroll container, not from the sticky element itself
 A sticky sidebar can look correctly coded yet still fail because one ancestor became the real scroll container.
@@ -534,6 +720,89 @@ A recurrent trap in parity follow-up work:
 - first you achieve the right pixels by adding route-local wrappers, duplicated utility classes, or inline styles
 - then the rendered result looks correct, but the implementation becomes structurally messy and hard to maintain
 - if you keep stacking overrides on top of shared primitives, later cleanup can accidentally re-break computed styles
+
+### K. For follow-up parity requests, prefer existing shared CTA primitives over route-local one-off CTA markup
+A recurring follow-up pattern on preview/static marketing pages:
+- the initial parity fix may handcraft a route-local CTA section because it is faster for first-pass visual alignment
+- later the user may ask to reuse an existing CTA section/button already used elsewhere in the repo
+
+Practical rule learned from `/t/about-us` follow-up work:
+- before keeping a custom CTA block, inspect whether the repo already has a visually compatible shared CTA composition
+- for corp-web-japan, check `/internal/mdx-list-demo` and `src/components/sections/resource-list-section.tsx`
+- if the desired treatment matches that internal demo, prefer reusing:
+  - `ResourceListCtaSection`
+  - `ResourceListCtaContent`
+  - `ResourceListCtaCopy`
+  - `ResourceListCtaTitle`
+  - `ResourceListCtaDescription`
+  - `ResourceListCtaActions`
+  - `BrandGradientCtaButton`
+- keep the page-specific CTA copy in the route, but swap the surrounding CTA shell/button to those shared primitives
+
+Why:
+- this preserves visual consistency with the repo's established CTA treatment
+- it reduces route-local duplicated gradient-button/spacing markup
+- it aligns with the user's preference for reusing existing components when a matching one already exists
+
+### K1. If those CTA primitives are promoted out of a resource-list-specific module, prefer a narrowly generic "simple CTA" naming scheme
+A practical abstraction/naming lesson from the `/internal/mdx-list-demo` CTA refactor follow-up:
+- the old names like `ResourceListCtaSection` were too resource-list-specific for a plain marketing CTA block
+- a fully broad wrapper name like `CtaSection` can also feel too generic if the repo may later accumulate several CTA families
+
+Preferred naming pattern in this repo for this specific primitive family:
+- file path: `src/components/sections/simple-cta-section.tsx`
+- wrapper section primitive: `SimpleCtaSection`
+- keep the inner child primitives short and generic:
+  - `CtaContent`
+  - `CtaCopy`
+  - `CtaBox`
+  - `CtaTitle`
+  - `CtaDescription`
+  - `CtaActions`
+  - `CtaButton`
+
+Practical rule:
+- if you extract a simple marketing CTA shell out of a more specific module, prefer `SimpleCtaSection` as the exported section wrapper name rather than `CtaSection`
+- keep the child building-block names unchanged unless there is a concrete collision
+- when renaming the file, update structure tests so they assert imports from `@/components/sections/simple-cta-section`
+
+Why:
+- this keeps the CTA family reusable without pretending it is the only CTA abstraction the repo will ever need
+- it matches the user's preference for a more concrete, moderately scoped component name
+- it avoids over-coupling a generic CTA shell to a resource-list domain name
+
+### L. If the target visual icon is not available as a standalone asset, search sibling repos for the icon component source and extract it into a route-aligned local asset
+A practical parity/migration issue on static preview pages:
+- a page may need a tiny brand/social icon that is currently inlined in JSX or only exists in another repo as a React icon component
+- searching only for `*.svg` can fail even though the real SVG path data exists in source form elsewhere
+
+Practical rule learned from `/t/about-us` LinkedIn follow-up work:
+- after failing to find a standalone SVG file, search sibling repos such as `../corp-web-app` and `../corp-web-contents` for icon component names like `linkedin.icon.tsx`
+- if the icon exists only as a React component, extract its SVG path into a local static file under the route-aligned asset root, for example `public/about-us/linkedin.svg`
+- then update the route to use the local static asset instead of keeping an ad hoc inline SVG implementation
+
+Why:
+- it keeps preview-page assets self-contained under the route-aligned public path
+- it preserves parity with existing upstream icon artwork instead of redrawing or approximating the icon
+- it reduces duplicated inline SVG code in the route file
+
+### M. When users ask to normalize executive/team portrait cards, use a uniform image frame rather than preserving each source image's natural rendered size
+A common late-stage parity follow-up:
+- the first parity pass may intentionally preserve natural portrait dimensions because the live page uses mixed widths/heights
+- the user may then explicitly prefer consistency over that mixed natural sizing
+
+Practical rule learned from `/t/about-us` follow-up work:
+- if the user asks for all leadership/profile images to be the same size, switch to a shared card frame such as:
+  - fixed max width
+  - `aspect-square`
+  - `overflow-hidden`
+  - rounded corners
+  - `object-cover object-top`
+- keep the profile text block width aligned with that image frame so each card reads as a consistent unit
+
+Why:
+- this resolves the user's visual concern directly instead of preserving upstream asymmetry
+- it is a reusable pattern for leadership/team sections on static marketing pages where card consistency matters more than exact source-image geometry
 
 Important real finding from the internal MDX list CTA cleanup:
 - route-level `className` overrides on top of a shared CTA/button primitive produced duplicated utility classes in the final DOM
