@@ -173,3 +173,11 @@ In corp-web-japan resource-list refactors, the user wants page.tsx to keep route
 For repo-local workspace cleanup, the user wants branches/worktrees not connected to an open PR treated as stale candidates by default, but local changes must be validated against the latest main branch HEAD first; if a branch has multiple commits, judge meaningfulness after squashing conceptually to the net diff vs latest main, and if the branch is behind, use rebase onto latest main as a quick signal of whether the branch history is stale.
 §
 In corp-web-japan resource-list route work, the user wants each page.tsx to keep direct route-authored hero markup (`ResourceListHeroSection`, `ResourceListHeroTitle`, `ResourceListHeroDescription`) and CTA sections; only the repeated sidebar structure may be extracted into a shared concrete component.
+§
+For stakeholder-facing webpage intro/description copy, never mention 'MDX'. Treat 'MDX' as an internal file-format term that should not appear in customer-facing explanatory text.
+§
+In corp-web-japan PR follow-up scope, removing demo /t entrypoints does not imply removing the general Preview Toggle UI or its API route. Keep that scope narrow unless the user explicitly asks to remove the global preview toggle.
+§
+When reviewing corp-web-japan publication/routing changes, the user expects priority on finding missing hidden-posting or redirect configuration/canonicalization gaps, not just whether a PR is stale or mergeable.
+§
+In corp-web-japan copy/content follow-up work, if the user asks to correct a mistaken title/label in an existing content item, prefer preserving the item and fixing the exact wording rather than deleting the page or replacing it with a broader structural change.

@@ -122,6 +122,60 @@ Interpretation rule:
 
 This matters especially for wiki or incident summaries covering exact calendar days: the safest framing is sampled status mix and repeated-path patterns, not exact volume.
 
+### 3.6 When historical request-log windows fail with `ExceedsBillingLimitError`
+
+A practical failure mode on Vercel request logs is:
+
+```text
+HTTP 400 {"name":"ExceedsBillingLimitError"}
+```
+
+You may see this through either:
+- `vercel logs ...` returning `Response Error (400)`
+- or a direct call to the backend request-log endpoint returning the JSON error above
+
+Important experiential finding:
+- this can block historical windows even when a more recent adjacent window still works
+- reducing the window size does **not** necessarily help
+- even very short sub-windows inside the blocked historical range can still return the same error
+
+Operational rule:
+- if one or more requested days return `ExceedsBillingLimitError`, do **not** pretend the whole period can still be aggregated exactly
+- split the report into:
+  1. re-queryable windows
+  2. currently blocked windows
+- explicitly mark blocked days as unavailable from current live runtime-log access
+- if only part of the requested range is still queryable, report that partial window clearly rather than inventing a full-period summary
+
+### 3.7 Direct request-log API can be useful when the CLI output is too lossy
+
+The CLI debug output reveals that `vercel logs` reads from:
+
+```text
+https://vercel.com/api/logs/request-logs
+```
+
+with query parameters such as:
+- `projectId`
+- `ownerId`
+- `page`
+- `startDate`
+- `endDate`
+- `environment`
+- optional `statusCode`
+- optional `search`
+- `teamId`
+
+Practical use cases:
+- verify whether a blocked historical window is a backend access problem versus a CLI parsing problem
+- check whether a specific status filter returns `hasMoreRows`
+- obtain an exact `404` daily aggregation when the response returns all rows in one page with `hasMoreRows = false`
+
+Important caveat:
+- some statuses, especially high-volume `307`, can paginate very deeply
+- in those cases, a bounded CLI sample plus explicit "sampled" framing is often more practical than attempting a full exact export
+- if you mix exact and sampled sections in one report, label them separately and explicitly
+
 ### 4. Error queries can hit a hard practical cap
 
 `vercel logs --level error --limit 1000` can hit the 1000-line cap quickly on noisy projects. If you get 1000 results, report it as:

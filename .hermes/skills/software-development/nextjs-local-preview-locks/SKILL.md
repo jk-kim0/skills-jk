@@ -120,6 +120,7 @@ Use filtering to confirm specific replacements, e.g. `.webp` assets.
 - `PORT=3456 npm run dev` may still leave ambiguity in logs/workflow; prefer `npm run dev -- --port 3456`
 - `EADDRINUSE` means the port is busy; it does not prove the right app is running there
 - `.next/dev/lock` means another instance of the same repo is active; changing ports alone will not fix it
+- In newer Next.js dev setups, opening the preview at `127.0.0.1` can trigger blocked dev-resource / HMR requests (`Blocked cross-origin request to Next.js dev resource /_next/webpack-hmr from "127.0.0.1"`) unless `allowedDevOrigins` is configured. If you see HMR websocket errors or hydration-ish oddities while the server otherwise works, retry the exact same server via `http://localhost:<port>` before debugging the app itself.
 - Browser snapshots can look fine while still hitting the wrong dev server; verify the URL and loaded asset paths
 
 ## Evidence to report

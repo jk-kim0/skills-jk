@@ -95,6 +95,48 @@ The fix is usually **not** to remove the assets. Instead:
   - `src/app/api/downloads/file/route.ts`
   - `src/app/api/admin/uploads/route.ts`
 
+# Additional practical lesson from corp-web-japan legal preview routes
+
+A similar Vercel function-size failure can happen even when the traced files are not under `public/`.
+
+Observed pattern:
+- a preview/server route reads local content source files at runtime with `fs.readFile(...)`
+- the path is built from a keyed map or `process.cwd()`
+- local `npm run build` may pass
+- Vercel Preview can still report an oversized function such as `t/eula` with logs pointing at the server component import trace
+
+In the legal preview case, all of these steps happened:
+1. source MDX files were copied into the repo under `src/content/legal-preview/*.mdx`
+2. the route helper still read them at runtime with `fs.readFile(...)`
+3. Verify passed after lint fixes, and local build eventually passed
+4. Vercel Preview still failed because the function trace stayed bloated around `src/lib/legal-preview-mdx.tsx`
+
+Reusable fix pattern:
+- do not read repo-local static source content at request/build time with `fs.readFile` if the content can be bundled statically
+- instead create a generated or checked-in source map module such as:
+  - `src/content/legal-preview/sources.ts`
+- export plain string constants there
+- update the route helper to import those strings directly and pass them into the MDX evaluator
+
+Example shape:
+- bad:
+  - `await fs.readFile(path.join(process.cwd(), 'src', 'content', 'legal-preview', 'eula.mdx'), 'utf8')`
+- better:
+  - `import { legalPreviewSources } from '@/content/legal-preview/sources'`
+  - `const source = legalPreviewSources.eula`
+
+Why this helps:
+- it removes runtime filesystem access from the server component path
+- it gives Turbopack/Vercel a static module graph instead of a traced file-read edge
+- it can eliminate oversized function bundles even when the file contents themselves are not especially large
+
+Checklist when using this fix:
+1. keep the original source files in `src/content/**` if humans still need them
+2. add/update a companion `sources.ts` module that exports the exact content strings used at runtime
+3. make the render helper consume only imported strings, not `fs/path`
+4. rerun local `build`
+5. push and verify the Vercel Preview deploy specifically, because the local build may not expose the bundle-size issue
+
 # Pitfalls
 
 - Local `next build` may pass while Vercel Preview still fails; do not assume local build is sufficient.

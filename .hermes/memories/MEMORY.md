@@ -161,3 +161,19 @@ In corp-web-japan, for resource/documentation migration work, the user does not 
 In corp-web-japan resource preview/publication work, the user explicitly does not want the source content directory name `documentation` used for these families either; avoid paths like `src/content/documentation/**` and prefer route/resource-aligned roots such as `src/content/resources/<family>`.
 §
 In corp-web-japan section-scoped static-page refactors, preserve the original rendered section order. If extracting a later section (e.g. use-cases) would move it ahead of an earlier section still trapped in a shared shell (e.g. platform), refactor the earlier section first or split the shared shell before extracting the later one.
+§
+In corp-web-japan CTA primitive refactors, the user prefers the section wrapper to be named `SimpleCtaSection` rather than the more generic `CtaSection`, while keeping child primitive names like `CtaContent`, `CtaCopy`, `CtaTitle`, `CtaDescription`, and `CtaActions` unchanged.
+§
+In corp-web-japan preview-site parity work, the user wants the preview website to keep a standard 16px root rem setup; when matching a live site that uses a 15px root, adjust component token sizes/spacing for visual parity rather than changing the preview site's root font-size.
+§
+In corp-web-japan preview page imports from querypie.com/ja or /en, source pages may use html root 15px while corp-web-japan should keep root 16px; do not blindly copy computed px values—recover rem/token intent first and convert for the 16px-root preview environment. Repo-local skill: `.agents/skills/preview-root-rem-parity/SKILL.md`.
+§
+In corp-web-japan preview resource publication work, the user prefers family-separated MDX content roots such as `src/content/introduction-deck/*.mdx`, `src/content/glossary/*.mdx`, and `src/content/manuals/*.mdx` rather than a flattened shared `src/content/docs/*.mdx` layout.
+§
+In corp-web-japan preview resource publication work, the user is concerned about slug-as-id patterns like `glossary/glossary` and leans toward stable numeric content IDs/files (e.g. `src/content/glossary/1.mdx` with `id: "1"` and separate canonical `slug`) for `/t/introduction-deck`, `/t/glossary`, and `/t/manuals` detail routes.
+§
+In corp-web-japan PR follow-up work, gh pr view can briefly lag after push; verify the actual remote branch tip with `git ls-remote origin refs/heads/<pr-branch>` before assuming the PR head failed to update.
+§
+In corp-web-japan typography work, the user prefers site-wide consistency over route-local parity exceptions: do not keep `/t/about-us` as a special text-color or body-typography exception; align it to shared site defaults instead. Current documented defaults are route-level `main` `text-slate-950`, ordinary descriptive/body copy `text-slate-600`, and for marketing/company body copy the preferred default is `15px/28px` (`text-[15px] leading-7`) unless a different shared pattern is explicitly required.
+§
+In corp-web-japan demo list-route rollout work, canonical list paths should stay under the demo namespace: use-cases `/demo/use-cases`, AIP `/demo/aip`, ACP `/demo/acp`. Do not invent `/demo-acp` or lift use-cases to `/use-cases` unless the user explicitly changes the route policy.

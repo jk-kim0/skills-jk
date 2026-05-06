@@ -30,13 +30,25 @@ Use this workflow when the user asks to:
 
 Do not duplicate the preview implementation in two places long-term.
 
+Important scope guard learned from demo preview rollout follow-up work:
+- Removing or promoting a specific preview route family such as `/t/use-cases`, `/t/demo/aip`, or `/t/demo/acp` does **not** by itself authorize removing the repository's broader Preview Toggle UI, preview-navigation API route, preview cookie flow, or other unrelated preview-only footer/header structures.
+- Treat those as separate concerns unless the user explicitly says the global preview-toggle behavior itself should be removed.
+- Safe default: keep the shared preview-navigation mechanism intact, and only remove the exact route entrypoints and the route-specific `/t/...` destinations that are no longer supposed to exist.
+- In practice, if header/footer/resource sidebars still use Preview Toggle for other route families, preserve:
+  - `src/components/layout/preview-mode-toggle.tsx`
+  - `src/app/api/preview-navigation/route.ts`
+  - server/client header glue such as `showPreviewModeToggle`
+  - preview-only footer/internal sections that are controlled by the same toggle
+- Only change those if the user explicitly expands scope beyond the rolled-out route family.
+
 Preferred rollout:
 1. move or copy the desired implementation into the canonical public route
 2. decide explicitly whether the old `/t/*` path deserves compatibility at all
 3. if the old preview path was never a public endpoint the user cares to preserve, delete that route instead of adding a redirect
 4. only if the old preview path truly needs compatibility, turn it into a redirect to the canonical route
-5. remove preview-navigation helper usage for that route in header/footer
-6. update tests and delete preview-only helper/data files that existed only for the old `/t/*` behavior
+5. remove preview-navigation helper usage for that route in header/footer only when the user explicitly wants those navigation links made canonical for that surface
+6. keep the global Preview Toggle / preview-navigation API / other preview-only footer or internal navigation intact unless the user explicitly asks to remove those broader preview features
+7. update tests and delete only the preview-only helper/data files that existed solely for the removed `/t/*` route behavior
 
 ## Safe repo workflow
 
@@ -160,6 +172,12 @@ node --test tests/<route-test>.test.mjs tests/<list-test>.test.mjs tests/link-an
 npm run typecheck
 ```
 
+Additional rollout lesson from the demo list public-route replacement work:
+- when promoting a preview/demo list route to a canonical public endpoint, do not stop at the obvious route files, nav, sidebar, and sitemap.
+- also search for downstream CTA constants and structure tests that may still encode the old redirect-style public path.
+- in `corp-web-japan`, a concrete example was `src/content/home.ts` plus `tests/ai-crew-cta-links.test.mjs`, where the shared `demoUseCasesUrl` expectation still pointed at `/demo/use-cases` after the public list moved to `/use-cases`.
+- practical rule: after changing a canonical list route, search both `src/` and `tests/` for the old path string and update route-authored CTA constants / source-based tests in the same PR.
+
 Use targeted tests first when the change is narrowly scoped.
 
 Also search for preview-route leftovers outside `src/app/` before finishing, especially:
@@ -191,6 +209,27 @@ Recommended PR summary structure:
 - Accidentally applying preview `robots: noindex,nofollow` to the canonical public page
 - Removing `t(...)` preview switching from unrelated nav items
 - Forgetting to update tests that still expect `/t/*` to render a full page
+- Misreading a request to remove specific demo preview entrypoints as permission to remove the repo's broader Preview Toggle system
+- Deleting global preview plumbing such as `src/components/layout/preview-mode-toggle.tsx`, `src/app/api/preview-navigation/route.ts`, preview-only footer Internal links, or other non-demo preview navigation behavior when the user only asked to roll out a narrow `/t/...` demo family
+
+## PR 253 lesson: narrow demo preview rollout does not imply global preview-toggle removal
+
+A concrete corp-web-japan lesson from PR 253 follow-up work:
+- removing `/t/use-cases`, `/t/demo/aip`, and `/t/demo/acp` as list entrypoints did **not** mean the general Preview Toggle UI should be removed
+- the correct scope was:
+  - promote the demo list pages to their canonical public routes
+  - delete only those specific `/t/...` demo list pages
+  - keep the broader preview-navigation system intact for other preview surfaces unless the user explicitly asks to remove it
+
+What to preserve unless explicitly told otherwise:
+- `src/components/layout/preview-mode-toggle.tsx`
+- `src/app/api/preview-navigation/route.ts`
+- header wiring that passes and renders `showPreviewModeToggle`
+- preview-only footer/internal navigation that depends on the general preview mode
+
+Heuristic:
+- if the user says to replace or remove a few `/t/...` routes, treat that as route-local rollout work first
+- only remove global preview infrastructure when the user explicitly names the Preview Toggle or asks for broader preview-mode cleanup
 
 ## Whitepaper-specific lesson learned
 

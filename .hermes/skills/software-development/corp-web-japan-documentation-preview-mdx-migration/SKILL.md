@@ -61,14 +61,24 @@ The correct direction is:
 
 ## Recommended file layout
 
-Use route-aligned content families:
-- `src/content/documentation/introduction-deck/*.mdx`
-- `src/content/documentation/glossary/*.mdx`
-- `src/content/documentation/manuals/*.mdx`
+Current repo direction:
+- keep the local docs-family MDX under the consolidated root `src/content/docs/*.mdx`
+- do not keep using the older split roots under `src/content/documentation/**` once the docs preview migration is in place
+
+Important filename convention learned from PR 223 follow-up:
+- docs-family MDX filenames are the canonical identity
+- for each file `src/content/docs/<name>.mdx`, set:
+  - `id: "<name>"`
+  - `slug: "<name>"`
+  - `heroImageSrc: "/docs/<name>/thumbnail.png"`
+- when files are renamed manually, immediately sync frontmatter to the new filename instead of preserving old numeric IDs or old slug values
+- if the old hero image lived under another family path such as `/manuals/...`, `/glossary/...`, or `/introduction-deck/...`, copy it into `public/docs/<name>/thumbnail.png` and update `heroImageSrc` to that new docs-aligned path
 
 Recommended loader files:
-- `src/lib/documentation-publications.ts`
-- `src/lib/get-documentation-publication-post.ts`
+- `src/lib/resources/introduction-deck-publications.ts`
+- `src/lib/resources/glossary-publications.ts`
+- `src/lib/resources/manual-publications.ts`
+- category-specific `*-post-loader.ts` files that read from the shared `src/content/docs` root
 
 Recommended preview routes:
 - `src/app/t/resources/page.tsx`
@@ -84,8 +94,9 @@ Recommended preview routes:
 
 ## Loader design
 
-Mirror the blog/whitepaper pattern:
-- read all MDX files in the family directory
+Mirror the blog/whitepaper pattern, but keep the current docs-family repo shape in sync with filename-based identity:
+- read MDX from `src/content/docs`
+- either enumerate the exact filenames per category or read the directory and filter intentionally
 - parse frontmatter with YAML
 - cache records in memory
 - expose:
@@ -93,6 +104,11 @@ Mirror the blog/whitepaper pattern:
   - `list...Params()` / `list...Ids()` for routes
   - `get...Record()` for canonical redirect lookup
   - `get...Post()` for rendered detail page data
+
+Important maintenance rule learned from filename-renaming follow-up work:
+- if a docs MDX filename changes, also update every category repository `listSourceFiles()` list and every structure test that hardcodes those filenames
+- do not leave stale references such as a no-longer-existent `*.mdx` entry in `manual-publications.ts` or in `tests/src/app/t/manuals/page.test.mjs`
+- when the user explicitly wants filename-as-identity semantics, do not keep old numeric IDs or legacy slugs just because the content originated from an earlier migration step
 
 Useful frontmatter shape for documentation families:
 - `id`
