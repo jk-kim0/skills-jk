@@ -504,6 +504,40 @@ Practical rule:
 - `no open PR for this branch name` is not enough to preserve a helper branch/worktree
 - first check whether it is merely an alternate local alias of an already-preserved open PR state
 
+### Additional practical case: a branch can be a no-op local alias of main itself
+
+Some repositories accumulate local convenience branches and worktrees that are not tied to any open PR and no longer represent independent work.
+A common pattern is:
+- the branch tracks `origin/main` directly
+- the branch `HEAD` is exactly equal to local `main` / `origin/main`
+- the attached worktree is clean
+- the branch name suggests a one-off helper or topic, but the tree no longer differs from main at all
+
+Check this with:
+
+```bash
+git rev-parse <branch>
+git rev-parse main
+git rev-parse origin/main
+git rev-list --left-right --count origin/main...<branch>
+git -C <worktree> status --short --branch
+```
+
+Interpretation:
+- if the branch SHA equals `main` and `origin/main`, and the worktree is clean, it is just a no-op alias of main
+- this is stale even if the branch still has a valid local name and an attached worktree directory
+
+Safe handling:
+
+```bash
+git worktree remove <worktree>
+git branch -D <branch>
+```
+
+Practical rule:
+- do not preserve a clean branch/worktree that is literally identical to main just because it is branch-attached
+- treat `tracks origin/main + same SHA as main + clean worktree` as a safe stale-deletion case
+
 ### Additional practical case: a local alias branch can equal the current open-PR head while the official local PR branch is stale
 
 Sometimes the repository ends up with both:
@@ -694,7 +728,37 @@ Practical lesson from corp-web-japan cleanup:
 - later helper chains such as `cta-glow-soften`, `pr301-lint`, and similar detached follow-up clones showed the same pattern: once a clean official branch worktree was reset to the current remote PR head, the detached helper clones became redundant and removable
 - a later variant showed the official branch-backed worktree itself could be behind the remote open-PR head while detached helpers held newer commits; in that case, first clear disposable temp files from the official worktree if needed, then hard-reset the official clean branch worktree to `origin/<pr-branch>`, and only after that remove the detached helper clones
 
-### Additional practical case: root staged residue copied from a merged detached helper worktree
+### Additional practical case: branch names and PR head names can change mid-cleanup, and new local aliases can appear while you are working
+
+In fast-moving repos, the set of open PR head branches may change during the cleanup session itself.
+A branch that was non-open at the start can later become the real open PR head, and new local helper branches/worktrees can also appear mid-session.
+
+Practical rule:
+- before each destructive cleanup batch, refresh again with `git fetch --prune`, `gh pr list --state open`, and `git worktree list`
+- do not rely on an earlier same-session snapshot when deciding whether a branch/worktree is stale
+- if an alias branch becomes the actual open PR head, preserve it and reclassify the formerly official but older local branch/worktree as the stale residue
+
+Additional practical case: a branch-attached no-op alias can point exactly at `origin/main`
+
+Sometimes a local branch/worktree is clearly not an active PR branch, yet it still survives because it simply points at the same commit as `origin/main` or local `main`.
+Examples are helper names like `pr300-main`, `pr301-main`, or other temporary labels created during rebase/review work.
+
+Check this with:
+
+```bash
+git rev-parse <branch>
+git rev-parse origin/main
+git rev-list --left-right --count origin/main...<branch>
+```
+
+Interpretation:
+- if the branch SHA exactly equals `origin/main` and it has no open PR role, it is a no-op local alias and safe to delete
+- if its attached worktree is also clean, remove both the branch and the worktree
+
+Useful summary label:
+- `stale no-op alias: branch == origin/main`
+
+Additional practical case: root staged residue copied from a merged detached helper worktree
 
 Sometimes the root `main` worktree is not just dirty; it contains a staged set of files that exactly matches a clean detached helper worktree from a recently merged PR.
 This can happen after ad hoc comparison, cherry-pick, or conflict-resolution experiments.
@@ -768,6 +832,7 @@ Practical rule:
 Practical rule:
 - once cleanup starts deleting stale worktrees/branches, re-run `git fetch --prune`, re-check open PR heads, and re-check `git worktree list` before each new deletion batch if the repo is actively changing
 - this matters in fast-moving repos where `origin/main` or PR heads can advance during the cleanup session itself
+- an especially important variant is when a branch that was open earlier in the session later becomes `MERGED`, while a different branch becomes the new active PR line; do not preserve the old branch/worktree based on stale earlier assumptions
 - after the cleanup batch, fast-forward the root `main` worktree to the latest `origin/main` when the root checkout is clean so the workspace ends in a refreshed baseline
 
 Additional practical case: branch names and PR head names can change mid-cleanup, so a stale candidate can become active before you delete it
