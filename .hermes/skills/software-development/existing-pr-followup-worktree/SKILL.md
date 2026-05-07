@@ -332,7 +332,43 @@ Important practical findings:
   - Then force-push that rewritten latest-main branch back to the same PR branch.
   - Verify with `git merge-base origin/main <pr-branch>` that the PR branch now sits directly on the latest remote main tip (or that tip's exact ancestor if main advanced during work), and rerun local validation before pushing.
   - This is not a normal-first choice; use it when preserving old commit ancestry would keep dragging stale pre-main structure into the PR or would obscure the user's desired final diff.
+  - Additional stacked-to-main flattening lesson from corp-web-japan publication-helper follow-up work: when several stacked PRs were originally based on each other, and the user later asks to rebase each OPEN PR onto the latest `main`, do not keep the old stacked base chain by default.
+    - First identify which earlier PRs are already merged and therefore now part of `origin/main`.
+    - For each still-open child PR, create a fresh clean worktree from latest `origin/main` and compare `origin/main...origin/<pr-branch>` to see the branch's surviving direct-vs-main scope.
+    - Reapply only that surviving diff onto the clean main-based worktree (for example with `git checkout origin/<pr-branch> -- <paths...>` for the exact changed file set, then prune anything that latest `main` already absorbed differently).
+    - Commit once on top of latest `origin/main`, force-push back to the same branch name, and explicitly change the PR base to `main` with:
+      ```bash
+      gh pr edit <pr-number> --base main
+      ```
+    - This is especially useful when an originally stacked PR is no longer logically dependent on its old parent because the parent's behavior already landed on `main`.
+    - Practical verification loop after flattening:
+      ```bash
+      git rev-parse HEAD
+      git merge-base HEAD origin/main
+      gh pr view <pr-number> --json baseRefName,headRefOid,updatedAt,url
+      git ls-remote origin refs/heads/<pr-branch>
+      ```
+      Expect the PR base to be `main`, the remote head SHA to match your pushed commit, and the merge-base to equal the latest main tip (or that exact ancestor if main moved again during work).
   - Practical stale-top-page pattern: if multiple sibling PRs were split from an older top-page refactor branch and newer `main` has already absorbed some intermediate sections (for example platform/security, then whitepapers), do not blindly preserve the old mixed diff. First identify which sections are already on `origin/main`, then rebuild each PR so it keeps only its still-unique intended scope (for example whitepapers only, or later final CTA only) on top of latest main.
+  - Additional corp-web-japan publication-helper flattening lesson: when a formerly stacked PR is rebuilt directly on latest `origin/main`, the surviving implementation diff can be correct while repository tests still fail because latest `main` independently changed shared content-file naming conventions (for example numeric `id.mdx` -> `id-slug.mdx`) or helper import paths in unrelated merged work.
+    - Typical signal: after reconstructing a clean latest-main PR diff, Verify fails in source-reading tests with `ENOENT` on old paths such as `src/content/blog/21.mdx` or stale import assertions like `whitepaper-publication-records` vs `whitepapers/records`, even though the PR’s own implementation files look correct.
+    - In that case, do not misdiagnose it as a bad rebase of the implementation scope.
+    - Instead:
+      1. inspect the latest `origin/main` filesystem shape or current source imports directly
+      2. classify whether the failing test is asserting the PR’s intended behavior or merely an outdated baseline assumption from pre-main history
+      3. keep the PR’s intended implementation scope intact
+      4. update only the stale test expectations needed to match the latest-main baseline (for example current `id-slug.mdx` filenames or route-aligned helper import paths)
+      5. rerun the narrow targeted tests before pushing again
+    - Practical corp-web-japan publication examples from real PR maintenance:
+      - demo/event/use-case/whitepaper/blog source-reading tests may hardcode old numeric file paths like `src/content/demo/aip/1.mdx`, `src/content/events/1.mdx`, `src/content/use-cases/1.mdx`, `src/content/whitepapers/25.mdx`, or `src/content/blog/23.mdx`
+      - after latest-main file renames, replace those with the current `id-slug.mdx` filenames from the live tree rather than trying to revert the implementation back toward the old naming
+      - similarly, when a path-cleanup PR moves category-specific helper modules under route-aligned directories such as `src/lib/publications/whitepapers/records.ts`, update structure tests carefully according to the scope of that exact PR: a parent PR that has not yet moved the page import should still expect the old import path, while a later cleanup PR should expect the new route-aligned import path
+      - for redirect/related-items contract tests, distinguish three cases explicitly after helper extraction:
+        1. standard post-loader consumers that should match `createStandardPublicationPostLoader`
+        2. gated-loader consumers that should match `createGatedPublicationPostLoader`
+        3. direct shared-helper files that should still match `buildRelatedPublicationItems` or `resolveRedirectablePublicationHref`
+      - this avoids false CI failures where a thin wrapper PR is judged against the old pre-extraction internal implementation instead of the new helper boundary
+    - Heuristic: when a latest-main rewrite/rebase is scope-correct but CI fails on path literals, import literals, or helper-boundary assertions, prefer “baseline test expectation refresh” over re-rebasing the implementation yet again.
   - Practical partially-absorbed PR pattern from AI Crew route-local follow-up work: a rebase request can target an open PR whose branch still contains several commits, but latest `origin/main` already includes part of that branch's intent from an earlier sibling PR. In that case, a literal `git rebase origin/main` often collides because the PR is half superseded rather than fully independent.
     Recommended recovery flow:
     1. inspect `git rev-list --oneline origin/main..origin/<pr-branch>` and `git diff --stat origin/main...origin/<pr-branch>` to see the branch's total residual scope
@@ -383,6 +419,30 @@ Important practical findings:
       3. reapply only the PR-specific assertions that prove the intended new behavior
       4. rerun the targeted tests before pushing
     - Heuristic: for latest-main rewrites, test files should usually be merged, not blindly copied wholesale, unless the PR truly owns the full current baseline of that test.
+- Additional latest-main path-cleanup maintenance pattern from corp-web-japan PR 301:
+  - Sometimes an open PR is mainly a path-localization / file-move refactor (for example moving publication helpers into category-local directories), but latest `origin/main` has advanced with behavior changes in the same touched routes and tests before you finish review follow-up.
+  - Typical signs:
+    - `gh pr view` still shows the PR as open, but `mergeStateStatus` flips to `DIRTY` after newer main-only commits land
+    - a literal `git rebase origin/main` explodes across many route files and tests even though the PR's real intent is still just path cleanup
+    - the conflicts come from newer main behavior changes (for example redirect/bot handling, internal demo state changes, sitemap behavior), while the PR mostly wants import-path/file-path rewrites
+  - Safer recovery pattern:
+    1. create a clean latest-main worktree
+    2. apply the PR branch diff or intended file set there
+    3. identify files where latest main added real behavior beyond path cleanup (routes, sitemap, shared tests, helper logic)
+    4. restore those files from latest `origin/main`
+    5. reapply only the path-localization changes inside them (usually import path rewrites and moved-file references)
+    6. rerun repo verification and then force-push the rebuilt branch
+  - Important documentation/skill guardrail from the same case:
+    - if the PR also edits repo guidance or skill files, do not assume those docs should change just because helper file paths changed
+    - verify every claimed content-file naming convention, route contract, and source-of-truth path against the actual repository tree and tests on latest main
+    - especially watch for accidental regressions like rewriting `src/content/**/<id>-<slug>.mdx` guidance to fake numeric-only filenames such as `<id>.mdx`, or changing public-list route docs back to removed preview `/t/...` paths
+    - after the first latest-main rebuild, run one more explicit grep over the changed docs/skills for suspicious stale patterns before declaring the PR clean. High-value patterns include:
+      - `next available numeric filename`
+      - example paths ending in bare numeric files like `29.mdx` / `30.mdx`
+      - removed preview list routes like `/t/demo/acp` or `/t/demo/aip`
+      - old flat helper paths such as `get-*-publication-post.ts` or `*-publication-records.ts`
+    - if any of those appear, compare them directly against the current repo tree and the source-structure tests, then fix the docs in the same PR instead of waiting for review feedback
+  - Practical heuristic: for latest-main maintenance of a path-cleanup PR, preserve latest main behavior first, then layer path cleanup on top; do not let a file-move refactor silently revert newer route/test/doc contracts.
   - Important terminal state: after enough sibling PRs merge, an older PR's remaining intended diff may become fully absorbed by `origin/main`.
   - Before force-pushing a rebased/reconstructed branch, always check whether any unique commits or diff still remain:
     ```bash
@@ -447,6 +507,7 @@ Important practical findings:
     - This is especially useful when the user explicitly says the PR should be rewritten to match the repository's canonical refactor pattern rather than merely rebased mechanically.
 
 - After a rewrite-on-main like this, re-check repository tests that assert source structure, not just runtime behavior. Structure-oriented tests may need helper updates when the user intentionally changes `page.tsx` from inline JSX to semantic section composition.
+- Important final-tree review step from corp-web-japan internal demo follow-up work: even when the rebase itself is clean, do one more critical pass on the *latest-main final tree* before pushing. Look specifically for page-local demo hacks or magic values that only existed to force a preview state (for example sentinel dates or ad hoc query interpretation inside `page.tsx`). If you find them, prefer moving that behavior into a dedicated helper/resolver in `src/lib/**` so the route stays thin and the demo-specific state logic has an explicit name and contract.
 - Additional practical rebase pattern from PR 214 maintenance: when rebasing a stacked follow-up PR branch onto latest `origin/main`, the first implementation commit can conflict in structure-test helpers (for example `tests/helpers/static-marketing-page-sources.mjs`) because `main` has gained new sibling-section coverage since the PR branched. Resolve that first conflict by keeping the latest-main helper/test baseline and merging in the rebased PR's newly introduced section files/assertions together.
 - Shared primitive/component rebase pattern from PR 217 maintenance: if the conflict is in a shared list/page primitive that both `main` and the PR extended in different ways, do not choose one side wholesale. Inspect the latest-main file and the PR-head file side by side, keep the latest-main API additions that other routes now depend on (for example a new `sidebarBasePath` prop or normalized sidebar key handling), then layer the PR-only feature hook-up on top (for example `initialVisibleCount` plus the conditional `ResourceListLoadMore` branch). After resolving, verify the rebased tree still preserves both behaviors: the new main-side compatibility path for existing callers and the PR-side behavior for the targeted routes.
 - Shared type-contract drift pattern from the same PR 217 maintenance: after rebasing a PR that changed a broadly reused type or interface (for example adding `id` to a shared `ResourceItem` type), do not stop at the files that originally belonged to the PR. Latest `main` may now contain new helper layers, preview-item registries, or abstract repositories that were added after the PR branched and that still construct the old shape. CI and Vercel type-check failures can therefore surface in files the original PR never touched.

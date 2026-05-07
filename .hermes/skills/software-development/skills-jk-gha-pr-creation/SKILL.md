@@ -101,16 +101,24 @@ When the user asks to create a PR from the current local workspace state rather 
 5. If the current branch corresponds to an already merged/closed PR, do **not** keep committing on that branch even if it still has useful local changes.
    - Fast detection: run `env -u GITHUB_TOKEN gh pr status` first. In `skills-jk`, this often surfaces the problem immediately as `Current branch  #<N> ... Merged` even when the remote branch has already been deleted.
    - Confirm with `env -u GITHUB_TOKEN gh pr list --head <branch> --state all --json number,state,mergedAt,url,title` when needed.
-   - If the branch was already used for merged PRs, preserve the dirty workspace first:
-     - `git stash push -u -m "<temp-name>"`
    - Refresh repository refs and fast-forward local `main` before branching:
      - `git fetch origin --prune`
      - `git branch -f main origin/main`
-   - Then create a fresh branch from latest `origin/main`:
+   - Preferred safe pattern in this repo when the user wants the current dirty workspace turned into a new PR without disturbing the root checkout:
+     - create a fresh worktree and fresh branch from latest `origin/main`
+       - `git worktree add -b <new-branch> <new-worktree> origin/main`
+     - enumerate the current meaningful local changes in the dirty root checkout
+       - `git diff --name-only`
+       - `git ls-files --others --exclude-standard`
+     - copy only those changed/untracked files from the dirty root checkout into the fresh worktree
+     - verify the fresh worktree now shows exactly that change set against `origin/main`
+   - This avoids using `stash`, keeps the user's existing dirty root workspace intact, and still yields a clean latest-main PR branch.
+   - Fallback when a clean file-copy transplant is impractical:
+     - `git stash push -u -m "<temp-name>"`
      - `git checkout -b <new-branch> origin/main`
+     - `git stash pop`
    - If there is an unmerged local commit you still need, cherry-pick it onto the new branch.
    - If the cherry-pick becomes empty because latest `main` already contains that change, use `git cherry-pick --skip` and continue.
-   - Restore the dirty workspace onto the fresh branch with `git stash pop`.
    - Only then continue with staging/committing. This preserves the current file state while ensuring the new PR is based on clean latest main rather than a previously merged PR branch.
 6. Commit only the meaningful files on the current branch.
 7. Before push/PR creation, rebase the current branch onto latest `origin/main`.

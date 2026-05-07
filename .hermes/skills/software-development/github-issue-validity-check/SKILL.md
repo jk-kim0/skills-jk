@@ -166,6 +166,7 @@ When the user asks not just whether an issue is valid, but to rewrite the issue 
 - For navigation/link issues, replace speculative tables with a final implemented link policy once the work is merged.
 - If you are reviewing a freshly edited issue body, re-fetch `origin/main` and re-check open PRs immediately before final judgment. In fast-moving repos, a PR can merge between the rewrite and the follow-up review, which can instantly stale statements like "no robots/sitemap implementation yet" or "PR #X is still open".
 - For SEO/readiness issues specifically, verify both the existence of metadata route files (`src/app/robots.ts`, `src/app/sitemap.ts`) and whether related PRs are still open before calling the work missing or in-flight.
+- For route-specific SEO activation issues (for example a newly public `/news` surface), do not stop after confirming the list/index route exists. Check all three layers separately for both the list page and representative detail pages: (1) page metadata/canonical, (2) robots index/follow behavior, and (3) sitemap inclusion. Then, if a hosted stage/prod target is available, confirm the raw HTML and `sitemap.xml` with `curl` so you can distinguish "list page launched" from "detail pages still noindex" and report a precise partial-validity verdict.
 
 ## Output Style
 

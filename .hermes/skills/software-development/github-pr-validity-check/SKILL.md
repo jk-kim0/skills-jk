@@ -102,6 +102,15 @@ For the verdict, gather several of:
 - For asset optimization PRs, it is common for the optimization itself to be valid while the branch becomes invalid because unrelated changes were bundled later.
 - For dead-code-removal PRs, do not trust old assumptions about "unused" branches. Re-validate both runtime references and real content/data markers on latest main. Example pattern: search the current source tree for imports/usages, then search the real content corpus for markers that activate the branch (for example HTML wrapper markers). A branch is only a good removal target when both the code references and the activating data markers are absent or can be safely narrowed.
 - If only part of a stale PR remains valid on latest main, salvage it by narrowing scope instead of forcing the original broader thesis. Reconstruct the still-valid subset on top of latest main, update the PR title/body to match the reduced scope, and treat the result as a rewritten PR rather than a mechanical rebase.
+- When the PR changes repo-local skills, guidance docs, or AGENTS-style instructions, do not review those files only as prose. Validate every path/file-pattern claim against the real repository tree on the PR head and latest `origin/main`.
+- Practical contract checks for doc/skill reviews:
+  - search the live tree for the claimed file paths
+  - verify whether filename conventions in the docs still match the actual corpus (for example `<id>-<slug>.mdx` vs `<id>.mdx`)
+  - verify whether moved helper modules actually exist at the new documented paths
+  - after a path-refactor PR, grep the PR head for old path strings to catch partial updates where one section was fixed but workflow/examples or companion skills still point at removed files
+  - when one repo-local skill is updated for a moved path, inspect sibling/companion skills for the same stale references instead of assuming the update was applied consistently everywhere
+  - flag any doc/skill change that silently turns a path-only refactor PR into a false source-of-truth change for content naming or architecture contracts
+- Treat this as a real PR-validity issue, not a minor doc nit, when the changed skill/doc would teach future agents to use nonexistent paths or regressed conventions.
 
 ## Output style
 
