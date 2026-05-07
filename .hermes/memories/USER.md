@@ -183,3 +183,5 @@ When reviewing corp-web-japan publication/routing changes, the user expects prio
 In corp-web-japan copy/content follow-up work, if the user asks to correct a mistaken title/label in an existing content item, prefer preserving the item and fixing the exact wording rather than deleting the page or replacing it with a broader structural change.
 §
 In corp-web-japan publication/routing audits, the user wants review focus on actual missing redirects and wrong redirect targets on the latest origin/main baseline, not on 'shrink/removal candidates.' Evidence should be prioritized from latest main code, route implementation, and stage/live behavior.
+§
+In corp-web-japan, when preview /t/* routes are promoted or replaced, the user does not want the /t/* endpoints kept at all and does not want redirect compatibility left behind, unless they explicitly ask for a specific /t/* path to remain. Default policy: remove /t/* route files entirely, not redirect them.

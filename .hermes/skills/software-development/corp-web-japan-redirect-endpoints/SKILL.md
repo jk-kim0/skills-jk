@@ -22,9 +22,13 @@ Use this when adding redirect-only public endpoints in `corp-web-japan`.
 ## Default approach
 
 1. Start from a fresh worktree and fresh branch off `origin/main`.
-2. Implement one `route.ts` per endpoint under `src/app/<path>/route.ts`.
-3. Keep each endpoint's destination URL in that route file, not in a shared registry.
-4. Use `NextResponse.redirect(destination, 307)`.
+2. If the request comes from runtime 404 logs or a "missing redirect candidates" audit, verify each proposed destination first against the live upstream target before implementing it.
+   - Prefer checking the exact intended target URL directly in the browser.
+   - Only add the redirect when the target resolves to a real destination page.
+   - Do not collapse multiple legacy paths onto a broader hub page unless the user explicitly asks for that looser mapping.
+3. Implement one `route.ts` per endpoint under `src/app/<path>/route.ts`.
+4. Keep each endpoint's destination URL in that route file, not in a shared registry.
+5. Use `NextResponse.redirect(destination, 307)`.
    - For external targets, `destination` can be an absolute string constant.
    - For same-origin local targets inside route handlers, do not pass a bare relative string such as `"/whitepapers/..."` directly. Build an absolute URL with `new URL(destinationPath, request.url)` first.
 5. Export `HEAD = GET` so HEAD requests behave consistently.
@@ -178,6 +182,55 @@ test("redirect endpoints are defined in a single test-case table with temporary 
 ```
 
 This gives reviewers one place to inspect the full redirect set without moving rule ownership out of the route files.
+
+## Deriving a complete legacy namespace redirect set from sibling repos
+
+When the user asks to cover an entire legacy path family such as `/platform/**`, do not stop at current runtime 404 samples.
+Build the redirect set from multiple sources and use their union.
+
+Recommended discovery order:
+
+1. `../corp-web-contents/config/redirects.yaml`
+   - This often contains the historical redirect intent for legacy namespaces.
+   - For recursive rules such as `/platform/ai/aip`, also inspect whether specific child pages are still linked elsewhere before deciding to use only a broad catch-all.
+2. `../corp-web-contents/layout/{en,ja,ko}/header.json`
+   - Header promo cards can reveal leaf pages that are still treated as real destinations even when the redirect config only shows a parent namespace.
+3. `../corp-web-app/src/app/**`
+   - Inspect the actual App Router tree for locale-prefixed pages such as `src/app/en/platform/**` or `src/app/ko/platform/**`.
+   - Do not assume routes live only at top-level `src/app/platform/**`; locale-prefixed trees can hide real descendants like `/platform/ai/aip/integrations`.
+4. In-repo references from CTAs or plans pages
+   - Search content for literal `/platform/...` hrefs to catch still-linked paths that may not be obvious from route discovery alone.
+
+Practical rule from the `/platform/**` audit:
+- treat the final redirect candidate set as the union of:
+  - legacy redirect config paths
+  - legacy header/navigation leaf hrefs
+  - actual sibling-app route descendants
+  - still-linked literal hrefs in sibling app content
+- de-duplicate that union before implementing route handlers
+
+Useful verification pattern:
+
+```bash
+python3 - <<'PY'
+import subprocess
+paths = [
+  '/ja/platform/ai/aip',
+  '/ja/platform/ai/aip/integrations',
+]
+for path in paths:
+    url = 'https://www.querypie.com' + path
+    out = subprocess.check_output([
+        'curl', '-s', '-o', '/dev/null', '-w', '%{http_code} %{url_effective}', '-L', url
+    ], text=True).strip()
+    print(path, '->', out)
+PY
+```
+
+Use `curl -L` against the real upstream site to confirm the final effective URL for each candidate path before encoding it into `route.ts`.
+This is especially useful when legacy configs say `destination: "/solutions/aip"` but a deeper path like `/platform/ai/aip/integrations` now resolves to `/solutions/aip/integrations`.
+
+After implementing, verify that the discovered expected set exactly matches the implemented `src/app/platform/**/route.ts` set with a small script before running tests.
 
 ## Important pitfalls
 

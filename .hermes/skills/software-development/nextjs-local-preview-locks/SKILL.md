@@ -34,15 +34,36 @@ lsof -nP -iTCP:3000 -sTCP:LISTEN
 
 If the page looks wrong, do not assume the current repo owns that port.
 
+Then verify which checkout actually owns that listener before trusting any browser result:
+```bash
+ps -p <PID> -o pid=,ppid=,command=
+lsof -p <PID> | grep ' cwd '
+```
+
+Why:
+- in multi-worktree setups, the same repo can have another Next server already listening on the target port
+- the browser may open successfully but be serving a different worktree's route tree
+- this can produce misleading results such as an empty page or a valid page from the wrong branch
+
+### 2a. In a fresh worktree without local dependencies, prefer a `node_modules` symlink over a full reinstall when you only need a short-lived dev preview
+If the root checkout already has dependencies installed and the user wants to avoid repeated installs inside worktrees, a fast-path is:
+```bash
+ln -s /path/to/root-checkout/node_modules node_modules
+npm run dev -- --port 3456
+```
+
+Why:
+- for local browser verification, this is often enough to boot the correct worktree without paying the cost of another install
+- this is especially useful for quick rendering checks after a small UI/style fix
+- still verify the server PID/cwd after startup so you know the browser is hitting the intended worktree
+
+
 ### 2. Try starting on an explicit port
 ```bash
 npm run dev -- --port 3456
 ```
 
 Prefer the CLI flag form above for Next.js. It is explicit and easy to verify in logs.
-
-### 3. If startup fails with `.next/dev/lock`
-This means another `next dev` instance is already running for the same repo. Starting on a new port is not enough.
 
 Find and stop the existing same-repo dev process before retrying. If you started it through Hermes with `terminal(background=true)`, kill that tracked process first.
 
@@ -120,7 +141,6 @@ Use filtering to confirm specific replacements, e.g. `.webp` assets.
 - `PORT=3456 npm run dev` may still leave ambiguity in logs/workflow; prefer `npm run dev -- --port 3456`
 - `EADDRINUSE` means the port is busy; it does not prove the right app is running there
 - `.next/dev/lock` means another instance of the same repo is active; changing ports alone will not fix it
-- In newer Next.js dev setups, opening the preview at `127.0.0.1` can trigger blocked dev-resource / HMR requests (`Blocked cross-origin request to Next.js dev resource /_next/webpack-hmr from "127.0.0.1"`) unless `allowedDevOrigins` is configured. If you see HMR websocket errors or hydration-ish oddities while the server otherwise works, retry the exact same server via `http://localhost:<port>` before debugging the app itself.
 - Browser snapshots can look fine while still hitting the wrong dev server; verify the URL and loaded asset paths
 
 ## Evidence to report

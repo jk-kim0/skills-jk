@@ -122,59 +122,30 @@ Interpretation rule:
 
 This matters especially for wiki or incident summaries covering exact calendar days: the safest framing is sampled status mix and repeated-path patterns, not exact volume.
 
-### 3.6 When historical request-log windows fail with `ExceedsBillingLimitError`
+### 3.6 Direct request-log API shape and pagination can be misleading
 
-A practical failure mode on Vercel request logs is:
-
-```text
-HTTP 400 {"name":"ExceedsBillingLimitError"}
-```
-
-You may see this through either:
-- `vercel logs ...` returning `Response Error (400)`
-- or a direct call to the backend request-log endpoint returning the JSON error above
-
-Important experiential finding:
-- this can block historical windows even when a more recent adjacent window still works
-- reducing the window size does **not** necessarily help
-- even very short sub-windows inside the blocked historical range can still return the same error
-
-Operational rule:
-- if one or more requested days return `ExceedsBillingLimitError`, do **not** pretend the whole period can still be aggregated exactly
-- split the report into:
-  1. re-queryable windows
-  2. currently blocked windows
-- explicitly mark blocked days as unavailable from current live runtime-log access
-- if only part of the requested range is still queryable, report that partial window clearly rather than inventing a full-period summary
-
-### 3.7 Direct request-log API can be useful when the CLI output is too lossy
-
-The CLI debug output reveals that `vercel logs` reads from:
+When you call the backend directly at:
 
 ```text
 https://vercel.com/api/logs/request-logs
 ```
 
-with query parameters such as:
-- `projectId`
-- `ownerId`
-- `page`
-- `startDate`
-- `endDate`
-- `environment`
-- optional `statusCode`
-- optional `search`
-- `teamId`
+note these field-level realities:
+- the response shape is top-level `rows` plus top-level `hasMoreRows`
+- do **not** expect the older nested `pagination.data` structure
+- row identifiers are usually under `requestId`, not the CLI-style top-level `id`
+- status is typically `statusCode`, not `responseStatusCode`
 
-Practical use cases:
-- verify whether a blocked historical window is a backend access problem versus a CLI parsing problem
-- check whether a specific status filter returns `hasMoreRows`
-- obtain an exact `404` daily aggregation when the response returns all rows in one page with `hasMoreRows = false`
+For historical day-window `404` / `307` audits, another practical failure mode can appear:
+- page 0 returns 50 rows and `hasMoreRows = true`
+- incrementing `page` can still return the exact same first-page `requestId` set instead of advancing
+- this creates the illusion of more pages while preventing exact full-day aggregation
 
-Important caveat:
-- some statuses, especially high-volume `307`, can paginate very deeply
-- in those cases, a bounded CLI sample plus explicit "sampled" framing is often more practical than attempting a full exact export
-- if you mix exact and sampled sections in one report, label them separately and explicitly
+Interpretation rule:
+- if page 1+ repeats page 0 `requestId` values, stop treating the API as paginating correctly
+- report the page-0 result as a sampled top-set only
+- explicitly state that exact totals are blocked by backend pagination behavior
+- still use direct `500` / `502` / `503` / `504` status queries, because zero-row checks are still useful and fast even when `404` / `307` pagination is broken
 
 ### 4. Error queries can hit a hard practical cap
 
@@ -237,6 +208,8 @@ Interpretation pattern:
 - first confirm logs exist with `--limit 50`
 - then run direct `404`, `500`, and `5xx` checks
 - if all three return zero and the sample query clearly shows recent production logs, it is reasonable to conclude there were no recent 404/5xx entries in that window
+- do not assume a broad general sample is sufficient to rule out same-day `500`s: the general `vercel logs --json` stream is recency-ordered, so a noisy later `404` period can push earlier same-day `500` rows out of a bounded sample
+- if the broad sample and direct `500` query disagree, trust the direct status-specific result for existence, then inspect the returned `500` rows directly
 
 ### E. Summarize by project
 
@@ -258,12 +231,42 @@ Typical scanner/bot noise examples:
 - `/wp-admin/...`
 - `/wp-login.php`
 - old `.php` probes
+- config-discovery probes such as `/runtime-config.js`, `/env.json`, `/config.json`, `/swagger.json`, `/openapi.json`, `/.well-known/jwks.json`
+- API/health probes such as `/api/health`, `/health`, `/api/account`, `/api/v1/config`, `/api/v2/settings`
+- secret-file probes such as `/.env.local`, `/backend/.env`, `/api/.env`, `/admin/.env`, `/config.env`
+- sensitive-path probes such as `/.git/config` and `/.ssh/id_rsa`
 
 Likely real issues often show:
 - repeated same application path
 - same exception signature
 - same deploymentId
 - framework/runtime-specific message
+
+Operational rule:
+- do not treat the probe families above as redirect-review candidates by default
+- for broken-link / changed-URL monitoring, maintain an actionable allowlist of content-like path families and exclude these probe families from the redirect-review queue
+- summarize them as noise buckets instead: `config-probe`, `api-probe`, `secret-probe`, `exploit-probe`
+
+### E.1 When the goal is to stop probe paths from appearing as runtime 404s
+
+Important practical finding:
+- Vercel does not provide a simple per-path "suppress 404 in Runtime Logs" setting
+- if a request reaches a Vercel Function or Routing Middleware, a runtime-log row can still exist even if you stop calling `console.log`
+- in a Next.js App Router setup with a runtime catch-all 404 handler (for example `src/app/[...missing]/page.tsx`), unmatched requests are intentionally made runtime-visible
+
+Recommended approach:
+- if the goal is specifically to prevent probe paths from showing up as runtime 404 noise, block or challenge them before they reach app runtime by using Vercel Firewall / WAF rules
+- prefer exact-path rules for singletons like `/swagger.json` or `/api/health`
+- prefer prefix rules for families like `/.git/*`, `/.ssh/*`, `/wp-admin/*`
+
+Action guidance:
+- exploit/secret probes -> usually `deny`
+- config/API discovery probes -> `deny` or `challenge`, depending on your tolerance and plan features
+- avoid redirects or rewrites for these probe paths; they convert scanner noise into misleading 3xx/200 behavior and can signal that the path is specially handled
+
+Interpretation rule:
+- Firewall/WAF is the right layer when you want these requests to stop becoming runtime-visible 404s
+- post-processing filters are the right layer when you only need cleaner monitoring/reporting without changing request handling
 
 ### F. Runtime logs do NOT capture every user-visible 404
 

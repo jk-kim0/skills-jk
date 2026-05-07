@@ -167,6 +167,86 @@ Useful PR body structure:
 - keeping file paths and exported function names stable in phase 1 dramatically reduces route/test churn and keeps the PR reviewable
 - extract the strongest duplication cluster first; trying to unify blog/news/whitepaper/event in the same initial PR increases special-case pressure too early
 
+## Follow-up phases learned after phase 1
+
+After the initial trio extraction, the safest reusable sequence was:
+1. event records -> shared records helper via a minimal badge hook
+2. use-case / AIP / ACP / event detail loaders -> shared standard post-loader helper
+3. blog records -> shared records helper
+4. whitepaper records -> shared records helper while leaving gating untouched
+5. news records -> shared records helper only after adding one narrow custom list-item hook
+
+### Event records follow-up
+- Event could join the records helper cleanly by adding a small badge hook such as `getListItemBadge(record)`.
+- This is preferable to cloning the helper or widening the event wrapper back into a bespoke cache implementation.
+
+### Standard post-loader helper
+A shared helper such as `create-standard-publication-post-loader.ts` worked well for:
+- use-case
+- AIP demo
+- ACP demo
+- event
+
+Keep it responsible only for:
+- body-source caching
+- `renderPublicationMdx`
+- author resolution
+- standard related-item generation
+- TOC extraction
+- standard `PublicationPost` assembly for non-gated categories
+
+Keep whitepaper and news out of this helper initially.
+
+Useful config surface that stayed small:
+- `category`
+- `categoryLabel`
+- `relatedTitle`
+- `defaultAuthorAvatarSrc`
+- `records`
+- `getRecord`
+- `getHref`
+- `fallbackToAllRecords` (needed for use-case and event only)
+
+### Blog and whitepaper records follow-up
+- Blog migrated cleanly to the shared records helper with no helper expansion beyond the existing default list-item behavior.
+- Whitepaper also migrated cleanly as long as the helper accepted a tiny description override hook for `listDescription ?? description`.
+- Important: whitepaper record migration must not touch `get-whitepaper-publication-post.ts`, gating split logic, gated body rendering, or preview bypass behavior.
+
+### News records follow-up
+- News can still fit the shared records helper without making the abstraction ugly, but only if the helper grows a single custom list-item hook such as `createListItem(record, href)`.
+- This preserves the news-specific list item shape:
+  - `sourceLabel`
+  - `opensExternal`
+  - custom badge/description fields when needed
+- Do not force news into the default `ResourceItem` list shape.
+
+### Structure-test maintenance rule
+A major recurring finding: many repo tests assert old internal implementation details, not just behavior.
+Examples of stale assertions that had to be updated during these refactors:
+- expecting `renderPublicationMdx` to appear directly inside each category-specific `get-*-publication-post.ts`
+- expecting explicit inline `resolveRedirectablePublicationHref(...)` inside every `*-publication-records.ts`
+- expecting old cache function names like `getBlogPublicationCache`
+- expecting helper-irrelevant file paths like `src/lib/resources.ts`
+
+When these fail after a refactor:
+- do not revert the refactor just to satisfy the old test shape
+- update the tests to assert the new helper-backed contract instead
+- keep public route and redirect behavior assertions intact
+
+A good replacement pattern is:
+- assert the category file imports the shared helper
+- assert old duplicated cache/load functions are gone
+- assert the intended helper config hook is present (`fallbackToAllRecords`, `getListItemDescription`, `createListItem`, etc.)
+- keep route-level assertions for canonical URLs, redirectUrl behavior, and content-family-specific labels
+
+### Branch-specific test expectation rule
+If you split the refactor into multiple PRs, do not update shared structure tests as if all earlier phases already landed on `main`.
+For example:
+- a whitepaper-only PR should not change redirect-contract tests to assume the blog helper migration is already present unless that branch actually includes the blog migration
+- a news-only PR should update helper-aware exceptions only for the categories migrated in that branch
+
+Always align the test expectations with the exact categories included on that branch's diff, not with the eventual planned end state.
+
 ## Done criteria
 
 - fresh branch/worktree from latest `origin/main`

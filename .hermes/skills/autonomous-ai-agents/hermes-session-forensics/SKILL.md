@@ -201,13 +201,38 @@ If the user insists there is a recent CLI session and `state.db` does not show o
 When a live Hermes CLI process is found, extract and report:
 - PID
 - tty
+- process state from `ps` (for example `S`, `S+`, `T`, `Ss+`)
 - elapsed runtime
 - cwd
 - command line (especially `--resume <session_id>`)
 - `HERMES_HOME`
+- `TERM_SESSION_ID`
 - which `state.db` / logs are currently open
 
 A `--resume <session_id>` argument is especially strong evidence for the underlying session identity even if recent turns are not yet visible in the DB.
+
+## Additional anomaly checks for "weird" Hermes CLI state
+
+When the user is not asking to recover a past session but to diagnose a suspicious live CLI state, add these checks:
+
+1. Compare **live Hermes CLI process count** vs **`sessions where source='cli' and ended_at is null`** in `state.db`.
+   - If the DB shows far more open CLI sessions than the actual live process count, treat that as evidence that session shutdown bookkeeping is not completing reliably.
+   - Also compute how many of those open CLI sessions have been idle for a long time (for example 24h+) by looking at the latest `messages.timestamp` per session.
+
+2. Check for **multiple Hermes PIDs on the same `tty` or `TERM_SESSION_ID`**.
+   - This is a strong sign that an earlier CLI instance in the same terminal tab did not shut down cleanly and a newer Hermes was launched on top of it.
+   - The combination `same tty + same TERM_SESSION_ID + multiple Hermes PIDs` is especially suspicious.
+
+3. Inspect the **process state flags**.
+   - `T` means stopped/suspended and is not a cleanly exited CLI.
+   - A stopped Hermes sharing a tty with a newer active Hermes instance is a useful concrete finding to report.
+
+4. Cross-check `errors.log` for shutdown / interruption symptoms.
+   - In particular, warnings like `Agent thread still alive after interrupt` are relevant evidence when open sessions and duplicate processes accumulate.
+
+5. Separate **runtime provider/model issues** from **process/session cleanup issues**.
+   - Auxiliary-provider failures (timeouts, 429s, unsupported model errors, memory-flush warnings) can coexist with bad session cleanup.
+   - Report them as parallel contributing symptoms, not as proof that one caused the other unless the logs show the direct sequence.
 
 ## What to extract for the user
 

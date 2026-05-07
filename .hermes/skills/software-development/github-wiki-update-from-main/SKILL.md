@@ -406,6 +406,25 @@ Recommended rewrite pattern:
 
 This avoids a common failure mode where a wiki page cites the newest commit SHA but still describes the pre-merge world.
 
+### Practical acceleration trick for stale wiki rewrites
+
+If the wiki page already records an older baseline SHA, diff that old SHA against the new `origin/main` SHA before rewriting the page narrative.
+
+Recommended pattern:
+
+```bash
+git diff --name-status <old-sha>..<new-sha> -- src/app src/content src/lib
+git diff --stat <old-sha>..<new-sha> -- <most-relevant-subtrees>
+```
+
+Why this helps:
+- it quickly reveals which route families or content inventories actually changed since the last wiki snapshot
+- it exposes when a route changed shape entirely (for example redirect `route.ts` replaced by local `page.tsx`)
+- it prevents preserving stale blocker language just because the old wiki page sounded plausible
+- it helps target the re-audit on the exact files that invalidate old counts, rollout status, or priority ordering
+
+Use this especially for migration dashboards, rollout plans, and route-readiness pages where a few merged PRs can completely invert the document's conclusions.
+
 ## Consolidation and wiki-IA cleanup rule
 
 When the user says several wiki pages are duplicated, stale, or should be reorganized around the latest canonical document, do not limit yourself to editing one page in isolation.

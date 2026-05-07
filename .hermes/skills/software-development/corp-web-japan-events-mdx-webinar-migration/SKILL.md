@@ -61,7 +61,8 @@ id: "27"
 slug: "air-company-ai-agent-security-webinar"
 title: "..."
 description: "..."
-date: "2026年4月9日"
+date: "2026-04-09"
+eventDate: "2026-04-16"
 heroImageSrc: "/events/27/thumbnail.png"
 eventLabel: "ウェビナー"
 hideHeroImageOnDetail: true
@@ -78,9 +79,16 @@ Notes:
 - `eventLabel` is the single event-type badge shown on `/t/events`; use values like `イベント`, `ウェビナー`, `ワークショップ`, or `研修`
 - `hideHeroImageOnDetail: true` hides the top hero image only on the detail page; omit it or set `false` to keep the current default rendering
 - the current list-page fallback remains `イベント` when `eventLabel` is omitted
-- convert source ISO dates to display-ready Japanese date strings used by the local site
+- preserve the current `date` contract used by the local event corpus: ISO `yyyy-mm-dd` string for the posting/publish date
+- `eventDate` should also use ISO `yyyy-mm-dd`, but only when the source/local MDX body explicitly states a concrete scheduled date
+- when the local MDX body explicitly states a concrete scheduled date such as `日時：YYYY年M月D日` or `日付: YYYY年M月D日`, derive `eventDate` from that scheduled date
+- do NOT add `eventDate` merely by copying `date` when the body does not state a concrete scheduled date
+- this matters especially for older webinar/video-summary entries and hidden redirect shadow records: if the body does not expose a scheduled date, omit `eventDate`
+- implementation nuance learned from later follow-up work: loaders should still treat `eventDate` as optional in the frontmatter type, and timeline/list classification may use an effective date helper like `record.eventDate ?? record.date`
+- when adding or updating timeline classification tests, use this contract: expected effective event date = explicit body event date if present, otherwise frontmatter `date`; but the presence of frontmatter `eventDate` itself should only be asserted for entries whose body explicitly states that scheduled date
 - convert source `relatedPosts` legacy webinar paths into `relatedIds`
 - use `author: "querypie"` unless a different local author is explicitly needed
+
 
 ## MDX normalization rules
 
@@ -187,18 +195,14 @@ At minimum:
    - `/events/[id]` redirects canonically
    - `/events/[id]/[slug]` loads by id and redirects only on slug mismatch
    - event loader uses `renderPublicationMdx` and `extractHeadingsFromMdx`
-   - if a fixture spot-checks a specific imported event like `27.mdx`, keep its `hideHeroImageOnDetail` expectation aligned with the current MDX corpus rather than an older migration snapshot
 
 2. imported corpus test
    - exact expected Japanese event IDs are present as local MDX files
    - each event MDX uses `heroImageSrc: "/events/<id>/thumbnail.png"`
-   - when an event body still embeds the same hero thumbnail via `ArticleFileImage filepath="public/events/<id>/thumbnail.png"`, require `hideHeroImageOnDetail: true`
    - no `public/webinar/` references remain
    - no `/features/demo/webinars/` references remain
 
 3. component support test
-   - `ArticleYoutubeGatingForm` and `EmailLink` are registered in the MDX components map
-
    - `ArticleYoutubeGatingForm` and `EmailLink` are registered in the MDX components map
 
 ## Verification
