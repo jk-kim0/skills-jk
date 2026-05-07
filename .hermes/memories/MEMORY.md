@@ -183,3 +183,11 @@ In corp-web-japan, .github/workflows/ci.yml and deploy-preview.yml both support 
 In corp-web-japan manuals work, the real replacement target for legacy /api-docs.html is https://docs.querypie.com/ja/api-reference.
 §
 On this machine, exiftool is installed and available in PATH.
+§
+In corp-web-japan, Vercel WAF custom rules are now managed as a repo-committed source of truth under ops/vercel-firewall/, with a project-specific JSON payload plus README, and applied project-scoped via full PUT to /v1/security/firewall/config for corp-web-japan.
+§
+In corp-web-japan news rollout, direct redirects/opening to external media pages for local news items are intentionally avoided because external media links often break; local /news detail rendering is preferred over direct external card navigation.
+§
+In corp-web-japan event MDX, add `eventDate` only when the body explicitly states a concrete event date; do not infer it from frontmatter `date` or add it to hidden shadow redirect records without explicit source evidence.
+§
+Repo-specific rule for corp-web-japan: promoted/replaced preview /t/* endpoints should be removed entirely by default, not preserved as redirects. Only keep a /t/* route if the user explicitly requests that exact compatibility path.

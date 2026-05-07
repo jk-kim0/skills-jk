@@ -54,28 +54,22 @@ Typical targets:
     - ... with category-specific loader allowlists deciding which files belong to introduction-deck, glossary, and manuals
 - Important lesson: do not assume the code abstraction name (`resources`) should also be the content directory name. The user may want the loader abstraction kept in `src/lib/resources/*` while the actual MDX files live under `src/content/docs` or direct family folders.
 - If the user explicitly asks to collapse glossary/manuals/introduction-deck into one directory, prefer `src/content/docs` over `src/content/resources`.
-- Important follow-up lesson from PR #223 review: treat a single flat `src/content/docs/*.mdx` directory plus per-loader filename allowlists as an exception-only compromise, not the preferred steady-state architecture.
-- Why: family ownership becomes implicit in loader string arrays instead of obvious in the filesystem, new files/renames require touching loader allowlists, and category leakage/omission becomes easier.
-- Preferred default remains physically separated family roots (for example `src/content/<family>/*.mdx`, or at minimum `src/content/docs/<family>/*.mdx`) unless the user explicitly accepts the flatter tradeoff.
-- If you are following up on a PR that already flattened the files and the user wants the cleaner structure back, prefer a rename-based reversal into family roots instead of reauthoring the MDX from scratch. Typical target recovery shape:
-  - `src/content/introduction-deck/*.mdx`
-  - `src/content/glossary/*.mdx`
-  - `src/content/manuals/*.mdx`
-- In that reversal, update all of these together in one pass:
-  - each repository `contentRoot`
-  - any tests asserting concrete content paths
-  - any temporary `public/docs/**` hero-image references back to family-aligned public paths
-  - any now-empty `src/content/docs` / `public/docs` directories should be deleted after references are gone
-- Additional PR #223 follow-up lesson: if the branch also introduced a new list-page abstraction just to support the content-root move, verify that abstraction actually exists in the repo before keeping it. In `corp-web-japan`, the safer default for preview list pages like `/t/manuals` is to preserve the existing composition built from `ResourceListHeroSection`, `ResourceListContentSection`, `ResourceCategorySidebar`, and `ResourceListItems` unless the user explicitly asked for a UI abstraction refactor.
-- Also preserve `ResourceItem.id` when changing `BaseResourcePublicationRepository.listItems()`. The preview list grid keys items by `item.id`, and dropping that field causes both typecheck and build failures even if the content move itself is otherwise correct.
 - The same rule applies to public assets: do not mirror a generic content-storage umbrella as `public/documentation/**`.
 - The user still expects public asset paths to remain route/content-family aligned by feature, even if MDX sources are consolidated under `src/content/docs`.
 - Good examples:
   - `public/introduction-deck/1/thumbnail.png`
-  - `public/glossary/1/thumbnail.png`
+  - `public/glossary/3/thumbnail.png`
   - `public/manuals/4/thumbnail.png`
   - `public/manuals/7/install-guide-1.png`
 - Introduction-deck specific follow-up lessons:
+  - if a gated intro-deck/detail page shows no vertical gap between explanatory copy and the following MDX `<ButtonLink>`, do not patch the MDX with extra `<br />` lines
+  - the correct fix is in the shared publication body styling at `src/components/sections/publication-post-page.tsx`
+  - keep `.article-content-btn` as the shared button primitive, and add adjacent-sibling spacing rules only for text-block-following cases such as:
+    - `[&_p+_.article-content-btn]:mt-4`
+    - `[&_ul+_.article-content-btn]:mt-4`
+    - `[&_ol+_.article-content-btn]:mt-4`
+  - prefer this targeted sibling-spacing approach over giving every `.article-content-btn` a blanket top margin, because top-of-document CTAs and other existing button placements should not shift
+  - add a small source-based regression test (for example `tests/publication-post-button-spacing.test.mjs`) that asserts those shared style tokens exist, instead of testing only a single MDX file
   - if the user wants original downloadable PDFs localized into this repo, place them under the same route-aligned asset directory as the matching MDX item, for example:
     - `public/introduction-deck/1/QueryPie_AIP_Intro_JP.pdf`
     - `public/introduction-deck/2/QueryPie_ACP_Intro_JP.pdf`
@@ -135,48 +129,17 @@ Typical targets:
   - to `public/manuals/4/install-guide-1.png`
 - When a family's item IDs are renumbered or repurposed, move the whole asset set to the new ID directory and update every MDX `heroImageSrc`, `relatedItems.imageSrc`, and `ArticleFileImage filepath` reference in the same change.
 - For manuals specifically, if formerly external-only entries become local MDX detail pages, give each manual its own stable ID directory such as `public/manuals/1/thumbnail.png`, `public/manuals/2/thumbnail.png`, etc., instead of keeping legacy directories like `public/manuals/api-docs/` or `public/manuals/aip-guide/`.
-- Important semantics lesson from PR 223 follow-up: when you normalize IDs/paths, do not automatically rewrite every `relatedItems.href` into local `/t/manuals/...` links just because local manual detail routes now exist.
-- Some source documents intentionally point to external QueryPie docs and also use family-specific related thumbnail assets. A key example is glossary: preserve original external docs destinations such as `https://docs.querypie.com/ja/release-notes`, `.../administrator-manual`, and `.../user-manual`, with image paths like `/glossary/1/related-*-thumbnail.png`, instead of replacing them with local manual cards.
-- Another important semantics lesson: if a manual wrapper page already exists and the user says its label/title is wrong, fix the naming first before deleting the page. In PR 254 follow-up work, deleting `5-acp-manual.mdx` was the wrong interpretation when the user actually wanted the page retained but renamed from `QCP Manual` to `QueryPie ACP Manual`.
-- Practical rule: distinguish between three operations before editing manuals links/content:
-  1. rename a mistaken label/title on an existing wrapper page,
-  2. remove a wrapper page because the user explicitly no longer wants that concept,
-  3. replace an external destination with a local detail route.
-- Do not treat those as interchangeable. Preserve the original information architecture unless the user clearly asks to collapse or remove it.
-- Be careful when converting related-item references during that numeric-ID migration: not every old manual-family card should become a local `/t/manuals/...` related link.
-- Specific lesson from the glossary migration follow-up: glossary related items originally pointed at external docs endpoints and glossary-owned related thumbnails. Those should stay as:
-  - external docs `href`s like `https://docs.querypie.com/ja/release-notes`
-  - glossary-owned `imageSrc`s like `/glossary/1/related-release-notes-thumbnail.png`
-  rather than being rewritten to local manual detail routes or `/manuals/*` thumbnails just because manuals were localized.
 
 5. Keep the preview hub separate from category loaders.
 - A mixed hub like `/t/resources` can compose items from several category loaders plus existing local blog/whitepaper lists.
 - But the category-specific list/detail loaders should not be collapsed back into one generic grouped implementation.
 - If a preview family still mixes local MDX records with ad hoc external item arrays (for example manuals), prefer converting those external entries into local MDX records as well once the user wants a fully local route family. Then simplify the preview item source back to the category repository only.
 - For manuals specifically, a common follow-up is that the user wants all manual cards represented as local MDX records with stable numeric IDs and explicit canonical slugs. In that case:
-  - prefer readable numeric filenames of the form `<id>-<slug>.mdx` instead of bare `1.mdx` or slug-only filenames
-  - example target shape:
-    - `src/content/manuals/1-acp-community-install-guide.mdx`
-    - `src/content/manuals/2-acp-administrator-manual.mdx`
-    - `src/content/manuals/3-acp-user-manual.mdx`
-    - `src/content/manuals/4-acp-api-reference.mdx`
-    - `src/content/manuals/5-acp-manual.mdx`
-    - `src/content/manuals/6-aip-manual.mdx`
-    - `src/content/manuals/7-acp-release-notes.mdx`
-  - keep frontmatter split cleanly: `id` stays numeric-string, `slug` stays canonical route slug
+  - create one MDX file per manual under `src/content/resources/manuals/<id>.mdx`
   - move or duplicate legacy thumbnail assets into stable ID directories like `public/manuals/1/thumbnail.png`, `public/manuals/2/thumbnail.png`, etc.
-  - if an older manual record is repurposed or renumbered (for example an install guide moving from one numeric slot to another), move its body-image assets to the new ID directory and update every `ArticleFileImage filepath` reference in the same edit
+  - if an older manual record is repurposed or renumbered (for example an install guide moving from `1.mdx` to `4.mdx`), move its body-image assets to the new ID directory and update every `ArticleFileImage filepath` reference in the same edit
   - update `relatedItems.href` values across all manuals to the new canonical `/t/manuals/:id/:slug` routes after slug changes
-  - if the branch removed old external-only manual entries but later content still links to one of those destinations (for example ACP manual / QCP Manual), add a small local wrapper MDX such as `5-acp-manual.mdx` instead of leaving broken `/t/manuals/acp-manual/acp-manual` references
-  - if the user later clarifies that a label was wrong but the wrapper page itself is still desired, restore that wrapper page on the same PR branch instead of insisting on the earlier removal
-  - for that restored wrapper page, preserve the local route (`/t/manuals/5/acp-manual`) but fix all user-facing strings consistently: title, section heading, button text, descriptive copy, and every related-item label that points to it
-  - do not over-correct by redirecting all references to another manual family page (for example AIP manual) when the user's actual instruction was only to rename the ACP wrapper page
   - remove the old mixed external-item array from preview item composition so the list source is only `listManualPublicationItems()`
-  - if the user asks for a shorter canonical slug after the numeric migration, it is fine to shorten both the filename and `slug` together (for example `1-querypie-acp-community-install-guide.mdx` -> `1-acp-community-install-guide.mdx`) as long as all internal `/t/manuals/:id/:slug` references and tests are updated in the same commit
-- For glossary specifically, preserve the original meaning of `relatedItems` when normalizing IDs/slugs/file names.
-  - The glossary page's related links may intentionally remain external QueryPie docs URLs instead of local `/t/manuals/...` routes.
-  - The related thumbnails may intentionally remain glossary-specific assets such as `public/glossary/1/related-*.png`, not manual thumbnail paths.
-  - If a later follow-up shortens the glossary slug, also rename the file to keep the `<id>-<slug>.mdx` convention aligned, and update any file-existence tests in the same commit.
 
 ## Recommended workflow
 
