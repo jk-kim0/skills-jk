@@ -143,7 +143,15 @@ When the user asks to create a PR from the current local workspace state rather 
    - Do not rely only on `git status`; a file can be marked resolved while still containing conflict text.
    - For config files such as `.yaml`, also run a lightweight parse check (for example `python -c 'import yaml, pathlib; yaml.safe_load(pathlib.Path(...).read_text())'`).
    - When resolving against latest `main`, prefer the actual `origin/main` file content as the source of truth instead of guessing which side of the conflict to keep.
-9. Push the branch, then create or update the PR.
+9. If `git rebase --continue` is blocked because you restored broader local workspace changes while the rebased commit itself only touches a smaller subset of files, temporarily move the unrelated non-index changes back out of the way.
+   - Practical pattern:
+     - stage the actual conflict-resolved file(s) that belong to the rebased commit
+     - `git stash push -u --keep-index -m '<temp-note>'`
+     - `GIT_EDITOR=true git rebase --continue`
+     - re-apply the earlier broader workspace stash after the rebase finishes
+   - This is especially useful in `skills-jk` when a one-file commit is being rebased but the working tree also contains many restored local skill/memory edits from the user's current workspace.
+   - Without this step, `git rebase --continue` can fail or become confusing because the rebase commit is ready, but unrelated restored changes are still sitting unstaged in the working tree.
+10. Push the branch, then create or update the PR.
 10. Leave local-only artifacts untracked unless the user explicitly wants them in the PR.
 11. In the PR body, briefly note what was intentionally excluded if that helps reviewers understand the scope
 

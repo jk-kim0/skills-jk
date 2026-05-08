@@ -15,11 +15,11 @@ agent:
   max_turns: 90
   gateway_timeout: 1800
   restart_drain_timeout: 60
-  api_max_retries: 3
   service_tier: fast
   tool_use_enforcement: auto
   gateway_timeout_warning: 900
   gateway_notify_interval: 600
+  api_max_retries: 3
   name: hermes
 terminal:
   backend: local
@@ -48,42 +48,19 @@ browser:
   record_sessions: false
   allow_private_urls: false
   cdp_url: ''
-  dialog_policy: must_respond
-  dialog_timeout_s: 300
   camofox:
     managed_persistence: false
-mcp_servers:
-  chrome-devtools:
-    command: npx
-    args:
-      - -y
-      - chrome-devtools-mcp@latest
-      - --autoConnect
-      - --no-usage-statistics
-      - --logFile=/tmp/chrome-devtools-mcp-hermes.log
-    env:
-      PATH: /opt/homebrew/opt/node@20/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
-    timeout: 120
-    connect_timeout: 60
-  browsermcp:
-    command: npx
-    args:
-      - '@browsermcp/mcp@latest'
+  dialog_policy: must_respond
+  dialog_timeout_s: 300
 checkpoints:
   enabled: false
   max_snapshots: 50
 file_read_max_chars: 100000
-tool_output:
-  max_bytes: 50000
-  max_lines: 2000
-  max_line_length: 2000
 compression:
   enabled: true
   threshold: 0.85
   target_ratio: 0.2
   protect_last_n: 20
-prompt_caching:
-  cache_ttl: 5m
 bedrock:
   region: ''
   discovery:
@@ -181,10 +158,6 @@ display:
   tool_progress_overrides: {}
   tool_preview_length: 0
   platforms: {}
-platforms:
-  telegram:
-    enabled: true
-    token: ${TELEGRAM_BOT_TOKEN}
 dashboard:
   theme: default
 privacy:
@@ -248,11 +221,11 @@ delegation:
   api_key: ''
   inherit_mcp_toolsets: true
   max_iterations: 50
-  child_timeout_seconds: 600
   reasoning_effort: ''
   max_concurrent_children: 3
   max_spawn_depth: 1
   orchestrator_enabled: true
+  child_timeout_seconds: 600
   subagent_auto_approve: false
 prefill_messages_file: ''
 skills:
@@ -319,6 +292,29 @@ sessions:
   vacuum_after_prune: true
   min_interval_hours: 24
 _config_version: 22
+mcp_servers:
+  chrome-devtools:
+    command: npx
+    args:
+    - -y
+    - chrome-devtools-mcp@latest
+    - --autoConnect
+    - --no-usage-statistics
+    - --logFile=/tmp/chrome-devtools-mcp-hermes.log
+    env:
+      PATH: /opt/homebrew/opt/node@20/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+    timeout: 120
+    connect_timeout: 60
+tool_output:
+  max_bytes: 50000
+  max_lines: 2000
+  max_line_length: 2000
+prompt_caching:
+  cache_ttl: 5m
+platforms:
+  telegram:
+    enabled: true
+    token: ${TELEGRAM_BOT_TOKEN}
 profiles:
   fast:
     model: gpt-5.4
