@@ -159,10 +159,17 @@ git worktree add -b <branch-name> ~/workspace/<repo>-<topic> origin/main
 Then verify with:
 
 ```bash
+test -d ~/workspace/<repo>-<topic> && echo exists
 git -C ~/workspace/<repo>-<topic> branch --show-current
 git -C ~/workspace/<repo>-<topic> rev-parse --show-toplevel
 find ~/workspace/<repo>-<topic> -maxdepth 2 | sed -n '1,30p'
 ```
+
+Important extra lesson:
+- do not trust the `git worktree add` success message by itself
+- in practice, a worktree creation can appear to succeed yet leave no usable directory at the requested path
+- explicitly verify that the target directory now exists before any `read_file`, `patch`, or follow-up shell command
+- if the directory is missing, prune stale registrations if needed and recreate the worktree at a short, flat fallback path such as `~/workspace/cwj-<topic>`
 
 Only start editing after those checks pass.
 
@@ -232,6 +239,12 @@ git rebase origin/main
 
 Use the latest `main` again as the final integration baseline. Do not skip this just because the branch originally started from latest `main`.
 
+Practical same-session nuance learned from `/t/events` preview work:
+- `origin/main` can advance between worktree creation and your first push, even during a short task.
+- If a final `git fetch` shows `HEAD`, `origin/main`, and `merge-base` no longer match, rebase **before the first push**, not after opening the PR.
+- If that rebase conflicts in a touched route because latest `main` already landed a helper-path cleanup (for example `@/lib/publications/event-publication-records` -> `@/lib/publications/events/records`), keep the latest-main helper/import path and reapply only your intended UI/behavior change on top.
+- Heuristic: preserve latest-main structural/path cleanups first, then layer the requested route behavior onto that file. Do not resolve the conflict by reviving the old helper path just because your branch started before the cleanup merged.
+
 Practical follow-up nuance:
 - If you are on a fresh latest-main worktree branch with uncommitted changes, `git rebase origin/main` will fail with `cannot rebase: You have unstaged changes`.
 - In that situation, do not stash reflexively.
@@ -290,8 +303,11 @@ npm run build
 
 Notes:
 - In a freshly created worktree, install dependencies before relying on `npm run test:ci`. If `eslint` is missing or `node_modules/.bin/eslint` does not exist, run `npm install` in that worktree first.
+- If the user wants to avoid a fresh worktree-local install and the parent repo checkout already has a usable `node_modules`, a temporary symlink from the worktree `node_modules` to the parent checkout can be enough to run `npm run test:ci` / `eslint` / `tsc` for verification.
+- Important limitation: Next.js Turbopack local builds can reject that symlink with `Symlink [project]/node_modules is invalid, it points out of the filesystem root`. In that case, do not treat the symlink itself as a product bug. For local verification from that symlinked worktree, prefer `next build --webpack` instead of the default Turbopack build path.
 - If build shows a Next.js warning about multiple lockfiles because of the worktree, that is not itself a build failure.
-- What matters is whether the build succeeds and the generated routes match the intended public surface.
+- Distinguish PR-caused build failures from existing baseline failures on latest `origin/main`. If `next build --webpack` fails on the known corp-web-japan baseline CSS Modules issue in `src/components/layout/site-header.module.css` (`:root` selector is not pure), record it as an unrelated baseline rather than as a regression from the current PR.
+- What matters is whether the build succeeds or, if a known baseline issue blocks it, whether the rewritten PR introduced any new failure beyond that baseline and whether the generated routes/tests still match the intended public surface.
 
 ## Pitfalls
 

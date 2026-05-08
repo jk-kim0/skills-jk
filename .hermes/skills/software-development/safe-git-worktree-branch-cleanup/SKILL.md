@@ -242,6 +242,23 @@ Practical interpretation:
   - transplant only the meaningful current dirty patch onto the fresh branch
 - do not classify the whole worktree as stale just because the branch/PR lineage is stale
 
+Additional practical case: branch head can be effectively stale or even net-empty, while the worktree still holds meaningful unpublished implementation
+
+Typical signal pattern:
+- the branch is not connected to any open PR
+- the branch may even track `origin/main` directly or have `git rev-list origin/main...<branch>` close to `0 0`, `behind 1`, or another misleadingly small value
+- the branch commit itself may be an old main-equivalent checkpoint or other non-meaningful base
+- yet `git status --short` in the attached worktree shows real tracked edits plus meaningful untracked source/test files
+- those untracked files are not temp helpers like `.tmp-issue-*.md`, but actual implementation files under `src/` or `tests/`
+
+Example summary language:
+- `stale branch pointer + meaningful local worktree patch`
+
+Handling rule:
+- judge the branch validity and the live worktree patch separately
+- it is acceptable to delete the stale branch later, but only after preserving or transplanting the real worktree patch
+- do not delete such a worktree automatically just because the branch itself looks equivalent to old main or not meaningfully ahead
+
 User-specific validation heuristic for repo-local cleanup:
 - branches or worktrees not connected to any open PR should be treated as stale candidates by default, not preserved by default just because they are branch-backed
 - however, validate any remaining local work against the latest `main`/`origin/main` tree before deleting
@@ -493,6 +510,30 @@ Sometimes the repository ends up with both:
 - the official local PR branch name (for example `docs/publication-refactor-plan`)
 - a local helper/alias branch name (for example `pr287-rewrite`)
 
+A nearby variant is a no-PR local helper branch that tracks `origin/main` but actually exists only as an alias for the current open PR head or for current `main`.
+Examples from corp-web-japan cleanup included helper names like `pr300-main`, `pr301-main`, and `fix/news-sitemap-indexing`.
+
+Signal patterns:
+- the branch name does not match any open PR head branch
+- `git rev-list --left-right --count origin/main...<branch>` shows `0 0` or a tiny helper delta like `0 1`
+- `git rev-parse <branch>` exactly equals either:
+  - the current `origin/main` tip, or
+  - an open PR's `headRefOid`
+- the attached worktree, if any, is clean
+
+Interpretation:
+- if the branch SHA equals `origin/main`, it is just a redundant local alias of main and is stale
+- if the branch SHA equals an open PR `headRefOid` but the branch name is not the official PR branch name, it is just a redundant local alias of the PR head and is stale once the official branch/worktree is synchronized
+
+Recommended handling:
+1. identify whether the authoritative state should live on `main` or on the official PR branch name
+2. if needed, first realign the official clean branch-backed worktree to the remote PR head
+3. then delete the alias branch and its clean worktree
+
+Practical rule:
+- do not preserve no-PR helper branches that merely mirror `origin/main` or an open PR head under a convenience name
+- keep the authoritative branch name; remove the alias
+
 And the helper branch, not the official local branch, matches the current remote PR head commit.
 
 Check this with:
@@ -650,6 +691,7 @@ Interpretation:
 Practical lesson from corp-web-japan cleanup:
 - `internal-events-demo-pr285c` was a clean detached clone equal to open PR #285 head and safe to remove
 - `internal-events-demo-pr285b` was an older clean detached ancestor of that same line and also safe to remove
+- later helper chains such as `cta-glow-soften`, `pr301-lint`, and similar detached follow-up clones showed the same pattern: once a clean official branch worktree was reset to the current remote PR head, the detached helper clones became redundant and removable
 - a later variant showed the official branch-backed worktree itself could be behind the remote open-PR head while detached helpers held newer commits; in that case, first clear disposable temp files from the official worktree if needed, then hard-reset the official clean branch worktree to `origin/<pr-branch>`, and only after that remove the detached helper clones
 
 ### Additional practical case: root staged residue copied from a merged detached helper worktree
@@ -727,6 +769,29 @@ Practical rule:
 - once cleanup starts deleting stale worktrees/branches, re-run `git fetch --prune`, re-check open PR heads, and re-check `git worktree list` before each new deletion batch if the repo is actively changing
 - this matters in fast-moving repos where `origin/main` or PR heads can advance during the cleanup session itself
 - after the cleanup batch, fast-forward the root `main` worktree to the latest `origin/main` when the root checkout is clean so the workspace ends in a refreshed baseline
+
+Additional practical case: branch names and PR head names can change mid-cleanup, so a stale candidate can become active before you delete it
+
+In repositories with active stacked follow-up work, a branch that looked like a non-open-PR stale candidate at the start of the session can later become the actual head branch of a newly opened PR, or an official branch can be replaced by a rewrite/rebase alias that now carries the real PR head.
+
+Check this immediately before any destructive deletion batch:
+
+```bash
+env -u GITHUB_TOKEN gh pr list --state open --json number,headRefName,headRefOid,title,url
+git for-each-ref --format='%(refname:short)|%(objectname:short)' refs/heads
+git worktree list --porcelain
+```
+
+Then verify for each deletion candidate:
+- whether the branch name now exactly matches an open PR `headRefName`
+- whether the branch SHA now exactly matches an open PR `headRefOid`
+- whether an attached helper branch/worktree with a different name has become the authoritative current PR head while the older official local branch is now stale
+
+Practical interpretation:
+- `non-open-PR at T1` does not guarantee `non-open-PR at T2`
+- do not delete a candidate based only on an earlier snapshot from the same session
+- if an alias branch becomes the actual open PR head, preserve it and reclassify the formerly official but outdated branch/worktree as the stale residue instead
+- if a branch/worktree points exactly at `origin/main` and has no open PR role, treat it as a no-op local alias and delete it
 
 ## 8. Update local main safely
 

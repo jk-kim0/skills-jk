@@ -79,6 +79,9 @@ Typical git steps:
 ## Practical lessons
 
 - `gh repo view` helps confirm the main repo, but wiki editing itself is usually plain `git` against `.wiki.git`.
+- Important repo-context pitfall: once your shell cwd is inside the wiki clone, `gh` commands that infer the current repository (for example `gh pr list`, `gh pr view`, or even some `gh repo` operations) can target `<owner>/<repo>.wiki` instead of the product repository and fail with errors like `Could not resolve to a Repository with the name '<owner>/<repo>.wiki'`.
+- The same cwd trap can affect product-code inspection too: file reads/searches that use relative paths after you have `cd`'d into the wiki clone can silently hit the wiki repo (or fail with missing-path errors) instead of the product repo.
+- When you still need product-repo GitHub data or source inspection during wiki work, either run commands from the product repo checkout, pass `--repo <owner>/<repo>` explicitly for `gh`, use a terminal command with an explicit `workdir` pointing at the product repo, or use absolute product-repo file paths.
 - If the repository already has a local wiki clone that the user expects you to use, prefer that existing clone over making a fresh temp clone. Verify it is clean enough to work in, then edit there and push from there.
 - When using Hermes file-editing tools on a cloned wiki repository, prefer absolute paths over `~/...` paths and immediately re-read the file before committing. Path expansion can be inconsistent across tool contexts, so verify the final markdown from disk before `git add`.
 - Wiki repos can change remotely while you are editing. If `git push` is rejected with a non-fast-forward error, fetch the wiki remote, inspect the new remote commits, then `git pull --rebase origin <wiki-branch>` (commonly `master`) or equivalently rebase onto `origin/<wiki-branch>`, and push again. Do not force-push unless explicitly required.

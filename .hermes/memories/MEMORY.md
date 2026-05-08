@@ -191,3 +191,11 @@ In corp-web-japan news rollout, direct redirects/opening to external media pages
 In corp-web-japan event MDX, add `eventDate` only when the body explicitly states a concrete event date; do not infer it from frontmatter `date` or add it to hidden shadow redirect records without explicit source evidence.
 §
 Repo-specific rule for corp-web-japan: promoted/replaced preview /t/* endpoints should be removed entirely by default, not preserved as redirects. Only keep a /t/* route if the user explicitly requests that exact compatibility path.
+§
+In corp-web-japan sitemap policy, hidden MDX records should be excluded from sitemap.xml by default, but hidden records with redirectUrl must still be exposed in sitemap.xml so bot-indexable local canonical detail pages remain discoverable.
+§
+In corp-web-japan repo-local blog/whitepaper posting skills, preserve the explicit contract that files are named `src/content/{blog,whitepapers}/<id>-<slug>.mdx` and that the canonical route slug source of truth remains frontmatter `slug`; do not replace this with vague 'route-readable filename' guidance.
+§
+In corp-web-japan migration/status planning, existing blog/whitepaper hidden/redirect/gated records are intentional and should not be resurfaced as generic cleanup work unless the user explicitly asks to revisit that policy or there is a concrete regression.
+§
+In corp-web-japan migration planning, do not surface content-volume/completeness concerns like small AIP demo corpus as remaining work unless the user explicitly asks; evaluate from the migration/route-replacement lens, not content-richness.
