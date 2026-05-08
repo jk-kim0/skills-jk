@@ -132,10 +132,17 @@ When the user asks to create a PR from the current local workspace state rather 
    - If the cherry-pick becomes empty because latest `main` already contains that change, use `git cherry-pick --skip` and continue.
    - Only then continue with staging/committing. This preserves the current file state while ensuring the new PR is based on clean latest main rather than a previously merged PR branch.
 6. Commit only the meaningful files on the current branch.
-7. Before push/PR creation, rebase the current branch onto latest `origin/main`.
+7. Before push/PR creation, verify the final file/tree state still differs from latest `origin/main`.
+   - Do not rely only on commit history such as `git log origin/main..HEAD`; local commits can remain on a stale merged branch even when the final file tree is already identical to latest `origin/main`.
+   - Check both:
+     - tracked diff: `git diff --name-status origin/main -- .`
+     - tree identity when helpful: `git rev-parse HEAD^{tree}` vs `git rev-parse origin/main^{tree}`
+   - If the tracked diff is empty and the trees match, there is no real PR payload left. Do not manufacture a follow-up PR just because old local commits still exist.
+   - In that case, report that `main` was updated, no tracked changes remain, and only any local scratch/untracked files are left for the user to keep or delete.
+8. Before push/PR creation, rebase the current branch onto latest `origin/main`.
    - This is especially important when the branch was created from an older local `main` or its remote tracking branch is gone.
    - If rebase conflicts come from settings already present on latest `main`, keep the newer `main` values and continue so the PR diff stays focused on the still-local changes.
-8. After any manual conflict resolution, explicitly scan the touched files for leftover merge markers before committing or pushing.
+9. After any manual conflict resolution, explicitly scan the touched files for leftover merge markers before committing or pushing.
    - In `skills-jk`, append-only markdown files such as `.hermes/memories/*.md` and skill `SKILL.md` files often conflict when both latest `main` and the local work added new bullets near the end.
    - Do not blindly choose one side; read the conflict block and keep both sides' new entries unless they are true duplicates.
    - Preserve existing separators like `§` in memory files.

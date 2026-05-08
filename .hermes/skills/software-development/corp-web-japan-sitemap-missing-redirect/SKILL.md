@@ -39,11 +39,17 @@ Use this when:
    - `/rss-ko-blog.xml`
    - `/rss-ko-learn.xml`
    - `/rss-ko-webinar.xml`
-4. Generic missing-path handling and `/ja/...` handling should not necessarily use the same precedence.
+4. Generic missing-path handling, `/ja/...` handling, and bare locale-root behavior should not necessarily use the same precedence.
 5. User-preferred `/ja/...` precedence in later work was:
    - first check whether stripped `/path` is real `corp-web-japan` local content
    - if yes, redirect same-origin to `/path`
    - otherwise redirect to `https://www.querypie.com/ja/path`
+6. Important locale-root nuance discovered later:
+   - `src/app/[...missing]/page.tsx` still receives bare locale-root misses such as `/ko`
+   - but `buildQueryPieContentRedirectUrl('/ko')` returns `null`
+   - because the generic localized matcher only accepts `/{locale}/{contentRoot}/...`, not bare `/{locale}`
+   - so `/ko` falls through the generic missing page to `notFound()` unless it is added as an exact allowlist path or handled by a dedicated locale route
+   - meanwhile `/ja/**` can bypass `[...missing]` entirely when `src/app/ja/[[...path]]/route.ts` matches first
 
 ## Fast inspection workflow
 
