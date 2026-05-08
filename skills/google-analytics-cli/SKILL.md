@@ -73,6 +73,7 @@ ga <command> [args]
 | `report <property_id>` | 트래픽 리포트 (일별 세션, 사용자, 페이지뷰) |
 | `pages <property_id>` | 페이지별 성과 |
 | `sources <property_id>` | 트래픽 소스별 성과 |
+| `hosts <property_id>` | Host name(FQDN)별 성과 |
 
 ### 사용 예시
 
@@ -91,6 +92,9 @@ ga pages 451236681 --days 30
 
 # 트래픽 소스별 성과
 ga sources 451236681 --days 30
+
+# Host name(FQDN)별 성과
+ga hosts 451236681 --days 30 --limit 20
 ```
 
 ### 주요 Property ID
