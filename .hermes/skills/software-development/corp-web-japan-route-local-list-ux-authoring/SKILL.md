@@ -90,6 +90,17 @@ Additional reusable follow-up pattern learned from PR layout polishing:
 - After promoting the defaults, also update any compatibility wrapper such as `ResourceListPage` so existing list routes inherit the same validated structure and a11y/container pattern (for example shared sidebar viewport + nav labeling), not just the one demo page.
 - Verify by searching the route file for the old sizing/spacing override classes and confirming they are gone, while the shared component now carries the intended default values.
 
+Additional narrow-refactor pattern learned from the `/t/events` + `/internal/events-demo` follow-up:
+- When the user asks to refactor one repeated subsection block out of two route files, do not jump to a new high-level wrapper component.
+- Prefer extracting a very small set of shared presentational primitives into the existing shared section file (for example heading container / eyebrow / title row / title / description) while keeping the actual copy authored directly in each `page.tsx`.
+- Good fit: two or more routes share identical structural markup and classes, but the user still wants route-local ownership of the visible words.
+- Bad fit: moving the entire subsection into a single opaque component that hides the headline/description strings from the route.
+- For this pattern, add structure tests that assert:
+  - the shared section file exports the new small primitives
+  - each route imports and uses those primitives
+  - the old inline class bundle is gone from the route source
+- This keeps route-local authoring intact while still removing duplicated structure.
+
 ## Done criteria
 
 - `page.tsx` visibly owns the page copy and links

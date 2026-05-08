@@ -68,6 +68,15 @@ Tradeoff:
 - cannot ask follow-up questions
 - current chat context is not automatically preserved unless written into the prompt
 
+Important delivery rule:
+- if the user expects the cron result to come back to the current chat, prefer omitting `deliver` so auto-delivery can target the origin thread
+- if the created job comes back with `deliver: local` or any non-origin destination, immediately update it to `deliver: origin`
+- after `cronjob(create)`, inspect the returned job object instead of assuming the delivery target is correct
+
+Important schedule rule:
+- use supported schedule formats only: durations like `1m`, `30m`, `2h`; recurring forms like `every 2h`; cron expressions; or ISO timestamps
+- natural-language strings like `in 1 minute` are not accepted
+
 ### 3. Use `delegate_task` only for isolated reasoning/implementation, not responsiveness
 
 Best for:

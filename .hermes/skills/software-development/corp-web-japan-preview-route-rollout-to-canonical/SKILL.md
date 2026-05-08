@@ -229,3 +229,19 @@ If it was only an internal preview endpoint, the preferred outcome is:
 - delete `src/lib/publications/querypie-ja-whitepaper-links.ts` if nothing else still needs the old external-link list
 - remove any now-stale imports/usages in `src/content/resources.ts`, `src/lib/resource-posts.ts`, and related tests
 - do not change other preview-switched nav entries unless explicitly requested
+
+## Events-specific lesson learned
+
+In corp-web-japan, promoting `/t/events` to canonical `/events` was not just a matter of removing the old launch gate from `src/app/events/page.tsx`.
+
+Latest-main-safe rollout pattern:
+- first compare the current public `/events` implementation against `src/app/t/events/page.tsx`
+- if `/t/events` already contains the richer real list UX (for example upcoming featured event hero + past-events section), prefer promoting that implementation to `/events` instead of only ungating the old public shell
+- after promotion, delete `src/app/t/events/page.tsx` entirely unless the user explicitly asks to preserve that preview endpoint
+- update `src/app/sitemap.ts` to include `/events`
+- update header/footer links and `ResourceCategorySidebar` event links to point directly at `/events` rather than using preview-only switching or `/t/events`
+- rewrite source-based tests so they assert the canonical `/events` behavior and separately assert that `src/app/t/events/page.tsx` no longer exists
+
+Practical heuristic:
+- if the old public route only contains temporary readiness logic or a thinner shell, while the preview route contains the real canonical-ready UX, treat the task as a canonical promotion of the preview implementation, not as a one-line gate removal.
+- this keeps the final route architecture cleaner and avoids leaving a duplicate preview list implementation behind.

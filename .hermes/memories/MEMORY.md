@@ -199,3 +199,9 @@ In corp-web-japan repo-local blog/whitepaper posting skills, preserve the explic
 In corp-web-japan migration/status planning, existing blog/whitepaper hidden/redirect/gated records are intentional and should not be resurfaced as generic cleanup work unless the user explicitly asks to revisit that policy or there is a concrete regression.
 §
 In corp-web-japan migration planning, do not surface content-volume/completeness concerns like small AIP demo corpus as remaining work unless the user explicitly asks; evaluate from the migration/route-replacement lens, not content-richness.
+§
+In corp-web-japan migration-status documentation, evaluate remaining work only by whether existing querypie.com/ja content/functionality has been fully migrated/replaced locally; do not frame content richness/completeness or intentional hidden/redirect/gated states as migration gaps unless the user explicitly asks.
+§
+In corp-web-japan whitepapers, downloadable PDF CTA metadata is now modeled explicitly in MDX frontmatter as `downloadCta: { href, label, external }`, and route-aligned local PDF assets live under `public/whitepapers/<id>/download.pdf`.
+§
+In corp-web-japan publication-helper planning, the user wants the current low-level duplication between create-standard-publication-post-loader.ts and create-gated-publication-post-loader.ts kept as-is for now; only consider further refactoring later if duplicated code grows materially.

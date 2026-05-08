@@ -212,9 +212,102 @@ If the preview wraps a map or media asset in a padded rounded panel but the live
 ### D. Natural image sizes may matter more than neat symmetry
 For people/team sections, live may intentionally use different portrait sizes per column. If the preview forces equal card widths/heights, parity can look wrong even though the grid is technically cleaner.
 
+Important override rule learned from `/t/about-us` follow-up work:
+- treat live parity as the default goal, not as a hard constraint against the user's explicit direction
+- if the user explicitly asks for a normalized invariant such as "all executive profile image boxes must use one fixed size," follow that request even when the live page currently uses mixed widths
+- in that case, still use the live page to compare surrounding layout structure (text/icon row layout, spacing rhythm, list structure, section spacing), but let the user's explicit invariant win for the targeted element
+
+Practical heuristic:
+- if the user says an element should be standardized, do not keep arguing from live-page variation
+- normalize the requested element intentionally, then re-check that the rest of the section still harmonizes with the live page
+
 ### E. Cross-axis stretch can make a supposedly small frame expand to full card width
 For icon/frame parity work inside vertical flex cards, do not trust `inline-flex` alone.
 
+### E2. For `/about-us`, compare actual layout structure before tweaking spacing
+A key lesson from `/ja/company/about-us` vs `/t/about-us` parity work:
+- some visible mismatches are not spacing bugs but **wrong layout structure choices** in the preview
+- if you only tweak margins/padding, you can miss that the live page uses a different row/column model entirely
+
+Important concrete findings:
+- team leader cards on live were **not** uniform full-width cards; rendered card/image widths differed by person
+  - examples observed on desktop live:
+    - Brant/Jake about `264px`
+    - Paul/Kris about `242px`
+    - Sam/Keizo about `320px`
+- the LinkedIn icon on live was **not** a separate full-width bottom row
+  - it lived in the same horizontal row as the text block (`justify-content: space-between`), aligned to the right of the name/role block
+  - a preview implementation using `w-full justify-end` on the link made the icon look like a bottom-aligned footer row instead of a side-aligned social action
+- the timeline on live was **not** a vertical divider table
+  - it was a `flex` row with:
+    - fixed year width around `94px`
+    - horizontal gap around `18.75px`
+    - a normal bullet list with `list-style: disc` and padding-left around `20px`
+  - the subtle vertical divider was **not on each row**; it lived on the outer timeline list container itself
+    - real live CSS pattern observed: the timeline list wrapper (`timeline_ul`) carried `border-left: 1px solid ...` plus left padding around `30px`
+    - if the preview shows a `border-left` on the second column inside each row, that is the wrong structure
+  - if the preview shows no divider at all, check the outer timeline wrapper before changing the row markup again
+
+Required parity workflow for this page family:
+1. inspect the exact live page in the browser
+2. measure the real card widths, icon link box, and timeline row/list geometry
+3. compare structure first, not just distances
+4. if preview structure differs, rewrite the JSX/layout model to match live before fine-tuning spacing
+
+Useful live-page measurement patterns:
+```js
+// team card widths and LinkedIn placement
+Array.from(document.querySelectorAll('li, article'))
+  .filter(el => el.querySelector('a[href*="linkedin.com"]'))
+  .slice(0, 6)
+  .map(card => {
+    const img = card.querySelector('img');
+    const link = card.querySelector('a[href*="linkedin.com"]');
+    const r = card.getBoundingClientRect();
+    const ir = img?.closest('div')?.getBoundingClientRect();
+    const lr = link?.getBoundingClientRect();
+    return {
+      name: card.querySelector('h6,h3')?.textContent?.trim(),
+      cardW: Math.round(r.width),
+      imageW: ir ? Math.round(ir.width) : null,
+      linkW: lr ? Math.round(lr.width) : null,
+      linkLeft: lr ? Math.round(lr.left) : null,
+      cardRight: Math.round(r.right),
+    };
+  });
+
+// timeline structure
+Array.from(document.querySelectorAll('h4,h3'))
+  .filter(h => /^20\d{2}$/.test(h.textContent?.trim() || ''))
+  .slice(0, 8)
+  .map(h => {
+    const row = h.closest('li, div');
+    const ul = row?.querySelector('ul');
+    const rr = row?.getBoundingClientRect();
+    const ur = ul?.getBoundingClientRect();
+    return {
+      year: h.textContent?.trim(),
+      rowW: rr ? Math.round(rr.width) : null,
+      ulW: ur ? Math.round(ur.width) : null,
+      listStyle: ul ? getComputedStyle(ul).listStyleType : null,
+      paddingLeft: ul ? getComputedStyle(ul).paddingLeft : null,
+      borderLeft: ul ? getComputedStyle(ul).borderLeft : null,
+    };
+  });
+```
+
+Preferred fix patterns when the preview is structurally wrong:
+- team cards:
+  - use live-like per-card widths or width constraints instead of forcing every card to the same width
+  - keep the image wrapper width equal to the intended card width
+  - place the LinkedIn link in the same horizontal row as the text block
+  - use a tiny fixed-width icon/link box on the right, not a full-width footer row
+- timeline:
+  - remove fake divider borders if live does not use them
+  - use a fixed-width year column and a bullet list rather than a table-like bordered second column
+
+Heuristic:
+- if the preview seems "close" but the icon feels vertically wrong or the timeline divider feels arbitrary, stop adjusting spacing and verify whether the live DOM/CSS is using a completely different layout primitive.
 Important real finding from `/t/about-us` flag-frame follow-up:
 - a frame wrapper inside `flex flex-col` can still stretch across the card width on the cross axis
 - this can make a border that appears source-correct render as a full-width bar in the preview

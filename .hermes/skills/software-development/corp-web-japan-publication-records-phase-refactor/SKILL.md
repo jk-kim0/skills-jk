@@ -239,6 +239,30 @@ A good replacement pattern is:
 - assert the intended helper config hook is present (`fallbackToAllRecords`, `getListItemDescription`, `createListItem`, etc.)
 - keep route-level assertions for canonical URLs, redirectUrl behavior, and content-family-specific labels
 
+### Current mainline architecture-test baseline
+If `tests/src/lib/publications/records-repository-architecture.test.mjs` needs alignment on latest `main`, do not leave it scoped to only the original phase-1 trio or an intermediate subset.
+
+As of the helper-adoption baseline after the category-local path migration, the architecture test should cover the full current adopter set:
+- `src/lib/publications/use-cases/records.ts`
+- `src/lib/publications/demo/aip/records.ts`
+- `src/lib/publications/demo/acp/records.ts`
+- `src/lib/publications/events/records.ts`
+- `src/lib/publications/blog/records.ts`
+- `src/lib/publications/whitepapers/records.ts`
+- `src/lib/publications/news/records.ts`
+
+Useful assertions to keep in that test:
+- shared helper file exists and exports `createStandardPublicationRecordsRepository`
+- helper surface still includes `createListItem`, `getListItemBadge`, `getListItemDescription`, `getPublicationHref`, and `resolveRedirectablePublicationHref`
+- every adopter imports `@/lib/publications/create-standard-records-repository`
+- every adopter no longer defines local `load...PublicationRecords`, `create...PublicationCache`, or `get...PublicationCache` helpers
+- category-specific hook expectations remain explicit where the wrapper shape differs from the default:
+  - events: `getListItemBadge`, custom `createListItem`, formatted event date handling
+  - whitepapers: `getListItemDescription`
+  - news: custom `createListItem`, `sourceLabel`, and `opensExternal: false`
+
+Keep this test narrow when doing baseline-alignment work: usually only the architecture test file should change unless latest `main` proves the helper contract itself moved again.
+
 ### Branch-specific test expectation rule
 If you split the refactor into multiple PRs, do not update shared structure tests as if all earlier phases already landed on `main`.
 For example:

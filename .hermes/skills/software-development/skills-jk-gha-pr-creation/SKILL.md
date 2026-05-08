@@ -113,6 +113,10 @@ When the user asks to create a PR from the current local workspace state rather 
      - copy only those changed/untracked files from the dirty root checkout into the fresh worktree
      - verify the fresh worktree now shows exactly that change set against `origin/main`
    - This avoids using `stash`, keeps the user's existing dirty root workspace intact, and still yields a clean latest-main PR branch.
+   - Important repeat-request lesson: if the user asks for the same "update main + make a PR from current local changes" flow again later in the same dirty root checkout, do **not** assume the last follow-up branch/PR is still open or still matches the current root state.
+     - Re-check both the current root branch and any most recently created follow-up branch/PR.
+     - A previous PR you created from a fresh worktree may already be merged, while the root checkout still sits on an older merged branch with additional new local edits accumulated afterward.
+     - In that case, repeat the same safe transplant flow again from the current root diff onto a brand-new latest-`origin/main` branch, rather than trying to reuse the earlier follow-up branch name or infer state from the last PR you created.
    - Fallback when a clean file-copy transplant is impractical:
      - `git stash push -u -m "<temp-name>"`
      - `git checkout -b <new-branch> origin/main`
