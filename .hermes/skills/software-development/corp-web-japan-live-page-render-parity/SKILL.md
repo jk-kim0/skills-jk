@@ -405,6 +405,70 @@ Useful verification pattern:
 - compare live and preview `getComputedStyle()` values for the exact element
 - if the class list still produces the wrong computed result, use a more reliable override (for example a stronger class, responsive override, or inline `style` where appropriate)
 
+Important practical finding from corp-web-japan CTA parity debugging:
+- a live page can appear to use a `52px` heading token in DevTools Styles while the actual rendered computed size is `48.75px`
+- this happened because the site defined the heading token as `3.25rem` (`--rem-52px`) while the live page root `html` font-size was `15px`
+- `3.25rem × 15px = 48.75px`, so the token name and the final used value differed
+
+Practical rule:
+- when a user says "DevTools shows 52px" and your computed-style measurement says `48.75px`, do not assume one of them is wrong yet
+- inspect all of these together on the exact same element:
+  - the matching CSS rule / token name
+  - the CSS variable value if present
+  - `html` root font-size
+  - final `getComputedStyle(element).fontSize`
+- for rem-based systems, explicitly compute `rem × root-font-size` before concluding there is a real mismatch
+- if needed, explain the difference as `author/token value` vs `final computed value`
+
+### G1. When a preview site intentionally keeps the standard `16px` root, do not copy a live site's shrunken computed px values if the live site uses a non-standard smaller root
+A crucial follow-up lesson from the generic CTA refactor work:
+- the live QueryPie documentation CTA used `52px` / `16px` / `14px`-style tokens expressed as rems
+- but the live site root `html` font-size was `15px`, so those rem tokens produced smaller computed values such as `48.75px`, `15px`, `13.125px`, and `5.625px`
+- a separate preview site that intentionally keeps the more standard `16px` root should not blindly copy those computed values into its own component tokens
+- doing so makes the preview look slightly undersized, even if a first computed-style comparison seemed to "match" the live used values
+
+Practical rule:
+- first decide which environment is canonical for token semantics
+- if the preview/product intentionally keeps a standard `16px` root, prefer matching the live page's author/token intent rather than its shrunken used values from a `15px` root
+- in practice this means converting CTA primitives back to the `16px`-root token sizes, for example:
+  - heading `52px / 62px`
+  - body `16px / 26px`
+  - button padding `14px 28px`
+  - button radius `6px`
+  - button gap `10px`
+- only use the live computed values directly when the preview shares the same root font-size strategy as the live site
+
+Verification pattern:
+1. inspect the exact live element's CSS rule/token values
+2. inspect the live `html` root font-size
+3. inspect the preview `html` root font-size
+4. if the roots differ, decide whether parity should follow:
+   - final rendered used values, or
+   - the live design tokens normalized for the preview's root scale
+5. if the preview is intended to remain standards-based, normalize to token-level values for that root before changing the component
+
+Additional practical cookie-preference lesson:
+- even after matching token-level sizes, heading wrap can still differ because the preview shell width and font rendering environment are not identical to the live site
+- when the exact requested preview deployment still wraps differently from live, use in-browser experimentation on the deployed preview DOM before editing code again
+- a fast pattern is to temporarily set candidate `font-size` / `line-height` values in the browser console, measure the resulting bounding box, and identify the smallest visual change that flips the heading from 2 lines to 1 line (or vice versa)
+- after finding that threshold, encode only that minimal value change in code and re-check the exact preview URL after deploy
+
+Example browser-console pattern:
+```js
+const h = [...document.querySelectorAll('main h2')].find((el) => /まずは小さく/.test(el.textContent || ''));
+[48.75, 47, 46, 45].map((size) => {
+  h.style.fontSize = `${size}px`;
+  h.style.lineHeight = `${size * 1.1923}px`;
+  const r = h.getBoundingClientRect();
+  return { size, width: Math.round(r.width), height: Math.round(r.height) };
+});
+```
+This is especially useful when a value that looks "correct" from live computed styles still wraps differently in the preview shell.
+
+Related CTA-button lesson:
+- if live and preview already share the same horizontal padding and label size, but the preview button still renders shorter, test `min-height` directly in the browser before rewriting the whole button
+- in cookie-preference CTA parity work, `min-height: 47px` was enough to match the live button height once padding was already aligned
+- prefer the smallest property that closes the geometry gap instead of rebuilding the entire primitive too early
 ### H. Sticky failures often come from an unexpected scroll container, not from the sticky element itself
 A sticky sidebar can look correctly coded yet still fail because one ancestor became the real scroll container.
 

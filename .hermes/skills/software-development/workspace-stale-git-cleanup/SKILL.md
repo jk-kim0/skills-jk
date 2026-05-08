@@ -344,6 +344,22 @@ Practical rule:
 - if these late-appearing worktrees are detached and clean, treat them as stale helper clones and remove them
 - if they are branch-backed but tied to a branch whose PR is already merged and whose upstream is gone, treat them as stale unless they contain real unpublished work
 
+Additional important workspace-root variant:
+- the workspace's immediate child directories can themselves be linked worktree checkouts, not just standalone clones or repo-internal `.worktrees/*` paths
+- these top-level sibling worktrees usually have a `.git` file, their own checkout path, and share the owning repository's `git common-dir`
+- if you only clean the owner repo's internal `.worktrees/*` paths and stop, you can miss stale top-level linked worktrees such as `<repo>-pr319-tos`
+
+Recommended verification after each cleanup wave:
+1. re-scan immediate child directories under the workspace root for entries with `.git`
+2. group them again by `git rev-parse --git-common-dir`
+3. compare the grouped result with `git worktree list --porcelain` from each owning repo
+4. if a top-level sibling directory is just a clean detached linked worktree sharing the same common-dir, remove it too with `git -C <owner-repo> worktree remove <path>`
+
+Why this matters:
+- owner-repo cleanup and workspace-root directory cleanup are not the same thing
+- a linked worktree can survive as a sibling directory even after obvious repo-internal stale worktrees were removed
+- a final immediate-child re-scan is the easiest way to catch these leftovers before reporting cleanup complete
+
 ## Practical stopping rule: leave the final unpublished local branch alone unless the user clearly wants destructive cleanup
 
 After aggressive-but-safe cleanup, you may reach a point where only one or a few local branches remain that:

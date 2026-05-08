@@ -70,6 +70,13 @@ For PR references:
 - replace non-issue references with plain text or explicit markdown links
 - verify the rendered issue body after editing
 
+## Important practical lesson
+- `gh issue view --json body` only shows the raw markdown body, not the rendered GitHub HTML.
+- A body can look correct in raw JSON while GitHub still auto-links bare tokens like `#24` and `#30` to repository issues in the rendered page.
+- Because of that, raw-body inspection alone is not enough when the text mixes GitHub references with numbered content IDs.
+- Prevent the problem before submission by converting non-issue numeric references to explicit markdown links or plain text.
+- Especially in numbered lists, prefer forms like `[Whitepaper 24](...)` instead of `Whitepaper #24`.
+
 ## When this matters most
 - migration audits
 - content inventory issues

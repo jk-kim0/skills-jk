@@ -29,7 +29,8 @@ This workflow is for repositories that may have many old worktrees, detached rev
 User-specific requirement:
 - treat default-branch update as part of workspace cleanup by default
 - for `main`-based repos, align local `main` with the latest `origin/main` via fetch + fast-forward when safe
-- if the root worktree is dirty or the update is not a clean fast-forward, preserve and report instead of forcing
+- if the root worktree has tracked changes or the update is not a clean fast-forward, preserve and report instead of forcing
+- untracked-only root dirt does not automatically block `git pull --ff-only`; first check whether the incoming remote diff touches those same paths, and if not, fast-forward is usually still safe
 
 ## Safety rules
 
@@ -991,6 +992,30 @@ git worktree list
 ```
 
 Also report remaining dirty worktrees explicitly so the user can decide on follow-up cleanup.
+
+## 9a. Do not assume all local worktrees live under the repo's internal `.worktrees/` directory
+
+A practical failure mode is to clean only `git worktree list` entries that happen to be under the repo root (for example `.worktrees/...`) and forget about sibling worktrees elsewhere in the workspace, such as:
+
+- `/Users/.../corp-web-japan-querypie-ja-guardrails`
+- `/Users/.../corp-web-japan-querypie-ja-skill`
+- `/Users/.../corp-web-japan-t-cookie-preference`
+
+These still appear in `git worktree list`, but they are easy to overlook if you visually focus only on `.worktrees/` paths.
+
+Practical rule:
+- when the user asks to clean non-open-PR worktrees/branches, classify **all** entries from `git worktree list --porcelain`, regardless of whether the path is inside the repo root or in a sibling directory elsewhere in the workspace
+- only after that should you filter by open-PR connection, dirtiness, and stale-vs-meaningful-local-work status
+
+Additional practical rule:
+- for detached helper worktrees with no branch, treat them as open-PR-connected if their path/name clearly encodes an open PR number such as `pr318-*`, even if they are not branch-backed
+- this prevents accidentally sweeping open-PR helper clones into the non-open-PR stale bucket
+
+Typical safe classification order:
+1. enumerate every worktree from `git worktree list --porcelain`
+2. map branch-backed worktrees to open PR head branches
+3. map detached helpers by path/name PR-number hints like `pr318`, `pr-318`, or `pr_318`
+4. only then classify the remainder as true non-open-PR candidates
 
 ## Recommended reporting format
 
