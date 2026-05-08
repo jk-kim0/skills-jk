@@ -281,7 +281,61 @@ def run_sources_report(property_id: str, days: int = 7):
         print(f"오류: {e}")
 
 
-def main():
+def run_hosts_report(property_id: str, days: int = 7, limit: int = 50):
+    """Host name(FQDN) 기준 성과 리포트를 실행합니다."""
+    creds = get_credentials()
+    client = BetaAnalyticsDataClient(credentials=creds)
+
+    end_date = datetime.now() - timedelta(days=1)
+    start_date = end_date - timedelta(days=days)
+
+    request = RunReportRequest(
+        property=f"properties/{property_id}",
+        date_ranges=[DateRange(
+            start_date=start_date.strftime('%Y-%m-%d'),
+            end_date=end_date.strftime('%Y-%m-%d'),
+        )],
+        dimensions=[Dimension(name="hostName")],
+        metrics=[
+            Metric(name="sessions"),
+            Metric(name="activeUsers"),
+            Metric(name="screenPageViews"),
+            Metric(name="bounceRate"),
+            Metric(name="averageSessionDuration"),
+        ],
+        limit=limit,
+    )
+
+    try:
+        response = client.run_report(request)
+
+        print(f"\n{'=' * 110}")
+        print(f"  Host name별 성과: Property {property_id}")
+        print(f"  기간: {start_date.strftime('%Y-%m-%d')} ~ {end_date.strftime('%Y-%m-%d')}")
+        print(f"{'=' * 110}\n")
+
+        print(f"{'세션':>10} {'사용자':>10} {'페이지뷰':>10} {'이탈률':>10} {'평균시간':>10}  Host name")
+        print("-" * 110)
+
+        for row in response.rows:
+            host_name = row.dimension_values[0].value
+            sessions = row.metric_values[0].value
+            users = row.metric_values[1].value
+            pageviews = row.metric_values[2].value
+            bounce_rate = float(row.metric_values[3].value) * 100
+            avg_duration = float(row.metric_values[4].value)
+
+            print(
+                f"{sessions:>10} {users:>10} {pageviews:>10} {bounce_rate:>9.1f}% {avg_duration:>9.1f}s  {host_name}"
+            )
+
+        print(f"\n총 {len(response.rows)}개 Host name")
+
+    except Exception as e:
+        print(f"오류: {e}")
+
+
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description='Google Analytics Data API CLI (GA4)')
     subparsers = parser.add_subparsers(dest='command', help='명령어')
 
@@ -303,6 +357,17 @@ def main():
     sources_parser.add_argument('property_id', help='GA4 Property ID (숫자만)')
     sources_parser.add_argument('--days', type=int, default=7, help='조회 기간 (일)')
 
+    # hosts 명령어
+    hosts_parser = subparsers.add_parser('hosts', help='Host name(FQDN)별 성과')
+    hosts_parser.add_argument('property_id', help='GA4 Property ID (숫자만)')
+    hosts_parser.add_argument('--days', type=int, default=7, help='조회 기간 (일)')
+    hosts_parser.add_argument('--limit', type=int, default=50, help='최대 Host name 수')
+
+    return parser
+
+
+def main():
+    parser = build_parser()
     args = parser.parse_args()
 
     if args.command == 'accounts':
@@ -313,6 +378,8 @@ def main():
         run_pages_report(args.property_id, args.days)
     elif args.command == 'sources':
         run_sources_report(args.property_id, args.days)
+    elif args.command == 'hosts':
+        run_hosts_report(args.property_id, args.days, args.limit)
     else:
         parser.print_help()
 
