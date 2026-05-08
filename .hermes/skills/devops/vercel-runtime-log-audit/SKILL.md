@@ -51,6 +51,12 @@ PY
 
 ### 0. Start with a fast existence check before broad collection
 
+Important current-environment caveat:
+- newer Vercel CLI builds may no longer support the older project-scoped historical query shape (`vercel logs --project ... --since ... --until ...`)
+- in some environments, `vercel logs --help` only exposes `vercel logs url|deploymentId`, i.e. live tailing for a ready deployment from now for a short period
+- before relying on older project/window examples from past notes, run `vercel logs --help` and verify which command shape is actually available
+- if only `url|deploymentId` tailing is supported, switch early to the direct `request-logs` API or document that exact historical recomputation is blocked from the current environment
+
 For a single-project audit, first confirm that recent production logs actually exist and see the rough status mix with a small bounded query:
 
 ```bash
@@ -122,7 +128,7 @@ Interpretation rule:
 
 This matters especially for wiki or incident summaries covering exact calendar days: the safest framing is sampled status mix and repeated-path patterns, not exact volume.
 
-### 3.6 Direct request-log API shape and pagination can be misleading
+### 3.6 Direct request-log API shape, environment filtering, and pagination can be misleading
 
 When you call the backend directly at:
 
@@ -131,21 +137,42 @@ https://vercel.com/api/logs/request-logs
 ```
 
 note these field-level realities:
+- the request requires `ownerId`, `projectId`, `startDate`, and `endDate`
+- `startDate` / `endDate` must be epoch milliseconds, not ISO timestamps
+- for production-only reporting, you should also pass `environment=production`
+- without an explicit `environment` filter, project-level results can be heavily polluted by preview traffic and become misleading for production audits
 - the response shape is top-level `rows` plus top-level `hasMoreRows`
 - do **not** expect the older nested `pagination.data` structure
 - row identifiers are usually under `requestId`, not the CLI-style top-level `id`
 - status is typically `statusCode`, not `responseStatusCode`
 
+If required fields are missing or typed wrong, typical API errors include:
+- `Validation error: Required at "ownerId"`
+- `Validation error: Expected number, received nan at "startDate"`
+
+Important environment-scope finding:
+- project-level request-log queries are **not reliably production-only by default**
+- on `corp-web-japan`, an unfiltered current-day query returned a mix dominated by `preview` rows, with only a small minority of `production` rows
+- for production wiki/audit work, explicitly pass `environment=production`
+- similarly, use `environment=preview` when you actually want preview-only evidence
+- do not assume `target=production` or `target=preview` filters the same way; verify with a small probe query and count the returned `environment` values
+
 For historical day-window `404` / `307` audits, another practical failure mode can appear:
 - page 0 returns 50 rows and `hasMoreRows = true`
 - incrementing `page` can still return the exact same first-page `requestId` set instead of advancing
 - this creates the illusion of more pages while preventing exact full-day aggregation
+- on some projects or billing states, the API can fail even before pagination analysis with `HTTP 400 {"name":"ExceedsBillingLimitError"}` for very small historical windows (observed even for a 1-minute May 7 KST window on `corp-web-japan`)
+- even on current-day windows where the API succeeds, broad `all` queries and some direct status filters such as `307` can still plateau at the first 50 unique rows while `hasMoreRows = true`
+- in contrast, narrower direct filters such as `404` or `500` may return a complete set with `hasMoreRows = false`, so treat them separately instead of assuming all statuses have the same measurement quality
 
 Interpretation rule:
+- first verify the `environment` mix on a small sample; if preview traffic is present in a production audit, re-run with `environment=production`
 - if page 1+ repeats page 0 `requestId` values, stop treating the API as paginating correctly
-- report the page-0 result as a sampled top-set only
+- if the API returns `ExceedsBillingLimitError` for small historical windows, treat exact historical recomputation as platform-blocked from the current environment and preserve/report only directly observed data
+- report the page-0 result as a sampled top-set only when broader pagination stalls
 - explicitly state that exact totals are blocked by backend pagination behavior
 - still use direct `500` / `502` / `503` / `504` status queries, because zero-row checks are still useful and fast even when `404` / `307` pagination is broken
+- when doing manual `curl` verification after collecting the clean sample, record a cutoff timestamp and distinguish the clean pre-verification counts from the later raw rows polluted by your own checks
 
 ### 4. Error queries can hit a hard practical cap
 

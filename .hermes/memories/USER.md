@@ -187,3 +187,5 @@ In corp-web-japan publication/routing audits, the user wants review focus on act
 In corp-web-japan, when preview /t/* routes are promoted or replaced, the user does not want the /t/* endpoints kept at all and does not want redirect compatibility left behind, unless they explicitly ask for a specific /t/* path to remain. Default policy: remove /t/* route files entirely, not redirect them.
 §
 For visual/layout bugs, the user expects direct verification against the exact provided live page and Preview Deployment URL before claiming a fix, and strongly prefers one-pass thorough fixes over iterative trial-and-error that makes them re-test repeatedly.
+§
+For querypie.com/ja page migrations in corp-web-japan, the user wants the existing page copied as-is without invented preview explanation text, rewritten title/description copy, or new CTA sections unless explicitly requested.

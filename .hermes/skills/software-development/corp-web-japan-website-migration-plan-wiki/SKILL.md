@@ -227,6 +227,21 @@ Before finalizing summary counts like preview entrypoints, verify them from actu
 It is easy to overcount `/t/*` surfaces by memory.
 Use a small script or exact file listing and correct the page before publish if needed.
 
+### Cross-language source-of-truth lesson
+
+When the user explicitly says one wiki language page is the latest source of truth (for example `Website-Migration-Plan-ko`) and asks you to update sibling pages from it, do not re-derive JA/EN content from `origin/main` unless the user also asks for a fresh audit.
+
+Preferred approach:
+1. read the designated source wiki page first
+2. update the sibling wiki pages to match that source page's conclusions, counts, baseline timestamp, and baseline SHA
+3. preserve the designated source page's snapshot framing even if the product repo's current `origin/main` has advanced since that page was written
+4. still verify and push through the wiki git repo normally
+
+Why this matters:
+- these migration-plan pages can intentionally lag the latest code until the canonical source page is refreshed
+- if you silently re-audit from current `origin/main`, JA/EN can diverge from KO again instead of being synchronized
+- in this workflow, the user asked for translation/synchronization against the canonical wiki page, not a new repository-state assessment
+
 ### Route-kind verification lesson
 
 When classifying public redirect-backed entrypoints on latest `main`, do not check only for `page.tsx`.

@@ -101,6 +101,9 @@ When the user asks to create a PR from the current local workspace state rather 
 5. If the current branch corresponds to an already merged/closed PR, do **not** keep committing on that branch even if it still has useful local changes.
    - Fast detection: run `env -u GITHUB_TOKEN gh pr status` first. In `skills-jk`, this often surfaces the problem immediately as `Current branch  #<N> ... Merged` even when the remote branch has already been deleted.
    - Confirm with `env -u GITHUB_TOKEN gh pr list --head <branch> --state all --json number,state,mergedAt,url,title` when needed.
+   - Additional signals:
+     - `git status -sb` shows the branch is diverged (`[ahead N, behind M]`)
+     - the remote tracking branch may already be deleted or stale
    - Refresh repository refs and fast-forward local `main` before branching:
      - `git fetch origin --prune`
      - `git branch -f main origin/main`
@@ -117,10 +120,14 @@ When the user asks to create a PR from the current local workspace state rather 
      - Re-check both the current root branch and any most recently created follow-up branch/PR.
      - A previous PR you created from a fresh worktree may already be merged, while the root checkout still sits on an older merged branch with additional new local edits accumulated afterward.
      - In that case, repeat the same safe transplant flow again from the current root diff onto a brand-new latest-`origin/main` branch, rather than trying to reuse the earlier follow-up branch name or infer state from the last PR you created.
-   - Fallback when a clean file-copy transplant is impractical:
-     - `git stash push -u -m "<temp-name>"`
-     - `git checkout -b <new-branch> origin/main`
+   - Safer fallback when a clean file-copy transplant is impractical:
+     - `git stash push -u -m '<note>'`
+     - refresh repository refs and update local `main` to latest `origin/main`
+     - create a fresh branch from `origin/main`
+     - if there is an unmerged local commit you still need, cherry-pick it onto the new branch
+     - if the cherry-pick becomes empty because latest `main` already contains that change, use `git cherry-pick --skip`
      - `git stash pop`
+   - This preserves the still-local work while avoiding accidental reuse of a stale merged-PR branch.
    - If there is an unmerged local commit you still need, cherry-pick it onto the new branch.
    - If the cherry-pick becomes empty because latest `main` already contains that change, use `git cherry-pick --skip` and continue.
    - Only then continue with staging/committing. This preserves the current file state while ensuring the new PR is based on clean latest main rather than a previously merged PR branch.
@@ -128,14 +135,25 @@ When the user asks to create a PR from the current local workspace state rather 
 7. Before push/PR creation, rebase the current branch onto latest `origin/main`.
    - This is especially important when the branch was created from an older local `main` or its remote tracking branch is gone.
    - If rebase conflicts come from settings already present on latest `main`, keep the newer `main` values and continue so the PR diff stays focused on the still-local changes.
-7. After any manual conflict resolution, explicitly scan the touched files for leftover merge markers before committing or pushing.
+8. After any manual conflict resolution, explicitly scan the touched files for leftover merge markers before committing or pushing.
+   - In `skills-jk`, append-only markdown files such as `.hermes/memories/*.md` and skill `SKILL.md` files often conflict when both latest `main` and the local work added new bullets near the end.
+   - Do not blindly choose one side; read the conflict block and keep both sides' new entries unless they are true duplicates.
+   - Preserve existing separators like `§` in memory files.
    - At minimum run a targeted search like `rg -n '^(<<<<<<<|=======|>>>>>>>)' <files...>`.
    - Do not rely only on `git status`; a file can be marked resolved while still containing conflict text.
    - For config files such as `.yaml`, also run a lightweight parse check (for example `python -c 'import yaml, pathlib; yaml.safe_load(pathlib.Path(...).read_text())'`).
    - When resolving against latest `main`, prefer the actual `origin/main` file content as the source of truth instead of guessing which side of the conflict to keep.
-8. Push the branch, then create or update the PR.
-9. Leave local-only artifacts untracked unless the user explicitly wants them in the PR.
-10. In the PR body, briefly note what was intentionally excluded if that helps reviewers understand the scope
+9. If `git rebase --continue` is blocked because you restored broader local workspace changes while the rebased commit itself only touches a smaller subset of files, temporarily move the unrelated non-index changes back out of the way.
+   - Practical pattern:
+     - stage the actual conflict-resolved file(s) that belong to the rebased commit
+     - `git stash push -u --keep-index -m '<temp-note>'`
+     - `GIT_EDITOR=true git rebase --continue`
+     - re-apply the earlier broader workspace stash after the rebase finishes
+   - This is especially useful in `skills-jk` when a one-file commit is being rebased but the working tree also contains many restored local skill/memory edits from the user's current workspace.
+   - Without this step, `git rebase --continue` can fail or become confusing because the rebase commit is ready, but unrelated restored changes are still sitting unstaged in the working tree.
+10. Push the branch, then create or update the PR.
+10. Leave local-only artifacts untracked unless the user explicitly wants them in the PR.
+11. In the PR body, briefly note what was intentionally excluded if that helps reviewers understand the scope
 
 ## Evidence from use
 

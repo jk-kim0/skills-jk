@@ -93,15 +93,18 @@ Typical git steps:
 - If the user says the wiki must reflect the latest `main` branch, create a detached worktree from `origin/main` and read routes/content from that worktree instead of the current feature branch. This avoids documenting branch-local or stacked-PR changes by accident.
 - If `origin/main` advances during the conversation, refresh or recreate that detached worktree before rewriting the wiki. Do not assume an earlier `main` worktree is still current.
 - If the repo keeps separate comparison wiki pages for content indexes like Blog, WhitePapers, or Events, clarify whether those index routes should still appear in the main sitemap; capture that policy in `Writing guidelines` so later updates stay consistent.
-- When a user wants the wiki to remain self-maintaining, rewrite `Writing guidelines` to encode concrete formatting rules such as: path-first nested bullets, which field gets the link, title source-of-truth, base URL, and which route categories are excluded.
+- When the user wants the wiki to remain self-maintaining, rewrite `Writing guidelines` to encode concrete formatting rules such as: path-first nested bullets, which field gets the link, title source-of-truth, base URL, and which route categories are excluded.
 - If the user specifies a wiki-local formatting rule for links (for example markdown `[path](url)` in tables), apply it consistently to every actual link cell in the page instead of mixing raw URLs and markdown links.
-- For comparison / audit tables, a useful pattern is to split a single link field into `Current link` and `Target link` so the page can serve both as an inventory and as an implementation checklist.
+- GitHub wiki right-side navigation can be customized with a dedicated `_Sidebar.<extension>` page. Treat it as normal wiki content: use Markdown nested bullet lists for manual hierarchy. This supports a tree-like visual grouping of links, but it is not an auto-generated, collapsible file-tree sidebar; future pages must be added to `_Sidebar` manually.
+
 - For site-navigation audit issues that feed wiki work, if you need to recommend external reference URLs, verify them from the live site header/footer and sitemap rather than inferring from labels alone.
 
 - Before rebasing or pushing wiki changes, run `git status --short` in the wiki repo. If unrelated local modifications are present from earlier work, restore or otherwise isolate them before `pull --rebase`; otherwise the rebase can fail even when your target page commit is clean.
 - If the repository already has a maintained local wiki clone, prefer reusing that clone instead of creating a fresh temp clone. Check `git status --short --branch` first, make your page edits there, then commit and push.
 - If `git push` is rejected because `origin/master` advanced, prefer `git fetch` + `git pull --rebase origin master` and then push again, rather than force-pushing wiki history.
 - When the user wants markdown links in wiki docs, apply the requested `[path](url)` format consistently everywhere links appear: table cells, bullet lists, and section headings that include route paths. Do not leave bare URLs in those places unless the user explicitly wants raw URLs.
+- GitHub wiki right-side navigation can be customized by creating `_Sidebar.md` in the wiki repo. If `_Sidebar.md` does not exist, creating it replaces the default auto-generated page list with your custom sidebar.
+- `_Sidebar.md` is plain Markdown, so hierarchical navigation is achieved with nested bullet lists. This is suitable for grouping many related pages (for example, multiple dated operational reports under a single parent label), but it is not a real collapsible folder tree.
 
 ## Example: path-first sitemap format
 

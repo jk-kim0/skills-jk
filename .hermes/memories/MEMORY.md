@@ -205,3 +205,9 @@ In corp-web-japan migration-status documentation, evaluate remaining work only b
 In corp-web-japan whitepapers, downloadable PDF CTA metadata is now modeled explicitly in MDX frontmatter as `downloadCta: { href, label, external }`, and route-aligned local PDF assets live under `public/whitepapers/<id>/download.pdf`.
 §
 In corp-web-japan publication-helper planning, the user wants the current low-level duplication between create-standard-publication-post-loader.ts and create-gated-publication-post-loader.ts kept as-is for now; only consider further refactoring later if duplicated code grows materially.
+§
+In corp-web-japan static/legal preview migrations, route-local self-contained placement under src/app/t/<route>/ can be preferable to broad src/content/legal-preview + src/lib/legal-preview indirection when the goal is a reviewable page migration on an existing PR branch.
+§
+In corp-web-japan, for standalone static/legal preview pages like terms-of-service, the user prefers route-local MDX colocation: keep page.tsx and content.mdx in the same route directory (e.g. src/app/t/terms-of-service/) rather than placing the MDX under src/content.
+§
+In the repo-local Hermes setup at ~/workspace/skills-jk/.hermes/config.yaml, mcp_servers.chrome-devtools is configured with npx chrome-devtools-mcp@latest and Hermes reports it enabled via `hermes mcp list`.
