@@ -520,6 +520,34 @@ Be explicit about measurement quality:
 - if a query hit 1000 lines, report `>=1000`
 - if you added a runtime catch-all fix, distinguish `runtime-visible 404s after fix` from prior `edge/static 404s outside runtime visibility`
 
+## When Vercel auth is unavailable or invalid
+
+A practical failure mode: the local environment can have `VERCEL_TOKEN` / `VERCEL_TEAM_ID` set but the token is expired or invalid, and newer CLI flows may fail with errors such as:
+- `The specified token is not valid`
+- API `403` on project listing even though repo docs contain the expected team/project identifiers
+
+Fallback workflow for still-useful investigation:
+
+1. Do not keep retrying unauthenticated log commands.
+2. Look for repo-managed operational metadata first, for example files like:
+   - `ops/vercel-firewall/README.md`
+   - deployment/runbook docs that record `teamId`, `projectId`, project name, and expected domains
+3. Check whether the repo wiki or checked-in incident notes already contain prior runtime-log snapshots for the exact path.
+4. Cross-check current live behavior directly with `curl -I` against production and stage.
+5. Use git history to explain likely path provenance, especially for one-off 404s on renamed routes.
+
+This fallback cannot prove the missing `referer` or exact runtime row contents, so report that limitation explicitly. But it is still often enough to answer:
+- whether the path is currently live or 404
+- whether the app still emits that path in current HTML
+- whether the path came from an older route contract, rename, or legacy external link
+
+### Route-rename stale-link heuristic
+
+If you see a path-specific 404 such as `/section/.../download` and current HTML no longer links there:
+- search git history for the exact path and for nearby route-family renames
+- inspect the current rendered HTML for the canonical replacement path
+- if history shows a rename (for example `/download` -> `/pdf`) and current HTML only emits the new path, classify the likely cause as stale external/bookmarked/cached traffic rather than a current in-site navigation bug, unless logs later prove otherwise
+
 Good summary structure:
 1. scope and windows checked
 2. per-project status table

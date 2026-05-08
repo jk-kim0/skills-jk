@@ -410,6 +410,31 @@ This avoids a common failure mode where a wiki page cites the newest commit SHA 
 
 If the wiki page already records an older baseline SHA, diff that old SHA against the new `origin/main` SHA before rewriting the page narrative.
 
+### Incident-follow-up wiki update rule: preserve the original snapshot, then add a clearly separated resolution update
+
+For operational pages such as Vercel runtime-log reports, later updates may happen after the originally logged incident has already been fixed on `origin/main` and on the live site.
+Do not rewrite the page as if the original incident never happened.
+
+Recommended pattern:
+1. keep the original audit window and original finding language intact enough to preserve historical truth
+2. relabel time-sensitive statements like `active issue` or `currently reproduces` so they are explicitly scoped to the original audit time
+3. add a new `Last updated` timestamp and a second latest-main SHA for the follow-up update
+4. verify the latest fix directly from `origin/main` with `git log`, `git show`, and a focused diff against the older recorded SHA
+5. verify the current live behavior separately with direct HTTP/browser checks
+6. rewrite conclusions and next actions so the page distinguishes:
+   - what was true in the original incident snapshot
+   - what is true now after the fix
+
+Recommended wording pattern:
+- `the May 8 clean sample captured a real production 500, but the issue is now resolved`
+- `at the time of the original audit ...`
+- `later follow-up verification after latest main moved to commit ...`
+
+Why this matters:
+- incident pages are both historical records and current-status references
+- blindly replacing the old narrative with the new one destroys the value of the original log evidence
+- blindly leaving `active` wording unchanged makes the wiki stale and misleading after the fix
+
 Recommended pattern:
 
 ```bash
