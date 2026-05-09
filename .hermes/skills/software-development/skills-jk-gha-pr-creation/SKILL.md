@@ -158,7 +158,7 @@ When the user asks to create a PR from the current local workspace state rather 
    - In `skills-jk`, append-only markdown files such as `.hermes/memories/*.md` and skill `SKILL.md` files often conflict when both latest `main` and the local work added new bullets near the end.
    - Do not blindly choose one side; read the conflict block and keep both sides' new entries unless they are true duplicates.
    - Preserve existing separators like `§` in memory files.
-   - At minimum run a targeted search like `rg -n '^(<files...>`.
+   - At minimum run a targeted search like `rg -n '^(<<<<<<<|=======|>>>>>>>)' <files...>`.
    - Do not rely only on `git status`; a file can be marked resolved while still containing conflict text.
    - For config files such as `.yaml`, also run a lightweight parse check (for example `python -c 'import yaml, pathlib; yaml.safe_load(pathlib.Path(...).read_text())'`).
    - When resolving against latest `main`, prefer the actual `origin/main` file content as the source of truth instead of guessing which side of the conflict to keep.
