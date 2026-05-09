@@ -41,10 +41,6 @@ Practical implication learned from repo follow-up:
 - do not treat documentation labels like "partial" or "wrong / pre-refactor" as authoritative without checking the live code on latest `origin/main`; those labels can lag behind after a sequence of section-scoped PRs merges
 - when a page is explicitly called out in docs as non-compliant, verify the current `page.tsx`, current `src/components/sections/**` files, and recent git history for that route before recommending more route-local-authoring work
 - practical example: `src/app/solutions/ai-crew/page.tsx` was still described in docs as a wrong/pre-refactor example even after multiple merged PRs had already moved most section copy and composition into the route; the correct conclusion was that the docs had become stale, not that the page still needed the same refactor class
-- additional example: `src/app/solutions/ai-dashi/page.tsx` remained labeled as a partial/intermediate reference in docs even though the latest-main implementation already kept authored copy and section order directly in the route while `src/components/sections/ai-dashi-*` mainly owned presentation structure
-- after the later merged AI Dashi follow-up PRs that extracted hero/about/values/whitepaper/contact section primitives and tightened comparison/support/release-flow composition, treat AI Dashi as an aligned solution-page reference rather than a partial/intermediate one
-- if a user asks whether a route-local refactor should be applied to a page like AI Dashi, and latest-main inspection shows the page already satisfies the route-local-authoring rule, do not manufacture another code refactor just to match stale documentation
-- in that situation, prefer the smallest truthful outcome: explain that no further broad code refactor is needed, and if repository docs or wiki pages still describe the route as partial/intermediate or a primary target, submit docs/wiki updates that reclassify it instead of widening scope into unnecessary code churn
 
 ## When this applies
 
@@ -169,9 +165,6 @@ Important anti-regression rule from AI Dashi follow-up work:
 - when a route-localized section is still a large raw JSX/class blob in `page.tsx`, treat the refactor as incomplete even if the copy has already been removed from `src/content/**`
 - the next step is usually to promote that section file from a thin container into several semantic section components, while keeping the actual user-facing sentences and CTA labels authored in `page.tsx`
 - practical pattern confirmed in AI Crew lost-section follow-up: move `RevealOnScroll`, background-image rendering, card geometry, and CTA button implementation into `src/components/sections/<section>.tsx`, then let `page.tsx` read as `<LostProblemCard>`, `<LostProblemTitle>`, `<LostProblemBody>`, `<LostWhitepaperCard>`, and `<LostWhitepaperAction href={...}>...`
-- additional pattern confirmed in AI Dashi route-local follow-up: when the page already keeps most marketing copy in `page.tsx` but still contains several large inline implementation blocks, do not force a fake "move more copy" refactor. Instead, extract those blobs into new section-primitive files such as `ai-dashi-hero-section.tsx`, `ai-dashi-about-section.tsx`, `ai-dashi-values-section.tsx`, `ai-dashi-whitepaper-section.tsx`, and `ai-dashi-contact-section.tsx`, while preserving the visible copy and section order in the route.
-- in this pattern, `page.tsx` should keep the authored JSX sentences and CTA labels, while the new section files absorb background-image rendering, panel chrome, card shells, repeated badge/title/body wrappers, and action-link styling.
-- this is especially useful for pages like AI Dashi that are already route-local in principle but still read as large implementation-heavy blobs in the route. The goal is to improve readability and ownership boundaries without widening scope into unrelated sections or redesign work.
 
 ## Practical pattern used successfully
 
@@ -280,12 +273,38 @@ If only one subsection needs `useState` / client behavior:
 
 This worked well for the top page roadmap tab section.
 
+Practical service-preview pattern learned from `/t/services/acp` follow-up:
+- if a static preview page has one interactive showcase/browser section, do **not** let that one interactive widget force the whole page-specific section module to become `"use client"`
+- keep the route-owned section heading, intro sentence, and overall section composition visible in `page.tsx`
+- keep server-safe layout primitives in a normal section file such as `src/components/sections/<page>-service-page.tsx`
+- move only the truly interactive widget into a dedicated client file such as `src/components/sections/<page>-feature-browser.tsx`
+- update structure tests so they assert:
+  - the main section heading/copy lives in `page.tsx`
+  - the static section primitive file is not marked `"use client"`
+  - the dedicated interactive widget file *is* marked `"use client"`
+- practical example: on `/t/services/acp`, `QueryPie ACPができること` belonged in the route, while the category tab/prev-next feature browser was split into its own client component; leaving both concerns together in one `"use client"` page-section module made the route less readable and widened the client boundary unnecessarily
+
 Important App Router build pitfall learned from follow-up refactors:
 - if an extracted helper uses React client-only APIs such as `createContext`, `useContext`, `useState`, `useEffect`, or other client hooks, mark that extracted file with `"use client"`
 - do not assume that because the parent page is mostly static, Next/Turbopack will tolerate `createContext` in an unmarked component imported by `page.tsx`
 - a typical failure looks like:
   - `You're importing a module that depends on createContext into a React Server Component module`
 - practical example: `SolutionChoiceCard` used `createContext/useContext`, so the component file itself needed `"use client"` after being imported from `src/app/page.tsx`
+
+Important client-boundary scope rule learned from `/t/services/acp` follow-up review:
+- when one section on an otherwise static marketing page needs client interactivity, do not let that force the entire page-specific section module into a single `"use client"` file if that file also contains many static layout primitives
+- keep the client boundary as narrow as practical:
+  - route-owned section heading, body copy, CTA labels, and section order should stay visible in `page.tsx`
+  - static section primitives can stay in a server-safe section module
+  - the interactive widget itself should be isolated in a dedicated client component file when practical
+- practical anti-pattern: a route imports one large page-specific `sections/*.tsx` file marked `"use client"` only because one feature browser/tabbed widget inside that file uses `useState`, while the same file also exports hero wrappers, section shells, and other static primitives
+- why this is undesirable:
+  - it hides too much of the route-local authored structure behind one interactive wrapper layer
+  - it widens the client boundary unnecessarily
+  - it makes the route read like `one opaque interactive section call` instead of a page with visible authored section ownership
+- review check for this failure mode:
+  - if the main feature section heading (for example `QueryPie ACPができること`) is rendered inside the client widget file rather than in `page.tsx`, treat the route-local refactor as only partial
+  - if `page.tsx` only renders something like `<FeatureBrowser categories={...} />` for a major marketing section, inspect whether the section heading and surrounding authored narrative should move back into the route while the tab/browser logic remains extracted
 
 ## Cautions from experience
 

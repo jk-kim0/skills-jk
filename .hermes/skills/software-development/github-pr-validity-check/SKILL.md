@@ -103,6 +103,7 @@ For the verdict, gather several of:
 - For dead-code-removal PRs, do not trust old assumptions about "unused" branches. Re-validate both runtime references and real content/data markers on latest main. Example pattern: search the current source tree for imports/usages, then search the real content corpus for markers that activate the branch (for example HTML wrapper markers). A branch is only a good removal target when both the code references and the activating data markers are absent or can be safely narrowed.
 - If only part of a stale PR remains valid on latest main, salvage it by narrowing scope instead of forcing the original broader thesis. Reconstruct the still-valid subset on top of latest main, update the PR title/body to match the reduced scope, and treat the result as a rewritten PR rather than a mechanical rebase.
 - When the PR changes repo-local skills, guidance docs, or AGENTS-style instructions, do not review those files only as prose. Validate every path/file-pattern claim against the real repository tree on the PR head and latest `origin/main`.
+- Important merge-readiness nuance: if GitHub shows `mergeStateStatus=BEHIND`, separate that from content validity. A PR can still be conceptually correct against latest main while not being merge-ready yet. In that case, inspect whether latest `origin/main` actually changed the same touched files or contract since the PR merge-base. If not, classify it as `content still valid, but branch refresh/rebase required` rather than stale/contradictory.
 - Practical contract checks for doc/skill reviews:
   - search the live tree for the claimed file paths
   - verify whether filename conventions in the docs still match the actual corpus (for example `<id>-<slug>.mdx` vs `<id>.mdx`)
@@ -111,6 +112,13 @@ For the verdict, gather several of:
   - when one repo-local skill is updated for a moved path, inspect sibling/companion skills for the same stale references instead of assuming the update was applied consistently everywhere
   - flag any doc/skill change that silently turns a path-only refactor PR into a false source-of-truth change for content naming or architecture contracts
 - Treat this as a real PR-validity issue, not a minor doc nit, when the changed skill/doc would teach future agents to use nonexistent paths or regressed conventions.
+- Preview-deployment validation rule for implementation-vs-doc PRs:
+  - do not assume a green Vercel Preview means the PR actually implements the route or page the user wants reviewed
+  - first compare the PR diff against the claimed review target and confirm the branch changes runtime files for that route (`src/app/**`, `src/components/**`, `public/**`, tests as supporting evidence)
+  - if the PR only changes docs/skills/guidance files, classify it as a docs PR even if Vercel produced a preview deployment URL
+  - when the user asks for visual parity on a specific migrated route, open the exact preview route URL itself, not just the preview site root
+  - if that exact route returns 404 / deployment-not-found / missing page, treat that as evidence that the PR is not a valid visual-implementation PR for the requested target
+  - separate `preview exists` from `requested route is implemented in preview`; they are not the same thing
 
 ## Output style
 

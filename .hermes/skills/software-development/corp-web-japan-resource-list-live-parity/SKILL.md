@@ -62,10 +62,79 @@ Use this structure in shared primitives / page composition:
 ```
 
 Important:
-- `ResourceListSidebarViewport` is for mobile horizontal overflow only
+- `ResourceListSidebarViewport` is for mobile overflow handling only
 - `ResourceListSidebarNav` is the actual sticky target on desktop
 - keep the `aside` as the full-height left column
 - do **not** put `sticky` on the mobile overflow wrapper; that can break sticky behavior
+
+## Mobile overflow diagnosis pattern
+When the user reports that the demo/resource sidebar becomes too wide on phones, do not guess from desktop snapshots. Reproduce with a mobile viewport and measure the real overflow.
+
+Use DevTools/mobile emulation or browser JS evaluation to capture:
+- `window.innerWidth`
+- `document.body.scrollWidth`
+- sidebar `aside` width
+- viewport wrapper `scrollWidth`
+- sidebar list `scrollWidth`
+- each link chip width
+
+Useful probe:
+```js
+() => {
+  const nav = document.querySelector('nav[aria-label="Sidebar Navigation"]');
+  const viewport = nav?.parentElement;
+  const aside = viewport?.parentElement;
+  const list = nav?.querySelector('ul');
+  const links = [...(nav?.querySelectorAll('a') || [])].map((a) => ({
+    text: a.textContent?.trim(),
+    width: Math.round(a.getBoundingClientRect().width),
+  }));
+  return {
+    viewportWidth: window.innerWidth,
+    bodyScrollWidth: document.body.scrollWidth,
+    asideWidth: aside?.getBoundingClientRect().width,
+    viewportScrollWidth: viewport?.scrollWidth,
+    listScrollWidth: list?.scrollWidth,
+    links,
+  };
+}
+```
+
+A common failure mode is this combination in the shared sidebar primitives:
+- mobile `overflow-x-auto`
+- list `flex`
+- list `min-w-max`
+- `nowrap` chip row
+
+This creates a horizontally scrolling chip bar whose total width can exceed the mobile viewport, especially on resource pages with longer Japanese labels such as `ホワイトペーパー`.
+
+## Preferred fix for mobile sidebar overflow
+Preferred approach:
+- keep the current desktop sticky vertical sidebar behavior
+- change only the mobile layout so the category chips no longer force one long horizontal row
+
+Recommended options in order:
+1. mobile `grid` with 2 columns
+2. mobile `flex-wrap`
+3. only if the design explicitly wants horizontal scrolling, shrink chip padding/font size as a fallback
+
+Default recommendation:
+- remove mobile `min-w-max`
+- remove the forced one-line `nowrap` row on mobile
+- avoid relying on horizontal scroll as the primary mobile behavior
+- keep desktop `lg:flex-col` / sticky behavior unchanged
+
+Typical class-direction changes:
+- `ResourceListSidebarViewport`: reduce/remove mobile `overflow-x-auto` when moving to wrapped/grid mobile layout
+- `ResourceListSidebarList`: replace `flex min-w-max gap-3` mobile behavior with `grid grid-cols-2 gap-3` or `flex flex-wrap gap-3`
+- `ResourceListSidebarLink`: make mobile chips `w-full` and center them if using grid/wrap
+
+## Verification additions
+For mobile sidebar fixes, verify at least one demo page and one resource page in a mobile viewport after the change.
+Check that:
+- no sidebar row visually exceeds the viewport
+- no unnecessary horizontal scroll remains for the sidebar area
+- desktop sticky/sidebar behavior is unchanged
 
 ## Hero alignment pattern
 If matching the live whitepaper page, use route-local authoring like:

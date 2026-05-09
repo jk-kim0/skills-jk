@@ -63,9 +63,17 @@ Those may be valid product/content follow-ups, but they are not migration blocke
 5. inspect latest-main route files directly with `git show FETCH_HEAD:path`
 6. inspect latest-main content counts / route existence
 7. rewrite the wiki page so conclusions reflect the new state
-8. commit/push in the separate `.wiki.git` repo
+8. update all timestamp references consistently, not just the baseline header
+9. commit/push in the separate `.wiki.git` repo
 
 ## Specific corp-web-japan heuristics
+
+### Repo-context trap during wiki work
+Once you `cd` into the wiki clone, relative file reads/searches can accidentally hit the wiki repo instead of the product repo.
+For product inspection during wiki updates, prefer:
+- product-repo `workdir` on terminal commands
+- `git show FETCH_HEAD:path/to/file`
+- absolute product-repo paths when using file tools
 
 ### Count local public entrypoints
 Count only real public local surfaces that replace old public pages.
@@ -76,6 +84,7 @@ If a public route still redirects to `querypie.com/ja`, treat that family as not
 
 ### Events
 If `/events` list still requires a gate or returns `notFound()` without a query flag, treat events as `partial` even if detail pages and corpus exist.
+If `/events` becomes the public canonical list route and preview `/t/events` is removed, reclassify events as `migrated` and remove events from the remaining-blocker section.
 
 ### Resources / intro deck / glossary / manuals
 If public canonical routes exist directly at `/resources`, `/introduction-deck`, `/glossary`, `/manuals`, count them as migrated public surfaces. Do not keep calling them preview-only once those routes are on main.

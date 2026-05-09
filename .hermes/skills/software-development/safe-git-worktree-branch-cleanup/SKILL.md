@@ -19,6 +19,9 @@ Use when the user asks to:
 
 This workflow is for repositories that may have many old worktrees, detached review trees, and branches whose upstream refs were pruned.
 
+Related skill:
+- `branch-squash-validity-and-stale-cleanup` — use when the user explicitly wants each local branch judged by a synthetic squash of current local state versus latest `origin/main`, with a disposable rebase-onto-latest-main test before deciding whether to preserve or delete it.
+
 ## Goals
 
 1. Update the local default branch (usually `main`) to match the latest remote HEAD when the root worktree is clean
@@ -155,6 +158,13 @@ But do not over-preserve branch-backed worktrees just because they are not perfe
 
 If those temp files are the only dirt in an otherwise stale merged/non-open-PR worktree, treat the worktree as effectively clean stale residue and remove it after confirming no tracked source changes remain.
 
+Additional practical check for issue/PR body scratch files:
+- repositories often accumulate untracked markdown files with names like `ISSUE_*.md`, `PR_BODY*.md`, or similar
+- do not preserve these automatically just because they are human-readable documents
+- compare them against the actual GitHub issue/PR bodies when you can, for example with `gh issue view <n> --json body` or `gh pr view <n> --json body`
+- if the local file is effectively just a copy of an already-posted GitHub issue body or PR description, classify it as disposable stale residue rather than meaningful unpublished local work
+- only preserve it when it contains materially new draft content not already represented on GitHub
+
 Special case: open PRs can still have removable helper worktrees.
 - In some repos, there are detached helper worktrees named like `pr157-mainrewrite`, `pr158-mainrewrite`, `pr157-rebase`, etc.
 - Do not preserve these automatically just because the corresponding PR is open.
@@ -242,6 +252,26 @@ Practical interpretation:
   - recreate a fresh latest-main branch/worktree
   - transplant only the meaningful current dirty patch onto the fresh branch
 - do not classify the whole worktree as stale just because the branch/PR lineage is stale
+- stronger repo-cleanup rule from later usage: when the user explicitly wants branch validity judged by a squash-style comparison, build the synthetic squash from the CURRENT worktree state (tracked + untracked local changes) rather than from the committed branch tip alone
+- this matters because a branch may look huge or stale versus latest main, while the live root/main or attached worktree only contains a very small meaningful local patch (for example a repo-local skill edit)
+- conversely, a previously clean detached helper at an open-PR head can become a dirty follow-up worktree later in the same session; once it has real local edits, stop treating it as a removable helper clone and preserve it like any other dirty detached worktree
+
+Additional practical case: branch head can be effectively stale or even net-empty, while the worktree still holds meaningful unpublished implementation
+
+Typical signal pattern:
+- the branch is not connected to any open PR
+- the branch may even track `origin/main` directly or have `git rev-list origin/main...<branch>` close to `0 0`, `behind 1`, or another misleadingly small value
+- the branch commit itself may be an old main-equivalent checkpoint or other non-meaningful base
+- yet `git status --short` in the attached worktree shows real tracked edits plus meaningful untracked source/test files
+- those untracked files are not temp helpers like `.tmp-issue-*.md`, but actual implementation files under `src/` or `tests/`
+
+Example summary language:
+- `stale branch pointer + meaningful local worktree patch`
+
+Handling rule:
+- judge the branch validity and the live worktree patch separately
+- it is acceptable to delete the stale branch later, but only after preserving or transplanting the real worktree patch
+- do not delete such a worktree automatically just because the branch itself looks equivalent to old main or not meaningfully ahead
 
 Additional practical case: branch head can be effectively stale or even net-empty, while the worktree still holds meaningful unpublished implementation
 
@@ -336,6 +366,10 @@ This check is especially important before restoring dirty tracked files in `main
 
 In repositories that check in agent skills or guidance under paths like `.agents/skills/**` or `docs/**`, the root `main` worktree can become dirty because of local exploratory edits to a skill or guidance file while you were debugging or documenting a different task.
 
+Important split:
+- some root skill/doc dirt is disposable residue and should be restored so `main` can fast-forward cleanly
+- other root skill/doc dirt is meaningful and should be preserved, but not by leaving root `main` dirty indefinitely
+
 Safe handling:
 1. inspect the root diff directly:
 
@@ -353,6 +387,28 @@ git restore --worktree -- <path>
 Practical rule:
 - do not let a stray local skill/doc edit block `main` fast-forward during workspace cleanup
 - but only restore it when it is clearly not the active subject of an open PR or a kept dirty worktree
+
+Important follow-up case from corp-web-japan cleanup:
+- sometimes the root `main` worktree ends the cleanup with exactly one meaningful repo-local skill/doc edit left (for example a checked-in `.agents/skills/**/SKILL.md` improvement) after all stale worktrees/branches were removed
+- in that situation, do **not** leave `main` dirty indefinitely if the user actually wants that edit preserved
+- preferred handling when the user wants that change turned into reviewable repo work:
+  1. verify the edit is intentionally different from the active kept PR worktrees rather than just copied residue
+  2. create a fresh worktree/branch from latest `origin/main`
+  3. copy only the intended skill/doc diff into that fresh branch
+  4. commit, push, and open a narrow docs/skill PR
+  5. then restore the root `main` worktree and fast-forward it to `origin/main`
+- lighter-weight variant when the user only asked to refresh local `main` and not to open a PR yet:
+  1. create a fresh backup worktree/branch from latest `origin/main`
+  2. copy only the meaningful dirty skill/doc files into that backup worktree
+  3. commit them locally on a clearly named backup branch such as `backup/...`
+  4. restore those files from root `main`
+  5. fast-forward root `main` to `origin/main`
+  6. report both the backup branch name and backup worktree path to the user
+- prefer this backup-branch variant over `git stash` when the user values inspectable branch/worktree preservation more than stash-based safekeeping
+
+Useful summary labels:
+- `root-local skill residue -> separate docs PR`
+- `root-local meaningful skill edit -> local backup branch before main refresh`
 
 Additional lesson from repeated repo-local cleanup:
 - the same kind of residue can appear in non-root worktrees too, especially in merged feature worktrees that touched repo-local checked-in skills
@@ -696,6 +752,56 @@ Useful summary labels:
 - `stale branch: synthetic squash conflicts broadly on latest main`
 - `stale branch history + meaningful dirty detached patch`
 
+Additional practical case: judge the current worktree state, not only the committed branch tip
+
+When the user explicitly asks whether a **local branch is still valid given its current local changes**, the right object to test is often not the branch tip tree alone.
+A branch can be merged/stale in committed history while the attached worktree still contains meaningful uncommitted changes.
+Conversely, a branch can look large or old, but its *current* worktree state may still squash and rebase cleanly onto latest `origin/main`.
+
+Recommended procedure for branch-backed worktrees:
+
+1. compute the merge-base with latest main as usual:
+
+```bash
+base=$(git merge-base origin/main <branch>)
+```
+
+2. build a temporary tree from the **current worktree state** rather than from `<branch>^{tree}` alone
+   - copy the worktree's current index to a temporary index file
+   - stage all tracked + untracked current changes into that temporary index
+   - write a tree from that temporary index
+
+Example pattern:
+
+```bash
+tmpidx=$(mktemp)
+idxpath=$(git -C <worktree> rev-parse --git-path index)
+cp "$idxpath" "$tmpidx"
+GIT_INDEX_FILE="$tmpidx" git -C <worktree> add -A
+worktree_tree=$(GIT_INDEX_FILE="$tmpidx" git -C <worktree> write-tree)
+rm -f "$tmpidx"
+```
+
+3. create the synthetic squash commit from that current worktree tree and the merge-base parent:
+
+```bash
+squash=$(printf 'TEMP SQUASH %s\n' <label> | git commit-tree "$worktree_tree" -p "$base")
+```
+
+4. rebase that synthetic squash onto latest `origin/main` in a disposable detached worktree
+
+Interpretation:
+- if the synthetic squash built from the **current worktree state** rebases cleanly, the local work is still portable and usually worth preserving
+- if the branch lineage is stale or already merged but the current worktree-state squash rebases cleanly, classify it as:
+  - `stale branch history + meaningful current local patch`
+- if the synthetic squash is effectively empty or rebases as a no-op, classify it as stale residue
+- if the synthetic squash conflicts broadly, that is strong evidence the current local state itself is stale or at least not cheaply portable
+
+Practical lessons from corp-web-japan cleanup:
+- a merged/no-PR branch can still deserve preservation if its attached worktree contains meaningful uncommitted documents or source edits, and the worktree-state squash rebases cleanly onto latest main
+- a no-PR alias branch whose squash diff is empty and whose rebase is a no-op is safe stale residue
+- a merged stale branch with only temp PR-body scratch files is still stale even if the synthetic squash technically rebases cleanly
+
 Practical lesson from corp-web-japan cleanup:
 - a stale backup branch like `backup/pr223-rebase-squash` can fail the squash-portability test, yet a detached worktree at the same HEAD may still contain a small meaningful local follow-up patch worth preserving
 - do not auto-delete the dirty detached worktree just because the related branch failed the squash validity test
@@ -834,6 +940,13 @@ Practical rule:
 - once cleanup starts deleting stale worktrees/branches, re-run `git fetch --prune`, re-check open PR heads, and re-check `git worktree list` before each new deletion batch if the repo is actively changing
 - this matters in fast-moving repos where `origin/main` or PR heads can advance during the cleanup session itself
 - an especially important variant is when a branch that was open earlier in the session later becomes `MERGED`, while a different branch becomes the new active PR line; do not preserve the old branch/worktree based on stale earlier assumptions
+- another common fast-moving case is that a candidate worktree path from an earlier snapshot may already have been removed, renamed, or replaced by the time you execute the deletion batch; always refresh the live worktree list and skip paths that are no longer registered instead of failing the whole cleanup batch on a stale pathname
+- when another agent or human may be modifying the same repository concurrently, do not trust any earlier same-session snapshot for the final report either
+- in that concurrent-edit case, branches can reappear under new names/paths, helper worktrees can be recreated, upstream tracking can change, open-PR state can flip while you are still auditing, and even a branch/worktree you just deleted can later reappear with the same name but a different tip/upstream because another actor recreated it
+- also, a candidate that looked like a clean no-op alias a minute ago can become dirty or become an open-PR branch before you act; treat every destructive decision as valid only for the exact pre-delete snapshot you just verified
+- therefore, before the final user-facing summary, re-run the full snapshot set (`git branch -vv`, `git worktree list --porcelain`, root `git status --short --branch`, and open PR query) and treat that last snapshot as the only authoritative statement of current state
+- if the final snapshot contradicts an earlier deletion/classification result, explicitly report the latest live state instead of the earlier intermediate conclusion
+- practical reporting rule: separate `what I deleted during this session` from `what exists right now` so the user can understand both the cleanup actions and any concurrent re-creations
 - after the cleanup batch, fast-forward the root `main` worktree to the latest `origin/main` when the root checkout is clean so the workspace ends in a refreshed baseline
 
 Additional practical case: branch names and PR head names can change mid-cleanup, so a stale candidate can become active before you delete it

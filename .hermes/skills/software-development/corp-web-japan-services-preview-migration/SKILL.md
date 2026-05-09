@@ -65,6 +65,21 @@ Desired behavior:
 9. Run targeted tests and `npm run build`.
 10. Commit, push, open/update PR, and watch CI through completion.
 
+## Multi-page request rule
+
+If the user asks for several service pages in one request, split them into separate fresh worktrees and separate PRs unless they explicitly ask for one combined PR.
+
+Practical reason learned from `/t/services/aip`, `/t/services/acp`, and `/t/services/fde` follow-up work:
+- each service page can differ materially in complexity and migration shape
+- one page may be a straightforward parity port while another may require a custom interactive browser or a heavier asset import set
+- separate PRs keep review focused and make it easier to verify the exact preview deployment per page
+
+Recommended pattern:
+- one branch / PR for `/t/services/aip`
+- one branch / PR for `/t/services/acp`
+- one branch / PR for `/t/services/fde`
+- repeat the same latest-main worktree safety checks for each page independently
+
 ## Implementation details
 
 ### 1. Keep the visible navigation route stable
@@ -201,14 +216,95 @@ Guidelines:
 
 Use the browser and lightweight scraping together:
 - browser navigation for structure/title/visible sections
-- lightweight HTML text extraction to collect headings, paragraphs, and image URLs
+- lightweight HTML text extraction to collect headings, paragraphs, links, and image URLs
 
 Effective approach used here:
 - navigate upstream URLs with the browser tool to verify titles and visible sections
 - use a simple requests + BeautifulSoup extraction script to list `h1/h2/h4/p/li` text and image URLs from `<main>`
 - use those extracted image URLs to download only the preview assets that matter
+- for service landing pages like `/ja/solutions/aip`, also inspect the authored `../corp-web-contents/pages/solutions/<slug>/ja/content.mdx` so you recover embedded-video presence, the exact 3-card value section, alternating feature-band order, and CTA wording rather than paraphrasing from memory
 
 This is faster and more reliable than trying to fully reverse-engineer the upstream source implementation.
+
+## Service-page parity rules learned from `/t/services/aip`
+
+When the target is a QueryPie Japan service landing page that summarizes several deeper AIP/ACP/FDE subpages:
+
+- Do not leave placeholder preview-only copy such as `Preview Service`, `Value 1`, or explanatory text like `preview でローカル確認できるように移しています`.
+- Restore the real hero structure from upstream, including embedded video if the source page has one.
+- Restore the 3-card value section as real image + title + body + `詳細を見る` links, not as generic bordered marketing cards.
+- Restore the alternating feature-band layout (muted/white rhythm plus left/right media alternation) instead of collapsing everything into a uniform 2-column card grid.
+- Restore the upstream CTA wording exactly when the source page already has a final CTA.
+
+### Link-target rule for service landing pages
+
+For service landing pages, card/detail links may need a mixed strategy:
+- if the corresponding deep page already exists locally as a preview route, link to that local preview route from the preview landing page
+  - example: `/t/services/aip` value cards should use local preview detail routes such as `/t/solutions/aip/usage-based-llm`, `/t/solutions/aip/mcp-gateway`, and `/t/solutions/aip/fde-services`
+- if the corresponding deep page does not yet exist locally, keep the upstream destination for now rather than inventing a broken local path
+  - example: the AIP integrations text link can stay on `https://www.querypie.com/ja/solutions/aip/integrations` until a local preview or canonical replacement exists
+
+This produces a usable preview migration without pretending the entire deeper page family is already locally rebuilt.
+
+## Audit workflow: identify the exact migration target for an existing `/t/services/*` preview page
+
+Use this when the user asks whether a preview migration is complete and first wants to know which upstream page the preview route was intended to replace.
+
+Preferred evidence order:
+1. inspect the matching public short-route redirect handler, for example `src/app/services/aip/route.ts`
+2. inspect redirect coverage tests such as `tests/redirect-endpoints.test.mjs` and `tests/services-preview-routes.test.mjs`
+3. inspect the authored source in `../corp-web-contents/pages/solutions/.../ja/content.mdx` and `meta.json`
+4. verify the live upstream page in the browser (`title`, `h1`, canonical URL)
+5. if needed, inspect the introducing commit or PR that added the preview route
+
+For `/t/services/aip`, this audit pattern confirms:
+- preview route: `src/app/t/services/aip/page.tsx`
+- short route redirect target: `https://www.querypie.com/ja/solutions/aip`
+- authored source: `../corp-web-contents/pages/solutions/aip/ja/content.mdx`
+- live page title/H1: `QueryPie AIプラットフォーム (AIP)`
+
+Why this matters:
+- the preview page content can look obviously AIP-related, but the redirect route and tests give the strongest repo-local contract for the intended upstream target
+- `corp-web-contents` confirms the authored Japanese source of truth
+- the live browser check confirms what actually shipped to users
+- the adding commit/PR is useful when you need to explain intent or scope, not just current behavior
+
+## Page-family-specific migration heuristics
+
+### `/t/services/fde`
+
+A reliable parity shortcut:
+- compare the live page against any existing local preview under `src/app/t/solutions/aip/fde-services/page.tsx`
+- if that solution preview already matches the same live source well, reuse its route-local copy and section-primitive structure rather than maintaining a second placeholder layout
+- keep the service preview route's own canonical path and route-aligned asset root (`public/services/fde/*`), but do not hesitate to mirror the proven hero / alternating feature-band / CTA structure
+
+### `/t/services/acp`
+
+Do not assume ACP is a simple four-card static page.
+
+Important real finding:
+- the live ACP page includes a category-driven feature browser, not just a flat set of feature cards
+- the main categories are:
+  - `データベースアクセス制御`
+  - `システムアクセス制御`
+  - `Kubernetesアクセス制御`
+  - `Webアクセス制御`
+  - `ワークフロー & 統合`
+- each category rotates through multiple tutorial items with its own animated asset and external docs link
+- the page also includes:
+  - hero YouTube embed
+  - easy-use full-width illustration section
+  - integrations split section with `利用可能なACP統合機能をすべて見る >`
+  - final CTA using the standard trial wording
+
+Implementation guidance for ACP parity:
+- import the remaining tutorial GIFs into route-aligned `public/services/acp/*`
+- prefer a dedicated client section component for the interactive category browser
+- keep route-local authored copy and data in `page.tsx`, but let the section component own the tab / previous / next interaction and image rendering details
+- keep the external `Learn More` links as direct docs links when there is no local migrated equivalent
+- add a structure test that checks the route keeps the category labels and that the section module owns the interactive browser implementation (`useState`, prev/next controls, `Learn More` links)
+
+These heuristics are specific enough to save significant rediscovery time on future service-page parity work.
 
 ## Test strategy
 

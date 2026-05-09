@@ -205,6 +205,22 @@ A page can have all the same headings and paragraphs yet still differ due to:
 - extra padding around maps/assets
 - wrong section background rhythm
 - uniformized image cards where live uses natural image sizes
+- a left/right two-column feature band being mirrored relative to live even though the copied text and media assets are all correct
+
+Important concrete lesson from `/t/solutions/aip/usage-based-llm` preview migration:
+- a migrated page can look superficially correct in snapshots because all headings, paragraphs, and images are present in the right order
+- however, one alternating feature band can still be structurally wrong if the preview renders `text-left / image-right` where live renders `image-left / text-right`, or vice versa
+- this is easy to miss when the same content is present and the images themselves still look visually plausible in either column
+
+Required verification pattern for alternating feature-band pages:
+1. inspect the exact live page in the browser
+2. list each major feature section in order
+3. record for each section whether it is:
+   - text-left / image-right
+   - image-left / text-right
+   - centered text + image below
+4. compare the preview against that exact sequence after deployment, not only locally
+5. if one band is mirrored, fix the grid order first, then re-measure the section geometry
 
 ### C. Remove decorative wrappers if live is flatter
 If the preview wraps a map or media asset in a padded rounded panel but the live page presents the asset flat/full-width, remove the wrapper rather than endlessly tweaking padding.
@@ -733,7 +749,70 @@ This is appropriate when:
 - utility classes are not producing the same computed styles
 - the scope is a narrow parity fix on a specific route or demo page
 
-### J. After parity is proven, clean up by moving layout responsibility into shared primitives instead of stacking more route-level wrappers
+### J. Reveal/animation wrappers can silently shrink supposedly full-width hero media
+A practical failure mode from `/t/solutions/aip/fde-services` parity work:
+- the page route rendered a hero visual through a client `RevealOnScroll` wrapper
+- the hero section and inner media container looked source-correct (`w-full`, large max-width, centered layout)
+- but the rendered hero image still came out narrower than expected
+- browser DOM measurement showed the real width bottleneck was the reveal wrapper itself, not the image component
+
+Symptoms:
+- browser text/snapshot suggests the page is correct
+- the hero image still renders noticeably narrower than the live page
+- `img`, parent container, and wrapper all report the same unexpectedly small width in `getBoundingClientRect()`
+
+Required diagnosis pattern:
+1. measure the target image width
+2. measure its immediate parent width
+3. walk up through 2-3 ancestors and compare widths
+4. inspect whether a transition/reveal wrapper is the first ancestor that stops stretching to the intended width
+
+Useful browser-console pattern:
+```js
+(() => {
+  const img = Array.from(document.querySelectorAll('main img')).find(i => i.alt === 'Custom AI Agents');
+  const nodes = [img, img?.parentElement, img?.parentElement?.parentElement, img?.parentElement?.parentElement?.parentElement].filter(Boolean);
+  return nodes.map((n, i) => ({
+    i,
+    tag: n.tagName,
+    className: n.className,
+    rectWidth: Math.round(n.getBoundingClientRect().width),
+    computedWidth: getComputedStyle(n).width,
+  }));
+})()
+```
+
+Reliable fix pattern:
+- if the reveal wrapper is narrower than the intended media width, give the wrapper explicit stretching responsibility at the route callsite
+- examples:
+  - `className="w-full"` on the reveal wrapper invocation
+  - `self-stretch` on the hero visual section when it lives inside a column flex container
+  - `mx-auto w-full max-w-[...]` on the immediate hero media container
+- then re-measure the deployed preview URL, not just local source
+
+This is especially important for static marketing pages where the hero visual should span the full content width and a narrow wrapper makes the page feel materially different from live.
+
+### K. If chrome-devtools MCP is unavailable, fall back to browser DOM measurement plus source HTML/CSS inspection
+Another practical lesson from the same task:
+- the chrome-devtools MCP server can become unreachable after repeated timeouts
+- this should not block parity work if the page is otherwise accessible through the normal browser tool and terminal/web fetches
+
+Fallback workflow:
+1. use `browser_navigate()` on the exact live URL and exact preview URL
+2. use `browser_console()` to extract DOM geometry and computed styles
+3. if browser visual tools are misleading or incomplete, fetch the live HTML and linked CSS in the terminal and inspect the actual source tokens/classes
+4. compare live computed geometry against preview computed geometry numerically
+
+Useful fallback sources:
+- `browser_console()` for `getBoundingClientRect()` and `getComputedStyle()`
+- `requests`/`curl` in terminal for live HTML
+- live CSS scraping to recover token values such as `--rem-60px`, `--rem-52px`, `--text-body`, layout gaps, and section paddings
+
+Important nuance:
+- browser vision can incorrectly describe the page body as blank or mostly empty even when the DOM and CSS confirm the content is present
+- when that happens, trust DOM geometry and fetched source over the vision summary
+
+### L. After parity is proven, clean up by moving layout responsibility into shared primitives instead of stacking more route-level wrappers
 A recurrent trap in parity follow-up work:
 - first you achieve the right pixels by adding route-local wrappers, duplicated utility classes, or inline styles
 - then the rendered result looks correct, but the implementation becomes structurally messy and hard to maintain
@@ -766,6 +845,30 @@ For static company-info preview pages such as `/t/about-us`:
 - use local route-aligned assets under `public/<slug>/...` if that is the repo convention requested by the user
 - match the live page's visual structure using browser-measured geometry
 - keep the public non-preview redirect route untouched unless explicitly requested
+
+### L2. For integration-catalog pages, measure the wrapper elements that own the visual chrome
+A practical finding from `/t/services/aip/integrations` parity work:
+- browser snapshots can make the page look fully correct because all 45 card labels and filter labels are present
+- but for pixel parity, you must measure the actual wrapper elements that own background, radius, padding, and grid sizing
+- on the live page, the category pill anchors can report transparent backgrounds and zero padding because the pill chrome is applied on the wrapped list item
+- if you compare only the anchor geometry/styles, you can falsely conclude the preview pills are wrong even when the wrapper is correct
+
+Required measurement pattern for catalog/list pages:
+1. inspect the pill list wrapper and measure the first few `<li>` items, not only the nested anchors
+2. inspect the product grid `<ul>` and measure the first few card `<li>` items
+3. for each wrapper, compare:
+   - top/left
+   - width/height
+   - background color
+   - border radius
+   - padding
+   - gap
+4. then separately compare the nested image size and label text metrics inside each card
+
+Also keep this page-family caveat in mind:
+- the preview site's header/footer chrome may intentionally differ from the live `querypie.com/ja` chrome
+- in that case, evaluate parity primarily on the migrated body area unless the user explicitly asks for full-page chrome matching
+- for `/t/services/aip/integrations`, the meaningful parity target was the body composition: H1, description, category pills, 45-card grid, and CTA section
 
 ## Verification checklist before finalizing
 

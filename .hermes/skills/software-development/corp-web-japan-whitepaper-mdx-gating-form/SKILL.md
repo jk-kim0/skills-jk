@@ -246,11 +246,38 @@ Add or update a test like `tests/whitepaper-gating-source.test.mjs` to verify:
 - `PublicationPost` includes `gating`
 - an internal `/internal/...` demo page and MDX source exist
 
-Run first:
+If the repo uses dedicated whitepaper PDF-format routes, add focused source tests that verify:
+- `/whitepapers/[id]/pdf` redirects to the canonical `/whitepapers/[id]/[slug]/pdf`
+- `/whitepapers/[id]/[slug]/pdf` checks the unlock cookie server-side and redirects directly to the PDF when already unlocked
+- preview mode passes `autoUnlock` into the dedicated PDF gate page
+- the preview-only unlock route sets the same gating cookie without calling the external submit side effects
+- article-page PDF CTAs for local same-origin `/pdf` routes use full document navigation (`<a href>`), not `next/link` client navigation
+- external download targets still keep explicit new-tab behavior
+- whitepaper article CTA copy can intentionally describe the PDF format itself (for example `PDF版ホワイトペーパーを見る`) because the route is a format-specific entry page, not a direct file response
+- do not assume the dedicated `/pdf` page is a redundant second gating step; in this repo it can be the intentional PDF-format surface parallel to the web article
+
+Run focused tests directly with `node --test`:
 
 ```bash
-node --test tests/whitepaper-gating-source.test.mjs
+node --test tests/whitepaper-gating-source.test.mjs tests/whitepaper-download-route.test.mjs tests/src/app/api/gating-form/preview-unlock/route.test.mjs tests/src/app/api/gating-form/unlock/route.test.mjs
 ```
+
+Important repo-specific lesson:
+- do not rely on `npm run test -- <files>` for focused verification here
+- this repo's `test` script expands its own `find tests -name '*.test.mjs' ...` pipeline, so positional file arguments do not actually narrow execution
+- use `node --test <explicit files>` when you need targeted regression checks during gating/download work
+
+For stage/runtime verification, also confirm the actual cookie TTL contract with a real request:
+
+```bash
+curl -i -s -X POST 'https://stage.querypie.ai/api/gating-form/preview-unlock' \
+  -H 'Content-Type: application/json' \
+  --data '{"contentKey":"whitepaper:24"}' | sed -n '1,20p'
+```
+
+Expected contract in the current implementation:
+- non-production/stage: `Max-Age=300` (5 minutes)
+- production: 48 hours
 
 ## Common pitfalls
 
@@ -280,13 +307,48 @@ If `gated: true` is set but no cut marker exists, throw an explicit error. Silen
 
 Keep TTL logic centralized. Do not hardcode separate durations in multiple components/routes.
 
-### 6. Verification environment issues
+### 6. Article CTA client-navigation bounce on local `/download` routes
+
+Important repo-specific bug pattern discovered after PR #311:
+- direct navigation to `/whitepapers/:id/:slug/download` can appear correct
+- but clicking the article-page CTA can still fail in real Chrome
+- if the article CTA uses `next/link` client navigation to a local same-origin `/download` route, and that route then redirects to a same-origin PDF path, the App Router/RSC navigation can continue and bounce back to the article page
+
+Safe rule:
+- for local same-origin whitepaper `/download` CTAs rendered inside article content, use full document navigation via plain `<a href="...">`, not `next/link`
+- keep `next/link` for ordinary internal article/detail navigation
+- keep external download targets as explicit new-tab anchors
+
+Verification rule:
+- do not stop after checking direct `/download` URL entry
+- also verify the real user path: article page -> click CTA -> final browser behavior reaches the PDF target
+- important repo-specific/browser-specific finding: on hosted stage, the whitepaper `/pdf` gate flow may keep the browser URL on the canonical gate page while triggering the localized PDF as a browser download event instead of navigating the tab URL to the `.pdf` path
+- for Playwright E2E on this flow, prefer `page.waitForEvent("download")` plus assertions on `download.url()` and `download.suggestedFilename()` rather than asserting `page.url()` changes to the PDF asset path
+- still verify that the unlock or preview-unlock API returned success and that the gating cookie was issued
+
+### 7. Verification environment issues
 
 If local shell commands start failing with process-limit errors like:
 - `spawn sh EAGAIN`
 - `Resource temporarily unavailable`
 
 stop retrying long verification loops. Report the environment issue and preserve the already-passing focused regression test result.
+
+### 8. Canonical `/pdf` flow vs legacy `/download` naming traps
+
+Important repo-specific review lesson:
+- the current canonical gated whitepaper PDF flow is `/whitepapers/:id/:slug/pdf`
+- legacy `/whitepapers/:id/:slug/download` remains only as a compatibility redirect to the canonical `/pdf` page
+- article CTA hrefs on gated whitepapers should be rewritten to the canonical `/pdf` path by `src/lib/publications/whitepapers/get-post.ts`
+
+Practical implications:
+- do not write new acceptance criteria or issue bodies that describe `/download` as the primary dedicated gate page
+- when validating whether E2E coverage exists, inspect the current `tests-local` coverage before calling it missing; the dedicated browser-flow test may already exist even if an old issue body still says `/download`
+- do not be misled by historical filenames such as `tests-local/src/app/whitepapers/download-page.e2e.mjs`; the file can still be a valid canonical `/pdf` gate-flow test
+- distinguish clearly between:
+  - canonical `/pdf` gate-page coverage
+  - legacy `/download` redirect compatibility
+  - general same-page article gating/detail coverage
 
 ## Done criteria
 

@@ -116,18 +116,30 @@ When the user asks to create a PR from the current local workspace state rather 
      - copy only those changed/untracked files from the dirty root checkout into the fresh worktree
      - verify the fresh worktree now shows exactly that change set against `origin/main`
    - This avoids using `stash`, keeps the user's existing dirty root workspace intact, and still yields a clean latest-main PR branch.
-   - Important repeat-request lesson: if the user asks for the same "update main + make a PR from current local changes" flow again later in the same dirty root checkout, do **not** assume the last follow-up branch/PR is still open or still matches the current root state.
-     - Re-check both the current root branch and any most recently created follow-up branch/PR.
-     - A previous PR you created from a fresh worktree may already be merged, while the root checkout still sits on an older merged branch with additional new local edits accumulated afterward.
-     - In that case, repeat the same safe transplant flow again from the current root diff onto a brand-new latest-`origin/main` branch, rather than trying to reuse the earlier follow-up branch name or infer state from the last PR you created.
-   - Safer fallback when a clean file-copy transplant is impractical:
-     - `git stash push -u -m '<note>'`
-     - refresh repository refs and update local `main` to latest `origin/main`
-     - create a fresh branch from `origin/main`
-     - if there is an unmerged local commit you still need, cherry-pick it onto the new branch
-     - if the cherry-pick becomes empty because latest `main` already contains that change, use `git cherry-pick --skip`
-     - `git stash pop`
-   - This preserves the still-local work while avoiding accidental reuse of a stale merged-PR branch.
+  - Important repeat-request lesson: if the user asks for the same "update main + make a PR from current local changes" flow again later in the same dirty root checkout, do **not** assume the last follow-up branch/PR is still open or still matches the current root state.
+    - Re-check both the current root branch and any most recently created follow-up branch/PR.
+    - A previous PR you created from a fresh worktree may already be merged, while the root checkout still sits on an older merged branch with additional new local edits accumulated afterward.
+    - In that case, repeat the same safe transplant flow again from the current root diff onto a brand-new latest-`origin/main` branch, rather than trying to reuse the earlier follow-up branch name or infer state from the last PR you created.
+  - Additional overlap-vs-new-scope lesson: even if there is still an OPEN follow-up PR, do **not** assume the current root dirty state belongs on that PR.
+    - First compare the current root changed/untracked file set against the open PR worktree or branch tip.
+    - Practical checks:
+      - list root tracked/untracked changes
+      - inspect the open PR branch's committed file list vs `origin/main`
+      - compare root files byte-for-byte against the open PR worktree for overlapping paths
+    - Interpret the result in three buckets:
+      1. identical to the open PR state -> update that PR branch
+      2. root state is a strict superset of the open PR and the user clearly wants one cumulative PR -> consider updating the same PR after explicit scope confirmation
+      3. root state only partially overlaps and also contains additional or divergent local changes -> create a new latest-main branch/PR for the current root state
+    - In `skills-jk`, case (3) is common because the root checkout can stay dirty on an old merged branch while one or more fresh-worktree follow-up PRs are created and merged separately.
+    - Do not blindly pile new local changes onto the still-open PR just because some files overlap; if the root diff is not materially the same as the open PR diff, split it into a new PR.
+  - Safer fallback when a clean file-copy transplant is impractical:
+    - `git stash push -u -m '<note>'`
+    - refresh repository refs and update local `main` to latest `origin/main`
+    - create a fresh branch from `origin/main`
+    - if there is an unmerged local commit you still need, cherry-pick it onto the new branch
+    - if the cherry-pick becomes empty because latest `main` already contains that change, use `git cherry-pick --skip`
+    - `git stash pop`
+  - This preserves the still-local work while avoiding accidental reuse of a stale merged-PR branch.
    - If there is an unmerged local commit you still need, cherry-pick it onto the new branch.
    - If the cherry-pick becomes empty because latest `main` already contains that change, use `git cherry-pick --skip` and continue.
    - Only then continue with staging/committing. This preserves the current file state while ensuring the new PR is based on clean latest main rather than a previously merged PR branch.
@@ -146,7 +158,7 @@ When the user asks to create a PR from the current local workspace state rather 
    - In `skills-jk`, append-only markdown files such as `.hermes/memories/*.md` and skill `SKILL.md` files often conflict when both latest `main` and the local work added new bullets near the end.
    - Do not blindly choose one side; read the conflict block and keep both sides' new entries unless they are true duplicates.
    - Preserve existing separators like `§` in memory files.
-   - At minimum run a targeted search like `rg -n '^(<<<<<<<|=======|>>>>>>>)' <files...>`.
+   - At minimum run a targeted search like `rg -n '^(<files...>`.
    - Do not rely only on `git status`; a file can be marked resolved while still containing conflict text.
    - For config files such as `.yaml`, also run a lightweight parse check (for example `python -c 'import yaml, pathlib; yaml.safe_load(pathlib.Path(...).read_text())'`).
    - When resolving against latest `main`, prefer the actual `origin/main` file content as the source of truth instead of guessing which side of the conflict to keep.
