@@ -34,6 +34,18 @@ Important distinction learned from review follow-up work:
 - If the parent PR has already grown beyond the exact comparison target (for example a broader semantic-composition rewrite landed on the parent PR, but the user now wants to compare only one subsection experiment), do not blindly branch from the latest parent head. First inspect the parent PR commits and choose the most appropriate parent commit baseline that still contains the prerequisite code but not the later broadening changes. Then create the child comparison branch from that exact commit and open the stacked PR against the parent branch. This keeps the comparison PR narrowly focused and avoids smuggling unrelated follow-up refactors into the experiment.
 - In the independent split-PR case, prefer reimplementation/cherry-picking only the minimal independent commit(s) rather than branching from the old PR head. The goal is a clean PR diff against `main`, not a PR that drags along the larger in-progress branch context.
 - In the dependency-on-parent case, prefer the stacked PR over forcing a fake `main`-based branch, because that keeps the review diff small and avoids duplicating the parent PR's not-yet-merged code.
+- Practical page-scoped split pattern learned from splitting one open legal-preview PR into four page PRs:
+  - Start from latest `origin/main` with one fresh worktree per new child PR.
+  - Use the parent PR branch only as a source of file content (`git checkout origin/<parent-branch> -- <needed-paths...>`), not as the base of the new independent PR, unless true parent-only dependencies exist.
+  - Before copying files, classify changes into three buckets:
+    1. page-owned route/content files that clearly belong to a single child PR
+    2. shared helper/component files that would create cross-PR coupling if copied as-is
+    3. shared navigation/link updates where only one link should move in each child PR
+  - For bucket (2), do not blindly copy a shared helper into every child PR. If independence matters more than deduplication, create page-specific helpers/components in each split PR so each child can merge alone without waiting for sibling PRs.
+  - For bucket (3), update only the single relevant footer/nav/legal link in each child PR instead of bundling the whole shared-link batch back together.
+  - Add one narrow per-child regression test file that asserts only that page's route, helper wiring, local content source, and corresponding shared-link change.
+  - After creating the child PRs, leave a comment on the parent PR linking all replacement PRs so reviewers can follow the split.
+  - Heuristic: when the user's request is 'split this big PR into page-by-page PRs', optimize first for review independence and mergeability, even if that means temporary helper duplication across the child PRs.
 
 ## When to use
 - "PR 32에 수정사항 넣어줘"

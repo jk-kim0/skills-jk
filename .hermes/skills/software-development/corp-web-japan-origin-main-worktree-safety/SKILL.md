@@ -228,6 +228,27 @@ Important rule:
 - do not mix unrelated stale local-main state into the PR branch
 - treat the dirty local file as a patch source, and the fresh latest-main worktree as the only PR-authoring checkout
 
+### Extra rule for repo-local skills / docs rescued from dirty main
+
+When the preserved change is a repo-local skill or guidance doc under paths such as `.agents/skills/**`, do not assume the backed-up text is still correct verbatim.
+
+Use this validation flow before opening the PR:
+
+1. copy the candidate file(s) into the fresh latest-main worktree
+2. inspect the latest implementation/tests that define the documented contract
+3. compare the rescued text against the current repo truth
+4. keep the useful new guidance, but rewrite any stale route/path/contract details to match latest main before commit
+
+Typical example:
+- a rescued skill still says a whitepaper gate flow is `/download`
+- latest main has already canonicalized that flow to `/pdf`
+- the correct action is not to discard the whole rescued skill update, and not to merge the stale wording unchanged
+- instead, salvage the useful behavioral guidance and rewrite the stale contract references to the latest-main truth before creating the PR
+
+Practical rule:
+- for rescued skill/doc PRs, validate against current source files and the smallest relevant tests, not just against the old diff alone
+- this is especially important for route names, canonical paths, gating flows, helper module paths, and other repo contracts that can drift while local main was stale
+
 ## Pre-push rule
 
 Before pushing or updating a PR branch:

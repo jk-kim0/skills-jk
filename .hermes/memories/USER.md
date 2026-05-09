@@ -120,7 +120,7 @@ When restoring Korean website copy, the user is fine keeping expressions that we
 §
 For corp-web-v2 documentation sidebar requests, preserve the exact ordered structure literally as specified by the user. Current required order: CMS label -> All -> Introduction -> Glossary -> Manuals -> White Papers -> Blogs -> separator -> MDX label -> White Papers -> Blogs. Do not omit CMS White Papers/Blogs, and do not reinterpret the request as either CMS-only or MDX-only.
 §
-The user requires all repo work to start from the latest main branch by default unless explicitly instructed otherwise, and requires PR branches to be rebased onto the latest main branch again before push/PR update.
+The user requires repo work to start from latest main by default, expects local `main` to be explicitly fast-forward updated when review is said to be based on current main, and wants PR branches rebased onto latest main before push/PR update.
 §
 Across all repos, unless explicitly told to use the main workspace checkout, do not modify code there; use a git worktree for code changes.
 §
@@ -189,3 +189,9 @@ In corp-web-japan, when preview /t/* routes are promoted or replaced, the user d
 For visual/layout bugs, the user expects direct verification against the exact provided live page and Preview Deployment URL before claiming a fix, and strongly prefers one-pass thorough fixes over iterative trial-and-error that makes them re-test repeatedly.
 §
 For querypie.com/ja page migrations in corp-web-japan, the user wants the existing page copied as-is without invented preview explanation text, rewritten title/description copy, or new CTA sections unless explicitly requested.
+§
+If browser interaction is needed while another agent is already controlling the browser, open and use a separate new tab/page/window instead of reusing the existing one.
+§
+If browser interaction is needed while another agent is using the browser, the user wants new tabs/pages opened instead of reusing or disturbing existing browser tabs/windows.
+§
+For corp-web-japan and similar repo work, any reusable migration/workflow skill should be provided as a repo-local skill under .agents/skills/, not only as a built-in/global skill.

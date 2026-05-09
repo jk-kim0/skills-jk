@@ -29,16 +29,38 @@ Observed failure modes:
 - Even with `PATH=~/workspace/corp-web-japan/node_modules/.bin:$PATH`, `npm run typecheck` can still fail with widespread module-resolution errors for `next`, `react`, `yaml`, Node built-ins, and JSX runtime types.
 - `npm run build` can fail because Next/Turbopack cannot resolve `next/package.json` from the worktree and infers the wrong workspace root.
 
-However, an important practical workaround worked in a later task:
-- creating a worktree-local symlink `node_modules -> ~/workspace/corp-web-japan/node_modules`
-- then rerunning narrow verification such as touched-file `npm run lint -- ...` and `npm run typecheck`
+However, later tasks exposed an important limitation and a better escalation path.
+
+First workaround that can help for narrow checks:
+- create a worktree-local symlink `node_modules -> ~/workspace/corp-web-japan/node_modules`
+- rerun narrow verification such as targeted `node --test ...` or `npm run typecheck`
 
 This is materially different from only exporting `.bin` on `PATH`: the symlink lets module resolution succeed from the worktree without paying the cost of a fresh install inside that worktree.
 
-So the rule is:
+But an important experiential finding:
+- that symlink can still break Next.js runtime/build flows under Turbopack
+- observed errors included:
+  - `Symlink [project]/node_modules is invalid, it points out of the filesystem root`
+  - failure both on `next build` and on `next dev`
+- so the symlink is a useful fast-path for narrow static verification, but it is **not reliable** when you need an actual local Next server or local build output for browser parity work
+
+Best escalation path when browser verification is required and the user still wants to avoid a slow fresh install:
+- remove the symlinked `node_modules`
+- create a copy-on-write local clone from the root checkout instead, for example on APFS/macOS:
+  - `cp -cR ~/workspace/corp-web-japan/node_modules ./node_modules`
+- then start `next dev` or other local Next verification from the worktree
+
+Why this matters:
+- the copy-on-write clone behaves like a real in-worktree `node_modules` directory for Next/Turbopack
+- but it avoids most of the time and disk cost of a full reinstall
+- this is the practical fallback for visual/browser validation tasks where a local server is truly needed
+
+So the rule is now:
 - shared parent `.bin` alone is only a partial workaround
-- a worktree-local `node_modules` symlink to the root checkout can be a good fast-path for narrow verification when the user wants to avoid repeated installs
-- if even the symlink path is not acceptable or does not work, fall back to targeted source-based tests and rely on PR CI for full verification
+- a worktree-local `node_modules` symlink to the root checkout can be a good fast-path for narrow verification
+- do **not** trust that symlink for `next dev` / Turbopack / local build flows
+- when local browser verification is required, prefer a temporary copy-on-write local clone of `node_modules`
+- if even that is undesirable, fall back to targeted source-based tests and rely on PR CI for full verification
 
 ## Recommended workflow
 

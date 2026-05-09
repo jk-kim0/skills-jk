@@ -211,3 +211,13 @@ In corp-web-japan static/legal preview migrations, route-local self-contained pl
 In corp-web-japan, for standalone static/legal preview pages like terms-of-service, the user prefers route-local MDX colocation: keep page.tsx and content.mdx in the same route directory (e.g. src/app/t/terms-of-service/) rather than placing the MDX under src/content.
 §
 In the repo-local Hermes setup at ~/workspace/skills-jk/.hermes/config.yaml, mcp_servers.chrome-devtools is configured with npx chrome-devtools-mcp@latest and Hermes reports it enabled via `hermes mcp list`.
+§
+In corp-web-japan whitepaper download flow, the user wants `gated: true` whitepapers to show a CTA near the start of the visible article body that links to a dedicated `/whitepapers/:id/:slug/download` gating page; that download page should use the portrait PDF cover image (not the article thumbnail), and Preview Toggle should bypass the download gating form and open the PDF directly.
+§
+In corp-web-japan publication UX, the user expects introduction-deck gated download CTA buttons to appear in the unlocked gated section directly below the `資料ダウンロード` explanatory copy, not above the gating form; also treat whitepaper article-body CTA links to `/whitepapers/{id}/{slug}/download` as an intentional second gating step rather than a direct PDF-download link.
+§
+In corp-web-japan mobile resource/demo sidebar UX, after comparing alternatives the user chose the bottom-sheet/drawer navigation pattern over the block-list/grid pattern as the preferred final direction.
+§
+In corp-web-japan service preview parity work, when the user asks to fix multiple `/t/services/*` pages together (such as ACP and FDE), they want each page handled in its own fresh worktree and its own separate PR, not bundled into one combined PR.
+§
+The user wants the repeated repo-local stale-branch/worktree audit workflow encoded as a reusable skills-jk skill: classify non-open-PR branches by synthetic squash of current local state vs latest origin/main, test disposable rebase onto latest main, preserve meaningful local patches, and delete only clearly stale branches/worktrees.

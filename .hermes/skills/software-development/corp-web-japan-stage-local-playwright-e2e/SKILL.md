@@ -20,7 +20,13 @@ Use this when the user asks for browser E2E coverage against a deployed `stage.q
 - the repo already has `playwright.local.config.mjs` and `tests-local/` patterns available
 
 ## Key findings
-- This repo's default CI path is still `npm run test:ci` plus build; stage browser checks should stay local-only unless the user explicitly asks to add CI wiring.
+- This repo's default CI path is still `npm run test:ci` plus build, but the repository now also has a dedicated manually triggered GitHub Actions workflow for the hosted full-suite stage run:
+  - workflow name: `E2E on Stage`
+  - workflow file: `.github/workflows/e2e-stage.yml`
+  - manual dispatch inputs:
+    - `base_url`
+    - `contact_us_expected_submit_outcome`
+- Use that workflow when the user asks you to verify that the full hosted E2E suite actually runs from GitHub Actions, or when you need GitHub-hosted artifacts (HTML report, trace, screenshot, video).
 - The existing pattern is to place stage-only browser tests under `tests-local/src/app/**` and expose them via explicit `package.json` scripts such as:
   - `e2e:local:contact-us:stage`
   - `e2e:local:whitepaper-gating:stage`
@@ -257,6 +263,7 @@ Recommended assertions for the whitepaper file:
 
 ## Practical pitfalls
 - A local main branch can be behind origin; create the worktree from `origin/main`, not local `main`.
+- If you are verifying a newly added workflow or script, do not trust a stale local checkout. Compare against `origin/main` first; a workflow can already be active on GitHub even if your local main branch does not yet contain the file.
 - In this repo specifically, local E2E files such as `tests-local/` and `playwright.local.config.mjs` may exist on latest `origin/main` even when they are absent from a stale local `main`; verify from a fresh worktree before assuming the setup is missing.
 - `gh pr create` can warn about uncommitted changes if you leave a temporary PR body file in the worktree.
 - In a fresh worktree, Playwright may fail twice in sequence:
@@ -267,9 +274,41 @@ Recommended assertions for the whitepaper file:
   - `npx playwright install chromium`
 - Keep local-only stage E2E separate from standard CI to avoid flaky or environment-coupled pull request checks.
 
-## Verification checklist
-- Target stage route was verified directly in the browser.
-- New E2E test passes against the deployed stage page.
-- `npm run test:ci` still passes.
-- The new script name clearly indicates local-only stage scope.
-- CI workflow remains unchanged unless the user explicitly requested CI integration.
+## Stage full-suite regression findings from manual GitHub Actions run
+
+A manual dispatch of the GitHub Actions workflow `E2E on Stage` against `https://stage.querypie.ai` completed successfully as infrastructure, but exposed several stale test expectations. This is reusable guidance for future triage:
+
+- The workflow itself was healthy when these conditions held:
+  - `actions/checkout`, `actions/setup-node`, `npm ci`, and `npx playwright install --with-deps chromium` all succeeded
+  - the failure happened only in the `Run full hosted E2E suite` step
+  - Playwright HTML report and results artifacts uploaded successfully
+- When this pattern appears, classify the incident as test-or-site investigation, not workflow breakage.
+
+Specific fixture drift that was confirmed on stage / current main:
+
+- Blog 23 is no longer a directly rendered hidden blog detail sample.
+  - `src/content/blog/23-querypie-payroll-partnership.mdx` is `hidden: true`
+  - it now has `redirectUrl: "/news/12/payroll-querypie-ai-security-partnership"`
+  - therefore `/blog/23/querypie-payroll-partnership` should be treated as a redirect-shadow record, not a normal hidden article page
+- News 12 is no longer an external-redirect news sample.
+  - `src/content/news/12-payroll-querypie-ai-security-partnership.mdx` currently has local body content and no `redirectUrl`
+  - stage requests to `/news/12` and `/news/12/payroll-querypie-ai-security-partnership` currently resolve to the local news detail route, not out to `news.nicovideo.jp`
+- Whitepaper 24 list/detail expectations have shifted from upstream absolute URLs to local routes.
+  - on stage, the list card href for whitepaper 24 is `/whitepapers/24/ai-transformation-japan`
+  - the visible article CTA currently points to `/whitepapers/24/ai-transformation-japan/pdf`
+  - do not keep asserting historical `https://www.querypie.com/ja/...` destinations once the local route has become canonical on stage
+
+Recommended triage method when a hosted E2E starts failing after content/routing work:
+1. Dispatch the GitHub workflow if the user asked for GitHub-hosted verification.
+2. If setup passes and only test steps fail, download artifacts and read `error-context.md` for each failing case.
+3. Compare the failing expectation against:
+   - the current stage response
+   - the current `src/content/**` MDX frontmatter
+   - the current route code under `src/app/**`
+4. Prefer classifying the failure as stale fixture drift unless you find clear evidence that stage contradicts current main.
+5. Update the helper fixture files before blaming the workflow.
+6. If a local Playwright rerun fails with transient navigation/network errors such as `net::ERR_INTERNET_DISCONNECTED`, do not immediately rewrite fixtures again.
+   - First probe the exact stage URLs with `curl -I -L`.
+   - If stage is healthy, rerun the affected Playwright suite once before changing code.
+   - In this repo, a transient local network failure can affect one run while the same suite passes cleanly on immediate retry.
+

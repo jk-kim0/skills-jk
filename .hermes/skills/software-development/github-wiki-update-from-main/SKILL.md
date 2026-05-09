@@ -391,6 +391,32 @@ Important lesson from replacement-readiness wiki work:
 
 When rewriting a planning or migration-status wiki page after a large feature has merged to `origin/main`, do not just update commit SHAs and preserve the old narrative.
 
+### Historical incident page follow-up rule
+
+When updating an existing operational snapshot page such as a Vercel runtime-log incident page, do not automatically rewrite the whole document as if the original incident never happened.
+
+Recommended pattern:
+1. preserve the original incident window, sampled findings, and historical conclusions as the primary record
+2. add a clearly labeled follow-up section with:
+   - latest `origin/main` SHA used for re-checking
+   - relevant route/code history if the incident was tied to a specific implementation path
+   - live production and stage HTTP verification of the exact affected URLs
+   - recent runtime-log re-check for those exact paths
+3. if the issue is now fixed, update the page's later conclusion / next-action wording so it explicitly says the incident was real but is now resolved
+4. keep the distinction explicit:
+   - historical incident evidence
+   - current live behavior
+
+This avoids two opposite mistakes:
+- erasing a real incident from the historical record just because it is fixed now
+- leaving the wiki sounding like an active unresolved production bug after the fix has already landed
+
+Useful verification pattern for exact-path incident follow-up:
+- inspect latest `origin/main` route code
+- inspect route git history for the relevant file
+- `curl -I -L` the exact production and stage URLs mentioned in the incident
+- query recent Vercel logs for those exact paths to confirm whether they still produce `500` or now return normal `307` / `200` behavior
+
 Re-audit whether the feature changed the document's core thesis.
 Typical examples:
 - a page framed around "largest missing blocker" may become outdated once the blocker is implemented on main
