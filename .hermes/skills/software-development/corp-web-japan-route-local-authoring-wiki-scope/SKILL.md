@@ -72,3 +72,54 @@ Recommended sections:
 
 If a route family is already migrated through the local MDX/publication system, do not keep listing it here just because it still has detail routes or a list page.
 This wiki page should stay narrow and actionable; otherwise it turns back into a generic migration dashboard.
+
+## Latest-main audit lessons to preserve
+
+When rewriting `Route-Local-Authoring*` from latest `origin/main`, do not preserve older classifications mechanically.
+Re-audit these specific cases because they changed over time and are easy to describe incorrectly:
+
+- `privacy-policy`
+  - Do not leave this as only a `scope decision needed` item if latest main already has local preview implementation and local content versions.
+  - On the audited baseline from 2026-05-10, latest main had `/t/privacy-policy`, `/t/privacy-policy/[slug]`, and local `src/content/privacy-policy/*.mdx` version records, so the correct status was `partial` with remaining public-rollout work.
+- AIP integrations
+  - Do not describe `/ja/solutions/aip/integrations` as redirect-only if latest main already has `/t/services/aip/integrations`.
+  - If that preview route exists, classify it as `partial`, not `not yet migrated`.
+- FDE route family
+  - Check for both `/t/services/fde` and `/t/solutions/aip/fde-services` before writing the inventory.
+  - If both preview routes exist while the public route is still redirect-only, explicitly note the duplicate-preview state and that canonical public rollout still needs to be decided.
+- Contact us
+  - Verify whether `/contact-us` is a real local page plus submit flow, not just a redirect endpoint.
+  - If `src/app/contact-us/page.tsx` and `src/app/contact-us/submit/route.ts` both exist, treat it as already migrated.
+
+## Recommended verification queries
+
+Before finalizing the wiki page, explicitly inspect these latest-main files when relevant:
+
+- `src/app/contact-us/page.tsx`
+- `src/app/contact-us/submit/route.ts`
+- `src/app/privacy-policy/route.ts`
+- `src/app/t/privacy-policy/page.tsx`
+- `src/app/t/privacy-policy/[slug]/page.tsx`
+- `src/app/services/aip/route.ts`
+- `src/app/services/acp/route.ts`
+- `src/app/services/fde/route.ts`
+- `src/app/t/services/aip/page.tsx`
+- `src/app/t/services/acp/page.tsx`
+- `src/app/t/services/fde/page.tsx`
+- `src/app/t/services/aip/integrations/page.tsx`
+- `src/app/t/solutions/aip/usage-based-llm/page.tsx`
+- `src/app/t/solutions/aip/mcp-gateway/page.tsx`
+- `src/app/t/solutions/aip/fde-services/page.tsx`
+
+Also inspect route-only redirects for these public paths before classifying them as migrated:
+
+- `/about-us`
+- `/certifications`
+- `/cookie-preference`
+- `/services/aip`
+- `/services/acp`
+- `/services/fde`
+- `/platform/ai/aip/*`
+- `/platform/security/*`
+- `/eula`
+- `/terms-of-service`
