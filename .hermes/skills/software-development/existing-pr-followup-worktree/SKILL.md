@@ -291,6 +291,19 @@ Important user-expectation nuance learned from active-review follow-up:
     where `<old-local-pr-tip>` is the local commit that used to correspond to the original PR tip before your new follow-up commit(s).
   - After that, verify `git log --oneline --decorate -n 5` shows `origin/<pr-branch>` followed by only your intended new follow-up commit(s), rerun the targeted test, and push normally.
   - This preserves the existing open PR history while still letting you rebase your new work onto the remote PR head.- If the user later asks to clean up the PR title/body, rewrite them to describe only the final end state of the PR. Do not narrate intermediate implementation history unless the user explicitly wants that context.
+- Important GitHub branch-rename caveat from corp-web-japan PR maintenance: do not assume renaming the remote head branch of an already-open PR is a safe way to "fix the PR branch name" in place.
+  - Even if `POST /repos/{owner}/{repo}/branches/{branch}/rename` succeeds and both the old and new refs can end up pointing at the latest commit, the PR API can keep reporting the old `headRefName` and even a stale `headRefOid`.
+  - Practical consequence: PR continuity can become confusing because `gh pr view` / pull-request API metadata may lag indefinitely or stay pinned to the historical branch identity, while low-level branch refs already moved.
+  - Safe rule: for an open PR follow-up, prefer leaving the existing PR head branch name alone unless the user explicitly accepts the risk of stale PR metadata.
+  - If you already attempted a branch rename, verify both layers separately:
+    ```bash
+    gh api repos/<owner>/<repo>/pulls/<pr-number> --jq '.head.ref + " " + .head.sha'
+    gh api repos/<owner>/<repo>/branches/<url-encoded-branch> --jq '.name + " " + .commit.sha'
+    ```
+  - If those disagree, treat the PR metadata as stale. Do not confidently claim that the PR branch rename fully succeeded just because the branch ref moved.
+  - In that situation, prefer one of these explicit outcomes:
+    1. keep using the old PR branch name for the existing PR and only update code/title/body there
+    2. or create a replacement PR from a clean branch if branch-name cleanliness matters more than preserving the existing PR shell
 - If the user asks to squash the branch history for an open PR, use a fresh worktree from the PR branch tip, `git reset --soft <base-branch>`, recommit once with the final conventional-commit message, then `git push --force-with-lease origin HEAD:<pr-branch>` and re-check PR/CI status.
 - For small PR follow-ups such as squash, title/body edits, route/path renames, or other narrow review-driven fixes, do not automatically run local build/test verification unless the user explicitly asks for it. Prefer the fast path: edit -> commit -> push -> confirm PR updated -> watch CI.
 - Likewise, do not start a local dev server for visual/manual verification unless the user explicitly asks for that method. If you need confidence without a dev server, prefer scoped tests, code inspection, PR reviewability, and CI.
@@ -590,6 +603,19 @@ Important practical findings:
   gh pr view <pr-number> --json headRefOid,updatedAt,url
   ```
   If they differ momentarily, wait a few seconds and re-check before concluding the push failed.
+- Additional high-risk rebase guardrail from skills-jk PR maintenance: after any conflict-heavy rebase or manual conflict resolution in docs/skills/memory files, do **not** stop at SHA verification alone.
+  - A branch can be pushed successfully while a malformed conflict resolution still remains in the final file content (for example a broken grep example or truncated code span) even though there are no leftover `<<<<<<<` markers.
+  - Before declaring the PR update correct, re-open the exact conflict-resolved high-risk files from the **remote PR head** and inspect the specific changed lines directly.
+  - Safe pattern:
+    ```bash
+    git show origin/<pr-branch>:path/to/file | nl -ba | sed -n '<start>,<end>p'
+    ```
+    or an equivalent `git show origin/<pr-branch>:... | rg ...` check for the exact expected string.
+  - Prioritize this for:
+    - rebase-resolved `SKILL.md` files
+    - `.hermes/memories/*.md`
+    - code/documentation examples containing regexes, shell snippets, or angle-bracket placeholders like `<files...>`
+  - Heuristic: if the bug risk is "content is syntactically malformed but not marked as a merge conflict", remote file-content verification is mandatory, not optional.
 - Important stale-worktree lesson from PR 190 follow-up work: after a force-push/rewrite of an open PR branch, any older local worktree that still has the same branch checked out can be left behind at the pre-push commit and become misleadingly stale.
   - Do not assume the branch-named worktree is now at the rewritten remote tip.
   - Re-check with:

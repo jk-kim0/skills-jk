@@ -132,6 +132,11 @@ For a fresh branch with no new commits yet, these should all match.
 
 A practical failure mode in this repo: a path under `.worktrees/` can appear to succeed during `git worktree add`, and `git worktree list --porcelain` can still show the entry, but the actual directory can end up containing only a tiny partial subtree instead of a real checkout.
 
+Additional real-world variant:
+- an external-looking path such as `~/workspace/<topic-worktree>` can also end up as a broken partial directory that contains only a few copied subtrees like `src/` and `tests/`, while missing `.git`, `package.json`, and the rest of the repo root
+- in that state, `read_file` may still appear to work on the copied files, but any `git` or package-manager command from that directory will fail with `not a git repository`
+- treat that directory as a broken artifact, not as a valid worktree; if it contains useful edits, salvage the edited files by copying them into a newly verified worktree, then delete the broken directory
+
 Minimum filesystem sanity check before editing:
 
 ```bash
@@ -227,6 +232,11 @@ Important rule:
 - do not branch directly from the dirty local `main` just because the uncommitted file already exists there
 - do not mix unrelated stale local-main state into the PR branch
 - treat the dirty local file as a patch source, and the fresh latest-main worktree as the only PR-authoring checkout
+- when editing repo-local skill/doc files, do not trust relative-path file edits to land in the intended worktree automatically; prefer absolute paths inside the fresh worktree for `read_file`, `patch`, and `write_file`
+- immediately after any such edit, verify both locations:
+  - root checkout: `git status --short --branch`
+  - target worktree: `git -C <worktree> status --short --branch`
+- if the root `main` checkout becomes dirty while the intended worktree did not, stop and restore the root file before continuing; treat that as a tool-targeting mistake, not as acceptable incidental residue
 
 ### Extra rule for repo-local skills / docs rescued from dirty main
 
