@@ -217,6 +217,32 @@ Handling:
 - it is clean and exactly matches a merged PR head commit
 - it is a clean redundant helper clone of an open PR whose authoritative branch-backed worktree remains elsewhere
 - it is a clean stale helper ancestor in a detached helper chain for the same PR
+- it looks dirty relative to its detached `HEAD`, but the current target file contents are already identical to latest `main` and the same result is already present in merged history
+
+Important practical case: a dirty detached worktree can still be non-PR-worthy residue if its live file contents are already on `main`.
+
+This can happen when:
+- `git status` in the detached worktree shows modified and untracked files relative to the old detached `HEAD`
+- but those files were effectively recreated or reintroduced on latest `main` by an already merged PR
+- and direct file-content comparison shows the live files are byte-for-byte identical to `main`
+
+Before creating a new PR from a dirty detached worktree, verify the actual target files directly:
+
+```bash
+git -C <repo> diff --no-index -- path/in/main path/in/worktree || true
+shasum path/in/main path/in/worktree
+```
+
+Then inspect file history on `main`:
+
+```bash
+git log --oneline --follow -- <path>
+```
+
+Interpretation:
+- if the current file contents are identical to `main`, there is no surviving PR diff for those files even if the detached worktree still reports dirt relative to its old `HEAD`
+- if the relevant files were already merged by an earlier PR, do not create a duplicate PR from that worktree
+- in that case, treat the worktree as merged residue and remove it once the user is okay discarding the stale detached state
 
 Useful checks:
 
@@ -300,6 +326,9 @@ Then summarize:
 - A dirty detached worktree can still be meaningful even when its related branch history is stale; preserve the patch, not the stale lineage.
 - Root `main` often carries meaningful local skill/doc edits during cleanup. Preserve them intentionally rather than force-cleaning `main` blindly.
 - Open PR helper aliases and detached clones should be reduced aggressively when they are clean duplicates.
+- Users may strongly object not only to stale worktrees, but to the very existence of long-lived ad hoc worktree directories with opaque names like `cwj-pr305-about-us-refactor` or `cwj-skill-pr`. When you create a fresh worktree for active work, treat it as a temporary execution container, not something to leave behind by default.
+- Preferred hygiene rule: by the end of the task, keep only authoritative branch-backed worktrees that still correspond to active open PRs or intentionally preserved local work. Delete temporary helper/detached follow-up worktrees in the same session whenever safely possible.
+- If a detached follow-up worktree contains unique local value but no durable branch, promote it to a clearly named backup branch first, then remove the worktree so the workspace does not accumulate anonymous residue.
 
 ## Good trigger phrases
 
