@@ -153,8 +153,36 @@ Useful assertions:
 - `assert.doesNotMatch(contentSource, /<Box direction="column"/)`
 - `assert.doesNotMatch(contentSource, /<CenterSection/)`
 
+## Exception: versioned legal document collections
+Not every legal preview route should be forced into a single route-adjacent `content.mdx` shape.
+
+If the route is actually a versioned legal document collection, such as a privacy-policy surface with:
+- a latest-version alias route
+- per-version detail routes
+- many historical MDX files
+- version discovery from filenames
+
+then a different structure can be preferable and should not automatically be judged as a failed route-local refactor.
+
+In that case, an acceptable implementation is:
+- thin route files under `src/app/t/<route>/page.tsx` and optionally `src/app/t/<route>/[slug]/page.tsx`
+- a route-scoped renderer/helper module under the same route directory
+- a route-scoped source-discovery module under the same route directory
+- the actual versioned MDX corpus under a shared content root such as `src/content/<route>/*.mdx`
+
+How to evaluate that structure:
+- Do not grade it by the static-marketing rule that `page.tsx` must be the primary copy/composition authoring surface.
+- Instead, treat it as a document-rendering feature route.
+- Check whether the route-specific renderer, source-discovery logic, metadata wiring, and version selector behavior are coherently scoped to the route directory.
+- Check whether the file system is the source of truth for versions, rather than a duplicated hardcoded registry.
+- Check whether frontmatter still drives metadata and hero text.
+
+Practical implication learned from `/t/privacy-policy` review:
+- A privacy-policy implementation with `src/app/t/privacy-policy/page.tsx`, `src/app/t/privacy-policy/[slug]/page.tsx`, a route-local `privacy-policy-document.tsx`, a route-local `privacy-policy-sources.ts`, and versioned files under `src/content/privacy-policy/*.mdx` is not a strong example of static-page route-local authoring, but it can still be an appropriate and well-factored implementation for a versioned legal document collection.
+
 ## Pitfalls
-- Moving legal preview MDX to `src/content/**` when the user prefers route-local adjacency
+- Moving legal preview MDX to `src/content/**` when the user prefers route-local adjacency for a single-document legal page
+- Incorrectly forcing a multi-version legal document collection into a single adjacent `content.mdx` pattern when the route really behaves like a document-rendering feature
 - Leaving the page title duplicated both in frontmatter hero and inside the MDX body
 - Keeping wrapper-only MDX components that force `page.tsx` to inject unnecessary custom components
 - Forgetting to switch from static `metadata` to frontmatter-driven `generateMetadata()`

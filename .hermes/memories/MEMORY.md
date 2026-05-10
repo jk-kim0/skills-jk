@@ -221,3 +221,5 @@ In corp-web-japan mobile resource/demo sidebar UX, after comparing alternatives 
 In corp-web-japan service preview parity work, when the user asks to fix multiple `/t/services/*` pages together (such as ACP and FDE), they want each page handled in its own fresh worktree and its own separate PR, not bundled into one combined PR.
 §
 The user wants the repeated repo-local stale-branch/worktree audit workflow encoded as a reusable skills-jk skill: classify non-open-PR branches by synthetic squash of current local state vs latest origin/main, test disposable rebase onto latest main, preserve meaningful local patches, and delete only clearly stale branches/worktrees.
+§
+In corp-web-japan PR follow-up or route-local review work, if a requested route/file is missing on current main/PR head, do not assume it should be restored from history. Report the absence first and confirm scope before reviving an old route subtree.

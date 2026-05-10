@@ -291,19 +291,6 @@ Important user-expectation nuance learned from active-review follow-up:
     where `<old-local-pr-tip>` is the local commit that used to correspond to the original PR tip before your new follow-up commit(s).
   - After that, verify `git log --oneline --decorate -n 5` shows `origin/<pr-branch>` followed by only your intended new follow-up commit(s), rerun the targeted test, and push normally.
   - This preserves the existing open PR history while still letting you rebase your new work onto the remote PR head.- If the user later asks to clean up the PR title/body, rewrite them to describe only the final end state of the PR. Do not narrate intermediate implementation history unless the user explicitly wants that context.
-- Important GitHub branch-rename caveat from corp-web-japan PR maintenance: do not assume renaming the remote head branch of an already-open PR is a safe way to "fix the PR branch name" in place.
-  - Even if `POST /repos/{owner}/{repo}/branches/{branch}/rename` succeeds and both the old and new refs can end up pointing at the latest commit, the PR API can keep reporting the old `headRefName` and even a stale `headRefOid`.
-  - Practical consequence: PR continuity can become confusing because `gh pr view` / pull-request API metadata may lag indefinitely or stay pinned to the historical branch identity, while low-level branch refs already moved.
-  - Safe rule: for an open PR follow-up, prefer leaving the existing PR head branch name alone unless the user explicitly accepts the risk of stale PR metadata.
-  - If you already attempted a branch rename, verify both layers separately:
-    ```bash
-    gh api repos/<owner>/<repo>/pulls/<pr-number> --jq '.head.ref + " " + .head.sha'
-    gh api repos/<owner>/<repo>/branches/<url-encoded-branch> --jq '.name + " " + .commit.sha'
-    ```
-  - If those disagree, treat the PR metadata as stale. Do not confidently claim that the PR branch rename fully succeeded just because the branch ref moved.
-  - In that situation, prefer one of these explicit outcomes:
-    1. keep using the old PR branch name for the existing PR and only update code/title/body there
-    2. or create a replacement PR from a clean branch if branch-name cleanliness matters more than preserving the existing PR shell
 - If the user asks to squash the branch history for an open PR, use a fresh worktree from the PR branch tip, `git reset --soft <base-branch>`, recommit once with the final conventional-commit message, then `git push --force-with-lease origin HEAD:<pr-branch>` and re-check PR/CI status.
 - For small PR follow-ups such as squash, title/body edits, route/path renames, or other narrow review-driven fixes, do not automatically run local build/test verification unless the user explicitly asks for it. Prefer the fast path: edit -> commit -> push -> confirm PR updated -> watch CI.
 - Likewise, do not start a local dev server for visual/manual verification unless the user explicitly asks for that method. If you need confidence without a dev server, prefer scoped tests, code inspection, PR reviewability, and CI.
@@ -535,6 +522,11 @@ Important practical findings:
 - Important final-tree review step from corp-web-japan internal demo follow-up work: even when the rebase itself is clean, do one more critical pass on the *latest-main final tree* before pushing. Look specifically for page-local demo hacks or magic values that only existed to force a preview state (for example sentinel dates or ad hoc query interpretation inside `page.tsx`). If you find them, prefer moving that behavior into a dedicated helper/resolver in `src/lib/**` so the route stays thin and the demo-specific state logic has an explicit name and contract.
 - Additional practical rebase pattern from PR 214 maintenance: when rebasing a stacked follow-up PR branch onto latest `origin/main`, the first implementation commit can conflict in structure-test helpers (for example `tests/helpers/static-marketing-page-sources.mjs`) because `main` has gained new sibling-section coverage since the PR branched. Resolve that first conflict by keeping the latest-main helper/test baseline and merging in the rebased PR's newly introduced section files/assertions together.
 - Shared primitive/component rebase pattern from PR 217 maintenance: if the conflict is in a shared list/page primitive that both `main` and the PR extended in different ways, do not choose one side wholesale. Inspect the latest-main file and the PR-head file side by side, keep the latest-main API additions that other routes now depend on (for example a new `sidebarBasePath` prop or normalized sidebar key handling), then layer the PR-only feature hook-up on top (for example `initialVisibleCount` plus the conditional `ResourceListLoadMore` branch). After resolving, verify the rebased tree still preserves both behaviors: the new main-side compatibility path for existing callers and the PR-side behavior for the targeted routes.
+- Post-rebase stale-test-expectation pattern from corp-web-japan PR 321: after a clean latest-main rebase, CI can still fail even when the implementation diff is correct because a PR-owned test is asserting an older pre-main contract for a shared file. Typical shape: latest `main` intentionally normalized a shared footer/legal link to a static local route, but the PR branch still expects a preview-aware helper call like `t("/eula", previewModeEnabled)` and the test now fails against the rebased file. When this happens:
+  1. inspect the failing test name and exact assertion from CI logs
+  2. compare the test expectation directly against the latest-main implementation of the shared file
+  3. if the rebased file correctly matches latest `main` and the user only asked for rebase/CI verification, classify it as a stale branch expectation rather than a bad conflict resolution
+  4. only change the implementation away from latest-main behavior if the user explicitly wants to preserve the old branch contract; otherwise update the test (or report the stale expectation first, depending on scope)
 - Shared type-contract drift pattern from the same PR 217 maintenance: after rebasing a PR that changed a broadly reused type or interface (for example adding `id` to a shared `ResourceItem` type), do not stop at the files that originally belonged to the PR. Latest `main` may now contain new helper layers, preview-item registries, or abstract repositories that were added after the PR branched and that still construct the old shape. CI and Vercel type-check failures can therefore surface in files the original PR never touched.
   Recommended recovery flow:
   1. inspect failed CI/build logs first rather than guessing from the original PR diff
@@ -604,7 +596,7 @@ Important practical findings:
   ```
   If they differ momentarily, wait a few seconds and re-check before concluding the push failed.
 - Additional high-risk rebase guardrail from skills-jk PR maintenance: after any conflict-heavy rebase or manual conflict resolution in docs/skills/memory files, do **not** stop at SHA verification alone.
-  - A branch can be pushed successfully while a malformed conflict resolution still remains in the final file content (for example a broken grep example or truncated code span) even though there are no leftover `<<<<<<<` markers.
+  - A branch can be pushed successfully while a malformed conflict resolution still remains in the final file content, even when there are no leftover `<<<<<<<` markers.
   - Before declaring the PR update correct, re-open the exact conflict-resolved high-risk files from the **remote PR head** and inspect the specific changed lines directly.
   - Safe pattern:
     ```bash
