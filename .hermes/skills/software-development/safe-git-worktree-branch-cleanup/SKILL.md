@@ -410,9 +410,10 @@ Important follow-up case from corp-web-japan cleanup:
   6. report both the backup branch name and backup worktree path to the user
 - practical root-main-update pattern from repeated `skills-jk` use:
   - when the user simply says `main branch 업데이트해줘` while root `main` has meaningful local changes, do not block on the dirty root forever and do not force-reset it
-  - first preserve the local changes to a backup branch/worktree from latest `origin/main`
-  - then clean the root worktree and run `git pull --ff-only origin main`
-  - this leaves root `main` actually updated while still preserving the user's local work in an inspectable branch
+  - before pulling, compare the current dirty tracked paths against the incoming `origin/main` diff paths since overlap means a direct fast-forward can fail or overwrite the user's intent
+  - if there is overlap, preserve the local changes first; if an earlier cleanup already created a matching backup worktree/branch for the same root-local line, prefer appending the new files there instead of creating yet another backup branch
+  - after copying the current tracked/untracked files into that backup worktree, commit the preservation commit there, restore those files from root `main`, and only then run `git pull --ff-only origin main`
+  - this leaves root `main` actually updated while still preserving the user's local work in an inspectable branch/worktree
 - prefer this backup-branch variant over `git stash` when the user values inspectable branch/worktree preservation more than stash-based safekeeping
 
 Useful summary labels:

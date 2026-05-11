@@ -229,6 +229,18 @@ This keeps `page.tsx` readable without forcing everything into one giant JSX ret
 
 When extracting top-page-specific UX-semantic components, prefer names that describe the user-facing choice being presented rather than lower-level implementation structure.
 
+### Production-ready naming for `/t/*` routes
+
+Important naming rule learned from `/t/cookie-preference` follow-up:
+- even when a route still lives under `/t/*`, do not encode `Preview` semantics in the route component name or its page-specific section/helper names unless the user explicitly asks for that wording
+- treat the implementation as a production-ready page shape and use neutral names such as `CookiePreferencePage`, `CookiePreferenceCtaSection`, or `CookiePreferenceHeroSection`
+- avoid names like `CookiePreferencePreviewPage` or `CookiePreferencePreviewCtaSection`
+- the `/t/*` path itself is enough to signal preview scope; repeating that status in symbol names adds noise and conflicts with the user's preferred end-state direction
+
+Practical review check:
+- after refactoring a `/t/*` route, search the touched route and related section files for `Preview` in exported symbol names
+- if the route is meant to be production-ready in structure, remove those `Preview` names before finalizing unless they are part of an intentionally preview-specific global surface such as Preview Toggle UI
+
 Practical example from top-page solution cards:
 - prefer `SolutionChoice*`
 - avoid longer or less direct names like `TopPageSolutionPath*`

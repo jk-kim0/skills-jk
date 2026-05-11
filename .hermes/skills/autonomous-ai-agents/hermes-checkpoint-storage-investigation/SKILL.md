@@ -192,6 +192,58 @@ because users may still want recent `/rollback` history.
 
 Depending on the user’s workflow, suggest one of these:
 
+## Practical cleanup order for repo-local `.hermes/`
+
+When the user explicitly asks you to free disk space under a repo-local Hermes home such as `~/workspace/skills-jk/.hermes`, use this order:
+
+1. Measure the whole tree first:
+```bash
+du -xhd 2 ~/workspace/skills-jk/.hermes 2>/dev/null | sort -h | tail -n 120
+ df -h /
+```
+
+2. Check the active config before deleting anything:
+- inspect `config.yaml`
+- especially confirm `checkpoints.enabled`
+
+3. If `checkpoints.enabled: false` and the checkpoint tree is still large, treat existing `checkpoints/` as stale historical rollback data rather than active runtime state.
+
+4. Quantify checkpoint recency before removal:
+- count checkpoint repos
+- total size
+- last-24h activity
+- sample `HERMES_WORKDIR` mappings
+
+If there are no recent checkpoints and the user asked to reclaim space, it is reasonable to remove the entire historical checkpoint tree.
+
+5. Safe deletion candidates inside repo-local `.hermes/` are usually:
+- `checkpoints/` — removes rollback history only
+- `cache/` — regenerable
+- `logs/` — regenerable
+
+6. Usually preserve unless the user explicitly wants deeper cleanup:
+- `sessions/` — conversation/session records
+- `memories/` — durable memory store
+- `skills/` — installed skills
+- `config.yaml` and other small runtime configuration/state
+
+7. After deletion, recreate empty `cache/` and `logs/` directories if they existed before, then re-measure:
+```bash
+rm -rf <paths>
+ mkdir -p ~/workspace/skills-jk/.hermes/cache ~/workspace/skills-jk/.hermes/logs
+ du -xhd 1 ~/workspace/skills-jk/.hermes 2>/dev/null | sort -h
+ df -h /
+```
+
+8. Report clearly:
+- what was deleted
+- what was preserved
+- before/after size of `.hermes`
+- final free disk space
+
+### Session-specific reusable finding
+If the live config has checkpoints disabled, historical checkpoint repos can remain on disk indefinitely until manually removed. In practice this means a repo-local `.hermes/checkpoints/` directory can consume many GiB even though Hermes is no longer creating new checkpoints.
+
 ### If the user already uses disciplined git/worktree workflows
 Suggest that checkpoints may have low value relative to disk cost, especially if they rarely use `/rollback`.
 

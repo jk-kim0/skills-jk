@@ -108,7 +108,6 @@ git checkout -b <pr-branch>-local --track origin/<pr-branch> 2>/dev/null || git 
 ```
 
 Important path rule learned from real PR follow-up work:
-- Follow the common `repo-root-worktree-path-policy` skill: create the worktree under the repo's own `.worktrees/<flat-name>` directory.
 - Keep the worktree directory name flat even if the branch name contains slashes.
 - Good: branch `feat/internal-mdx-list-demo-whitepaper-ux` with worktree path `.worktrees/internal-mdx-list-demo-whitepaper`
 - Risky: deriving the worktree path mechanically from the branch name, such as `.worktrees/feat/internal-mdx-list-demo-whitepaper-ux`
@@ -116,7 +115,7 @@ Important path rule learned from real PR follow-up work:
   - Git will happily create nested directories for the worktree path
   - later file-tool calls can target the wrong nested path or fail because you mentally tracked the branch name instead of the actual directory path
   - this becomes especially confusing when mixing `terminal` commands with absolute file-tool paths during follow-up edits
-- Prefer choosing a short flat `<topic>` path under `.worktrees/`, then attach it to the PR branch tip.
+- Prefer choosing a short flat `<topic>` path first, then attach it to the PR branch tip.
 
 Practical note:
 - If the branch is already checked out in another worktree, `git checkout <pr-branch>` in the fresh worktree will fail. In that case, staying on the detached `origin/<pr-branch>` checkout is acceptable for a small follow-up.
@@ -547,6 +546,16 @@ Important practical findings:
   2. compare the test expectation directly against the latest-main implementation of the shared file
   3. if the rebased file correctly matches latest `main` and the user only asked for rebase/CI verification, classify it as a stale branch expectation rather than a bad conflict resolution
   4. only change the implementation away from latest-main behavior if the user explicitly wants to preserve the old branch contract; otherwise update the test (or report the stale expectation first, depending on scope)
+- Closely related stale-contract case from corp-web-japan legal preview follow-up: after moving page metadata ownership from a static `export const metadata` block into MDX frontmatter plus `generateMetadata()`, CI can fail because structure tests still assert the old page-local metadata export or hardcoded title strings.
+  - Typical signals:
+    - the implementation intentionally parses frontmatter (`parseFrontmatter: true`) and uses `frontmatter.title` / `frontmatter.description`
+    - a single failing test still expects `export const metadata: Metadata = {` or a hardcoded `title: "..."` in `page.tsx`
+  - Safe recovery flow:
+    1. read the exact failing test and the current route/component pair together
+    2. confirm whether the new contract is deliberate and already used by sibling legal routes
+    3. update the test to assert the frontmatter-backed `generateMetadata()` pattern instead of restoring the old static export
+    4. add one source assertion that the adjacent `.mdx` file actually contains the title/description frontmatter so the new ownership contract stays covered
+  - Heuristic: when a route intentionally migrates metadata ownership into structured content, preserve the new ownership boundary and update stale tests; do not revert the implementation back to duplicated page-local metadata just to satisfy an old assertion.
 - Shared type-contract drift pattern from the same PR 217 maintenance: after rebasing a PR that changed a broadly reused type or interface (for example adding `id` to a shared `ResourceItem` type), do not stop at the files that originally belonged to the PR. Latest `main` may now contain new helper layers, preview-item registries, or abstract repositories that were added after the PR branched and that still construct the old shape. CI and Vercel type-check failures can therefore surface in files the original PR never touched.
   Recommended recovery flow:
   1. inspect failed CI/build logs first rather than guessing from the original PR diff
@@ -615,17 +624,6 @@ Important practical findings:
   gh pr view <pr-number> --json headRefOid,updatedAt,url
   ```
   If they differ momentarily, wait a few seconds and re-check before concluding the push failed.
-- Additional batch-rebase shell-state guardrail from skills-jk PR maintenance: when rebasing several open PRs in sequence using temporary worktrees, do not keep the shell cwd inside a temp worktree that you then delete.
-  - Typical failure shape:
-    - you `cd` into `/tmp/...` worktree
-    - rebase and push succeed
-    - you remove that temp worktree
-    - the next `git` or `gh` command in the same shell fails with `fatal: Unable to read current working directory: No such file or directory`
-  - Safe pattern:
-    1. before removing the temp worktree, `cd` back to a stable repo-root path, or
-    2. run the removal from a parent shell whose cwd is already outside the temp worktree, or
-    3. use separate tool calls/processes per PR so each starts from an explicit stable `workdir`
-  - Practical rule: in multi-PR maintenance batches, treat `repo root` as the only durable cwd between PR iterations; never assume the shell will recover automatically after deleting the previous temp worktree.
 - Additional high-risk rebase guardrail from skills-jk PR maintenance: after any conflict-heavy rebase or manual conflict resolution in docs/skills/memory files, do **not** stop at SHA verification alone.
   - A branch can be pushed successfully while a malformed conflict resolution still remains in the final file content, even when there are no leftover `<<<<<<<` markers.
   - Before declaring the PR update correct, re-open the exact conflict-resolved high-risk files from the **remote PR head** and inspect the specific changed lines directly.

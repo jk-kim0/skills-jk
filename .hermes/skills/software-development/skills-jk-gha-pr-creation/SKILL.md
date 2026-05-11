@@ -108,14 +108,13 @@ When the user asks to create a PR from the current local workspace state rather 
      - `git fetch origin --prune`
      - `git branch -f main origin/main`
    - Preferred safe pattern in this repo when the user wants the current dirty workspace turned into a new PR without disturbing the root checkout:
-    - create a fresh worktree and fresh branch from latest `origin/main`
-      - follow `repo-root-worktree-path-policy`
-      - `git worktree add .worktrees/<flat-topic> -b <new-branch> origin/main`
-    - enumerate the current meaningful local changes in the dirty root checkout
-      - `git diff --name-only`
-      - `git ls-files --others --exclude-standard`
-    - copy only those changed/untracked files from the dirty root checkout into the fresh worktree
-    - verify the fresh worktree now shows exactly that change set against `origin/main`
+     - create a fresh worktree and fresh branch from latest `origin/main`
+       - `git worktree add -b <new-branch> <new-worktree> origin/main`
+     - enumerate the current meaningful local changes in the dirty root checkout
+       - `git diff --name-only`
+       - `git ls-files --others --exclude-standard`
+     - copy only those changed/untracked files from the dirty root checkout into the fresh worktree
+     - verify the fresh worktree now shows exactly that change set against `origin/main`
    - This avoids using `stash`, keeps the user's existing dirty root workspace intact, and still yields a clean latest-main PR branch.
   - Important repeat-request lesson: if the user asks for the same "update main + make a PR from current local changes" flow again later in the same dirty root checkout, do **not** assume the last follow-up branch/PR is still open or still matches the current root state.
     - Re-check both the current root branch and any most recently created follow-up branch/PR.
@@ -174,6 +173,23 @@ When the user asks to create a PR from the current local workspace state rather 
 10. Push the branch, then create or update the PR.
 10. Leave local-only artifacts untracked unless the user explicitly wants them in the PR.
 11. In the PR body, briefly note what was intentionally excluded if that helps reviewers understand the scope
+
+## Worktree location preference in `skills-jk`
+
+When this workflow needs a fresh worktree in `skills-jk`, prefer a repo-root path under `.worktrees/<flat-topic>` rather than creating sibling worktrees directly under `~/workspace`.
+
+Recommended pattern:
+
+```bash
+git fetch origin --prune
+git worktree add .worktrees/<flat-topic> -b <branch-name> origin/main
+```
+
+Why:
+- matches the repo's current guidance direction
+- keeps repo-local cleanup and stale-worktree inspection simpler
+- avoids scattering many sibling worktree directories across `~/workspace`
+- still preserves the existing flat-name rule: keep the directory name short and flat even if the branch name contains slashes
 
 ## Evidence from use
 

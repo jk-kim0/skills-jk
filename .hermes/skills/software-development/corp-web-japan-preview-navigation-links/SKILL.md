@@ -62,6 +62,19 @@ export function t(path: string) {
 }
 ```
 
+Important path-guard nuance learned later:
+- when the helper needs to avoid double-prefixing already-preview paths, do **not** use a broad check like `path.startsWith("/t")`
+- that incorrectly treats canonical paths such as `/terms-of-service` as already preview-scoped because they also start with `/t`
+- instead, only treat the explicit preview namespace as already-previewed:
+
+```ts
+if (path === "/t" || path.startsWith("/t/")) {
+  return path;
+}
+```
+
+This exact bug caused Preview Toggle to leave `利用規約` on `/terms-of-service` while correctly prefixing `/privacy-policy`, `/eula`, and `/cookie-preference`.
+
 Reason:
 - the user explicitly wanted the same environment-detection approach used in sibling QueryPie repos
 - `VERCEL_TARGET_ENV === 'production'` is the chosen production signal here
