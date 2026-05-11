@@ -108,6 +108,7 @@ git checkout -b <pr-branch>-local --track origin/<pr-branch> 2>/dev/null || git 
 ```
 
 Important path rule learned from real PR follow-up work:
+- Follow the common `repo-root-worktree-path-policy` skill: create the worktree under the repo's own `.worktrees/<flat-name>` directory.
 - Keep the worktree directory name flat even if the branch name contains slashes.
 - Good: branch `feat/internal-mdx-list-demo-whitepaper-ux` with worktree path `.worktrees/internal-mdx-list-demo-whitepaper`
 - Risky: deriving the worktree path mechanically from the branch name, such as `.worktrees/feat/internal-mdx-list-demo-whitepaper-ux`
@@ -115,7 +116,7 @@ Important path rule learned from real PR follow-up work:
   - Git will happily create nested directories for the worktree path
   - later file-tool calls can target the wrong nested path or fail because you mentally tracked the branch name instead of the actual directory path
   - this becomes especially confusing when mixing `terminal` commands with absolute file-tool paths during follow-up edits
-- Prefer choosing a short flat `<topic>` path first, then attach it to the PR branch tip.
+- Prefer choosing a short flat `<topic>` path under `.worktrees/`, then attach it to the PR branch tip.
 
 Practical note:
 - If the branch is already checked out in another worktree, `git checkout <pr-branch>` in the fresh worktree will fail. In that case, staying on the detached `origin/<pr-branch>` checkout is acceptable for a small follow-up.

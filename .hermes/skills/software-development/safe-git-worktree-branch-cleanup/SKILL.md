@@ -905,6 +905,7 @@ This is safer than forcing a branch update that would overwrite a real local edi
 ## 7c. Repo-internal worktree directories can leave root `?? .worktrees/` noise
 
 Some repositories keep linked worktrees under a repo-internal directory such as `.worktrees/<name>`.
+This is a valid and often preferred layout; see the common `repo-root-worktree-path-policy` skill.
 After cleanup, the root worktree can still appear dirty with:
 
 ```bash

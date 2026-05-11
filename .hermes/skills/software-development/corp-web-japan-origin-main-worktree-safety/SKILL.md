@@ -73,6 +73,8 @@ This step is mandatory in fast-moving repos: codebase assumptions can become sta
 4. Fetch, re-check the remote tip, and create a fresh worktree from `origin/main`.
 4. Fetch and create a fresh worktree from latest `main`.
 
+Follow the common `repo-root-worktree-path-policy` skill for worktree location and naming.
+
 ```bash
 git fetch origin main --quiet
 git checkout main
@@ -143,34 +145,34 @@ You should see a normal repository root shape such as `src/`, `tests/`, `public/
 Recovery rule:
 - delete that broken directory
 - run `git worktree prune`
-- recreate the worktree at a clean, flat path outside the repo root when needed, for example `~/workspace/<repo>-<topic>`
+- recreate the worktree under the repo-root `.worktrees/` directory with a short flat name such as `.worktrees/<topic>`
 - repeat the branch/base checks and the filesystem sanity check before editing
 
 This is safer than trying to salvage a half-populated checkout whose path name happens to match the intended worktree.
 
-5.2 Prefer repo-external flat worktree paths when repo-local `.worktrees/` paths behave strangely.
+5.2 Prefer repo-root `.worktrees/<flat-name>` paths, even when recovering from a broken worktree.
 
 Practical fallback pattern:
 
 ```bash
-git worktree add -b <branch-name> ~/workspace/<repo>-<topic> origin/main
+git worktree add .worktrees/<topic> -b <branch-name> origin/main
 ```
 
 Then verify with:
 
 ```bash
-test -d ~/workspace/<repo>-<topic> && echo exists
-git -C ~/workspace/<repo>-<topic> branch --show-current
-git -C ~/workspace/<repo>-<topic> rev-parse --show-toplevel
-find ~/workspace/<repo>-<topic> -maxdepth 2 | sed -n '1,30p'
+test -d .worktrees/<topic> && echo exists
+git -C .worktrees/<topic> branch --show-current
+git -C .worktrees/<topic> rev-parse --show-toplevel
+find .worktrees/<topic> -maxdepth 2 | sed -n '1,30p'
 ```
 
 Important extra lesson:
 - do not trust the `git worktree add` success message by itself
 - in practice, a worktree creation can appear to succeed yet leave no usable directory at the requested path
 - explicitly verify that the target directory now exists before any `read_file`, `patch`, or follow-up shell command
-- when scripting the target path, avoid accidentally passing a literal shell variable segment such as `$HOME/...` inside single quotes or other non-expanding contexts; prefer an already-expanded absolute path or verify the final path with `pwd` / `realpath` / `rev-parse --show-toplevel`
-- if the directory is missing or the checkout landed under an unintended literal path segment, remove that bad worktree, prune if needed, and recreate it at a short, flat fallback path such as `~/workspace/cwj-<topic>`
+- when scripting the target path, avoid accidentally passing a literal shell variable segment or branch path with slashes into the directory name; prefer a short flat `.worktrees/<topic>` path and verify the final path with `pwd` / `realpath` / `rev-parse --show-toplevel`
+- if the directory is missing or the checkout landed under an unintended nested path, remove that bad worktree, prune if needed, and recreate it under `.worktrees/<flat-topic>`
 
 Only start editing after those checks pass.
 
@@ -219,9 +221,9 @@ Recommended command flow:
 
 ```bash
 git fetch origin --prune
-git worktree add -b docs/<topic> ~/workspace/<repo>-<topic> origin/main
-cp /path/to/dirty-main/<file> ~/workspace/<repo>-<topic>/<file>
-git -C ~/workspace/<repo>-<topic> diff --stat -- <file>
+git worktree add .worktrees/docs-<topic> -b docs/<topic> origin/main
+cp /path/to/dirty-main/<file> .worktrees/docs-<topic>/<file>
+git -C .worktrees/docs-<topic> diff --stat -- <file>
 ```
 
 Important rule:
