@@ -217,32 +217,6 @@ Handling:
 - it is clean and exactly matches a merged PR head commit
 - it is a clean redundant helper clone of an open PR whose authoritative branch-backed worktree remains elsewhere
 - it is a clean stale helper ancestor in a detached helper chain for the same PR
-- it looks dirty relative to its detached `HEAD`, but the current target file contents are already identical to latest `main` and the same result is already present in merged history
-
-Important practical case: a dirty detached worktree can still be non-PR-worthy residue if its live file contents are already on `main`.
-
-This can happen when:
-- `git status` in the detached worktree shows modified and untracked files relative to the old detached `HEAD`
-- but those files were effectively recreated or reintroduced on latest `main` by an already merged PR
-- and direct file-content comparison shows the live files are byte-for-byte identical to `main`
-
-Before creating a new PR from a dirty detached worktree, verify the actual target files directly:
-
-```bash
-git -C <repo> diff --no-index -- path/in/main path/in/worktree || true
-shasum path/in/main path/in/worktree
-```
-
-Then inspect file history on `main`:
-
-```bash
-git log --oneline --follow -- <path>
-```
-
-Interpretation:
-- if the current file contents are identical to `main`, there is no surviving PR diff for those files even if the detached worktree still reports dirt relative to its old `HEAD`
-- if the relevant files were already merged by an earlier PR, do not create a duplicate PR from that worktree
-- in that case, treat the worktree as merged residue and remove it once the user is okay discarding the stale detached state
 
 Useful checks:
 
@@ -273,6 +247,60 @@ Only after classification is complete and refreshed:
 4. delete stale local branches
 
 Commands:
+
+## When one backup branch is worth promoting instead of deleting
+
+A common end-state after repo-local cleanup is:
+- several `backup/*` branches were reviewed together
+- one or two are clearly stale or redundant and should be deleted
+- exactly one backup branch still carries a small meaningful net patch
+- the user wants the repo left in a nearly-final clean state, which means the meaningful backup should become a normal reviewable branch instead of staying under `backup/*`
+
+Recommended handling:
+1. delete clearly stale sibling backup branches/worktrees first
+2. rename the kept backup branch out of the `backup/` namespace to a normal branch name that matches its real purpose, for example:
+   - `docs/...` for repo-local skill/docs follow-ups
+   - `fix/...` or `refactor/...` for code follow-ups
+3. if it has an attached worktree, rename the branch from that worktree context
+4. rebase the promoted branch onto latest `origin/main`
+5. push it as a new remote branch
+6. create a PR immediately if the user's requested cleanup includes "promote if valuable"
+7. after the promotion is safely pushed/reviewable, fast-forward root `main` to latest `origin/main` if clean
+
+Example command pattern:
+
+```bash
+git -C <kept-worktree> branch -m docs/<descriptive-name>
+git -C <kept-worktree> rebase origin/main
+git -C <kept-worktree> push -u origin docs/<descriptive-name>
+gh pr create --base main --head docs/<descriptive-name> ...
+```
+
+Useful summary label:
+- `meaningful backup promoted to reviewable branch/PR`
+
+Important interpretation:
+- a meaningful backup branch should not be left indefinitely under `backup/*` once its value has been confirmed and the user asked for promotion
+- promoting the surviving backup while deleting the weaker siblings is often the cleanest "almost final" workspace state
+
+## Practical cleanup pitfall: disposable synthetic-rebase helper worktrees can leak if the audit script aborts mid-run
+
+When using synthetic squash + disposable rebase-check worktrees, an interrupted script or tool error can leave behind temporary detached worktrees such as:
+- `/tmp/.../rebase-check`
+- other mktemp-based detached helper paths
+
+Do not ignore these in the final report.
+Before finishing, re-run `git worktree list --porcelain` and remove any leftover temporary detached helper that was created only for the audit itself.
+
+Typical cleanup:
+
+```bash
+git worktree remove --force /tmp/.../rebase-check
+git worktree prune
+```
+
+Useful summary label:
+- `stale synthetic-rebase helper removed`
 
 ```bash
 git worktree remove <path>
@@ -326,9 +354,6 @@ Then summarize:
 - A dirty detached worktree can still be meaningful even when its related branch history is stale; preserve the patch, not the stale lineage.
 - Root `main` often carries meaningful local skill/doc edits during cleanup. Preserve them intentionally rather than force-cleaning `main` blindly.
 - Open PR helper aliases and detached clones should be reduced aggressively when they are clean duplicates.
-- Users may strongly object not only to stale worktrees, but to the very existence of long-lived ad hoc worktree directories with opaque names like `cwj-pr305-about-us-refactor` or `cwj-skill-pr`. When you create a fresh worktree for active work, treat it as a temporary execution container, not something to leave behind by default.
-- Preferred hygiene rule: by the end of the task, keep only authoritative branch-backed worktrees that still correspond to active open PRs or intentionally preserved local work. Delete temporary helper/detached follow-up worktrees in the same session whenever safely possible.
-- If a detached follow-up worktree contains unique local value but no durable branch, promote it to a clearly named backup branch first, then remove the worktree so the workspace does not accumulate anonymous residue.
 
 ## Good trigger phrases
 

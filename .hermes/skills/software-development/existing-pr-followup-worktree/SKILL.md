@@ -493,6 +493,25 @@ Important practical findings:
     - Instead, use a temporary local branch name in the clean worktree (for example `pr205-rewrite`) and selectively copy only the intended paths from `origin/<pr-branch>` with `git checkout origin/<pr-branch> -- <paths...>`.
     - This is often faster and safer than rebasing a stale branch that has picked up unrelated commits from other topics.
     - After copying, verify again with `git diff --stat origin/main...HEAD` that only the intended scope remains, run validation, and then force-push the clean rewrite back to the original PR branch with `git push --force-with-lease origin HEAD:<pr-branch>`.
+  - Additional broad-old-PR triage pattern from corp-web-japan PR 206 maintenance: sometimes an old open PR was originally a catch-all branch, but later the intended work was split across newer PRs and some parts already landed on `origin/main`.
+    - Typical signals:
+      - the old PR file list is large and stale
+      - one subset is already present on latest `main`
+      - another subset is now owned by a different still-open PR
+      - only one small residual feature area is still uniquely valuable on the old PR
+    - In that case, do **not** mechanically rebase the old branch history.
+    - Safer reconstruction flow:
+      1. inspect the old PR, latest `main`, and the overlapping sibling PR together (`gh pr view <old>`, `gh pr view <sibling>`, `git diff --stat origin/main...origin/<old>`, overlapping file list)
+      2. classify the old PR scope into three buckets:
+         - already on latest `main`
+         - now owned by another open PR
+         - still unique and worth keeping on the old PR
+      3. create a fresh latest-main worktree with a temporary local rewrite branch
+      4. copy only the residual unique file set into that clean worktree; if one shared file must still change (for example a footer link or shared test), reapply only the minimal line-level delta needed for the residual scope instead of wholesale-copying the stale old version
+      5. run only the narrow targeted tests that prove the surviving scope
+      6. squash to one clean commit and force-push back to the existing old PR branch
+      7. rewrite the PR title/body so they describe only the surviving scope, not the old broad umbrella task
+    - Heuristic: if an old PR has become a stale umbrella branch, treat it like a latest-main scope extraction exercise, not a history-preservation exercise.
   - Additional practical rebase conflict pattern from PR 219 CI follow-up: when a one-commit open PR is rebased onto a newer `origin/main` and several files stop with conflict markers, it can be faster and safer to restore those conflicted files fully from `origin/main` first, then reapply only the PR's surviving scope on top, rather than hand-merging each conflict block.
     - Good candidates for this reset-and-reapply flow:
       - route files where latest main already contains major neighboring refactors
@@ -617,6 +636,15 @@ Important practical findings:
     ```
   - If they differ, do not continue CI/debug follow-up in that old worktree. Create a fresh detached worktree directly from `origin/<pr-branch>` and continue there.
   - This is especially important after squash+force-push maintenance tasks, where the old local branch/worktree can remain on an orphaned pre-rewrite commit even though the PR itself is healthy.
+- Additional authoritative-worktree lesson from PR 321 follow-up: if you made one follow-up commit from a fresh detached worktree and then need another immediate fix, do not assume the temporary path you first used is still the right checkout for the PR branch.
+  - First inspect the actual registered worktrees:
+    ```bash
+    git worktree list --porcelain
+    ```
+  - Then distinguish two cases:
+    1. a branch-attached worktree for `<pr-branch>` already exists elsewhere — use that path if it is at the current remote tip, or verify it against `origin/<pr-branch>` before editing
+    2. only detached worktrees exist or the previous temporary path is gone/broken — create a brand-new fresh worktree from `origin/<pr-branch>` again
+  - Practical rule: after any push, re-discover the authoritative checkout for the PR branch instead of assuming the last temporary directory remains usable.
 - Additional fresh-worktree sanity check from PR 233 follow-up: if a newly created follow-up worktree path is not recognized by Git (`fatal: not a git repository`) or only contains a partial subtree such as `tests/`, treat it as broken immediately.
   - Do not try to edit or run tests there.
   - Recovery flow:
@@ -630,6 +658,15 @@ Important practical findings:
     find <new-clean-path> -maxdepth 2 | sed -n '1,30p'
     ```
   - Only continue after those checks show a real checkout root with normal repo contents.
+- Additional path-verification lesson from PR 321 follow-up: do not assume the filesystem path you intended for a fresh worktree is the path you should keep using later in the session.
+  - Before any second-round edit after a push/rebase/CI cycle, re-run:
+    ```bash
+    git worktree list --porcelain
+    ```
+    and identify the worktree actually attached to `refs/heads/<pr-branch>`.
+  - Then use that exact registered path for subsequent file edits and commands.
+  - Why this matters: a follow-up session can end up using a different existing worktree for the PR branch than the temporary path you thought you just created, and blindly editing the stale/guessed path can produce confusing `No such file or directory` failures.
+  - Practical heuristic: when a file that definitely exists on the PR branch suddenly cannot be read at your assumed worktree path, stop and re-discover the authoritative branch→worktree mapping from `git worktree list --porcelain` before editing anything.
 
 ### 7. Re-check the PR and CI
 ```bash
