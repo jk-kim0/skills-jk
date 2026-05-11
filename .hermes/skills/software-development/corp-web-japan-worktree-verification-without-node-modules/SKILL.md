@@ -32,10 +32,20 @@ Observed failure modes:
 However, later tasks exposed an important limitation and a better escalation path.
 
 First workaround that can help for narrow checks:
-- create a worktree-local symlink `node_modules -> ~/workspace/corp-web-japan/node_modules`
-- rerun narrow verification such as targeted `node --test ...` or `npm run typecheck`
+- create a temporary worktree-local symlink `node_modules -> ~/workspace/corp-web-japan/node_modules`
+- rerun narrow verification such as targeted `node --test ...`, `npx eslint ...`, or `npm run typecheck`
+- remove the symlink immediately after verification
 
 This is materially different from only exporting `.bin` on `PATH`: the symlink lets module resolution succeed from the worktree without paying the cost of a fresh install inside that worktree.
+
+Important nuance learned later:
+- in `corp-web-japan`, this temporary symlink was sufficient for a real narrow static-verification pass of:
+  - `npx eslint src/app/t/plans/page.tsx src/components/sections/plans-page.tsx tests/t-plans-preview-page.test.mjs`
+  - `npm run typecheck`
+- so do not assume all npm-script verification is impossible from a fresh worktree; the right rule is narrower:
+  - `.bin` on `PATH` alone is often not enough
+  - a temporary `node_modules` symlink can unlock lint/typecheck successfully
+  - remove it afterward so the worktree stays clean and does not look like it owns dependencies
 
 But an important experiential finding:
 - that symlink can still break Next.js runtime/build flows under Turbopack
@@ -68,23 +78,29 @@ So the rule is now:
 2. Implement the change there.
 3. Prefer targeted verification that does not depend on a full worktree-local install.
 4. Run narrow `node --test ...` commands for the affected test files when the tests are source-based or otherwise independent of a full Next build.
-5. If the user does **not** want `node_modules` inside worktrees, do not add a local install just to satisfy full local `test:ci` or `build`.
-6. Commit, push, and rely on PR CI as the authoritative full verification path.
-7. In the PR body, explicitly note:
-   - which targeted tests passed locally
-   - that full `npm run test:ci` / `npm run build` could not be completed in the fresh worktree due dependency-resolution limits without worktree-local `node_modules`
+5. If useful, create a temporary `node_modules` symlink to the root checkout, run narrow lint/typecheck verification, then remove the symlink immediately.
+6. If the user does **not** want `node_modules` inside worktrees, do not add a real local install just to satisfy full local `test:ci` or `build`.
+7. Commit, push, and rely on PR CI as the authoritative full verification path.
+8. In the PR body, explicitly note either:
+   - which targeted tests passed locally, and that CI is the authoritative full verification path, or
+   - if the temporary symlink also made lint/typecheck pass, list those exact commands too
+   - only mention dependency-resolution limits when they actually blocked the remaining checks
 
 ## Good verification choices in this mode
 
 Use these first:
 - `node --test tests/<targeted-file>.test.mjs ...`
 - targeted source-inspection tests already present in `tests/`
+- if needed, temporary `node_modules` symlink + `npx eslint ...`
+- if needed, temporary `node_modules` symlink + `npm run typecheck`
 - `git diff --stat` and focused `git diff`
 
-Avoid assuming these will work from the fresh worktree without local deps:
+Be careful with:
 - `npm run test:ci`
-- `npm run typecheck`
 - `npm run build`
+- `next dev`
+
+These stronger flows may still fail or become misleading from the fresh worktree without a real in-worktree dependency tree, especially under Next/Turbopack.
 
 ## If stronger local verification is explicitly required
 
