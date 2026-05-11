@@ -35,6 +35,10 @@ Do not move this kind of legal preview body to `src/content/**` when the user pr
   - `description`
   - `date`
 - Keep the MDX body as pure document content
+- For long legal prose, keep the source readable as well as the rendered output:
+  - wrap prose at a target width such as 80 or 120 characters depending on the requested contract
+  - break lines only at word boundaries; do not split words just to satisfy the width target
+  - preserve valid MDX structure while reflowing, including frontmatter, headings, numbered lists, bullets, indentation, and inline MDX/JSX tags
 - Do **not** keep wrapper-only layout components in the MDX when they are unnecessary, such as:
   - `<Box direction="column" ...>`
   - `<CenterSection ...>`
@@ -144,7 +148,8 @@ Verify:
 4. the hero reads `frontmatter.date`, `frontmatter.title`, and `frontmatter.description`
 5. the MDX file contains frontmatter with `title`, `description`, `date`
 6. the MDX file no longer contains wrapper-only layout markup such as `<Box ...>` or `<CenterSection ...>`
-7. preview-aware footer links still point through the preview toggle helper if applicable
+7. if the MDX body was reflowed, long prose follows the requested wrap width without splitting words and without accidentally absorbing a following plain paragraph into the previous bullet/list item
+8. preview-aware footer links still point through the preview toggle helper if applicable
 
 Useful assertions:
 - `assert.match(source, /export async function generateMetadata\(\): Promise<Metadata>/)`
@@ -179,6 +184,7 @@ How to evaluate that structure:
 
 Practical implication learned from `/t/privacy-policy` review:
 - A privacy-policy implementation with `src/app/t/privacy-policy/page.tsx`, `src/app/t/privacy-policy/[slug]/page.tsx`, a route-local `privacy-policy-document.tsx`, a route-local `privacy-policy-sources.ts`, and versioned files under `src/content/privacy-policy/*.mdx` is not a strong example of static-page route-local authoring, but it can still be an appropriate and well-factored implementation for a versioned legal document collection.
+- When the route renders versioned legal MDX through `buildPublicationMdxComponents()` or another local MDX adapter, compare the adapter against the upstream/source-site table component contract before assuming the MDX content is wrong. In the privacy-policy investigation, the source MDX and migrated MDX both preserved `rowSpan`, `colSpan`, and `width`, but the local MDX adapter dropped those props because `Table.Td`/`Table.Th` only accepted `children` and `cellBackgroundColor` and did not forward the remaining DOM props to `<td>` / `<th>`. That causes merged cells and column widths to disappear at render time even though the MDX source is correct.
 
 ## Pitfalls
 - Moving legal preview MDX to `src/content/**` when the user prefers route-local adjacency for a single-document legal page
