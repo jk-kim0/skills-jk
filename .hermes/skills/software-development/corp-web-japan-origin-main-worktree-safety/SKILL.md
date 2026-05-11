@@ -73,6 +73,8 @@ This step is mandatory in fast-moving repos: codebase assumptions can become sta
 4. Fetch, re-check the remote tip, and create a fresh worktree from `origin/main`.
 4. Fetch and create a fresh worktree from latest `main`.
 
+Follow the common `repo-root-worktree-path-policy` skill for worktree location and naming.
+
 ```bash
 git fetch origin main --quiet
 git checkout main

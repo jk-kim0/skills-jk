@@ -69,7 +69,7 @@ terminal(command="REVIEW=$(mktemp -d) && git clone https://github.com/user/repo.
 ## Parallel Issue Fixing with Worktrees
 
 ```
-# Create worktrees
+# Create worktrees (follow repo-root-worktree-path-policy)
 terminal(command="git worktree add .worktrees/issue-78 -b fix/issue-78 main", workdir="~/project")
 terminal(command="git worktree add .worktrees/issue-99 -b fix/issue-99 main", workdir="~/project")
 

@@ -220,6 +220,7 @@ Safe pattern:
 ```bash
 git fetch origin --prune
 
+# follow repo-root-worktree-path-policy
 git branch -f main origin/main
 git worktree add .worktrees/feature-a-rebase -b feature-a-rebase origin/feature/a
 cd .worktrees/feature-a-rebase

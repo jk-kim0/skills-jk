@@ -108,13 +108,14 @@ When the user asks to create a PR from the current local workspace state rather 
      - `git fetch origin --prune`
      - `git branch -f main origin/main`
    - Preferred safe pattern in this repo when the user wants the current dirty workspace turned into a new PR without disturbing the root checkout:
-     - create a fresh worktree and fresh branch from latest `origin/main`
-       - `git worktree add -b <new-branch> <new-worktree> origin/main`
-     - enumerate the current meaningful local changes in the dirty root checkout
-       - `git diff --name-only`
-       - `git ls-files --others --exclude-standard`
-     - copy only those changed/untracked files from the dirty root checkout into the fresh worktree
-     - verify the fresh worktree now shows exactly that change set against `origin/main`
+    - create a fresh worktree and fresh branch from latest `origin/main`
+      - follow `repo-root-worktree-path-policy`
+      - `git worktree add .worktrees/<flat-topic> -b <new-branch> origin/main`
+    - enumerate the current meaningful local changes in the dirty root checkout
+      - `git diff --name-only`
+      - `git ls-files --others --exclude-standard`
+    - copy only those changed/untracked files from the dirty root checkout into the fresh worktree
+    - verify the fresh worktree now shows exactly that change set against `origin/main`
    - This avoids using `stash`, keeps the user's existing dirty root workspace intact, and still yields a clean latest-main PR branch.
   - Important repeat-request lesson: if the user asks for the same "update main + make a PR from current local changes" flow again later in the same dirty root checkout, do **not** assume the last follow-up branch/PR is still open or still matches the current root state.
     - Re-check both the current root branch and any most recently created follow-up branch/PR.
