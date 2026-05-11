@@ -221,9 +221,8 @@ Safe pattern:
 git fetch origin --prune
 
 git branch -f main origin/main
-TEMP_WT=$(mktemp -d /tmp/rebase-pr-a.XXXXXX)
-git worktree add "$TEMP_WT" -b feature-a-rebase origin/feature/a
-cd "$TEMP_WT"
+git worktree add .worktrees/feature-a-rebase -b feature-a-rebase origin/feature/a
+cd .worktrees/feature-a-rebase
 git rebase origin/main
 ```
 
