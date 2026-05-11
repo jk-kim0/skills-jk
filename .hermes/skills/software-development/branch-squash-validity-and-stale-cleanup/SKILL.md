@@ -354,6 +354,9 @@ Then summarize:
 - A dirty detached worktree can still be meaningful even when its related branch history is stale; preserve the patch, not the stale lineage.
 - Root `main` often carries meaningful local skill/doc edits during cleanup. Preserve them intentionally rather than force-cleaning `main` blindly.
 - Open PR helper aliases and detached clones should be reduced aggressively when they are clean duplicates.
+- In fast-moving repos, an open PR can merge while cleanup/rebase work is still in progress. Re-fetch and re-check PR state immediately before acting on any previously-open local branch.
+- Practical stale case: if a once-open local branch's remote head disappears after fetch, `gh pr list --state all --head <branch>` now shows `MERGED`, and `git diff develop..branch` (or the repo default branch equivalent) is empty, remove both the linked worktree and local branch as merged residue.
+- Practical rebase case: when rebasing a docs/content branch onto a newer base that renamed a directory, Git may stop with `CONFLICT (file location)` for files that were originally added under the old path. If there is no textual conflict and the resolution is simply to keep the files under the new renamed directory, stage those files at the new path and continue the rebase instead of aborting.
 
 ## Good trigger phrases
 

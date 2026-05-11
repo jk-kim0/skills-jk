@@ -223,3 +223,5 @@ In corp-web-japan service preview parity work, when the user asks to fix multipl
 The user wants the repeated repo-local stale-branch/worktree audit workflow encoded as a reusable skills-jk skill: classify non-open-PR branches by synthetic squash of current local state vs latest origin/main, test disposable rebase onto latest main, preserve meaningful local patches, and delete only clearly stale branches/worktrees.
 §
 In corp-web-japan PR follow-up or route-local review work, if a requested route/file is missing on current main/PR head, do not assume it should be restored from history. Report the absence first and confirm scope before reviving an old route subtree.
+§
+In the repo-local Hermes config at ~/workspace/skills-jk/.hermes/config.yaml, checkpoints.enabled is currently false while stale historical checkpoint repos can still remain on disk under .hermes/checkpoints until manually deleted.

@@ -120,13 +120,22 @@ print(json.dumps(all_nodes, ensure_ascii=False, indent=2))
    - Do not rely on it for `mergedAt`.
    - Switch to GraphQL instead of fighting the CLI.
 
-2. Search volume can exceed 100 items.
+2. GitHub `contributionsCollection` is useful for high-level totals, but not for complete authored-activity inventory.
+   - It can show `restrictedContributionsCount` and still omit detailed private activity.
+   - It may report `totalPullRequestContributions: 0` even when GraphQL search over authored PRs in the same date range returns many PRs.
+   - Therefore, do **not** use `contributionsCollection` as the source of truth for authored PR/issue counts. Use GraphQL search for authored PRs/issues, and treat `contributionsCollection` as supplemental metadata only.
+
+3. Search volume can exceed 100 items.
    - Always paginate GraphQL search results.
 
-3. Title-only summaries are not enough for a good work report.
+4. Title-only summaries are not enough for a good work report.
    - Add repo counts, day counts, state counts, and change-volume totals.
 
-4. Work reports read better by theme than by raw chronology.
+5. Commit-detail enrichment is trickier than PR/issue enrichment.
+   - If GitHub API per-repo commit enumeration fails or is incomplete, and the relevant repository is locally available, cross-check with local `git log --since --until` for commit subjects and timestamps.
+   - When presenting commit counts, distinguish between GitHub contribution totals and locally verifiable commit-log entries if they differ.
+
+6. Work reports read better by theme than by raw chronology.
    - Use the title inventory to cluster PRs into meaningful initiatives.
 
 ## Deliverable checklist
