@@ -614,6 +614,17 @@ Important practical findings:
   gh pr view <pr-number> --json headRefOid,updatedAt,url
   ```
   If they differ momentarily, wait a few seconds and re-check before concluding the push failed.
+- Additional batch-rebase shell-state guardrail from skills-jk PR maintenance: when rebasing several open PRs in sequence using temporary worktrees, do not keep the shell cwd inside a temp worktree that you then delete.
+  - Typical failure shape:
+    - you `cd` into `/tmp/...` worktree
+    - rebase and push succeed
+    - you remove that temp worktree
+    - the next `git` or `gh` command in the same shell fails with `fatal: Unable to read current working directory: No such file or directory`
+  - Safe pattern:
+    1. before removing the temp worktree, `cd` back to a stable repo-root path, or
+    2. run the removal from a parent shell whose cwd is already outside the temp worktree, or
+    3. use separate tool calls/processes per PR so each starts from an explicit stable `workdir`
+  - Practical rule: in multi-PR maintenance batches, treat `repo root` as the only durable cwd between PR iterations; never assume the shell will recover automatically after deleting the previous temp worktree.
 - Additional high-risk rebase guardrail from skills-jk PR maintenance: after any conflict-heavy rebase or manual conflict resolution in docs/skills/memory files, do **not** stop at SHA verification alone.
   - A branch can be pushed successfully while a malformed conflict resolution still remains in the final file content, even when there are no leftover `<<<<<<<` markers.
   - Before declaring the PR update correct, re-open the exact conflict-resolved high-risk files from the **remote PR head** and inspect the specific changed lines directly.

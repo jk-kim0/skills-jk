@@ -162,6 +162,33 @@ Prefer proposing targeted next steps such as:
 - clear oversized app caches
 - re-check free space after cleanup
 
+If the user explicitly asks you to free disk space, use this safe cleanup order:
+1. Re-check live free space first with `df -h /` because APFS/macOS accounting may have already rebounded.
+2. If Docker is a top consumer and no containers are running, run:
+   - `docker system prune -af`
+   - `docker builder prune -af`
+3. Re-check both `du -h ~/Library/Containers/com.docker.docker/Data/vms/0/data/Docker.raw` and `ls -lh .../Docker.raw` after prune. Logical size may stay large while actual allocated size drops sharply.
+4. Inspect remaining Docker volumes with `docker system df -v` / `docker volume ls`.
+   - It is usually safe to remove unlinked anonymous volumes and inactive buildx state volumes such as `buildx_buildkit_*_state`.
+   - Preserve named data volumes that look user-meaningful (for example DB volumes like `deck-postgres-main`) unless the user clearly wants them removed.
+5. Safe user-cache cleanup candidates that are typically regenerable:
+   - `~/Library/Caches/JetBrains`
+   - `~/Library/Caches/Google`
+   - `~/Library/Caches/ms-playwright`
+   - `~/Library/Caches/Homebrew`
+   - other obviously regenerable tool caches
+6. Expect best-effort behavior for app caches in use (for example Chrome/Google cache directories may leave behind live files while the app is running). Re-measure instead of retrying aggressively.
+7. Do not remove large user-data or VM artifacts without explicit confirmation, especially:
+   - `~/Library/Containers/com.utmapp.UTM`
+   - `~/Library/Application Support/Claude/vm_bundles`
+   - large app model/runtime payloads under `~/Library/Application Support/...`
+
+When reporting cleanup, include:
+- how much space was reclaimed,
+- which classes of data were removed,
+- which large items were deliberately preserved,
+- the final `df -h /` result.
+
 ## Pitfalls
 - Do not rely on one `df` snapshot only.
 - Do not equate `System Data` exactly with `/System` usage.
