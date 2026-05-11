@@ -399,11 +399,20 @@ Important follow-up case from corp-web-japan cleanup:
   5. then restore the root `main` worktree and fast-forward it to `origin/main`
 - lighter-weight variant when the user only asked to refresh local `main` and not to open a PR yet:
   1. create a fresh backup worktree/branch from latest `origin/main`
-  2. copy only the meaningful dirty skill/doc files into that backup worktree
+  2. copy the meaningful dirty root files into that backup worktree
+     - do not limit this only to skill/doc files; include tracked and intentional untracked files that the user may want preserved
+     - a practical collection pattern is:
+       - `git diff --name-only`
+       - `git ls-files --others --exclude-standard`
   3. commit them locally on a clearly named backup branch such as `backup/...`
   4. restore those files from root `main`
-  5. fast-forward root `main` to `origin/main`
+  5. if the root checkout is now clean, fast-forward it with `git pull --ff-only origin main`
   6. report both the backup branch name and backup worktree path to the user
+- practical root-main-update pattern from repeated `skills-jk` use:
+  - when the user simply says `main branch 업데이트해줘` while root `main` has meaningful local changes, do not block on the dirty root forever and do not force-reset it
+  - first preserve the local changes to a backup branch/worktree from latest `origin/main`
+  - then clean the root worktree and run `git pull --ff-only origin main`
+  - this leaves root `main` actually updated while still preserving the user's local work in an inspectable branch
 - prefer this backup-branch variant over `git stash` when the user values inspectable branch/worktree preservation more than stash-based safekeeping
 
 Useful summary labels:
