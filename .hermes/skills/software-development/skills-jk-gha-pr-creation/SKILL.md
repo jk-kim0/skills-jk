@@ -195,11 +195,19 @@ When the user asks to create a PR from the current local workspace state rather 
        - then re-run `git -C <worktree> status --short` and `git -C <worktree> diff --name-only origin/main...HEAD`
      - if the file becomes modified in the worktree, it was omitted and should be committed/pushed onto the PR branch
      - if the file still does not appear as modified after copying, treat it as already absorbed by latest `main`, not as a missing PR payload
-   - Important repeated-workspace-sweep lesson: after you transplant many root files onto a fresh latest-main worktree, the final PR scope can shrink dramatically because latest `origin/main` may already include most earlier local skill/memory edits.
-     - In that case, do not force all root-changed files into the PR just to mirror the dirty root list.
-     - Instead, report the branch diff that actually remains unique on top of latest `main`, and explain briefly that the other root-local changes were already absorbed upstream.
-   - After the create-pr workflow finishes, verify the resulting PR object and the payload separately:
-     - PR object lookup: `env -u GITHUB_TOKEN gh pr list --head <branch> --state all --json number,state,url,title,headRefName,baseRefName`
+  - Important repeated-workspace-sweep lesson: after you transplant many root files onto a fresh latest-main worktree, the final PR scope can shrink dramatically because latest `origin/main` may already include most earlier local skill/memory edits.
+    - In that case, do not force all root-changed files into the PR just to mirror the dirty root list.
+    - Instead, report the branch diff that actually remains unique on top of latest `main`, and explain briefly that the other root-local changes were already absorbed upstream.
+  - Practical no-op-collapse pattern from repeated `skills-jk` sweeps:
+    - it is acceptable to copy a broader candidate set from the dirty root checkout into the fresh latest-main worktree first, especially when many `.hermes/skills/**` and memory files look plausibly relevant
+    - immediately after copying, inspect the fresh worktree's real status:
+      - `git -C <worktree> diff --name-only | sort`
+      - `git -C <worktree> ls-files --others --exclude-standard | sort`
+    - expect many copied files to disappear from the worktree diff as no-ops because latest `origin/main` already contains them
+    - stage and commit only the files that still appear as modified/untracked in the fresh worktree after that collapse
+    - do not try to re-add already-absorbed files by hand just because they were part of the root candidate list
+  - After the create-pr workflow finishes, verify the resulting PR object and the payload separately:
+- PR object lookup: `env -u GITHUB_TOKEN gh pr list --head <branch> --state all --json number,state,url,title,headRefName,baseRefName`
      - payload lookup: `git -C <worktree> diff --name-only origin/main...HEAD | sort`
    - Prefer the payload list above as the final source of truth for "what this PR contains".
      - Do not summarize the PR scope from the dirty root checkout alone.
