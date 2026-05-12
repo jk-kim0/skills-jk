@@ -122,6 +122,11 @@ For the verdict, gather several of:
   - grep those branches/files for the old test paths
   - if downstream CI scope rules still reference only the pre-rename paths, classify the PR as at least partially incomplete even if the moved tests themselves pass
   - separate `the moved tests are correct` from `the repository's automation and guidance now point at the new locations`; both must be true for a clean validity verdict
+- Practical PR-head file inspection rule:
+  - when validating a PR, do not assume every changed file exists in the current root checkout on `main`
+  - this commonly fails for new files added only on the PR head (for example new `scripts/ci/*.mjs` helpers) if you try to inspect them with a plain repo-root `read_file`
+  - if a target file is missing on the current checkout, inspect it from the PR head explicitly with `git show origin/<pr-branch>:<path>` or create a fresh worktree directly from the PR branch before concluding the file is absent
+  - use this especially for PRs that add new scripts, workflows, helper modules, or moved files not yet present on latest `main`
 - Preview-deployment validation rule for implementation-vs-doc PRs:
   - do not assume a green Vercel Preview means the PR actually implements the route or page the user wants reviewed
   - first compare the PR diff against the claimed review target and confirm the branch changes runtime files for that route (`src/app/**`, `src/components/**`, `public/**`, tests as supporting evidence)

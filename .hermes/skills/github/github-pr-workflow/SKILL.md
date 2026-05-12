@@ -226,6 +226,16 @@ User-specific execution rule for fast repo work:
 - Use watch/poll loops only when the user explicitly asks to keep watching until completion.
 - For multiple PRs at once, use the bundled script `scripts/watch-multiple-pr-checks.py` instead of serial manual polling.
 
+Important zero-check diagnostic:
+- If `gh pr checks` says `no checks reported on the '<branch>' branch` and `gh run list --branch <branch>` is also empty, do not immediately assume GitHub is lagging or broken.
+- First inspect whether the repository actually has any `pull_request`, `pull_request_target`, `push`, or branch-specific workflows that should run for that PR branch.
+- Practical checks:
+  - inspect `.github/workflows/*.yml`
+  - run `env -u GITHUB_TOKEN gh workflow list`
+  - read the relevant workflow triggers (`on:` blocks)
+- Some repositories only have `workflow_dispatch`, comment-driven, or repository-dispatch automations. In those repos, a rebased/pushed PR can legitimately have zero attached checks.
+- In that case, report explicitly that the PR is rebased/updated successfully but the repo has no automatic PR CI for that branch/event, so there is no failing check to fix.
+
 **With gh:**
 
 ```bash
@@ -293,6 +303,12 @@ Bundled helper:
 ```bash
 python3 ~/.hermes/skills/github/github-pr-workflow/scripts/watch-multiple-pr-checks.py querypie/corp-web-japan 420 421 423 403
 ```
+
+Important path caveat:
+- do not assume `~/.hermes/skills/...` exists on this machine
+- the actual skill install path can differ in git-installed or repo-local Hermes setups
+- before invoking the helper by filesystem path, verify where the skill lives, or open the linked script from `skill_view(name='github-pr-workflow', file_path='scripts/watch-multiple-pr-checks.py')`
+- if the script path is unavailable or uncertain, fall back to `env -u GITHUB_TOKEN gh pr checks <pr-number> --watch` for a single PR, or poll multiple PRs with repeated `gh pr checks`/`gh pr view` instead of blocking on a broken hard-coded path
 
 What it does:
 - polls each PR every 15 seconds
@@ -511,6 +527,7 @@ git push -u origin HEAD
      gh pr edit <pr-number> --base <intended-base-branch>
      ```
    - This is especially useful when updating multiple stacked branches quickly and one branch appears to vanish or lose its expected base.
+  - If you flatten a formerly stacked PR directly onto `main`, immediately rewrite the PR title/body so they no longer claim an old parent branch or parent PR. A common stale-state bug is: the code/base are already `main`-based, but the PR body still says `base branch: <old-parent-branch>` or `parent PR: #...`, which misleads reviewers.
 
 5. When a parent PR in a stacked chain gets a hotfix, propagate that fix through child PRs by rebasing each child onto the updated parent branch, then force-pushing.
    - Common symptom: several open child PRs fail the same CI step even though the root cause lives in an earlier parent PR.

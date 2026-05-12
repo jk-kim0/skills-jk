@@ -48,6 +48,7 @@ Reason: in the route file, the component tree should read like the page's UX str
    - wrappers should prefer `children`-based composition over prop-shaped copy APIs
    - wrappers should contain no actual marketing sentences
    - avoid `title={...}` style APIs when the user wants `page.tsx` to read like the actual page script
+   - avoid introducing thin `*PageContent` wrappers whose only job is to alias a direct `div.mx-auto.max-w-[1200px]` container; prefer the direct route-local or section-local container unless the wrapper has a clearly separate responsibility such as reused inner-width semantics across multiple distinct blocks
 3. Move all visible copy into `page.tsx`.
    - headings
    - lead paragraphs

@@ -21,9 +21,24 @@ Local news implementation uses:
 - `src/content/publications/news-publication-records.ts`
 - `src/lib/publications/get-news-publication-post.ts`
 - `src/app/t/news/page.tsx`
+- `src/app/news/page.tsx`
 - `src/app/news/[id]/page.tsx`
 - `src/app/news/[id]/[slug]/page.tsx`
 - route-aligned assets under `public/news/<id>/...`
+
+## News index labeling rule
+
+Before renaming the `/news` list page title or hero heading, inspect the actual `src/content/news/*.mdx` corpus rather than assuming every item is external media coverage.
+
+Important observed pattern:
+- the corpus can mix true external-media coverage items and first-party official announcements/press-release style posts
+- when that mix exists, a broader list-page label is more accurate than a media-only label
+
+Current preferred outcome for this repo when `/news` contains both kinds:
+- page H1 in `src/app/news/page.tsx`: `ニュース・お知らせ`
+- metadata title in `src/app/news/page.tsx`: `ニュース・お知らせ | QueryPie AI`
+
+Do not narrow the page label to something like media coverage only unless official announcements have first been split out of the `/news` corpus.
 
 Blog shadow/redirect behavior may also matter:
 - `src/content/blog/*.mdx`
