@@ -224,6 +224,7 @@ User-specific execution rule for fast repo work:
 - Do not sit waiting on CI unless the user explicitly asks you to wait for completion.
 - Preferred behavior is: trigger/push the updated branch, verify that fresh workflow runs attached to the new head SHA, report the current in-progress status, and return control immediately.
 - Use watch/poll loops only when the user explicitly asks to keep watching until completion.
+- For multiple PRs at once, use the bundled script `scripts/watch-multiple-pr-checks.py` instead of serial manual polling.
 
 **With gh:**
 
@@ -282,6 +283,27 @@ for i in $(seq 1 20); do
   sleep 30
 done
 ```
+
+### Poll multiple PRs to terminal state with `gh`
+
+When a stacked PR chain or rollout requires watching several PRs together, `gh pr checks --watch` is awkward because it watches only one PR at a time. Use JSON polling so you can stop on the first failure or when all PRs are done.
+
+Bundled helper:
+
+```bash
+python3 ~/.hermes/skills/github/github-pr-workflow/scripts/watch-multiple-pr-checks.py querypie/corp-web-japan 420 421 423 403
+```
+
+What it does:
+- polls each PR every 15 seconds
+- prints `check-name=STATE` snapshots per PR
+- exits `0` when all checks are terminal-success
+- exits `1` on the first failed terminal state
+- exits `2` on timeout or when check metadata cannot be fetched yet
+
+Why `env -u GITHUB_TOKEN gh ...` appears in the helper:
+- in some Hermes shells, an inherited `GITHUB_TOKEN` can override the user's normal `gh auth` context
+- if `gh auth status` is already correct but `gh` API calls behave inconsistently, retry with `env -u GITHUB_TOKEN gh ...` before assuming GitHub itself is failing
 
 ## 5. Auto-Fixing CI Failures
 
@@ -492,6 +514,7 @@ git push -u origin HEAD
 
 5. When a parent PR in a stacked chain gets a hotfix, propagate that fix through child PRs by rebasing each child onto the updated parent branch, then force-pushing.
    - Common symptom: several open child PRs fail the same CI step even though the root cause lives in an earlier parent PR.
+   - After pushing the fixes, if the user wants you to keep watching, monitor the whole chain together rather than checking each PR manually one by one. Prefer `scripts/watch-multiple-pr-checks.py` for that final verification pass.
    - Safe repair pattern:
      ```bash
      # fix and push the parent branch first

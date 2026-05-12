@@ -188,11 +188,19 @@ When the user asks to create a PR from the current local workspace state rather 
      - in the fresh PR worktree, list the actual branch diff versus `origin/main`
        - example: `git -C <worktree> diff --name-only origin/main...HEAD | sort`
      - compare the two lists before final reporting
-   - If a meaningful tracked file is present in root but missing from the PR worktree diff, do not finalize yet:
-     - copy or restore that file into the PR worktree
-     - commit it onto the same branch
-     - push the branch again
-   - This catches a common failure mode in repeated local-workspace sweeps: after manually transplanting many files, one tracked skill/memory file is accidentally omitted even though the overall PR otherwise looks correct.
+  - If a meaningful tracked file is present in root but missing from the PR worktree diff, do not finalize yet:
+    - first inspect whether the file was truly omitted from the transplant, or whether latest `origin/main` already contains that exact change so it no longer appears in the PR diff
+    - practical check:
+      - copy the root file into the fresh worktree if needed
+      - then re-run `git -C <worktree> status --short` and `git -C <worktree> diff --name-only origin/main...HEAD`
+    - if the file becomes modified in the worktree, it was omitted and should be committed onto the same branch and pushed again
+    - if the file still does not appear as modified after copying, treat it as already absorbed by latest `main`, not as a missing PR payload
+  - Important repeated-workspace-sweep lesson: after you transplant many root files onto a fresh latest-main worktree, the final PR scope can shrink dramatically because latest `origin/main` may already include most earlier local skill/memory edits.
+    - In that case, do not force all root-changed files into the PR just to mirror the dirty root list.
+    - Instead, report the branch diff that actually remains unique on top of latest `main`, and explain briefly that the other root-local changes were already absorbed upstream.
+  - This catches two common failure modes in repeated local-workspace sweeps:
+    1. a tracked skill/memory file was accidentally omitted from the fresh PR worktree and must be restored, committed, and pushed
+    2. a file looked "missing from the PR" but in reality latest `main` had already absorbed it, so no new diff remained to review
 
 ## Worktree location preference in `skills-jk`
 

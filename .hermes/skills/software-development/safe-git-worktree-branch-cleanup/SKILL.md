@@ -35,6 +35,22 @@ User-specific requirement:
 - if the root worktree has tracked changes or the update is not a clean fast-forward, preserve and report instead of forcing
 - untracked-only root dirt does not automatically block `git pull --ff-only`; first check whether the incoming remote diff touches those same paths, and if not, fast-forward is usually still safe
 
+## Scope interpretation for this user
+
+When the user says `workspace 정리`, interpret it from the live cwd first rather than from the generic English word `workspace`.
+
+Practical rule:
+- if `pwd` is already inside a git repository, default to **repo-local cleanup** for that current repository
+- in that case, do not ask whether they meant the whole `~/workspace` unless they explicitly say all repos / entire workspace
+- repo-local cleanup means:
+  1. inspect the current repo root and worktree graph
+  2. switch the root checkout back to the default branch when safe
+  3. fast-forward the root default branch to the latest `origin/<default>` when safe
+  4. delete stale local worktrees/branches for that repo only
+  5. keep going until the repo is as clean as safely possible, including obvious root-local residue
+
+Escalate to cross-repository cleanup only when the user clearly indicates the whole workspace root, multiple repos, or sibling repositories.
+
 ## Safety rules
 
 - Never delete the current branch.

@@ -126,6 +126,26 @@ Ask: “If I open only `page.tsx`, can I understand the page quickly?”
 
 If no, pull more structure back into the route.
 
+## Top-spacing ownership rule for fixed-header pages
+
+When a page renders the shared fixed `SiteHeader`, prefer the more standard split between global header clearance and page-specific visual hero spacing.
+
+Recommended ownership:
+- `main` (or the route-level page shell) owns the fixed-header clearance
+- the first page section / hero section owns only the page's visual top spacing and layout
+- title/lead/intro primitives own typography and local rhythm only, not page-top clearance
+
+Practical implication for corp-web-japan:
+- if the route uses the shared fixed header, add the header-clearance padding on `main` first
+- then reduce the first section's top padding so the rendered visual result stays consistent
+- do not leave the entire header offset embedded inside `*PageSection` / `*HeroSection` unless the page is an intentional full-bleed/overlap exception
+- do not push page-top spacing responsibility down into `Title`, `Lead`, or other text primitives
+
+Why this split is preferred:
+- changing header height later becomes a shell-level adjustment instead of a per-page hunt
+- section components become easier to compare across pages because their top spacing reflects only page design, not global chrome compensation
+- route and structure tests can assert the ownership boundary clearly: header clearance in `page.tsx`, visual spacing in the first section component
+
 Good to keep extracted:
 - `RevealOnScroll`
 - shared showcases already used elsewhere

@@ -283,6 +283,12 @@ Important user-expectation nuance learned from active-review follow-up:
 - When a PR is already open and you make additional requested changes, commit and push those changes promptly instead of letting local edits accumulate.
 - Treat each meaningful follow-up adjustment as reviewable progress on the existing PR branch unless the user explicitly asks you to batch changes before pushing.
 - After each push, re-check PR status and CI so the user can review the updated PR without waiting for a later "finalize" step.
+- If the latest follow-up changed the effective scope, architecture vocabulary, or compared surface of the PR, rewrite the PR title/body immediately after the push instead of leaving stale wording for a later pass. Practical wrap-up order:
+  1. push the follow-up commit to the existing PR branch
+  2. update PR title/body with `gh pr edit <pr-number> --title ...` and/or `--body-file ...` so the PR description matches the new final diff
+  3. verify the remote branch tip with `git ls-remote origin refs/heads/<pr-branch>`
+  4. then check `gh pr checks <pr-number>`
+- If `gh pr checks` says `no checks reported on the '<branch>' branch` immediately after the push/title edit, treat that as a transient attachment state first, not as evidence that the branch update failed. Confirm the pushed SHA landed, wait briefly, and re-check.
 - If `git push origin HEAD:<pr-branch>` is rejected as non-fast-forward during PR follow-up, do not open a new PR or force-push blindly. First fetch and compare against `origin/<pr-branch>` because another follow-up worktree/session may already have advanced the same PR branch.
   Recommended recovery flow:
   ```bash
@@ -330,12 +336,52 @@ Important user-expectation nuance learned from active-review follow-up:
 - In this repurpose flow, explicitly verify that the final changed-file list and PR body mention only the new purpose before reporting completion.
 - When the follow-up changed abstraction boundaries or naming, make the PR title/body match the final architecture vocabulary, not the intermediate implementation history. In particular, distinguish generic shared primitives/shells from concrete preset components. Example pattern: if a generic base such as `SimpleCtaSection` already exists and the PR ultimately introduces or standardizes a fixed-purpose preset such as an AIP free-trial CTA, describe the PR as unifying the shared preset across pages rather than as generalizing the base primitive itself.
 - If the user corrects your naming/role interpretation during the review cycle, treat that as a PR-body correction signal too: update the PR title/body so reviewers see the corrected conceptual model without having to reconstruct it from the conversation.
-- If the user asks to squash the branch history for an open PR, use a fresh worktree from the PR branch tip, `git reset --soft <base-branch>`, recommit once with the final conventional-commit message, then `git push --force-with-lease origin HEAD:<pr-branch>` and re-check PR/CI status.
+- If the user asks to squash the branch history for an open PR, start with a fresh worktree and inspect whether that worktree is truly a clean reflection of the remote PR head before using `git reset --soft <base-branch>`.
+- Important stale-worktree pitfall from PR maintenance: a branch-attached local worktree can still carry older local-only branch state, unrelated staged history, or previously repurposed branch content even when `origin/<pr-branch>` itself is clean. In that case, a naive soft-reset squash can silently absorb unrelated files into the new single commit.
+- Safe squash decision rule:
+  1. compare `git rev-parse HEAD` vs `git rev-parse origin/<pr-branch>` in the candidate worktree
+  2. inspect `git status --short` and `git diff --name-only origin/main...HEAD`
+  3. if the candidate worktree shows unexpected files, renamed tests, old helper/skill changes, or any scope larger than the intended PR diff, do **not** squash there
+  4. instead, create a brand-new detached worktree from latest `origin/main`, copy only the intended PR file set from a known-good source (`origin/<pr-branch>` or an earlier known-good PR-head SHA), commit once, and `git push --force-with-lease origin HEAD:<pr-branch>`
+- Practical heuristic: if the user's real request is 'make this PR one clean commit with the same final diff', prefer reconstructing that final diff on top of latest main over preserving a suspicious local branch state.
+- After that rewrite, also verify the branch is still based on the latest remote main tip:
+  ```bash
+  git fetch origin --prune
+  git merge-base origin/main origin/<pr-branch>
+  git rev-parse origin/main
+  ```
+  If the merge-base is behind because `origin/main` advanced during the rewrite, repeat the clean latest-main reconstruction once more before declaring the squash complete.
+- Additional GitHub lag pitfall from the same workflow: immediately after a force-push, `gh pr view --json files` can briefly report a stale file list from the previous PR head.
+  - Do not treat that as proof that the rewrite failed.
+  - First verify the actual remote branch diff directly:
+    ```bash
+    git fetch origin --prune
+    git diff --name-only origin/main...origin/<pr-branch>
+    git diff --stat origin/main...origin/<pr-branch>
+    ```
+  - Then re-check `gh pr view <pr-number> --json files,headRefOid,updatedAt` after a short delay.
 - For small PR follow-ups such as squash, title/body edits, route/path renames, or other narrow review-driven fixes, do not automatically run local build/test verification unless the user explicitly asks for it. Prefer the fast path: edit -> commit -> push -> confirm PR updated -> watch CI.
 - Likewise, do not start a local dev server for visual/manual verification unless the user explicitly asks for that method. If you need confidence without a dev server, prefer scoped tests, code inspection, PR reviewability, and CI.
 - Important visual-follow-up caveat learned from preview-UI work: if the user points to a specific Preview Deployment URL and says the rendered result still looks wrong, verify that exact deployed preview in the browser before trusting your local render. Small spacing/icon/asset differences can still show up differently on the deployed preview even when a local dev server looked acceptable.
 - If the preview and local render disagree, treat the preview as the source of truth for that follow-up, adjust from the current PR branch, and then use local render only as a quick iteration loop before pushing another preview update.
 - At the start of a follow-up task, give a short time estimate. If the work exceeds that estimate, stop and immediately report current status and next step instead of staying silent.
+- Important local-revert pattern from PR follow-up work: if the user immediately says to cancel or undo only your most recent uncommitted follow-up attempt, revert just that local delta in the same fresh PR worktree before doing anything else.
+  - First inspect whether the attempted change created tracked renames, staged edits, or new added files:
+    ```bash
+    git -C <worktree> status -sb
+    git -C <worktree> diff --name-status
+    ```
+  - If the rollback target is only the latest uncommitted attempt, prefer restoring the intended original paths first:
+    ```bash
+    git -C <worktree> restore --staged --worktree <original-paths...>
+    ```
+  - Then verify whether the failed attempt also left newly added replacement paths behind. A rename/`git mv` rollback can leave the old files restored while the new destination paths still exist as added files.
+  - If those added paths remain, remove them explicitly instead of assuming `restore` cleaned everything:
+    ```bash
+    git -C <worktree> rm -f <newly-added-paths...>
+    ```
+  - Finish by re-checking `git status -sb` and confirm the worktree is back to the exact pre-attempt state before proceeding.
+  - Heuristic: for a user request like "revert the last change" during active PR follow-up, do not reset the whole PR branch or drop earlier validated edits; surgically undo only the newest local attempt and prove the worktree is clean afterward.
 
 ### 6a. If the user asks to rebase the existing PR branch onto the latest main
 Use the same fresh-worktree principle, but rebase the PR branch tip onto `origin/main` instead of creating a merge commit.

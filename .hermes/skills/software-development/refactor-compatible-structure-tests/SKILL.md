@@ -198,6 +198,8 @@ Common affected test themes:
 - not-found page checks using top-page constants
 - asset path checks that read a specific old content file
 
+Also search repo-local agent docs/skills for the renamed test paths and update those references in the same PR. In this repo, stale `.agents/skills/**` examples can become a real workflow regression because future agents use them as task guidance.
+
 Important practical lesson from `corp-web-japan` relocation work:
 - many tests may not show up from one narrow grep because they fail by calling `readSource("old/path.tsx")` or `sourceExists("old/path.ts")` rather than importing the old module name
 - in relocation PRs, expect CI to reveal additional exact-path tests in waves; one grep pass is often not enough
