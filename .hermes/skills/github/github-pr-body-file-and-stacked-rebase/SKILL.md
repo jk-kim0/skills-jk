@@ -248,6 +248,10 @@ Then replace the body with a body file describing:
 - When `stash pop` conflicts on markdown memory/config files, merge by preserving both durable additions unless one clearly supersedes the other.
 - For `rename/delete` conflicts after upstream skill restructuring, decide explicitly whether your local intent was “delete this content” or “edit the moved file”; do not accept Git's default blindly.
 - If `stash pop` reported conflicts, do not drop the stash until `git status` shows no unmerged paths and the resulting diff matches your intended local work.
+- When the top of a stack is a CI/path-scope PR and lower stacked PRs moved or renamed tests/files, rebasing the CI PR onto the new stack tip is not enough by itself. Reconcile both sources of truth for scope classification in the same update:
+  - the GitHub workflow `paths-filter` globs
+  - the repo-local matcher/assertion logic (for example `scripts/ci/test-groups.mjs` plus `assert-test-groups.mjs`)
+  Then run the local assertion before force-push. Otherwise the PR can look rebased correctly while CI scope detection silently drifts or fails with unassigned/overlapping moved tests.
 
 ## Additional practical pattern: rebasing another open PR branch safely
 

@@ -114,7 +114,14 @@ For the verdict, gather several of:
   - after a path-refactor PR, grep the PR head for old path strings to catch partial updates where one section was fixed but workflow/examples or companion skills still point at removed files
   - when one repo-local skill is updated for a moved path, inspect sibling/companion skills for the same stale references instead of assuming the update was applied consistently everywhere
   - flag any doc/skill change that silently turns a path-only refactor PR into a false source-of-truth change for content naming or architecture contracts
+  - if the PR renames or mirrors test files, also inspect repo-local skills and guidance that cite those exact test paths; stale test-path examples are a real regression in repos that rely on checked-in skills as operational guidance
 - Treat this as a real PR-validity issue, not a minor doc nit, when the changed skill/doc would teach future agents to use nonexistent paths or regressed conventions.
+- Important stacked-PR / CI-gating check for taxonomy and test-path refactors:
+  - when a PR renames, mirrors, or deletes test files, do not validate it in isolation
+  - inspect still-open or recently merged follow-up PRs that implement changed-file CI gating, path filters, or test-group membership
+  - grep those branches/files for the old test paths
+  - if downstream CI scope rules still reference only the pre-rename paths, classify the PR as at least partially incomplete even if the moved tests themselves pass
+  - separate `the moved tests are correct` from `the repository's automation and guidance now point at the new locations`; both must be true for a clean validity verdict
 - Preview-deployment validation rule for implementation-vs-doc PRs:
   - do not assume a green Vercel Preview means the PR actually implements the route or page the user wants reviewed
   - first compare the PR diff against the claimed review target and confirm the branch changes runtime files for that route (`src/app/**`, `src/components/**`, `public/**`, tests as supporting evidence)
