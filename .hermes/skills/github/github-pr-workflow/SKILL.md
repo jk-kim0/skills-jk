@@ -220,13 +220,18 @@ This is especially important when the accidentally included old branch was merge
 
 ### Check CI Status
 
+User-specific execution rule for fast repo work:
+- Do not sit waiting on CI unless the user explicitly asks you to wait for completion.
+- Preferred behavior is: trigger/push the updated branch, verify that fresh workflow runs attached to the new head SHA, report the current in-progress status, and return control immediately.
+- Use watch/poll loops only when the user explicitly asks to keep watching until completion.
+
 **With gh:**
 
 ```bash
 # One-shot check
 gh pr checks
 
-# Watch until all checks finish (polls every 10s)
+# Watch until all checks finish (polls every 10s) -- only if the user asked you to wait
 gh pr checks --watch
 ```
 
@@ -259,6 +264,8 @@ for cr in data.get('check_runs', []):
 ```
 
 ### Poll Until Complete (git + curl)
+
+Only use this completion-wait loop when the user explicitly wants you to wait for green/red. Otherwise, do a one-shot status check, report the active run IDs/states, and return control.
 
 ```bash
 # Simple polling loop — check every 30 seconds, up to 10 minutes
@@ -466,7 +473,49 @@ git push -u origin HEAD
      gh pr comment 123 --body-file /tmp/pr-comment.md
      ```
 
-2. `gh pr diff` can fail on very large PRs.
+4. In stacked PR chains, verify remote branch refs directly after rebases or force-pushes.
+   - `gh pr view` can lag, and GitHub can briefly show stale commit lists or an outdated branch/base relationship.
+   - Check the actual remote head first:
+     ```bash
+     git rev-parse HEAD
+     git ls-remote origin refs/heads/<stacked-branch>
+     ```
+   - If the remote ref is missing or wrong, push with an explicit refspec instead of relying on inferred branch destinations:
+     ```bash
+     git push --force origin HEAD:refs/heads/<stacked-branch>
+     ```
+   - After repairing the remote branch, re-check the PR base branch. If GitHub shows the wrong stacked base, reset it explicitly:
+     ```bash
+     gh pr edit <pr-number> --base <intended-base-branch>
+     ```
+   - This is especially useful when updating multiple stacked branches quickly and one branch appears to vanish or lose its expected base.
+
+5. When a parent PR in a stacked chain gets a hotfix, propagate that fix through child PRs by rebasing each child onto the updated parent branch, then force-pushing.
+   - Common symptom: several open child PRs fail the same CI step even though the root cause lives in an earlier parent PR.
+   - Safe repair pattern:
+     ```bash
+     # fix and push the parent branch first
+     git -C .worktrees/<parent> add <files>
+     git -C .worktrees/<parent> commit -m "fix: ..."
+     git -C .worktrees/<parent> push
+
+     # then rebase each child onto the updated parent remote ref
+     git -C .worktrees/<child-1> fetch origin --prune
+     git -C .worktrees/<child-1> rebase origin/<parent-branch>
+     git -C .worktrees/<child-1> push --force-with-lease
+
+     git -C .worktrees/<child-2> fetch origin --prune
+     git -C .worktrees/<child-2> rebase origin/<child-1-branch>
+     git -C .worktrees/<child-2> push --force-with-lease
+     ```
+   - After each force-push, check that new workflow runs attached to the rewritten head branch:
+     ```bash
+     gh run list --branch <branch> --limit 3
+     gh pr view <pr-number> --json statusCheckRollup,mergeStateStatus,url
+     ```
+   - If the same CI error disappears on the parent but persists on children, suspect that the children were not rebased onto the updated parent yet.
+
+5. `gh pr diff` can fail on very large PRs.
    - GitHub may return HTTP 406 / `PullRequest.diff too_large` when the PR changes hundreds of files.
    - In that case, inspect files with:
      ```bash

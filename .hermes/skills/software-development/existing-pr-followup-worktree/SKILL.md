@@ -220,16 +220,19 @@ Special case: the user asks you to remove forbidden-scope changes from an alread
   ```
 - This pattern is especially important when the forbidden scope is CMS-managed data or routes that the user explicitly said must not be touched. Do not try to "partially keep" those edits unless the user explicitly names the exact file/subtree they still want changed.
 
-When the follow-up request is a broad cleanup of repeated behavior on the existing PR branch (for example removing all `target="_blank"` / `rel="noreferrer"` patterns, or fully eliminating a wrapper component the user no longer wants), use an exhaustive search-and-verify loop instead of editing only the first example the user mentions:
+When the follow-up request is a broad cleanup of repeated behavior on the existing PR branch (for example removing all `target="_blank"` / `rel="noreferrer"` patterns, fully eliminating a wrapper component the user no longer wants, or renaming a shared symbol used across many files), use an exhaustive search-and-verify loop instead of editing only the first example the user mentions:
 
-1. search the fresh PR worktree for the exact pattern or wrapper usage across `src/` (and tests if relevant)
+1. search the fresh PR worktree for the exact pattern, wrapper usage, or symbol name across `src/` (and tests if relevant)
 2. patch every matching implementation site, not just the originally discussed route/file
 3. if the request is to eliminate a shared wrapper/abstraction entirely, confirm remaining usage count reaches zero and then delete the wrapper file itself
-4. add or update a narrow structure test when useful so the undesired wrapper/pattern does not silently return
-5. re-run the same search and confirm zero matches remain in the intended scope
-6. run targeted tests that cover the affected surfaces
-7. if the PR's title/body now understates or misstates the final broader scope, rewrite them to describe the actual end state before pushing or immediately after the push
-8. then commit and push back to the same PR branch
+4. for rename-only follow-ups, verify both sides explicitly:
+   - old name/pattern count reaches zero in the intended scope
+   - new name/pattern appears in the expected implementation and test sites
+5. add or update a narrow structure test when useful so the undesired wrapper/pattern does not silently return
+6. re-run the same search and confirm zero matches remain in the intended scope
+7. run targeted tests that cover the affected surfaces
+8. if the PR's title/body now understates or misstates the final broader scope, rewrite them to describe the actual end state before pushing or immediately after the push
+9. then commit and push back to the same PR branch
 
 Important follow-up nuance learned from wrapper-removal work:
 - the user may first ask for a shared wrapper to disappear entirely, then immediately ask for a more concrete shared component to be re-extracted from the resulting duplicated code
@@ -291,6 +294,8 @@ Important user-expectation nuance learned from active-review follow-up:
     where `<old-local-pr-tip>` is the local commit that used to correspond to the original PR tip before your new follow-up commit(s).
   - After that, verify `git log --oneline --decorate -n 5` shows `origin/<pr-branch>` followed by only your intended new follow-up commit(s), rerun the targeted test, and push normally.
   - This preserves the existing open PR history while still letting you rebase your new work onto the remote PR head.- If the user later asks to clean up the PR title/body, rewrite them to describe only the final end state of the PR. Do not narrate intermediate implementation history unless the user explicitly wants that context.
+- When the follow-up changed abstraction boundaries or naming, make the PR title/body match the final architecture vocabulary, not the intermediate implementation history. In particular, distinguish generic shared primitives/shells from concrete preset components. Example pattern: if a generic base such as `SimpleCtaSection` already exists and the PR ultimately introduces or standardizes a fixed-purpose preset such as an AIP free-trial CTA, describe the PR as unifying the shared preset across pages rather than as generalizing the base primitive itself.
+- If the user corrects your naming/role interpretation during the review cycle, treat that as a PR-body correction signal too: update the PR title/body so reviewers see the corrected conceptual model without having to reconstruct it from the conversation.
 - If the user asks to squash the branch history for an open PR, use a fresh worktree from the PR branch tip, `git reset --soft <base-branch>`, recommit once with the final conventional-commit message, then `git push --force-with-lease origin HEAD:<pr-branch>` and re-check PR/CI status.
 - For small PR follow-ups such as squash, title/body edits, route/path renames, or other narrow review-driven fixes, do not automatically run local build/test verification unless the user explicitly asks for it. Prefer the fast path: edit -> commit -> push -> confirm PR updated -> watch CI.
 - Likewise, do not start a local dev server for visual/manual verification unless the user explicitly asks for that method. If you need confidence without a dev server, prefer scoped tests, code inspection, PR reviewability, and CI.
@@ -402,6 +407,15 @@ Important practical findings:
     9. rerun the narrow route structure test plus any CTA/launch-readiness regression that inspects the same source paths, then squash to one clean commit and force-push back to the PR branch
     Heuristic: if the current PR's true value is "one more section becomes route-local" and latest main already contains the previous section-local PRs, reconstruct that final latest-main composition directly instead of preserving the old branch's intermediate split points.
   - Practical PR-cleanup pattern for "this PR includes unrelated commits": create a fresh detached worktree directly from latest `origin/main`, create a temporary local branch there, and then copy only the PR's intended scoped files from `origin/<pr-branch>` into that clean worktree with `git checkout origin/<pr-branch> -- <paths...>`. Verify the resulting diff with `git diff --stat origin/main...HEAD` and `git diff --name-only origin/main...HEAD`, run validation, commit once, then `git push --force-with-lease origin HEAD:<pr-branch>`. This is safer than trying to interactively prune old mixed branch history when the desired result is a clean single-scope PR.
+  - Additional scope-reduction guardrail from corp-web-japan PR 410 maintenance: when you are removing unrelated changes from an existing PR branch by restoring files from `origin/main`, do not stop after the first partial commit if `git diff --name-only origin/main...HEAD` still includes the unrelated files. It is easy to commit only the "kept" scope (for example a handful of intended path-move files) while leaving the actual restore/removal of unrelated files unstaged in the worktree.
+    - After any narrowing commit, compare all three views explicitly:
+      ```bash
+      git diff --name-only origin/main...HEAD   # committed PR scope
+      git diff --name-only                      # unstaged local cleanup still pending
+      git status --short
+      ```
+    - If the committed PR scope still contains files you intended to remove and the worktree still has unstaged restores, continue and push a second cleanup commit immediately rather than declaring the PR fixed.
+    - Success condition for scope reduction is: the committed PR diff against latest main contains only the intended file set, and the worktree is clean.
   - Additional narrow-PR reconstruction pattern from PR 255 maintenance: when an open PR is supposed to contain only a very small follow-up scope, first treat the PR's current GitHub file list as the authoritative intended scope before trusting the branch diff. In practice:
     1. inspect `gh pr view <pr-number> --json files,commits` and note the exact intended file set
     2. compare that to `git diff --stat origin/main..origin/<pr-branch>`
@@ -449,6 +463,23 @@ Important practical findings:
       3. reapply only the PR-specific assertions that prove the intended new behavior
       4. rerun the targeted tests before pushing
     - Heuristic: for latest-main rewrites, test files should usually be merged, not blindly copied wholesale, unless the PR truly owns the full current baseline of that test.
+  - Additional standalone-prerequisite lesson from rebasing stacked corp-web-japan PRs 403/410/411/412/413 directly onto `main`: a child PR's visible file list or parent-vs-child diff can hide prerequisite files that used to come from its former stacked parent.
+    - Typical signals after flattening to `main`:
+      - `tsc` fails with `Cannot find module ...` for files that exist on the old parent branch but not on latest `main`
+      - workflow PRs fail because scripts or `package.json` entries introduced by the old parent are no longer present on latest `main`
+      - source-reading tests fail not because the implementation is wrong, but because the test still assumes the former parent branch's file layout or CTA composition
+    - Safe recovery pattern after the first flattened push:
+      1. inspect the failing CI logs before re-rebasing again
+      2. classify each failure as one of:
+         - missing prerequisite source file/module from the old parent
+         - missing workflow/script/package support from the old parent
+         - stale structure-test expectation against latest `main`
+      3. restore only the minimal prerequisite files from the appropriate upstream source:
+         - use latest `origin/main` when the prerequisite already exists there under the canonical current path
+         - use the former parent PR branch (or the pre-merge main SHA) when the child PR truly still depends on a file family that latest `main` does not yet contain
+      4. for stale tests, prefer updating the expectation to accept the latest-main baseline contract rather than forcing the implementation back to the old parent-only shape
+      5. push the follow-up commit to the same PR branch, then if `origin/main` advanced during the repair batch, run one more `rebase origin/main` before final verification
+    - Practical heuristic: when flattening a stacked child PR to `main`, 'copy only the child-vs-parent diff' is often insufficient. Be ready to add back hidden prerequisites so the PR becomes standalone against `main`.
 - Additional latest-main path-cleanup maintenance pattern from corp-web-japan PR 301:
   - Sometimes an open PR is mainly a path-localization / file-move refactor (for example moving publication helpers into category-local directories), but latest `origin/main` has advanced with behavior changes in the same touched routes and tests before you finish review follow-up.
   - Typical signs:
@@ -559,6 +590,36 @@ Important practical findings:
 - Important final-tree review step from corp-web-japan internal demo follow-up work: even when the rebase itself is clean, do one more critical pass on the *latest-main final tree* before pushing. Look specifically for page-local demo hacks or magic values that only existed to force a preview state (for example sentinel dates or ad hoc query interpretation inside `page.tsx`). If you find them, prefer moving that behavior into a dedicated helper/resolver in `src/lib/**` so the route stays thin and the demo-specific state logic has an explicit name and contract.
 - Additional practical rebase pattern from PR 214 maintenance: when rebasing a stacked follow-up PR branch onto latest `origin/main`, the first implementation commit can conflict in structure-test helpers (for example `tests/helpers/static-marketing-page-sources.mjs`) because `main` has gained new sibling-section coverage since the PR branched. Resolve that first conflict by keeping the latest-main helper/test baseline and merging in the rebased PR's newly introduced section files/assertions together.
 - Shared primitive/component rebase pattern from PR 217 maintenance: if the conflict is in a shared list/page primitive that both `main` and the PR extended in different ways, do not choose one side wholesale. Inspect the latest-main file and the PR-head file side by side, keep the latest-main API additions that other routes now depend on (for example a new `sidebarBasePath` prop or normalized sidebar key handling), then layer the PR-only feature hook-up on top (for example `initialVisibleCount` plus the conditional `ResourceListLoadMore` branch). After resolving, verify the rebased tree still preserves both behaviors: the new main-side compatibility path for existing callers and the PR-side behavior for the targeted routes.
+- Repeated rebase-request pattern from open-PR maintenance: if the user asks to "rebase PR X onto latest main" again shortly after you already did it, do not answer from memory or assume nothing changed. Re-fetch `origin/main`, compare the PR head SHA and merge-base again, and treat a new `main` commit as a fresh rebase requirement even if the previous rebase completed minutes earlier.
+  - Practical check:
+    ```bash
+    gh pr view <pr-number> --json headRefName,headRefOid,mergeStateStatus,updatedAt
+    git fetch origin --prune
+    git rev-parse origin/main origin/<pr-branch>
+    git merge-base origin/main origin/<pr-branch>
+    ```
+  - If the merge-base is behind the latest `origin/main`, perform the rebase again; do not tell the user it was already done.
+- Route-local rebase-conflict pattern from preview-service PR maintenance: if a latest-main commit introduces a newer shared CTA/preset or similar shared abstraction in the same route file that your PR is touching for a different reason (for example section-family file moves/import relocations), resolve the conflict by preserving the latest-main shared preset and reapplying only the PR's intended route-local/path-move changes.
+  - Typical signal: one conflicted route file where `HEAD` imports a new shared preset from `simple-cta-section` while the rebased PR side only changes section component paths/names.
+  - Safe rule: keep the newer main-side shared UX abstraction unless the user explicitly asked to revert it, and limit the PR side to its true surviving scope such as moved import paths, renamed component files, and matching structure tests.
+- Additional latest-main-scope guardrail from PR 410/411 maintenance: after flattening or rebuilding a formerly stacked PR directly onto `main`, do not assume every remaining diff line under the PR title is still intentional. A path-move/family-directory PR can silently carry two kinds of stale scope:
+  1. latest-main behavior reverts in touched route files (for example replacing a shared CTA preset with copied inline CTA markup)
+  2. unrelated file resurrection from an old parent branch (for example restoring legacy flat component files that latest `main` already replaced with family-directory files)
+  - Practical detection loop:
+    1. inspect `gh pr view <pr-number> --json files,commits` and compare the file list to the PR title's claimed scope
+    2. run `git log origin/main -- <path>` for suspicious changed files to see whether newer merged PRs already defined the latest-main contract there
+    3. diff the PR head against latest `origin/main` for the touched routes/tests and grep for markers of the newer abstraction (`AipFreeTrialCtaSection`, `BrandGradientCtaButton`, shared preset names, or resurrected old flat-file paths)
+    4. classify each changed file as either:
+       - true path/family move that should remain
+       - stale behavior revert that should be restored from latest `origin/main`
+       - unrelated resurrected file that should disappear from the PR entirely
+  - Safe reconstruction pattern:
+    1. create a fresh worktree from the existing PR branch head
+    2. restore unrelated revert files fully from `origin/main`
+    3. for route/test files that should keep only import/path changes, rebuild them from `origin/main` and apply just the path rewrites
+    4. for newly introduced family-directory files, seed them from the latest-main flat-file implementation when the PR's goal is file relocation rather than behavior change
+    5. verify `git diff --name-only origin/main` now contains only the intended moved-path scope before committing
+  - Heuristic: when a user asks whether an open PR is "reverting latest main", prefer proving it file-by-file against latest `origin/main` rather than trusting the PR title or the fact that CI previously passed.
 - Post-rebase stale-test-expectation pattern from corp-web-japan PR 321: after a clean latest-main rebase, CI can still fail even when the implementation diff is correct because a PR-owned test is asserting an older pre-main contract for a shared file. Typical shape: latest `main` intentionally normalized a shared footer/legal link to a static local route, but the PR branch still expects a preview-aware helper call like `t("/eula", previewModeEnabled)` and the test now fails against the rebased file. When this happens:
   1. inspect the failing test name and exact assertion from CI logs
   2. compare the test expectation directly against the latest-main implementation of the shared file

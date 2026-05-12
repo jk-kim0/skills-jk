@@ -32,7 +32,7 @@ User prefers not to discuss speculative designs for unimplemented features; focu
 §
 User wants repo work to start from the latest main branch, use a git worktree rather than the main workspace checkout by default, verify the actual current directory / cwd instead of assuming a fixed `~/workspace`, and rebase PR branches onto the latest main again before push/PR update.
 §
-User prefers shorter, simpler file naming when a verbose component filename can be reduced without ambiguity.
+User prefers clear, concise names, but if they request a product name in the symbol, follow it.
 §
 User currently wants corp-web-v2 demo use-cases and webinars to use plural route-aligned naming consistently: detail routes should use `/demo/use-cases/:id/:slug`, and MDX content directories should mirror actual public URI naming such as `src/content/mdx/demo/use-cases/**` and `src/content/mdx/demo/webinars/**`.
 §

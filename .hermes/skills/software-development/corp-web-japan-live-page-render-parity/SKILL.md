@@ -18,6 +18,9 @@ Use this when the user says a local/preview corp-web-japan page should *look the
 
 For page-parity work, code inspection alone is not enough.
 
+Reference notes:
+- `references/about-us-parity-pitfalls.md` — concrete `/about-us` pitfalls for CTA-width interpretation and mixed-width team-card measurement.
+
 Important findings from real usage:
 - Browser text snapshots can claim the structure is correct while the rendered layout still differs materially.
 - Vision summaries can misread sparse/long pages and sometimes describe empty areas incorrectly.
@@ -320,9 +323,20 @@ Important override rule learned from `/t/about-us` follow-up work:
 - if the user explicitly asks for a normalized invariant such as "all executive profile image boxes must use one fixed size," follow that request even when the live page currently uses mixed widths
 - in that case, still use the live page to compare surrounding layout structure (text/icon row layout, spacing rhythm, list structure, section spacing), but let the user's explicit invariant win for the targeted element
 
+Additional decision rule from the same page family:
+- if the user or repo already defined a stable page-policy rule, do not reopen it as a fresh design choice just because the live page renders differently
+- practical examples from `/t/about-us`:
+  - if the rule is "non-split wide text blocks default to 1200px", do not keep presenting a live-narrower CTA or intro width as an open choice; treat the policy as authoritative and classify the live width as a source-site inconsistency or non-target quirk
+  - if the site policy prefers a uniform card grid, do not frame live mixed card widths as something that must be restored unless the user explicitly asks for pixel-parity over site consistency
+- in reports, separate these categories explicitly:
+  1. actual implementation defects vs the agreed local policy
+  2. differences from live that are intentional local-policy adaptations
+  3. live-side inconsistencies or non-authoritative quirks that should not drive the migration
+
 Practical heuristic:
 - if the user says an element should be standardized, do not keep arguing from live-page variation
 - normalize the requested element intentionally, then re-check that the rest of the section still harmonizes with the live page
+- once the user has already given the governing layout rule, do not rephrase that rule as "choose A vs B" in an audit or issue write-up; apply the rule and report the conclusion directly
 
 ### E. Cross-axis stretch can make a supposedly small frame expand to full card width
 For icon/frame parity work inside vertical flex cards, do not trust `inline-flex` alone.
@@ -331,6 +345,7 @@ For icon/frame parity work inside vertical flex cards, do not trust `inline-flex
 A key lesson from `/ja/company/about-us` vs `/t/about-us` parity work:
 - some visible mismatches are not spacing bugs but **wrong layout structure choices** in the preview
 - if you only tweak margins/padding, you can miss that the live page uses a different row/column model entirely
+- also, do not jump from a measured live/stage difference straight to "preview bug"; first decide whether the live page may itself be using an inconsistent or legacy implementation pattern
 
 Important concrete findings:
 - team leader cards on live were **not** uniform full-width cards; rendered card/image widths differed by person
@@ -401,7 +416,10 @@ Array.from(document.querySelectorAll('h4,h3'))
 
 Preferred fix patterns when the preview is structurally wrong:
 - team cards:
-  - use live-like per-card widths or width constraints instead of forcing every card to the same width
+  - first measure every live card individually before claiming the layout is uniform or intentionally varied
+  - record card width, image-wrapper width, and LinkedIn icon placement per person
+  - if live widths differ (for example 242 / 264 / 320), report that as a factual live-rendering observation
+  - do not automatically recommend reproducing those mixed widths; classify separately whether that is required for strict live parity or whether a uniform preview grid may be the more intentional design choice
   - keep the image wrapper width equal to the intended card width
   - place the LinkedIn link in the same horizontal row as the text block
   - use a tiny fixed-width icon/link box on the right, not a full-width footer row
@@ -411,6 +429,28 @@ Preferred fix patterns when the preview is structurally wrong:
 
 Heuristic:
 - if the preview seems "close" but the icon feels vertically wrong or the timeline divider feels arbitrary, stop adjusting spacing and verify whether the live DOM/CSS is using a completely different layout primitive.
+
+Additional audit lesson from a later `/t/about-us` review-only session:
+- do not let `browser_vision()` alone convince you that middle-page sections are missing; it can judge a long page from the current viewport and incorrectly describe the body as mostly empty even when the DOM/snapshot clearly contains investor, timeline, team, office, and map sections
+- for parity review reports, verify section presence from `browser_snapshot()` or DOM queries first, then use vision only as a secondary note about above-the-fold impression
+- on this page family, the more meaningful remaining parity gaps were not missing content but:
+  - typography scale differences caused by `html` root size differences (`15px` live vs `16px` preview)
+  - CTA container width/left offset differences
+  - uniformized team-card widths in preview versus varied live widths
+  - semantic heading-level drift (`H4/H6` on live becoming `H3` in preview)
+- before turning a browser-parity review into an issue/report, re-check the current repo source for explicit width constraints and route-local overrides. A browser-visible paragraph that currently fits on one line can still be implementation-wise wrong if the code narrows it to a fragile max-width that only barely avoids wrapping in the current environment.
+- concrete `/t/about-us` rule learned from user correction: wide body/introduction paragraphs should default to the full `1200px` content width unless there is a clearly intentional narrower layout region such as the hero's left column. In this page family, `AboutUsSectionIntro className="max-w-[760px]"` on broad section intros was a bug, not a design virtue.
+- practical implication: for the timeline intro sentence `AIが次のフロンティアになったとき、多くの企業が「莫大なコストと複雑な実装」という2つの壁に直面しました。`, do not accept "it happens to fit right now" as evidence that the width is correct. If the parent intro container is artificially narrowed (for example `760px`), treat that as a parity/robustness defect even if the current browser run keeps the first sentence on one line.
+
+Practical review checklist for `/about-us` parity audits:
+1. confirm all expected sections exist in DOM/snapshot before calling the page incomplete
+2. compare `html` root font size on both sides
+3. compare `h1` and ordinary body paragraph computed font-size/line-height
+4. compare CTA heading width and left offset, not just text content
+5. compare team card widths item-by-item; do not assume a normalized grid matches live
+6. compare semantic heading tags for years, team names, and office names when structural fidelity matters
+7. inspect the current route source for `max-w-*` constraints on broad intro/body text blocks before writing conclusions; on `/t/about-us`, broad section intros should normally be `1200px`, not `760px`
+
 Important real finding from `/t/about-us` flag-frame follow-up:
 - a frame wrapper inside `flex flex-col` can still stretch across the card width on the cross axis
 - this can make a border that appears source-correct render as a full-width bar in the preview
@@ -975,6 +1015,110 @@ Summarize the parity work in this order:
 3. which measured live values were used as anchors
 4. which body-area elements were changed
 5. what remains as minor differences, if any
+
+## Decision discipline for corp-web-japan parity audits
+
+When the user has already given a governing migration/parity rule, do not reopen it as a fresh design choice in the report.
+
+Important practical lesson from `/t/about-us` audit follow-up:
+- if the user already established a rule such as
+  - wide standalone text blocks default to `1200px`
+  - image+text split layouts are exceptions
+  - shared CTA / shared site primitives should remain unless there is a concrete defect
+- then the audit report must apply that rule directly
+- do **not** rewrite the finding as an open question like:
+  - "should we keep shared 1200px CTA or shrink to the live 841px block?"
+  - "should we restore live varied-width team cards or keep the 320px grid?"
+- if the user's rule already resolves the question, classify it as either:
+  - valid defect
+  - acceptable adaptation
+  - live inconsistency / non-authoritative source behavior
+
+Required classification pattern for this repo/page family:
+1. first list the user's explicit policy constraints already given in the conversation
+2. for each live-vs-preview difference, ask whether those constraints already decide the outcome
+3. if yes, do **not** present it as an open design choice
+4. instead classify it explicitly as one of:
+   - `actual issue`
+   - `acceptable local-site adaptation`
+   - `live-side inconsistency / not a migration target`
+5. only leave an item open when the user has not already given a rule that settles it
+
+Practical `/t/about-us` examples:
+- standalone section intro text at `760px` where no side-by-side media constrains width -> `actual issue` because the user's rule already says `1200px`
+- CTA text block wider than the live page but still using the shared `1200px` CTA primitive -> `acceptable local-site adaptation`, not an open choice
+- live team cards using mixed widths while stage uses uniform `320px` cards -> not automatically a defect; often `acceptable local-site adaptation` unless the user explicitly prioritizes live visual irregularity
+
+## Pitfalls
+
+- `difference from live, but not clearly a defect`
+- `possible live-site implementation quirk / inconsistency`
+
+Do not phrase every numeric delta as a preview defect. If a difference may come from shared preview design primitives, root-font policy, or an inconsistent live implementation, say so directly.
+
+## Audit-only review mode
+
+Use this mode when the user asks for a critical comparison/report first, not an implementation pass yet.
+
+Typical triggers:
+- "비교해서 검토해줘"
+- "적절히 구현되었는지 보고해줘"
+- "기존 UI와 콘텐츠를 그대로 옮겼는지 비판적으로 확인해줘"
+
+In this mode:
+1. re-state the exact two URLs being compared before drawing conclusions
+2. inspect the exact requested stage/preview URL directly; do not substitute a different deployment or PR branch state
+3. compare both content parity and UI/layout parity separately
+4. report missing/changed content, structural layout differences, spacing/typography differences, and interaction differences as separate bullets
+5. be explicit about severity:
+   - blocker: not the same content/structure
+   - major: clearly visible layout/asset mismatch
+   - minor: small spacing or typography drift
+6. end with an overall judgment such as:
+   - faithful migration
+   - mostly faithful with notable gaps
+   - not yet faithful
+
+Important pitfall learned from follow-up sessions:
+- if the conversation contains prior implementation or PR-status discussion, do not drift into branch/commit reporting when the current task is an audit of live URLs
+- anchor the response to the user's requested URLs and the rendered page comparison first
+
+### When turning a parity review into a GitHub issue, prefer code/DOM-backed examples over abstract prose
+A practical correction from `/t/about-us` parity review work:
+- a high-level issue body that only says things like "typography differs" or "layout rhythm is different" can be too abstract for the user to evaluate
+- for this user, a useful audit issue should show the disagreement with concrete evidence from:
+  - current repo source (`page.tsx` / section component code)
+  - live/stage rendered DOM (`outerHTML`, heading tags, measured widths)
+- when the issue argues that a difference is an intentional adaptation rather than a bug, show the exact code or DOM shape that creates that adaptation
+- when the issue argues that something is a bug, show the exact local code that causes it and the live/stage measured result
+
+Recommended issue-writing pattern for parity audits:
+- quote the exact local code snippet, for example:
+  - `AboutUsSectionIntro className="max-w-[760px]"`
+  - `AboutUsLeaderName` rendering `<h3>`
+  - shared CTA callsites like `<AipFreeTrialCtaSection />`
+- quote the exact live/stage DOM example when available, for example:
+  - live `<h4>2017</h4>` vs stage `<h3>2017</h3>`
+  - live CTA width `841.11` vs stage CTA width `1200`
+- classify each difference as one of:
+  1. clear bug / rule violation
+  2. intentional adaptation candidate with pros/cons
+  3. policy decision needed before implementation
+
+### `/t/about-us` wide body-paragraph rule: treat unnecessary narrowing as an error, not as a styling preference
+Another concrete lesson from the same review:
+- for this page family, the user explicitly stated that wide explanatory/body paragraphs should default to the full `1200px` content width
+- therefore, route-local intro wrappers like `AboutUsSectionIntro className="max-w-[760px]"` in wide body sections should be treated as implementation errors unless the user explicitly requests a narrower exception
+- do not frame those narrowed blocks as a neutral "stage adaptation" by default
+
+Practical application on `/t/about-us`:
+- the investor intro and timeline intro blocks were both implemented with `max-w-[760px]`
+- the team intro block already used `max-w-[1200px]`
+- this kind of within-page inconsistency is a strong signal that the narrower blocks are bugs / leftover constraints rather than intentional design
+
+Heuristic for future audits:
+- if a broad section-level body paragraph on `/t/about-us` is narrower than the main `1200px` content width, first classify it as a likely error
+- only keep it as an adaptation if there is explicit evidence in current code/design direction or the user says that narrower width is intentional
 
 ## Pitfalls
 

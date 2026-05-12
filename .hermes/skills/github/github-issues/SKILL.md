@@ -128,13 +128,32 @@ Respect the ?next= query parameter." \
 ### Practical drafting patterns
 
 - Prefer `--body-file <path>` over long inline shell strings when the issue body is more than a few lines, includes markdown tables, or contains bilingual text.
+- When updating an existing issue that functions as a living audit / tracking document, re-check the latest `main` / `origin/main` state first, rerun the relevant verification commands, and replace stale findings instead of appending new notes on top of resolved ones.
+- If local `main` cannot be fast-forwarded to `origin/main` because the current checkout has uncommitted or conflicting work, do not treat that stale checkout as the audit baseline. Create a detached worktree at `origin/main`, rerun the validation there, and rewrite the issue from that clean latest-main snapshot.
+- For audit/tracking issue rewrites, explicitly refresh counts, open-PR references, and failure/success command results from the current repo state. Do not carry forward numbers or failure claims from an older session without revalidation.
+- Practical `gh issue edit --body-file` pitfall: when editing from a detached worktree or alternate cwd, ensure the body file path is resolvable from that cwd. Prefer an absolute path or write the draft inside the active worktree before calling `gh issue edit`.
+- If the user wants the issue to be easily rewritten again in a future session, prepend a short maintainer section that states the issue goal, the minimum revalidation steps, and which sections must be refreshed on rewrite.
 - When creating a child issue from a parent analysis issue, explicitly link it near the top with plain text like `Parent issue: #397`.
+- Practical GitHub CLI note: on some repos / installations, `gh issue` flows may not expose a reliable parent-child linking action for regular issues. Do not block on finding a dedicated `parent` flag.
+- Fallback contract for those cases:
+  1. create the child issue with a top-of-body `Parent issue: #397` link
+  2. comment on the parent with the new child issue number and a one-line summary
+  3. if the repo uses Projects/sub-issues features and a dedicated parent-linking path is later available, that can be added separately; the plain-text parent link plus parent comment is the minimum robust path
 - After creating the child issue, comment on the parent with the new child issue number and a one-line summary so the parent thread stays navigable.
 - When the repository or user prefers bilingual issue bodies, structure the body as:
   1. English section first
   2. separator such as `---`
   3. translated Japanese/Korean section below
+- If the user explicitly asks for a single-language issue body instead, follow that request even if your default habit is bilingual.
+- Do not over-apply adjacent repo language norms from PRs/docs/comments to issues. If the user asks for an issue body in Korean (or another single language), write the issue in that language directly even if PR titles/descriptions or repo-internal docs are usually English.
+- If the user explicitly says not to switch the issue into English/Japanese or not to make it bilingual, treat that as a hard formatting constraint and rewrite the actual issue body accordingly.
+- When the issue is meant to establish a future refactor taxonomy or naming scheme, encode the exact naming constraints in the issue body itself instead of leaving them implicit. Example pattern: explicitly state whether temporary route prefixes such as `t-` are allowed only in app routes and forbidden in component/test family names.
+- If a semantic family has already been identified during analysis (for example CTA purpose such as free trial vs trust vs contact), write the follow-up issue around the implementation decision for that family, not just the inventory. This produces clearer implementation-scoped child issues.
 - For analysis or commonization work, classify findings by semantic intent first (for example CTA purpose such as free trial vs trust vs contact) before grouping by component implementation. This produces better follow-up issue boundaries.
+- When rewriting an existing issue into a current-state reference document, first re-audit the latest `main`/`origin/main` state, remove stale future-tense plan text that is no longer true, and rewrite the body around current facts plus narrowly scoped follow-up candidates.
+- If the user wants the issue itself to remain maintainable, add a top-of-body section that explains how future edits to that issue should be performed (for example: re-check latest `main`, keep the body in Korean only, distinguish generic primitives from concrete presets, and remove stale historical candidates). This is especially useful for long-lived audit/reference issues.
+- For repo audit issues driven by user-supplied migration/parity rules, do not preserve already-invalidated "decision" bullets as if they were still open. If the user corrected the analysis (for example, shared CTA width is correct by policy, or uniform cards are acceptable by policy), rewrite those items out of the open-questions list and explicitly mark them as non-issues / out of scope instead.
+- Practical audit-issue rewrite rule: separate the final body into `actual remaining issues` vs `items intentionally removed from concern`, so future readers do not reopen already-resolved policy questions.
 
 **With curl:**
 
@@ -186,6 +205,44 @@ curl -s -X POST \
 ## Alternatives Considered
 <Other approaches>
 ```
+
+## Important execution rule for issue-writing requests
+
+When the user asks for something like:
+- "write this as a GitHub issue"
+- "create an issue"
+- "open a GitHub issue"
+- "github issue 로 작성해줘"
+
+interpret that as a request to create or update the actual GitHub issue unless the user explicitly asks for a draft only.
+
+Do **not** stop at writing a local markdown draft or issue-body proposal when the repository and GitHub CLI are available.
+
+Preferred sequence:
+1. Check `gh auth status`
+2. Check for obvious duplicates if useful
+3. Create or edit the real issue with `gh issue create` or `gh issue edit`
+4. Return the issue URL
+
+If you need a local body file for safety or easier editing, that file is only an intermediate artifact. Finish by publishing the real issue in the same session.
+
+Important style rule:
+- If the user explicitly requests the issue language or format, follow that request directly.
+- Do not substitute a different language or downgrade the task into a draft-only response unless the user asked for that.
+
+## 3. Managing Issues
+
+Before drafting an issue, check for repo-local guidance and user preferences about language, translation order, and how to quote on-page copy.
+
+Common pitfalls:
+- Do not assume all GitHub issues should be written in English. Some repos or users want Korean or another language for issue bodies.
+- If the task involves webpage copy in Japanese, preserve the exact Japanese source text and pair it with a Korean translation when the user requests that format.
+- Treat issue-writing requests as formatting-sensitive work: if the user specifies a language or bilingual structure, follow it literally instead of falling back to a generic template.
+
+Practical rule:
+1. Determine the repo/user language preference for the issue body.
+2. If the user specifies a bilingual structure, keep that structure consistently throughout the body.
+3. When quoting UI or website text, use the exact source wording from the page and add the requested translation immediately adjacent to it.
 
 ## 3. Managing Issues
 

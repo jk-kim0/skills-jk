@@ -168,6 +168,46 @@ git log --oneline --graph -5
 git push --force-with-lease origin HEAD:refs/heads/<branch-name>
 ```
 
+## 4a. Rebuilding a stacked PR chain as single-commit branches
+
+Use this when the user wants several already-open PRs rewritten as squashed stacked PRs on top of the latest `main`.
+
+Safe pattern:
+1. Keep one dedicated worktree per PR branch.
+2. Rewrite the parent PR first from `origin/main`.
+3. For each child PR, reset the child worktree hard to its intended parent branch tip.
+4. Restore only the child PR's intended files from the old remote child branch.
+5. Create exactly one commit on that child branch.
+6. Force-push each branch, then update each PR base branch explicitly.
+7. If a child `gh pr edit --base <parent-branch>` fails with `branch not found`, verify the parent remote ref still exists with `git ls-remote origin refs/heads/<parent-branch>` and re-push the parent branch before retrying the base edit.
+
+Practical command pattern:
+
+```bash
+# parent
+ git -C .worktrees/<parent> reset --hard origin/main
+ # restore only intended parent files from origin/<parent-branch>
+ git -C .worktrees/<parent> checkout origin/<parent-branch> -- <files...>
+ git -C .worktrees/<parent> add -A
+ git -C .worktrees/<parent> commit -m "..."
+ git -C .worktrees/<parent> push --force-with-lease origin HEAD:refs/heads/<parent-branch>
+
+# child
+ git -C .worktrees/<child> reset --hard <parent-branch>
+ # remove files that should have moved/renamed if needed
+ # restore only intended child files from origin/<child-branch>
+ git -C .worktrees/<child> checkout origin/<child-branch> -- <files...>
+ git -C .worktrees/<child> add -A
+ git -C .worktrees/<child> commit -m "..."
+ git -C .worktrees/<child> push --force-with-lease origin HEAD:refs/heads/<child-branch>
+ gh pr edit <child-pr-number> --base <parent-branch>
+```
+
+Why this is safer than replaying all historical commits:
+- old branch history may contain now-unwanted fixes or temporary compatibility edits
+- branch-to-branch rebase can keep dragging earlier stacked commits forward
+- rebuilding from the intended base plus the exact intended file set produces the cleanest single-commit PR diff
+
 If `git rebase --continue` opens an editor in a non-interactive environment and hangs, continue without launching the editor:
 
 ```bash
@@ -199,6 +239,7 @@ Then replace the body with a body file describing:
 ## Pitfalls
 
 - Do not use inline shell strings for complex markdown PR bodies.
+- When rewriting stacked PRs into squashed single-commit branches, do not blindly preserve child assertions that only pass because of a transient parent-branch implementation detail; verify the child still matches the latest parent/main contract after the rewrite.
 - Do not assume a rebase conflict means manual merge is required; first check whether the conflicting commit is already merged.
 - Do not skip commits unless you verified their effect already exists in `main`.
 - Do not forget to force-push after a rewritten history rebase.
