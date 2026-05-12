@@ -128,6 +128,32 @@ gh run list --workflow='deploy-stage.yml' --limit 5
 
 Important lesson: CI success alone is not enough. If Docker/release/prod-adjacent workflows fail repeatedly, call that out as a launch risk.
 
+### 5b. Separate real source-health failures from local or generated-artifact failures
+When the audit includes repo-health or technical-debt findings, do not stop at a failing top-level verification command. Determine whether the failure comes from the actual source tree or from local/generated residue.
+
+Check for common false-signal sources first:
+
+```bash
+# nested worktrees / local residue
+find . -maxdepth 2 -type d -name '.worktrees' -print
+git status --short --ignored
+
+# compare repo-level lint with source-scoped lint
+npm run lint
+npx eslint src tests
+
+# inspect TS include patterns for generated artifacts
+cat tsconfig.json
+```
+
+What to look for:
+- ESLint scanning nested repo-local worktrees such as `./.worktrees/**`
+- CI or local verification failing because a nested checkout contains merge-conflict markers or stale files
+- `tsconfig.json` including generated directories such as `.next/dev/types/**/*.ts`
+- stale Next-generated validators referencing routes that were already deleted or renamed
+
+Important lesson: if `npm run build` and source-scoped lint/tests pass, but repo-level lint or typecheck fails due to `.worktrees/**` or stale `.next/dev` validators, classify that as verification-contract technical debt rather than a product-code defect. Call it out explicitly in the issue so maintainers do not chase the wrong root cause.
+
 ### 5. Check branch promotion reality
 Do not assume `release` is current just because promotion workflows exist.
 
