@@ -62,6 +62,30 @@ Reusing a stale local checkout or creating a second PR for review follow-up caus
 
 ## Workflow
 
+### Special case: the existing PR was created with the wrong scope
+
+A practical correction learned from corp-web-japan issue-follow-up work:
+- sometimes you may already have opened a PR, but the user then clarifies that the PR type itself was wrong
+- common example: you opened a docs/plan PR after reading an issue, but the user actually intended an implementation PR that starts executing the issue's remaining work
+
+In that case:
+- do not leave the mistaken PR as-is and open a second "real" PR by default
+- first prefer rewriting the existing open PR onto the intended scope, as long as the branch is still safely rewritable and the user did not explicitly ask to preserve the original docs/plan PR
+- for issue-driven implementation requests, the default should be: implement the first clear remaining item, not add a planning memo, unless the user explicitly asked for documentation/planning only
+
+Safe rewrite pattern:
+1. inspect the existing PR and confirm it is still open
+2. create a fresh worktree from the current PR branch head
+3. hard-reset or restore the worktree to latest `origin/main` if the existing PR diff needs to be replaced rather than incrementally extended
+4. apply the intended implementation batch on top of latest main in that worktree
+5. force-push back to the same PR branch
+6. rewrite the PR title/body so reviewers see only the corrected implementation scope
+
+Heuristic for choosing the first implementation batch:
+- pick the most obvious, low-ambiguity remaining item from the issue body
+- prefer code/test moves or behavior-neutral structural cleanup before broader follow-up items that require more policy decisions
+- if the issue contains both clear implementation items and longer-term planning items, do not default to a docs PR just because the planning language is easier to summarize
+
 ### 1. Inspect the existing PR
 Use GitHub CLI to confirm the PR number, head branch, and current status.
 
@@ -294,6 +318,16 @@ Important user-expectation nuance learned from active-review follow-up:
     where `<old-local-pr-tip>` is the local commit that used to correspond to the original PR tip before your new follow-up commit(s).
   - After that, verify `git log --oneline --decorate -n 5` shows `origin/<pr-branch>` followed by only your intended new follow-up commit(s), rerun the targeted test, and push normally.
   - This preserves the existing open PR history while still letting you rebase your new work onto the remote PR head.- If the user later asks to clean up the PR title/body, rewrite them to describe only the final end state of the PR. Do not narrate intermediate implementation history unless the user explicitly wants that context.
+- Additional repurpose-PR pattern from corp-web-japan PR 419 maintenance: if the user explicitly says the current PR change is wrong and wants to use the same open PR for a different purpose, do not default to closing the PR or opening a replacement. Reuse the same PR branch and rewrite it.
+  Recommended flow:
+  1. inspect the existing PR head branch and current diff
+  2. drop the wrong in-progress change from the PR worktree/branch so the branch returns to a clean latest-main-equivalent baseline (often `git reset --hard origin/main` in a fresh PR worktree is the clearest option when the user has abandoned the previous diff entirely)
+  3. implement the new requested scope on that same PR branch from the clean baseline
+  4. verify the resulting diff is limited to the new intended scope
+  5. force-push back to the same PR branch
+  6. rewrite the PR title/body immediately so reviewers no longer see the abandoned purpose
+- Heuristic: when the user says the old change itself was wrong, treat the old diff as disposable unless they explicitly ask to preserve it elsewhere. The important artifact to preserve is the PR number/review thread, not the stale branch diff.
+- In this repurpose flow, explicitly verify that the final changed-file list and PR body mention only the new purpose before reporting completion.
 - When the follow-up changed abstraction boundaries or naming, make the PR title/body match the final architecture vocabulary, not the intermediate implementation history. In particular, distinguish generic shared primitives/shells from concrete preset components. Example pattern: if a generic base such as `SimpleCtaSection` already exists and the PR ultimately introduces or standardizes a fixed-purpose preset such as an AIP free-trial CTA, describe the PR as unifying the shared preset across pages rather than as generalizing the base primitive itself.
 - If the user corrects your naming/role interpretation during the review cycle, treat that as a PR-body correction signal too: update the PR title/body so reviewers see the corrected conceptual model without having to reconstruct it from the conversation.
 - If the user asks to squash the branch history for an open PR, use a fresh worktree from the PR branch tip, `git reset --soft <base-branch>`, recommit once with the final conventional-commit message, then `git push --force-with-lease origin HEAD:<pr-branch>` and re-check PR/CI status.

@@ -1016,7 +1016,36 @@ Summarize the parity work in this order:
 4. which body-area elements were changed
 5. what remains as minor differences, if any
 
-## Decision discipline for corp-web-japan parity audits
+### When the task is an audit / issue rewrite instead of an implementation PR
+Do not preserve every measured difference as an open issue.
+
+A practical lesson from `/t/about-us` parity audit follow-up:
+- once the user has supplied policy rules such as
+  - default `1200px` width for independent text blocks,
+  - shared CTA width is correct by policy,
+  - uniform team-card widths are acceptable by policy,
+- differences from live that conflict with those policy rules must be reclassified as **non-issues**, not left as lingering "decisions" or "follow-up questions"
+- if latest `main` has already absorbed the valid fixes, rewrite the audit around:
+  1. resolved items,
+  2. non-issues by policy,
+  3. any truly remaining narrow question
+
+Practical rule for future parity audits and issue rewrites:
+- do not keep stale bullets like "decide whether to match live CTA width" when the user already decided the shared primitive should stay
+- do not keep stale bullets like "restore live varied card widths" when the user already decided uniform cards are acceptable
+- explicitly separate:
+  - actual remaining issues
+  - items intentionally removed from concern
+
+### When a repeated route-level width class is only expressing the shared default, move that responsibility into the primitive
+Another practical lesson from the same `/t/about-us` follow-up:
+- if a reusable wrapper like `AboutUsSectionIntro` is always supposed to use `max-w-[1200px]` for independent text blocks,
+- do not keep repeating `className="max-w-[1200px]"` at every route callsite
+- move the default width into the primitive itself, and reserve route-level `className` only for true exceptions
+
+This keeps the route readable and makes the policy visible in one place.
+
+## Pitfalls
 
 When the user has already given a governing migration/parity rule, do not reopen it as a fresh design choice in the report.
 

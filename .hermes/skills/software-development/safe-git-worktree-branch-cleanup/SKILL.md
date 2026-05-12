@@ -428,8 +428,12 @@ Important follow-up case from corp-web-japan cleanup:
   - when the user simply says `main branch 업데이트해줘` while root `main` has meaningful local changes, do not block on the dirty root forever and do not force-reset it
   - before pulling, compare the current dirty tracked paths against the incoming `origin/main` diff paths since overlap means a direct fast-forward can fail or overwrite the user's intent
   - if there is overlap, preserve the local changes first; if an earlier cleanup already created a matching backup worktree/branch for the same root-local line, prefer appending the new files there instead of creating yet another backup branch
-  - after copying the current tracked/untracked files into that backup worktree, commit the preservation commit there, restore those files from root `main`, and only then run `git pull --ff-only origin main`
-  - this leaves root `main` actually updated while still preserving the user's local work in an inspectable branch/worktree
+- after copying the current tracked/untracked files into that backup worktree, commit the preservation commit there, restore those files from root `main`, and only then run `git pull --ff-only origin main`
+- important verification step: after creating the backup worktree from latest `origin/main` and copying the root files over, immediately run `git -C <backup-worktree> status --short --branch` and `git -C <backup-worktree> diff --stat`
+  - some root-dirty files may already be absorbed by latest `origin/main`, so they will disappear as no-op copies in the backup
+  - keep only the residual meaningful diff instead of assuming every copied file still represents unpublished work
+  - practical example: root `next.config.ts` / `tsconfig.next.json` dirt can vanish after the backup worktree is based on newer `origin/main`, leaving only a smaller remaining route/test patch to preserve
+- this leaves root `main` actually updated while still preserving the user's local work in an inspectable branch/worktree
 - prefer this backup-branch variant over `git stash` when the user values inspectable branch/worktree preservation more than stash-based safekeeping
 
 Useful summary labels:
@@ -651,7 +655,22 @@ Practical rule:
 - do not preserve no-PR helper branches that merely mirror `origin/main` or an open PR head under a convenience name
 - keep the authoritative branch name; remove the alias
 
-Additional practical case: a local `pr-<number>` branch can be stale even while that PR is still open
+Additional practical case: a clean branch-backed worktree can be a no-op alias of `origin/main` even when it has a respectable feature/docs branch name
+
+Signal pattern:
+- the worktree is clean
+- `git diff --stat origin/main..<branch>` is empty
+- `git cherry origin/main <branch>` is empty
+- a disposable `git rebase origin/main` test is a no-op (`HEAD is up to date.`)
+- the branch is not an open PR head branch
+
+Safe handling:
+- treat it as stale alias residue, not as meaningful local work
+- remove the worktree and then delete the local branch
+
+This catches cases where a leftover worktree/branch survives under a real-looking name such as `docs/...` but is actually identical to latest `origin/main`.
+
+### Additional practical case: root staged residue copied from a merged detached helper worktree
 
 A repository can keep an old local branch like `pr-65` even after the real active PR head branch has moved or been renamed to something else such as `review/pr65-validity` or `refactor/remove-unused-resource-flows`.
 
