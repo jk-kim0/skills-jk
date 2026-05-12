@@ -181,6 +181,18 @@ When the user asks to create a PR from the current local workspace state rather 
 10. Push the branch, then create or update the PR.
 10. Leave local-only artifacts untracked unless the user explicitly wants them in the PR.
 11. In the PR body, briefly note what was intentionally excluded if that helps reviewers understand the scope
+12. Before you declare the PR done, do a root-vs-PR payload reconciliation when working from a dirty root checkout.
+   - Practical pattern in `skills-jk`:
+     - in the dirty root checkout, list the meaningful tracked changes you intended to carry, often by excluding known local-only files such as `.hermes/config.yaml`
+       - example: `git diff --name-only -- . ':(exclude).hermes/config.yaml' | sort`
+     - in the fresh PR worktree, list the actual branch diff versus `origin/main`
+       - example: `git -C <worktree> diff --name-only origin/main...HEAD | sort`
+     - compare the two lists before final reporting
+   - If a meaningful tracked file is present in root but missing from the PR worktree diff, do not finalize yet:
+     - copy or restore that file into the PR worktree
+     - commit it onto the same branch
+     - push the branch again
+   - This catches a common failure mode in repeated local-workspace sweeps: after manually transplanting many files, one tracked skill/memory file is accidentally omitted even though the overall PR otherwise looks correct.
 
 ## Worktree location preference in `skills-jk`
 
