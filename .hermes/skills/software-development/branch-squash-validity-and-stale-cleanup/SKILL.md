@@ -355,7 +355,15 @@ Then summarize:
 - Root `main` often carries meaningful local skill/doc edits during cleanup. Preserve them intentionally rather than force-cleaning `main` blindly.
 - Open PR helper aliases and detached clones should be reduced aggressively when they are clean duplicates.
 - In fast-moving repos, an open PR can merge while cleanup/rebase work is still in progress. Re-fetch and re-check PR state immediately before acting on any previously-open local branch.
+- A no-open-PR branch that looked like a no-op alias earlier in the session can stop being stale before deletion if another session or actor rewrites the attached worktree/branch in place. Re-run the live branch/worktree snapshot right before deletion, not just the PR snapshot.
+- Additional practical case: a branch can look like a no-PR local cleanup candidate at delete time, yet appear as an open remote PR immediately afterward because another actor opened/pushed it during the cleanup window or GitHub state changed between snapshots.
+- Handling rule for that case:
+  - base the local deletion decision on the exact refreshed pre-delete snapshot you verified
+  - refresh open PR state again after the destructive batch
+  - if the just-deleted branch now shows an open PR remotely, report it explicitly as `local branch/worktree deleted, remote PR still open/now visible`
+  - keep local cleanup and remote PR lifecycle as separate facts; deleting a local branch/worktree does not close the PR
 - Practical stale case: if a once-open local branch's remote head disappears after fetch, `gh pr list --state all --head <branch>` now shows `MERGED`, and `git diff develop..branch` (or the repo default branch equivalent) is empty, remove both the linked worktree and local branch as merged residue.
+- Practical preservation case: if a no-open-PR candidate later reappears under a different branch/worktree name with a small real diff vs latest `origin/main` and its synthetic squash rebases cleanly, reclassify it as a `meaningful unpublished branch` instead of deleting it from the earlier stale verdict.
 - Practical rebase case: when rebasing a docs/content branch onto a newer base that renamed a directory, Git may stop with `CONFLICT (file location)` for files that were originally added under the old path. If there is no textual conflict and the resolution is simply to keep the files under the new renamed directory, stage those files at the new path and continue the rebase instead of aborting.
 
 ## Good trigger phrases

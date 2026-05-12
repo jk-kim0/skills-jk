@@ -435,7 +435,28 @@ git push -u origin HEAD
 
 ## Practical CLI pitfalls
 
-1. Prefer `--body-file` for `gh pr comment` as well as `gh pr create`.
+1. In Hermes terminal environments, split `git` workflow steps into smaller commands when the runner misclassifies a long chained command as a watch/server process.
+   - A combined command such as `git fetch && git rebase && git add && git commit ...` can be rejected before execution with a false long-lived-process warning.
+   - Safer pattern:
+     ```bash
+     git fetch origin main --quiet
+     git status --short
+     git add <files>
+     ```
+   - Then run the commit separately.
+
+2. In the same environments, `git commit` may need either a PTY or a commit-message file.
+   - Reliable patterns:
+     ```bash
+     cat >/tmp/commit-message.txt <<'EOF'
+     fix: short subject
+     EOF
+     git commit -F /tmp/commit-message.txt
+     ```
+   - If the tool supports it, run the commit with PTY enabled.
+   - This avoids false tool-guard failures and editor-prompt issues.
+
+3. Prefer `--body-file` for `gh pr comment` as well as `gh pr create`.
    - If the comment body contains backticks like `` `src/app/api/...` ``, shell command substitution can break the command or produce confusing errors.
    - Safe pattern:
      ```bash

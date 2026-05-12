@@ -198,6 +198,59 @@ For a fresh branch with no new commits yet, these should all match.
 - Prefer a small repository-level regression test that checks file contents or metadata patterns.
 - Then implement the minimum code to satisfy the test.
 
+## PR granularity for repeated small cleanup work
+
+When many routes need the same tiny cleanup pattern, do **not** default to one PR per page.
+
+Prefer one combined PR when all of the following are true:
+- the change is mechanically identical or nearly identical across files
+- the risk is low and localized
+- the review question is the same for every file
+- the user did not explicitly request page-by-page PR splitting
+
+Typical examples:
+- removing `Preview` from default export names across multiple `/t/*` route files
+- removing preview-only wording from metadata descriptions across a small set of related pages
+- aligning a repeated test assertion pattern after a small naming cleanup
+
+Why:
+- splitting trivial cleanup into many PRs increases branch/CI/review overhead without improving clarity
+- for this user, over-splitting small homogeneous cleanup work is considered a mistake even when each PR is technically correct
+
+Practical rule:
+- before creating PRs, classify the work as either:
+  1. one repeated cleanup pattern across many files, or
+  2. genuinely independent fixes with different reasoning/risk
+- choose one PR for case (1)
+- only choose separate PRs for case (2), or when the user explicitly asks for separation
+
+Counterexample where splitting is still correct:
+- different pages require different implementation strategies, different test repairs, or different production-risk judgments
+- the user explicitly wants one worktree/PR per page for rollout or review sequencing
+
+## Multiple remaining issue follow-ups: split into one PR per scope item
+
+When a corp-web-japan issue has already been narrowed to a small set of remaining tasks and the user asks to "proceed with the remaining work" as separate PRs:
+
+1. Treat each remaining issue bullet as its own independent branch/worktree/PR.
+2. Create one fresh worktree from latest `main` per item; do not bundle multiple follow-ups into one branch just because they came from the same issue.
+3. Keep each PR title/body scoped to the single remaining item, not to the broader historical issue.
+4. Before deleting a leftover route-adjacent content file, search not only runtime imports but also:
+   - source-based tests under `tests/**`
+   - helper aggregators such as `tests/helpers/*`
+   - repo docs that intentionally show old anti-pattern examples
+5. If the leftover file is only referenced by tests/helpers/docs examples, update those references in the same PR that removes the file.
+6. Prefer a source-level verification pass for this cleanup class:
+   - targeted `node --test` runs for affected source-based tests
+   - diff/stat review to confirm the PR stays limited to the intended route/doc/test surfaces
+
+Practical lesson from issue #128 follow-up:
+- A docs-sync follow-up and an AI Crew residue cleanup follow-up looked related conceptually, but the user explicitly wanted separate PRs.
+- The correct execution was two worktrees from latest `main`:
+  - one doc-only PR updating `docs/code-location-conventions.md`
+  - one code cleanup PR removing `src/content/home.ts`, moving the remaining AI Crew constants into `src/app/solutions/ai-crew/page.tsx`, and updating source-based tests/helpers accordingly
+- When removing route-adjacent residue like `src/content/home.ts`, the main hidden dependencies were test/helper files (`tests/helpers/static-marketing-page-sources.mjs`, `tests/ai-crew-*.test.mjs`, `tests/launch-readiness-coverage.test.mjs`) rather than runtime imports elsewhere.
+
 ## Turning a meaningful dirty root-local change into its own PR
 
 A common cleanup follow-up in this repo is:
@@ -225,6 +278,18 @@ git worktree add .worktrees/docs-<topic> -b docs/<topic> origin/main
 cp /path/to/dirty-main/<file> .worktrees/docs-<topic>/<file>
 git -C .worktrees/docs-<topic> diff --stat -- <file>
 ```
+
+If you later create the PR from a different currently checked out branch (for example from root `main` after cleaning it up), pass the head branch explicitly:
+
+```bash
+env -u GITHUB_TOKEN gh pr create \
+  --head docs/<topic> \
+  --base main \
+  --title "docs: ..." \
+  --body-file /tmp/pr-body.md
+```
+
+Otherwise `gh pr create` can infer the current checkout as the head and fail with `head branch "main" is the same as base branch "main"` even though the intended backup/docs branch was already pushed.
 
 Important rule:
 - do not branch directly from the dirty local `main` just because the uncommitted file already exists there
@@ -340,6 +405,7 @@ Notes:
 - Reading local `main`, then editing a separate worktree without re-reading files there
 - Forgetting that a new worktree may not have dependencies installed yet, which can make `npm run test:ci` fail early with `sh: eslint: command not found`
 - When multiple sibling worktrees exist, stale `.next` build output under another worktree can confuse repo-wide ESLint/test runs and produce unexpected `ENOENT` reads against files that no longer exist in that sibling checkout. If `npm run test:ci` fails with an ESLint file-open error pointing into `.worktrees/<other-branch>/.next/...`, remove stale `.next` directories under the affected worktrees and rerun.
+- If the repo standardizes on repo-root linked worktrees under `.worktrees/`, repo-wide ESLint must explicitly ignore `.worktrees/**`. Otherwise `npm run lint` / `npm run test:ci` can scan nested sibling checkouts and fail on stray merge-conflict markers or other residue inside those worktrees even when the active checkout is healthy. In this repo, the correct fix is to add `.worktrees/**` to `globalIgnores()` in `eslint.config.mjs`.
 - Accidentally replacing finalized page titles while adding canonical metadata
 - Hardcoding outdated route names into sitemap/canonical
 - Including routes in sitemap that currently return `notFound()`

@@ -308,7 +308,23 @@ Check for obviously disposable artifacts such as:
 
 Practical rule:
 - if the only dirt is disposable untracked helper state, remove it or classify it separately and re-check `git status --porcelain`
+- common disposable residue in workspace-cleanup passes includes editor/runtime outputs such as `.idea/`, `.codegraph/`, `frontend/tests/test-results/`, and similar generated local diagnostics directories
+Practical rule:
+- if the only dirt is disposable untracked helper state, remove it or classify it separately and re-check `git status --porcelain`
+- common disposable residue in workspace-cleanup passes includes editor/runtime outputs such as `.idea/`, `.codegraph/`, `frontend/tests/test-results/`, and similar generated local diagnostics directories
+- if those are the only remaining changes, treat the repo/worktree as effectively clean for stale-classification purposes, or delete just those local residue paths when the user asked for cleanup
 - if the remaining dirt is real project files (for example tracked deletions like `D postcss.config.mjs`), preserve the worktree
+
+Important generated-artifact pitfall:
+- do not delete a path just because its name looks disposable, such as `log/`, `logs/`, `manifest.json`, `*.pub`, or similar build/output-looking names
+- first verify whether the path is actually untracked local residue versus tracked repository content:
+  - `git status --short -- <path>`
+  - if needed, `git ls-files --error-unmatch <path>`
+- some repos intentionally version fixture-like logs or manifest outputs, so deleting them can create tracked deletions instead of cleanup
+- safe rule:
+  - if the path is untracked and clearly machine-local/generated, it is a cleanup candidate
+  - if the path is tracked, do not classify it as junk; preserve it unless the user explicitly wants it removed
+  - if you accidentally delete a tracked path while cleaning, immediately restore it with `git restore --worktree -- <path>` and continue from the corrected state
 
 Be especially careful with `.hermes/`-style directories:
 - they are often safe to ignore for stale classification, but confirm they are untracked local runtime artifacts before deleting
@@ -635,6 +651,27 @@ Practical rule:
 - do not preserve no-PR helper branches that merely mirror `origin/main` or an open PR head under a convenience name
 - keep the authoritative branch name; remove the alias
 
+Additional practical case: a local `pr-<number>` branch can be stale even while that PR is still open
+
+A repository can keep an old local branch like `pr-65` even after the real active PR head branch has moved or been renamed to something else such as `review/pr65-validity` or `refactor/remove-unused-resource-flows`.
+
+Signal pattern:
+- `gh pr list --state all --head pr-65` returns nothing
+- but `gh pr view 65` shows the PR is still `OPEN`
+- the PR's actual `headRefName` is a different branch
+- a separate local branch/worktree already matches that real open-PR head SHA
+- the local `pr-65` branch is just an older local snapshot or alias
+
+Recommended handling:
+1. inspect the PR directly by number when the local branch name encodes it
+2. compare the local `pr-<number>` SHA against the real open PR `headRefOid`
+3. if another local branch/worktree already represents the real open PR head, delete the stale `pr-<number>` local branch
+4. preserve the real open-PR branch/worktree only
+
+Practical rule:
+- an open PR does not automatically protect every local branch whose name references that PR number
+- protect the branch/worktree that matches the current remote PR head; delete older local aliases such as `pr-65` when they are no longer authoritative
+
 And the helper branch, not the official local branch, matches the current remote PR head commit.
 
 Check this with:
@@ -875,6 +912,66 @@ Interpretation:
 Useful summary label:
 - `stale no-op alias: branch == origin/main`
 
+Additional practical case: duplicated untracked residue across two stale worktrees
+
+Sometimes two old non-open-PR worktrees both carry the same untracked residue, for example:
+- copied image assets
+- copied generated content-state trees
+- identical untracked content directories
+
+Signal pattern:
+- both worktrees are already stale candidates by PR/history rules
+- the untracked files are byte-for-byte identical (or directory-identical) between the two worktrees
+- neither worktree has other unique tracked modifications that justify preserving both
+
+Recommended handling:
+1. compare the untracked files/directories directly between the two worktrees
+2. if they are identical, keep at most one representative worktree
+3. remove the duplicate stale worktree and its branch
+4. report clearly which remaining worktree still holds that local residue
+
+Practical rule:
+- do not preserve multiple stale worktrees just because each has the same untracked leftovers
+- treat `duplicate residue in multiple stale worktrees` as a safe consolidation case
+
+Additional practical case: untracked nested clone inside another repo can be stale residue
+
+A parent repository can contain an untracked subdirectory that is itself a full git clone with its own `.git`, for example a review helper like `confluence-mdx-pr910/`.
+
+Signal pattern:
+- the parent repo sees it as `?? <dir>/`
+- inside, `git rev-parse --show-toplevel` succeeds
+- the nested clone's branch or directory name points at a historical PR number or old task snapshot
+- the corresponding GitHub PR is already `MERGED` or `CLOSED`
+- the nested clone has no meaningful new dirt of its own
+
+Recommended handling:
+1. inspect the nested clone's remote and status
+2. check the referenced PR directly by number when available
+3. if the nested clone is just a merged PR snapshot, remove the whole nested clone directory from the parent repo
+
+Practical rule:
+- do not preserve untracked nested clones by default just because they are full repos
+- if they are merged PR leftovers, treat them as disposable workspace residue
+
+Additional practical case: untracked app-like directory may still be pure local junk if it only contains runtime/test artifacts
+
+A surprising untracked directory under a repo (for example `frontend/meetpie/`) can look like a missing project, but may actually be only local residue.
+
+Signal pattern:
+- top-level contents are things like `node_modules/`, `playwright-report/`, `test-results/`, `.vite/`, or other runtime/build artifacts
+- there are no source files, config files, or meaningful tracked-like project files beyond those generated artifacts
+- the directory is not part of the repository's expected tracked app layout
+
+Recommended handling:
+1. inspect the top-level contents, not just the directory name
+2. if it only contains generated runtime/test/install artifacts, classify it as local junk
+3. delete the whole directory
+
+Practical rule:
+- when judging untracked directories, prefer content-based classification over name-based caution
+- `untracked directory containing only node_modules/test-results/playwright-report` is safe local junk
+
 Additional practical case: root staged residue copied from a merged detached helper worktree
 
 Sometimes the root `main` worktree is not just dirty; it contains a staged set of files that exactly matches a clean detached helper worktree from a recently merged PR.
@@ -928,6 +1025,43 @@ Why this is useful:
 - it avoids committing `.gitignore` noise for machine-local worktree layout
 - it is appropriate when the user wants a "workspace cleanup" result that leaves active internal worktrees intact
 
+Additional practical case: `.worktrees/` can remain on disk as tracked placeholder infrastructure, while its child directories are orphan residue
+
+A repository may intentionally track a placeholder like:
+
+```bash
+.worktrees/.gitkeep
+```
+
+In that case:
+- the top-level `.worktrees/` directory itself is not disposable residue
+- but many child directories under `.worktrees/*` can still be stale orphan leftovers from older worktrees
+
+Safe validation flow:
+1. enumerate currently registered worktrees:
+   ```bash
+   git worktree list --porcelain
+   ```
+2. compare each on-disk `.worktrees/<name>` directory against that registered set
+3. inspect whether it has a `.git` file pointing to a live gitdir:
+   - `.git` missing entirely -> likely orphan copy/residue
+   - `.git` file exists but target `gitdir:` path no longer exists -> broken orphan residue
+   - directory not registered in `git worktree list` -> do not treat it as a live worktree even if files remain inside
+4. only after that, delete the orphan child directories
+5. re-check whether `.worktrees/.gitkeep` or other tracked placeholder files remain, and preserve them if tracked
+
+Useful checks:
+
+```bash
+git worktree list --porcelain
+git ls-files --error-unmatch .worktrees/.gitkeep
+```
+
+Practical interpretation:
+- `registered in git worktree list` is the source of truth for live worktrees
+- an on-disk directory full of repo files or `.next/` outputs is still safe stale residue if it is not registered and its gitdir metadata is missing/broken
+- do not remove the `.worktrees/` container itself when the only remainder is a tracked placeholder such as `.gitkeep`
+
 ## 7d. After deleting a worktree, your shell/session cwd may become invalid
 
 If you remove the worktree that your current shell session is effectively rooted in, subsequent shell startup or commands can fail with errors like:
@@ -952,12 +1086,20 @@ Practical rule:
 - this matters in fast-moving repos where `origin/main` or PR heads can advance during the cleanup session itself
 - an especially important variant is when a branch that was open earlier in the session later becomes `MERGED`, while a different branch becomes the new active PR line; do not preserve the old branch/worktree based on stale earlier assumptions
 - another common fast-moving case is that a candidate worktree path from an earlier snapshot may already have been removed, renamed, or replaced by the time you execute the deletion batch; always refresh the live worktree list and skip paths that are no longer registered instead of failing the whole cleanup batch on a stale pathname
+- practical shell-loop lesson: a batch `git worktree remove ...` sequence can partially succeed for earlier entries and then fail on a later stale/non-registered path; after any such failure, assume the repo state already changed, refresh `git worktree list --porcelain`, and continue only from the refreshed live list rather than retrying the original batch blindly
 - when another agent or human may be modifying the same repository concurrently, do not trust any earlier same-session snapshot for the final report either
 - in that concurrent-edit case, branches can reappear under new names/paths, helper worktrees can be recreated, upstream tracking can change, open-PR state can flip while you are still auditing, and even a branch/worktree you just deleted can later reappear with the same name but a different tip/upstream because another actor recreated it
 - also, a candidate that looked like a clean no-op alias a minute ago can become dirty or become an open-PR branch before you act; treat every destructive decision as valid only for the exact pre-delete snapshot you just verified
 - therefore, before the final user-facing summary, re-run the full snapshot set (`git branch -vv`, `git worktree list --porcelain`, root `git status --short --branch`, and open PR query) and treat that last snapshot as the only authoritative statement of current state
 - if the final snapshot contradicts an earlier deletion/classification result, explicitly report the latest live state instead of the earlier intermediate conclusion
 - practical reporting rule: separate `what I deleted during this session` from `what exists right now` so the user can understand both the cleanup actions and any concurrent re-creations
+- additional practical case: a branch can look like a local no-PR stale candidate at delete time, yet show up as an open remote PR immediately afterward because another actor opened/pushed it during the cleanup window or GitHub state changed between snapshots
+- practical handling for that case:
+  1. treat the pre-delete snapshot you verified as the basis for the local deletion decision
+  2. after each destructive batch, refresh open PR state again before the final report
+  3. if a just-deleted local branch/worktree now corresponds to an open remote PR, report this explicitly as `local cleanup completed, remote PR still/open now visible`
+  4. do not pretend the branch was never deleted locally, and do not imply the remote PR was closed or removed unless you actually performed that action
+- this distinction matters because the user's request may be repo-local cleanup only; deleting a local branch/worktree is not the same thing as closing or removing the remote PR
 - after the cleanup batch, fast-forward the root `main` worktree to the latest `origin/main` when the root checkout is clean so the workspace ends in a refreshed baseline
 
 Additional practical case: branch names and PR head names can change mid-cleanup, so a stale candidate can become active before you delete it
@@ -982,6 +1124,72 @@ Practical interpretation:
 - do not delete a candidate based only on an earlier snapshot from the same session
 - if an alias branch becomes the actual open PR head, preserve it and reclassify the formerly official but outdated branch/worktree as the stale residue instead
 - if a branch/worktree points exactly at `origin/main` and has no open PR role, treat it as a no-op local alias and delete it
+
+## Additional practical case: clean root checkout can itself be a stale merged branch
+
+Sometimes the repository root checkout is still sitting on a non-default branch even though:
+- the root worktree is clean
+- the branch has no open PR
+- a related PR for that branch is already `MERGED` or clearly finished
+- the user asked for workspace cleanup, which implies returning root checkouts to their default branches when safe
+
+Typical examples:
+- a root checkout left on `docs/...` after the PR merged
+- a setup or spike branch like `jk/setup-1` whose PR already merged, while the repo should really end on `main` or `develop`
+
+Recommended handling:
+1. verify the root worktree is actually clean
+2. confirm the branch is not needed by any open PR
+3. confirm merged/finished PR evidence when available
+4. check out the repo default branch in the root worktree
+5. fast-forward that default branch to the latest remote tip
+6. delete the old root branch locally
+
+Example pattern:
+
+```bash
+git -C <repo> fetch origin --prune
+git -C <repo> checkout <default-branch>
+git -C <repo> pull --ff-only origin <default-branch>
+git -C <repo> branch -D <old-root-branch>
+```
+
+Practical rule:
+- do not leave a clean root checkout parked on an already-merged feature/docs/setup branch after workspace cleanup
+- if the root worktree is clean and the branch is stale, returning the root checkout to the default branch is part of the cleanup result
+
+## Additional practical case: the root checkout itself can be sitting on a merged stale branch
+
+A repeated cleanup pattern is:
+- the root repository path is not on `main`
+- the root checkout branch is clean
+- `gh pr list --state all --head <branch>` shows the branch's PR is already `MERGED`
+- the user's real intent for `workspace 정리` is still `switch root back to main and refresh it`
+
+Safe handling:
+1. verify the root checkout is clean:
+   ```bash
+   git status --short --branch
+   ```
+2. verify the current branch is stale residue rather than active local work:
+   ```bash
+   env -u GITHUB_TOKEN gh pr list --state all --head <branch> --json number,state,title,url,headRefName,headRefOid
+   git diff --stat origin/main..<branch> -- || true
+   ```
+3. if the branch is merged residue and the root checkout is clean, switch the root checkout back to `main` first:
+   ```bash
+   git checkout main
+   git pull --ff-only origin main
+   ```
+4. only after the root is safely back on `main`, re-check whether the old branch still exists locally before trying to delete it
+
+Important practical nuance:
+- do not assume a branch seen in an earlier snapshot will still exist after the branch switch or by the time you run deletion commands
+- after switching the root checkout back to `main`, refresh with `git branch -vv --no-abbrev` before any `git branch -d/-D` call
+- if the branch is already gone, treat that as a normal concurrent/local-state change rather than an error that blocks cleanup
+
+Useful summary label:
+- `root checkout restored from merged stale branch to main`
 
 ## 8. Update local main safely
 

@@ -168,6 +168,50 @@ Important anti-regression rule from AI Dashi follow-up work:
 
 ## Practical pattern used successfully
 
+### Cross-page standardization audit heuristic
+
+When the task is not to migrate one page but to review several existing static/preview pages for shared UI primitives, audit them by **page family first**, not by route path alone.
+
+Recommended clustering learned from the `/t/about-us`, `/t/certifications`, `/t/cookie-preference`, `/t/privacy-policy`, `/t/eula`, `/t/terms-of-service`, `/t/plans`, `/t/services/*`, and `/t/solutions/aip/*` review:
+
+1. **Shared CTA family first**
+   - check whether the pages already converge on `src/components/sections/simple-cta-section.tsx`
+   - if many pages already use that CTA shell, treat it as the existing standard instead of inventing a new one
+   - prefer absorbing page-local CTA wrappers into that shared CTA primitive with small variants for spacing, title size, content width, or button treatment
+
+2. **Product / solution marketing hero family**
+   - typical members: `/t/services/aip`, `/t/services/acp`, `/t/services/fde`, `/t/services/aip/integrations`, `/t/solutions/aip/usage-based-llm`, `/t/solutions/aip/mcp-gateway`, `/t/solutions/aip/fde-services`
+   - common shape often includes:
+     - content width around `max-w-[1200px]`
+     - hero title around `60/72`
+     - lead around `18/28`
+     - centered copy
+     - large section gaps around `80px`
+   - this family is a good candidate for shared `MarketingHero*` primitives
+
+3. **Info / static intro family**
+   - typical members: `/t/about-us`, `/t/certifications`, `/t/plans`
+   - these often share width, color, and intro rhythm, but not one identical hero layout
+   - extract only loose intro primitives such as title/lead/container unless the actual structure is truly the same
+
+4. **Legal / document header family**
+   - typical members: `/t/privacy-policy`, `/t/terms-of-service`, sometimes `/t/eula`
+   - prefer a document-page header primitive with narrower body width and smaller title scale than marketing hero pages
+   - however, do not force pages into one legal header family if one route is structurally different
+
+Important exception handling:
+- treat `/t/cookie-preference` as an intentional style variant, not the baseline for the whole site
+- treat `/t/eula` as a potential legal-family outlier when its header scale/structure differs from `/t/privacy-policy` and `/t/terms-of-service`
+- treat `/t/about-us` as sharing some intro/title tokens with other info pages, but keep its two-column hero layout separate unless another route truly matches it
+
+Audit output rule:
+- prefer conclusions like "CTA can be standardized immediately; hero needs 3 families" over vague statements like "some parts look reusable"
+- explicitly separate:
+  - reusable typography tokens
+  - reusable width/padding wrappers
+  - reusable full-layout compounds
+- do not recommend one giant universal hero component when the evidence really supports a small set of family-specific primitives
+
 ### Recommended staged approach for static marketing pages
 
 When the user wants a cleaner route-level static page but also wants reusable section/UI extraction first, prefer this order:
@@ -453,6 +497,28 @@ Practical lessons from `/t/certifications` follow-up work:
   - inner content inset caused by section padding
   A page can already have the correct outer `max-width` while still looking too narrow because inner `px-*` padding shifts the real content start/end inward.
 - for exact live parity, prefer measured values such as `16.875px`, `26.25px`, `5.625px`, or `9.375px` when the live site uses them, rather than rounding everything to the nearest Tailwind default token
+
+## Small repeated `/t/*` production-ready cleanups: batch by defect family, not page
+
+Important lesson from the `/t/*` production-ready naming cleanup follow-up:
+- when many routes share the same low-risk, mechanical defect class, do **not** default to one PR per page
+- if the change is essentially the same across pages, prefer one grouped cleanup PR so review and CI overhead stay proportional to the real code change
+
+Typical examples that should usually be batched together:
+- default export names like `AboutUsPreviewPage`, `PlansPreviewPage`, `AipServicePreviewPage`
+- helper names like `renderEulaPreviewMdx` when a neutral production-ready name is sufficient
+- metadata descriptions that still say `preview`, `プレビュー`, or similar temporary-state wording
+- small paired test updates that simply prevent those preview-only names/phrases from returning
+
+Only split into separate page PRs when one or more of these are true:
+- implementation shape differs materially across pages
+- one page needs extra non-mechanical code changes beyond naming/text cleanup
+- verification differs materially by page
+- reviewer value genuinely comes from isolated page-by-page review
+
+Practical rule:
+- `same defect family + same fix pattern + low risk` -> batch into one PR
+- `different implementation concerns or meaningful page-specific reasoning` -> split
 
 ## Verification
 

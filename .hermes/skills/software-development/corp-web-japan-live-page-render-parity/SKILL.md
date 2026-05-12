@@ -225,6 +225,93 @@ Required verification pattern for alternating feature-band pages:
 ### C. Remove decorative wrappers if live is flatter
 If the preview wraps a map or media asset in a padded rounded panel but the live page presents the asset flat/full-width, remove the wrapper rather than endlessly tweaking padding.
 
+### C2. For certification/logo galleries, separate intrinsic image size from intended rendered display size
+A practical finding from `/t/certifications` follow-up work:
+- restoring logo rendering by switching to intrinsic `width`/`height` alone was not enough
+- the live page used per-item rendered sizes derived from source content definitions, and a shared `max-w`/`max-h` approach could still make some logos look wrong relative to others
+- the reliable pattern was to keep both:
+  - intrinsic image dimensions for the actual asset (`imageWidth` / `imageHeight`)
+  - explicit rendered display dimensions for each item (`displayWidth` / `displayHeight`)
+- then verify those display dimensions against the exact live page in the browser
+
+Important clarification learned from the same task:
+- when the user says "match the visible pixel size" they mean the final human-visible rendered size on the page, not the source site's author token values and not the preview site's own 16px-root reinterpretation of the source rems
+- therefore, for logo/image parity tasks, prioritize the exact final browser-rendered geometry from the live page (`getBoundingClientRect()` / visual comparison) over abstract root-rem normalization rules
+- use source rem values only as one clue; do not let a 16px-root policy override the user's explicit request to match what the live page actually looks like
+
+Additional asset-format lesson from `/t/certifications`:
+- preserve the original asset format when possible, especially when the source content definition explicitly used `svg`
+- a migration that silently replaces an original SVG logo with a PNG can introduce blur even if the CSS display size is correct
+- for certification badges and similar logos with thin text/linework, SVG should be preferred over PNG/WebP whenever the source page used SVG
+- practical rule:
+  1. inspect the source content definition to see whether each item was authored as `svg` or `png`
+  2. keep SVG items as SVG in the migrated page instead of normalizing everything to raster files
+  3. only consider WebP replacement for items whose original source asset was already raster
+
+Useful workflow:
+1. inspect the original source content definitions if they exist (for example a legacy MDX/JSON schema that already stores logo width/height per item)
+2. inspect whether each item was authored as `svg` or `png`
+3. measure the exact live rendered `<img>` geometry in the browser with `getBoundingClientRect()`
+4. encode the item-level rendered sizes directly in the route-owned data
+5. keep the shared card component thin: pass intrinsic dimensions to `next/image`, and apply the intended rendered size explicitly (for example via style)
+6. avoid collapsing everything back to one responsive `max-w` rule unless the live page truly uses uniform logo sizing
+
+Useful browser-console pattern:
+```js
+(() => {
+  const items = Array.from(document.querySelectorAll('main li')).filter(
+    (li) => li.querySelector('img') && li.querySelector('h6')
+  );
+  return items.map((li) => {
+    const img = li.querySelector('img');
+    const title = li.querySelector('h6')?.textContent?.trim();
+    const r = img?.getBoundingClientRect();
+    return {
+      title,
+      width: r ? Math.round(r.width * 100) / 100 : null,
+      height: r ? Math.round(r.height * 100) / 100 : null,
+      naturalWidth: img?.naturalWidth ?? null,
+      naturalHeight: img?.naturalHeight ?? null,
+      src: img?.currentSrc || img?.src,
+    };
+  });
+})()
+```
+
+This is especially useful when some logos are square, some are wide horizontal badges, and some have visually important aspect differences that should remain distinct across the grid.
+
+### C3. For certification/logo galleries, lock onto the final human-visible rendered size first, then use rem/root math only as supporting evidence
+A practical correction learned from `/t/certifications` follow-up work:
+- the user explicitly wanted the page to match what a person sees on the live page, not the source site's abstract rem intent and not a 16px-root reinterpretation of those rems
+- therefore, the authoritative target for logo size parity is the final browser-rendered geometry on the live page (`getBoundingClientRect()` / visual review), even when the source content originally defined the sizes in rem and even when corp-web-japan keeps a 16px root
+- in other words: for this page family, visible final size wins over root-rem normalization
+
+Required review sequence for rem-sized certification/logo galleries:
+1. read the source content/config and identify whether each item was authored in rem and whether the source asset type was `svg` or `png`
+2. measure the live page's actual rendered size in the browser
+3. inspect the live page's `html` root font-size only to understand *why* the numbers differ, not to override the live visible result automatically
+4. inspect the preview/stage page's actual rendered size in the browser
+5. if the user's goal is visual parity, copy the live page's final visible width/height into the route-owned display sizing
+6. only use 16px-root rem conversion as a fallback when the user explicitly asks to preserve design-token intent instead of visual result
+
+Practical certification example:
+- source `PCI DSS`: `14.86rem x 4.5rem`
+- live root `15px` -> rendered about `222.89px x 67.42px`
+- corp-web-japan root `16px`
+- if the task is visual parity, the correct target is still about `222.89px x 67.42px`, because that is what the user sees on the live page
+- do not automatically enlarge it to the 16px-root rem-equivalent value just because the preview app keeps a 16px root
+
+Related asset-format lesson from the same task:
+- some gallery items may also differ by asset type, not just by size
+- `PCI DSS` looked blurred because live used an SVG asset while corp-web-japan used a PNG copy of the same logo
+- before blaming the size math, inspect the actual asset format on both sides (`svg` vs `png/webp`) and verify the live `img.currentSrc`
+- wide horizontal badges with text/line detail are especially sensitive to raster blur on high-DPR screens
+- if the source content defined an item as SVG, prefer restoring SVG in corp-web-japan rather than normalizing it to PNG/WebP
+
+Heuristic:
+- for corp-web-japan certification/logo parity work, treat live visible geometry as the primary contract unless the user explicitly re-prioritizes token-level rem consistency
+- for logo galleries, check both the live measured size and the asset format before finalizing parity judgments
+
 ### D. Natural image sizes may matter more than neat symmetry
 For people/team sections, live may intentionally use different portrait sizes per column. If the preview forces equal card widths/heights, parity can look wrong even though the grid is technically cleaner.
 

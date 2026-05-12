@@ -410,6 +410,24 @@ Important practical findings:
     5. copy only the intended PR files from `origin/<pr-branch>` into the clean worktree
     6. run the narrowest relevant regression tests for just that scope
     7. commit once and force-push back to the same PR branch
+- Additional `skills-jk` bundled-manifest follow-up lesson from PR 291: when a PR in `skills-jk` includes changes under `.hermes/skills/**`, do not assume `.hermes/skills/.bundled_manifest` should be regenerated or updated just because skill files changed.
+  - First determine whether the PR is actually intended to be a bundled-skills sync/update PR.
+  - If the PR is **not** a bundled sync PR, treat `.bundled_manifest` as a scope guardrail:
+    - if the manifest diff appears only because the branch rolled bundled skills back to an older local snapshot, restore `.hermes/skills/.bundled_manifest` from `origin/main`
+    - then inspect whether the same rollback pattern also affected bundled-source skill files (for example `llama-cpp`, `trl-fine-tuning`, `llm-wiki`, `architecture-diagram`, `webhook-subscriptions`) and restore those from `origin/main` too unless the user explicitly wants a bundled-skill refresh in this PR
+  - Do **not** run the full Hermes `tools/skills_sync.py` against the PR worktree as a default fix for the manifest diff. In `skills-jk`, that can explode the scope by importing many unrelated bundled skill updates/new files into the PR.
+  - Safe narrowing pattern:
+    1. inspect the PR file list with `gh pr view <pr-number> --json files`
+    2. identify whether `.bundled_manifest` and any bundled skill files are acting as rollback artifacts rather than intentional scope
+    3. if yes, restore `.bundled_manifest` and the affected bundled skill files from `origin/main`
+    4. amend/force-push the same PR branch
+    5. re-check the GitHub PR file list and confirm the generated/rollback artifacts disappeared
+  - Important end-state rule from the same PR 291 cleanup: after repeated narrowing, the branch may become fully identical to `origin/main`.
+    - If the final intended review diff becomes empty, do not try to preserve a fake one-file commit just to keep the PR alive.
+    - Instead, it is acceptable to hard-reset the PR worktree to `origin/main` and force-push the branch tip to match `origin/main` exactly.
+    - Then immediately re-check `gh pr view <pr-number> --json state,files,headRefOid` because GitHub may treat the PR as effectively empty and automatically show it as `CLOSED` with `files: []`.
+    - Report that outcome explicitly as `scope narrowed to zero diff / PR effectively empty`, not as a normal feature update.
+  - Heuristic: in `skills-jk`, if `skills_sync.py` would introduce dozens of updated/new skill files beyond the PR's stated purpose, the right fix is almost always `restore from origin/main and narrow the PR`, not `sync everything`.
 - Additional sibling-series maintenance lesson from later corp-web-japan publication-refactor PRs: when you are rebase/squash-rewriting several related open PRs in sequence, do **not** assume the remaining later PRs stay valid after you finish the earlier one(s).
   - If `origin/main` advances during the batch (for example because PR #279 merged while you were still rewriting PR #280 and PR #281), re-fetch and re-audit every remaining open PR against the new `origin/main` tip before touching it.
   - Typical signal: a later PR that previously looked clean suddenly shows unrelated diffs from a just-merged sibling topic (for example blog helper files appearing inside a whitepaper-only or news-only PR), or shared structure tests such as `tests/mdx-redirect-contract.test.mjs` start failing because latest main now contains the sibling's newer expectations.

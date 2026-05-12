@@ -225,3 +225,5 @@ The user wants the repeated repo-local stale-branch/worktree audit workflow enco
 In corp-web-japan PR follow-up or route-local review work, if a requested route/file is missing on current main/PR head, do not assume it should be restored from history. Report the absence first and confirm scope before reviving an old route subtree.
 §
 In the repo-local Hermes config at ~/workspace/skills-jk/.hermes/config.yaml, checkpoints.enabled is currently false while stale historical checkpoint repos can still remain on disk under .hermes/checkpoints until manually deleted.
+§
+In corp-web-japan, the user wants remaining legacy `/posts/` route/code/content remnants removed entirely rather than preserved for event compatibility.
