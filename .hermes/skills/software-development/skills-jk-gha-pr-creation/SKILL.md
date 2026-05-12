@@ -76,7 +76,8 @@ Instead:
 - If the branch has an existing open PR, the workflow may fail or create duplicate intent; check first
 - After dispatching the PR-creation workflow, verify completion with `gh run watch` and then confirm the resulting PR with `gh pr view` or `gh pr status`
 - `gh pr checks` may legitimately report no checks for the new PR branch; if so, also inspect `gh run list --branch <branch>` before concluding that no CI ran
-- When the local workspace contains mixed changes, inspect `git status --short`, `git diff --stat`, and representative diffs before staging. In `skills-jk`, it is common to have meaningful tracked changes under `.hermes/` mixed with local-only artifacts such as `.claude/worktrees/` or scratch files like `test.txt`; exclude those temporary artifacts from the PR unless the user explicitly asks to include them
+- When the local workspace contains mixed changes, inspect `git status --short`, `git diff --stat`, and representative diffs before staging. In `skills-jk`, it is common to have meaningful tracked changes under `.hermes/` mixed with local-only artifacts such as `.claude/worktrees/`, scratch files like `test.txt`, onboarding/runtime state in `.hermes/config.yaml`, and usage trackers such as `.hermes/skills/.curator_state`, `.hermes/skills/.usage.json`, and `.hermes/skills/.usage.json.lock`; exclude those temporary artifacts from the PR unless the user explicitly asks to include them.
+- Conversely, do not over-exclude tracked `.hermes/` changes just because they look local. Durable repo-managed updates such as `.hermes/memories/MEMORY.md`, bundled skill content under `.hermes/skills/**`, and derived `.hermes/skills/.bundled_manifest` can be legitimate PR payload when the user asks to turn the current local Hermes workspace sweep into a reviewable PR.
 
 ## Local workspace sweep workflow
 
@@ -98,7 +99,14 @@ When the user asks to create a PR from the current local workspace state rather 
 4. If local `main` is behind and is not currently checked out, fast-forward it safely with:
    - `git branch -f main origin/main`
    - This updates local `main` without disturbing the dirty current branch.
-5. If the current branch corresponds to an already merged/closed PR, do **not** keep committing on that branch even if it still has useful local changes.
+5. If the current checkout is already `main`, `main` is aligned with `origin/main`, and `gh pr status` confirms there is no existing PR for the current branch, it is acceptable in `skills-jk` to create a fresh PR branch in place from that checkout instead of transplanting the whole dirty tree into a new worktree.
+   - Safe pattern:
+     - confirm `git rev-list --left-right --count main...origin/main` is `0 0`
+     - confirm current branch is `main`
+     - create a fresh branch directly: `git checkout -b <new-branch>`
+     - then stage only the intended `.hermes/` skill/memory/manifest changes and leave runtime artifacts untracked
+   - This is a practical shortcut for repo-local Hermes workspace sweeps when the user explicitly asked to update `main` and turn the current local changes into a PR.
+6. If the current branch corresponds to an already merged/closed PR, do **not** keep committing on that branch even if it still has useful local changes.
    - Fast detection: run `env -u GITHUB_TOKEN gh pr status` first. In `skills-jk`, this often surfaces the problem immediately as `Current branch  #<N> ... Merged` even when the remote branch has already been deleted.
    - Confirm with `env -u GITHUB_TOKEN gh pr list --head <branch> --state all --json number,state,mergedAt,url,title` when needed.
    - Additional signals:

@@ -379,6 +379,29 @@ This catches path drift such as `/whitepaper` vs `/whitepapers` and prevents acc
 - If `/events` currently renders `notFound()`, exclude it from sitemap until the route is actually live.
 - Use a shared site URL helper so `metadataBase`, canonical generation, robots, and sitemap stay aligned.
 
+## Legacy route-removal pattern: remove the whole `/posts` compatibility bundle, not only the visible route file
+
+When latest `corp-web-japan` still contains a legacy route family that the user explicitly says is only a temporary implementation artifact and should be removed entirely, do not stop after deleting the route entrypoint.
+
+For the `/posts` legacy family, the real cleanup bundle can include all of the following:
+- the App Router entry file such as `src/app/posts/[category]/[slug]/page.tsx`
+- route-only parser/loader helpers such as `src/lib/resource-posts.ts`
+- route-only UI such as `src/components/sections/resource-post-download-page.tsx`
+- temporary source corpora such as `content/source-posts/**/*.html`
+- source-reading tests that still assert the route file exists
+- README / AGENTS guidance that still describes `/posts` as a supported compatibility surface
+
+Recommended audit sequence before deleting:
+1. search the repo for `/posts/`, `src/app/posts/[category]/[slug]/page.tsx`, `content/source-posts`, and route-only helper names such as `getResourcePost`, `listEventPostParams`, or `getResourceDownloadPost`
+2. separate runtime usage from test/doc mentions
+3. verify whether the remaining content corpus under `content/source-posts` is only legacy data rather than an input to current canonical `/events` routes
+4. delete the entire compatibility bundle in one PR when the user has confirmed it is no longer used
+5. update tests and repo guidance in the same change so no file still documents `/posts` as a valid remaining exception
+
+Important user-specific rule for this repo:
+- if the user says `/posts` endpoints were only temporary implementation artifacts and are no longer used, do not preserve even event-only compatibility by default
+- treat that as authorization to remove the route, its helper/parser layer, the temporary HTML corpus, and the related guidance/tests together
+
 ## Verification
 
 Run:
