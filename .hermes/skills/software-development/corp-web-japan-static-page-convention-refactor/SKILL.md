@@ -41,6 +41,11 @@ Practical implication learned from repo follow-up:
 - do not treat documentation labels like "partial" or "wrong / pre-refactor" as authoritative without checking the live code on latest `origin/main`; those labels can lag behind after a sequence of section-scoped PRs merges
 - when a page is explicitly called out in docs as non-compliant, verify the current `page.tsx`, current `src/components/sections/**` files, and recent git history for that route before recommending more route-local-authoring work
 - practical example: `src/app/solutions/ai-crew/page.tsx` was still described in docs as a wrong/pre-refactor example even after multiple merged PRs had already moved most section copy and composition into the route; the correct conclusion was that the docs had become stale, not that the page still needed the same refactor class
+- additional `/t/*` audit lesson from latest-main issue rewriting:
+  - count the real current `src/app/t/**/page.tsx` routes before writing a broad cleanup conclusion
+  - in one verified latest-main snapshot, 15 `/t/*` page routes existed, 13 were already route-local-authoring / section-composition pages, and only the privacy-policy pair remained as thin document wrappers
+  - treat that kind of result as evidence that the broad migration is largely complete; do not keep writing the repo state as if all `/t/*` pages still need the same route-localization work
+  - if the only remaining thin routes are document-style pages like privacy-policy, verify whether they are intentional shared-document exceptions rather than unfinished static-page debt
 
 ## When this applies
 

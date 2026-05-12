@@ -46,11 +46,16 @@ Typical desired outcome:
 5. Move the CTA layout primitives there with generalized names.
 6. Update the existing caller(s) to import from the new file.
 7. Remove the old CTA exports from the feature-specific file.
-8. Add or update a structure-oriented test that proves:
-   - the caller imports the generic CTA module
-   - the old feature-specific CTA export names are gone
-9. Run `npm run test:ci` and `npm run build`.
-10. Commit, push, create a separate PR, and wait for CI to finish.
+8. If one page is being switched from a page-local CTA implementation to an existing shared preset (for example replacing `NewsFinalCta*` with `AipFreeTrialCtaSection`), simplify the route file all the way:
+   - remove page-local CTA constants/import clutter that only existed for the old implementation
+   - replace the whole inline CTA block with the shared preset component
+   - delete the now-unused page-specific CTA exports from the old section file when no other caller remains
+9. Add or update a structure-oriented test that proves:
+   - the caller imports the generic/shared CTA module or preset
+   - the route no longer contains the old inline CTA strings/URL literals when that content now lives inside the shared preset
+   - the old feature-specific CTA export names are gone from the original section file
+10. Run the narrowest relevant regression test first (for example the page-specific structure test), then `npm run test:ci` and `npm run build` when the broader PR scope warrants it.
+11. Commit, push, create a separate PR, and wait for CI to finish.
 
 ## Naming guidance
 

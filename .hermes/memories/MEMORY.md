@@ -227,3 +227,13 @@ In corp-web-japan PR follow-up or route-local review work, if a requested route/
 In the repo-local Hermes config at ~/workspace/skills-jk/.hermes/config.yaml, checkpoints.enabled is currently false while stale historical checkpoint repos can still remain on disk under .hermes/checkpoints until manually deleted.
 §
 In corp-web-japan, the user wants remaining legacy `/posts/` route/code/content remnants removed entirely rather than preserved for event compatibility.
+§
+In corp-web-japan path taxonomy work, the user wants the temporary `t-` prefix kept only in app route paths; do not use `t-` in component or test family names. Use neutral family names like `aip`, `acp`, and `fde` instead of `t-services-aip`, `t-services-acp`, or `t-services-fde`.
+§
+In corp-web-japan path taxonomy naming, the user wants a single canonical family name chosen on general convention rather than current code habit; use `home` instead of `top-page` for the homepage component/test family.
+§
+In the repo-local Hermes setup under ~/workspace/skills-jk/.hermes/, the user wants the openai-codex credential labeled `gpt4` to be prioritized first in the credential pool (ahead of gpt3/gpt8/gpt11) while keeping `credential_pool_strategies.openai-codex=fill_first`.
+§
+In corp-web-japan page-parity reviews, if text is not in a side-by-side layout with an image/media that narrows the content column, treat the default text content width as 1200px; do not reopen that as a design-choice question.
+§
+In corp-web-japan test structure work, the user wants only genuinely reusable infra helpers kept in shared test helper locations; page-specific or page-family-specific helpers should be colocated near the relevant mirrored test paths instead of centralized under tests/helpers.

@@ -232,6 +232,44 @@ Counterexample where splitting is still correct:
 
 When a corp-web-japan issue has already been narrowed to a small set of remaining tasks and the user asks to "proceed with the remaining work" as separate PRs:
 
+## Staged issue implementation: prefer a small stacked PR chain when later steps depend on earlier ones
+
+A recurring safe pattern in this repo is a staged CI / workflow / infra change where the user wants the plan implemented step by step as separate PRs, but later steps build directly on earlier ones.
+
+Use a stacked PR chain when all of the following are true:
+- the user explicitly wants separate PRs by stage
+- stage N+1 depends on files introduced or reorganized in stage N
+- keeping each PR small and reviewable matters more than making every PR independently landable from `main`
+
+Typical example:
+- PR 1: add docs-only CI skip
+- PR 2: split monolithic CI into smoke + scoped test jobs
+- PR 3: add changed-files gating on top of the new scoped jobs
+
+Recommended workflow:
+1. Fast-forward local `main` to latest `origin/main` first.
+2. Create PR 1 from `main`.
+3. Create PR 2 from the PR 1 branch only if PR 2 truly depends on PR 1.
+4. Create PR 3 from the PR 2 branch only if PR 3 truly depends on PR 2.
+5. For each staged PR, set the GitHub base branch explicitly to the immediate parent branch, not to `main`.
+6. In each PR body, state clearly that it is a stacked PR and name the parent base branch.
+7. Keep each PR scope limited to exactly one stage of the issue plan; do not leak later-stage optimization logic into earlier PRs.
+
+Scope discipline for this pattern:
+- Stage 1 should usually be the smallest safe behavior change with minimal surface area.
+- Stage 2 may introduce structure or helper scripts without yet narrowing execution scope.
+- Stage 3 may add selective execution / gating on top of the stage-2 structure.
+- If a later PR needs to touch files from an earlier stage, that is acceptable in the child PR; do not broaden the earlier parent PR just to avoid stacked diffs.
+
+Verification discipline:
+- For stage-1 workflow-only changes, validate YAML parsing and diff hygiene at minimum.
+- For stage-2 script/test-sharding changes, run the new contract/assignment verification plus at least a few representative shards, not necessarily every shard locally.
+- For stage-3 gating changes, validate YAML parsing and changed-scope logic carefully; keep the diff mostly inside the workflow file unless the gating design truly requires helper changes.
+
+Common pitfall:
+- Opening all stage PRs directly against `main` even though later stages depend on earlier branch-only files. That creates noisy diffs and can make review impossible.
+- The correct fix is to stack the dependent PRs and use explicit `gh pr create --base <parent-branch> --head <child-branch>`.
+
 1. Treat each remaining issue bullet as its own independent branch/worktree/PR.
 2. Create one fresh worktree from latest `main` per item; do not bundle multiple follow-ups into one branch just because they came from the same issue.
 3. Keep each PR title/body scoped to the single remaining item, not to the broader historical issue.

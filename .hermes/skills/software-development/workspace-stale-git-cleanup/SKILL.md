@@ -187,6 +187,15 @@ Additional practical root-cleanup case:
 - this avoids turning meaningful local work into easy-to-forget stash entries just to make cleanup appear complete
 - another safe stale case is a branch-backed worktree whose branch has no PR, is clean, and its tip is already exactly `origin/main` (or tracks `origin/main` with no unique commits); in that case both the worktree and local branch are just redundant local clones of main and can be removed
 
+Important counter-case for root checkouts:
+- a clean root checkout sitting on a non-default branch is **not** automatically a safe candidate to switch back to `main`/`develop`
+- before restoring the root checkout to the default branch, require at least one strong stale signal such as:
+  - merged/closed PR evidence for that exact branch, or
+  - empty/absorbed diff versus the default branch, or
+  - exact/no-op alias equivalence to the default branch tip
+- if the clean root branch still has unique diff versus latest default and a disposable rebase onto the latest default conflicts broadly, preserve it even if there is no open PR
+- practical interpretation: `clean + non-default + no open PR` is not enough by itself; a root checkout can still represent unpublished local work and should remain parked there until the user chooses a more destructive cleanup path
+
 Additional practical root-cleanup case:
 - sometimes the only thing preventing a safe fast-forward of `main` is unpublished local repo-maintenance work under paths like `.agents/skills/**`
 - do **not** assume stash is the best preservation method; many users consider stash-based preservation lower value than keeping an inspectable worktree/branch

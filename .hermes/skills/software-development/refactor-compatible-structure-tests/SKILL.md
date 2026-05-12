@@ -146,6 +146,52 @@ This lets the same test pass both:
 
 When removing old files like `src/content/top-page.ts` or `src/components/sections/top-page-sections.tsx`, search tests for direct reads of those files and convert them to helpers too.
 
+### 6.1 When you mirror tests under `tests/src/app/**`, stop using deep ad hoc `new URL(...)` chains
+
+Practical lesson from `corp-web-japan` test-taxonomy refactors:
+- once a flat test like `tests/t-services-aip-integrations-page.test.mjs` moves to a mirrored path such as `tests/src/app/t/services/aip/integrations/page.test.mjs`, any inline filesystem reads like:
+  - `new URL("../src/app/...", import.meta.url)`
+  - `new URL("../../../../../../../src/...", import.meta.url)`
+  become fragile and tedious to maintain
+- these are easy to break again in later taxonomy moves even when the product code is unchanged
+
+Preferred fix:
+- extend `tests/helpers/source-readers.mjs` with repo-root helpers such as:
+  - `repoUrl(relativePath)`
+  - `readRepoText(relativePath)`
+  - `repoExists(relativePath)`
+- then rewrite moved mirrored tests to use those helpers instead of local path arithmetic
+
+Example helper shape:
+
+```js
+export function repoUrl(relativePath) {
+  return new URL(`../../${relativePath}`, import.meta.url);
+}
+
+export function readRepoText(relativePath) {
+  return readFileSync(repoUrl(relativePath), "utf8");
+}
+
+export function repoExists(relativePath) {
+  return existsSync(repoUrl(relativePath));
+}
+```
+
+Example rewrite:
+
+```js
+import { readRepoText, repoExists } from "../../../../../../helpers/source-readers.mjs";
+
+const pageSource = readRepoText("src/app/t/services/aip/integrations/page.tsx");
+assert.equal(repoExists("public/solutions/aip/fde-services/hero.svg"), true);
+```
+
+Use this especially for:
+- mirrored route tests under `tests/src/app/**`
+- moved tests that verify public asset existence
+- moved tests that read source text from `src/app/**`, `src/components/**`, or `public/**`
+
 Common affected test themes:
 - CTA link checks
 - structure/readability checks
@@ -164,6 +210,15 @@ Important practical lesson from `corp-web-japan` relocation work:
 
 Run the repo’s normal verification flow from the new worktree on latest main.
 
+Also verify that test discovery still includes nested mirrored tests if you moved files deeper under `tests/src/app/**`.
+In repos that use a shell `find` command for discovery, prefer an explicit file-only form such as:
+
+```bash
+find tests -type f -name '*.test.mjs' -print | sort | xargs node --test
+```
+
+This makes the nested taxonomy contract obvious and avoids accidental ambiguity about whether only the old flat root tests are being discovered.
+
 For this repo pattern, use:
 
 ```bash
@@ -176,8 +231,35 @@ The point is to prove:
 
 ## Practical lessons
 
-### A. Centralize migration tolerance
+### A. Centralize migration tolerance — but only for truly shared infrastructure
 Do not scatter arrays of fallback paths through many test files if you can avoid it. Put the path branching in one helper module.
+
+However, do not over-centralize page-specific source aggregators under `tests/helpers/` just because multiple tests happen to use them once.
+
+Use this split:
+- keep genuinely reusable infra helpers centralized in `tests/helpers/`
+  - examples: `readSource(relativePath)`, `sourceExists(relativePath)`, `readFirstExistingSource(relativePaths)`
+- move page- or route-family-specific source aggregators next to the mirrored test subtree that owns them
+  - examples:
+    - `tests/src/app/page-sources.mjs`
+    - `tests/src/app/solutions/ai-crew/page-sources.mjs`
+    - `tests/src/app/solutions/ai-dashi/page-sources.mjs`
+
+Heuristic:
+- if the helper mainly knows how to combine or classify source files for one page or one route family, it is not a general helper
+- if the helper mainly abstracts filesystem reading/existence checks that many unrelated tests need, it belongs in `tests/helpers/`
+
+Why this matters:
+- avoids a misleadingly generic `tests/helpers/` directory full of page-specific knowledge
+- keeps mirrored test trees self-describing
+- reduces long-lived central coupling when later taxonomy refactors move only one page family
+- preserves the user's preferred distinction between useful shared helper infrastructure and page-limited helper glue
+
+Practical follow-up pattern:
+- after mirroring tests under `tests/src/app/**`, search for imports of a page-specific helper such as `static-marketing-page-sources.mjs`
+- split that file by ownership boundary
+- update cross-tree consumers to import the owning page helper from the mirrored subtree instead of keeping one global page-helper registry
+- keep `tests/helpers/source-readers.mjs` or equivalent as the shared base layer those local helpers build on
 
 ### B. Split by page family
 If the user is refactoring top page first, isolate top-page tests from AI Crew tests so that the top-page PR does not produce unnecessary AI Crew test churn.
