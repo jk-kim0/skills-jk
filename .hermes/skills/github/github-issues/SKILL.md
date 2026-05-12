@@ -125,6 +125,17 @@ Respect the ?next= query parameter." \
   --assignee "username"
 ```
 
+### Practical drafting patterns
+
+- Prefer `--body-file <path>` over long inline shell strings when the issue body is more than a few lines, includes markdown tables, or contains bilingual text.
+- When creating a child issue from a parent analysis issue, explicitly link it near the top with plain text like `Parent issue: #397`.
+- After creating the child issue, comment on the parent with the new child issue number and a one-line summary so the parent thread stays navigable.
+- When the repository or user prefers bilingual issue bodies, structure the body as:
+  1. English section first
+  2. separator such as `---`
+  3. translated Japanese/Korean section below
+- For analysis or commonization work, classify findings by semantic intent first (for example CTA purpose such as free trial vs trust vs contact) before grouping by component implementation. This produces better follow-up issue boundaries.
+
 **With curl:**
 
 ```bash
