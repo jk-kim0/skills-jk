@@ -343,7 +343,7 @@ Important user-expectation nuance learned from active-review follow-up:
   2. inspect `git status --short` and `git diff --name-only origin/main...HEAD`
   3. if the candidate worktree shows unexpected files, renamed tests, old helper/skill changes, or any scope larger than the intended PR diff, do **not** squash there
   4. instead, create a brand-new detached worktree from latest `origin/main`, copy only the intended PR file set from a known-good source (`origin/<pr-branch>` or an earlier known-good PR-head SHA), commit once, and `git push --force-with-lease origin HEAD:<pr-branch>`
-- Practical heuristic: if the user's real request is 'make this PR one clean commit with the same final diff', prefer reconstructing that final diff on top of latest main over preserving a suspicious local branch state.
+- Practical heuristic: if the user's real request is 'make this PR one clean commit with the same final diff', prefer reconstructing that final diff on top of latest main over preserving a suspicious local branch state. See `references/pr419-squash-contamination-recovery.md`.
 - After that rewrite, also verify the branch is still based on the latest remote main tip:
   ```bash
   git fetch origin --prune

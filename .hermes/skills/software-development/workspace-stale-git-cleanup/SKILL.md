@@ -16,6 +16,10 @@ Use when the user asks to clean stale branches/worktrees from the current worksp
 - There may be many sibling repos, some with linked worktrees.
 - The user wants safe cleanup, not aggressive pruning.
 
+Do not use this as the default just because the user's wording contains `workspace`.
+For this user, if `pwd` is already inside a git repository and they simply say `workspace 정리해줘`, the default interpretation is repo-local cleanup for the current repository, not a sweep across sibling repos.
+In that case, switch to `safe-git-worktree-branch-cleanup` and begin with live `pwd` / repo-root verification.
+
 ## Scope interpretation rule
 
 Distinguish carefully between these two user intents:

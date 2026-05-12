@@ -136,7 +136,7 @@ User does not want Python code used for simple Vercel CLI/environment inspection
 §
 `workdir=~/workspace` is only a tool default; the agent's real live cwd may differ each run. For repo-context tasks, always verify the actual current directory first and never equate it with the tool workdir.
 §
-User prefers shorter page-level component names in corp-web-japan; in page.tsx, component names should match UX element names directly (e.g. SolutionOverviewSection rather than TopPageSolutionOverviewSection).
+In corp-web-japan, the user prefers shorter page-level component names and direct `max-w-[1200px]` containers over thin `*PageContent` wrappers unless the wrapper has distinct responsibility.
 §
 User does not want dev servers started for testing unless they explicitly request it.
 §

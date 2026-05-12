@@ -206,7 +206,7 @@ In corp-web-japan whitepapers, downloadable PDF CTA metadata is now modeled expl
 §
 In corp-web-japan publication-helper planning, the user wants the current low-level duplication between create-standard-publication-post-loader.ts and create-gated-publication-post-loader.ts kept as-is for now; only consider further refactoring later if duplicated code grows materially.
 §
-In corp-web-japan static/legal preview migrations, route-local self-contained placement under src/app/t/<route>/ can be preferable to broad src/content/legal-preview + src/lib/legal-preview indirection when the goal is a reviewable page migration on an existing PR branch.
+In corp-web-japan legal preview work, route-local self-contained placement under src/app/t/<route>/ can be preferable to broad src/content/legal-preview + src/lib/legal-preview indirection; for versioned privacy-policy previews, the user expects `src/app/t/privacy-policy/[slug]/page.tsx` to own page composition while `src/app/t/privacy-policy/page.tsx` may remain a thin latest-version wrapper that derives the last document date.
 §
 In corp-web-japan, for standalone static/legal preview pages like terms-of-service, the user prefers route-local MDX colocation: keep page.tsx and content.mdx in the same route directory (e.g. src/app/t/terms-of-service/) rather than placing the MDX under src/content.
 §
