@@ -170,6 +170,17 @@ Important semantic-slot rule learned from AI Crew design-elements follow-up:
   - `</Section>`
 - practical follow-up from AI Crew design-elements work: replacing `AICrewDesignElementsSection title={...}` with `AICrewDesignElementsTitle` + `AICrewDesignElementsGrid` made the route easier to review because the main section heading and its emphasized phrase were visible directly in `page.tsx` instead of being passed through a prop
 
+## Full-bleed background sections: keep the width wrapper as plain route markup
+
+Important follow-up from `/t/about-us`:
+- when a section needs a background color that spans the full viewport width, do not introduce a dedicated `*SectionInner` wrapper component just to hold `mx-auto max-w-[1200px] px-*`
+- keep the full-bleed background on the outer section component or plain `<section>`
+- place the width-constraining wrapper directly in `page.tsx` as a normal `<div className="mx-auto max-w-[1200px] px-6 lg:px-0">...`
+- this keeps ownership explicit: outer section owns background + vertical spacing, inner route-local `<div>` owns content width
+- prefer this direct markup over a one-off abstraction like `AboutUsSectionInner` when the wrapper has no distinct reusable behavior
+- practical reason: it better matches the user's preference for route-local readability and avoids accidentally coupling the viewport-wide background treatment to the content max-width
+- review check: if a bug report says a gray/colored section background became narrower than the browser viewport, first verify that `max-w-*` lives only on an inner plain `<div>` and not on the background-bearing section wrapper
+
 Bad to keep extracted:
 - a giant page-specific `<SomethingSections />` wrapper that hides most of the route
 - a large `src/content/<page>.ts` object whose main job is to store the page’s marketing copy and section composition
@@ -507,6 +518,30 @@ Instead:
 1. inspect the live page directly in the browser
 2. measure the real DOM/computed styles of the exact target elements
 3. prefer those live measurements over assumptions from repo-local patterns
+
+### Full-width background section rule for route-local static pages
+
+When one section on an otherwise width-constrained static page needs a background color that spans the **entire viewport width**, do not solve it by introducing an extra page-specific wrapper abstraction such as `*SectionInner` unless that abstraction is already broadly established and clearly earns its cost.
+
+Preferred implementation for this user:
+- keep the outer section/component responsible only for the full-width background surface and vertical spacing
+- keep the width-constrained content container as an ordinary local `<div className="mx-auto max-w-[1200px] ...">` placed directly inside the section in `page.tsx` (or equivalent route-local JSX)
+- do not put `mx-auto`, `max-w-*`, or page-width shell responsibility on the same node that owns the full-width background when the design intent is viewport-spanning color
+
+Why this is preferred here:
+- it preserves the user's preferred direct route-local markup ownership
+- it avoids unnecessary component abstraction for one-off width shells
+- it makes background-surface responsibility vs content-width responsibility visually obvious in review
+- it makes future debugging easier when a section background appears unexpectedly clipped
+
+Practical example confirmed in `/t/about-us` follow-up:
+- the `私たちの歩み` section needed a gray background across the whole browser width
+- the correct fix was to keep `AboutUsSection muted` as the full-width background section and place a plain inner `div.mx-auto.max-w-[1200px] px-6 lg:px-0` directly in `page.tsx`
+- the user explicitly did **not** want a new `AboutUsSectionInner` wrapper introduced for this purpose
+
+Review check:
+- if a section background is supposed to span the viewport, verify that the background-owning node is not also the node carrying `max-w-*`
+- if a proposed fix introduces a new `*Inner` component only to hold `mx-auto max-w-*`, prefer inlining that container in the route unless there is strong cross-page reuse evidence
 
 Practical lessons from `/t/certifications` follow-up work:
 - the live page did **not** have the expected left company-info sidebar in the main content area, even though the local repo already had sidebar-like patterns in related preview surfaces

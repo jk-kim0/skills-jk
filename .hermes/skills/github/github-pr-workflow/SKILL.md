@@ -154,6 +154,12 @@ EOF
 
 Small one-line bodies can still use `--body "..."`, but `--body-file` is safer and avoids command substitution / shell quoting issues when the text includes Markdown code spans like `` `src/file.ts` ``.
 
+Important temp-file safety rule:
+- Prefer a repo-external temp path such as `/tmp/pr-body.md` or another absolute temp location.
+- Do **not** default to writing PR/issue body drafts inside the repository or worktree root (for example `.tmp-pr-body.md`) unless you intentionally want that file tracked.
+- If you must place a draft file inside the checkout temporarily, exclude it from `git add` and run `git status --short` before commit so you do not accidentally commit the body file.
+- Practical failure pattern: creating the PR body inside the worktree, staging broad paths, then needing an amend commit only to remove the stray temp file.
+
 Options: `--draft`, `--reviewer user1,user2`, `--label "enhancement"`, `--base develop`
 
 **With git + curl:**
