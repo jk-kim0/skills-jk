@@ -202,6 +202,38 @@ Important anti-regression rule from AI Dashi follow-up work:
 - the next step is usually to promote that section file from a thin container into several semantic section components, while keeping the actual user-facing sentences and CTA labels authored in `page.tsx`
 - practical pattern confirmed in AI Crew lost-section follow-up: move `RevealOnScroll`, background-image rendering, card geometry, and CTA button implementation into `src/components/sections/<section>.tsx`, then let `page.tsx` read as `<LostProblemCard>`, `<LostProblemTitle>`, `<LostProblemBody>`, `<LostWhitepaperCard>`, and `<LostWhitepaperAction href={...}>...`
 
+## `src/components/sections` ownership taxonomy
+
+When refactoring corp-web-japan static/preview marketing pages, keep the `src/components/sections` directory split by ownership, not just by implementation convenience.
+
+Preferred contract:
+- root `src/components/sections/` keeps only reusable, cross-page components or true shared primitives
+- page-bound or page-family-bound components belong under `src/components/sections/<family>/` or `src/components/sections/<route-family>/`
+
+Examples of what should usually stay at the root:
+- shared primitives such as `simple-cta-section.tsx`
+- broadly reusable helpers such as `marketing-section-primitives.tsx` or `reveal-on-scroll.tsx`
+- other section components whose reuse is intentional across multiple unrelated page families
+
+Examples of what should usually move into a subdirectory:
+- files whose name or usage is clearly tied to one page family, route family, or owned surface
+- page wrappers such as `*page*`, route-specific hero wrappers, route-owned gating sections, or internal/demo widgets that are not truly shared across unrelated surfaces
+- anything that exists at the root only because no subdirectory was created yet
+
+Practical rule:
+- if a component is meaningfully owned by one page or one family, prefer creating or reusing a subdirectory over leaving it at the root
+- do not keep page-bound files at the root just because their current names look generic enough
+- when auditing an existing root-level file, explicitly classify it as either `generic reusable primitive`, `page-family-specific`, or `route-specific`
+
+Why this matters before hero commonization:
+- it makes ownership obvious before deciding which hero/title/lead/layout pieces deserve promotion into shared primitives
+- it prevents false reuse signals caused by page-bound files sitting at the root
+- it lets future hero commonization promote only the proven cross-family pieces, while keeping family-local compounds in place
+
+Important scope rule:
+- do not force a universal shared hero abstraction in the same pass merely to justify moving files around
+- first fix directory ownership, then promote only the lower-level primitives that are genuinely reused
+
 ## Practical pattern used successfully
 
 ### Cross-page standardization audit heuristic

@@ -78,6 +78,19 @@ This wiki page should stay narrow and actionable; otherwise it turns back into a
 When rewriting `Route-Local-Authoring*` from latest `origin/main`, do not preserve older classifications mechanically.
 Re-audit these specific cases because they changed over time and are easy to describe incorrectly:
 
+- top page route-local baseline
+  - Do not keep describing the home page using older `src/content/home.ts`-driven wording if latest main has already removed that file.
+  - If `src/content/home.ts` is gone and `src/app/page.tsx` now owns the visible copy/composition directly, explicitly note that the top page became a stronger route-local authoring reference point.
+- route-local convention docs
+  - Before updating the wiki, check whether `docs/static-page-route-local-authoring.md` and `docs/code-location-conventions.md` were updated on latest main.
+  - If they now align with the intended route-local authoring split, mention that the repository guidance has caught up with the current implementation instead of leaving the wiki framed as if only the code changed.
+- legacy `/posts/**` routes
+  - Do not leave deleted legacy `/posts/**` routes sounding like remaining public migration candidates.
+  - If latest main removed them, explicitly record that they are no longer part of the remaining non-MDX public-page inventory.
+- section-file reorganization
+  - If preview/static section implementations were reorganized into `src/components/sections/<family>/...`, treat that as supporting structure cleanup rather than a route-status change by itself.
+  - Mention it when summarizing what changed on latest main, but do not let the inventory table imply that public/preview rollout status changed unless the routes themselves changed.
+
 - `privacy-policy`
   - Do not leave this as only a `scope decision needed` item if latest main already has local preview implementation and local content versions.
   - On the audited baseline from 2026-05-10, latest main had `/t/privacy-policy`, `/t/privacy-policy/[slug]`, and local `src/content/privacy-policy/*.mdx` version records, so the correct status was `partial` with remaining public-rollout work.

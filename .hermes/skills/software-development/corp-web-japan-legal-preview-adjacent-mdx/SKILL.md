@@ -158,7 +158,7 @@ Useful assertions:
 - `assert.doesNotMatch(contentSource, /<Box direction="column"/)`
 - `assert.doesNotMatch(contentSource, /<CenterSection/)`
 
-## Exception: versioned legal document collections
+## Variation: versioned legal document collections
 Not every legal preview route should be forced into a single route-adjacent `content.mdx` shape.
 
 If the route is actually a versioned legal document collection, such as a privacy-policy surface with:
@@ -168,6 +168,12 @@ If the route is actually a versioned legal document collection, such as a privac
 - version discovery from filenames
 
 then a different structure can be preferable and should not automatically be judged as a failed route-local refactor.
+
+Important classification rule from corp-web-japan follow-up:
+- do **not** describe a versioned legal route like privacy-policy as a family-level exception
+- treat it as the normal `multi-version legal MDX` variant of the same legal/document family
+- the corresponding `single-version legal MDX` variant is what routes like EULA or Terms of Service use when only one current document version is published
+- if EULA or Terms of Service later need to expose historical versions, they may legitimately evolve toward the same multi-version route shape as privacy-policy
 
 In that case, an acceptable implementation is:
 - thin route files under `src/app/t/<route>/page.tsx` and optionally `src/app/t/<route>/[slug]/page.tsx`
@@ -198,9 +204,49 @@ Practical implication learned from `/t/privacy-policy` review:
 - Avoid hiding the full page composition in `src/components/sections/privacy-policy/document-page.tsx`, a route-local `document-renderer.tsx`, or another helper that turns `src/app/t/privacy-policy/[slug]/page.tsx` back into a thin caller. The route file should still show how the page is assembled.
 - When the route renders versioned legal MDX through `buildPublicationMdxComponents()` or another local MDX adapter, compare the adapter against the upstream/source-site table component contract before assuming the MDX content is wrong. In the privacy-policy investigation, the source MDX and migrated MDX both preserved `rowSpan`, `colSpan`, and `width`, but the local MDX adapter dropped those props because `Table.Td`/`Table.Th` only accepted `children` and `cellBackgroundColor` and did not forward the remaining DOM props to `<td>` / `<th>`. That causes merged cells and column widths to disappear at render time even though the MDX source is correct.
 
+## Width / shell provenance audit for legal pages
+
+Before normalizing a legal preview route's document width, verify the source of that width instead of assuming a carried-over local value is correct.
+
+Practical lesson from `/t/privacy-policy`, `/t/terms-of-service`, and `/t/eula` review:
+- a local preview implementation used `max-w-[920px]` for the legal document wrapper
+- but direct browser inspection of the live targets on `querypie.com/ja` showed the main legal content span rendering at about `1200px`
+- the upstream `corp-web-app` `CenterSection` contract also resolves to `--content-max-width: 1200px`
+- git history showed the `920px` wrapper was introduced in the initial preview-page PRs, but the PR bodies did not document a source-based reason for narrowing from the live/upstream width
+
+Use this audit sequence before preserving or reusing a legal width token:
+1. inspect the exact live legal page in the browser (`/ja/privacy-policy`, `/ja/terms-of-service`, `/ja/eula` as applicable)
+2. measure the real rendered content span, not just the page shell
+3. inspect upstream layout primitives such as `CenterSection` / shared content-width tokens in `corp-web-app`
+4. inspect the original content source in `corp-web-contents`
+5. inspect the preview-route introduction PRs to see whether the narrower width was an intentional documented readability choice or an undocumented local migration decision
+
+Default interpretation for this repo/user:
+- do **not** assume `max-w-[920px]` is authoritative for legal pages merely because it already exists in preview code
+- if live and upstream both point to `1200px`, treat `920px` as a width-policy question that must be justified explicitly before being kept as a legal-family primitive
+- separate these concerns during analysis:
+  - outer page shell width
+  - readable text measure / body typography
+  - selector/header layout for versioned routes like privacy-policy
+
+This matters because `privacy-policy` may be a structural exception due to version/language selectors while still not justifying a different width policy.
+
+- When a legal preview page is meant to visually track the current `querypie.com/ja` legal surface, do not assume a narrow special-case document shell such as `max-w-[920px]` without evidence.
+- Practical follow-up from the legal family audit: live `querypie.com/ja` legal pages (`/terms-of-service`, `/eula`, `/privacy-policy`) render their main legal content at about `1200px`, matching the upstream `corp-web-app` `CenterSection` contract via `--content-max-width: 1200px`.
+- Therefore, treat an unexplained local `max-w-[920px]` legal shell as suspect by default. Do not preserve or primitive-ize that width unless you can point to current live rendering or an explicit source-of-truth that requires it.
+- Separate these concerns explicitly:
+  - outer legal shell width
+  - inner readable prose measure
+  - single-version vs multi-version page composition
+  A legal page may share the same outer shell as the live site while still needing route-specific typography or selector-row variation.
+
+## Reference notes
+- `references/legal-family-width-audit.md` — evidence summary for why `max-w-[920px]` is incorrect for current legal preview shells, plus the rule that privacy-policy is the normal multi-version legal variant rather than a family-level exception.
+
 ## Pitfalls
 - Moving legal preview MDX to `src/content/**` when the user prefers route-local adjacency for a single-document legal page
 - Incorrectly forcing a multi-version legal document collection into a single adjacent `content.mdx` pattern when the route really behaves like a document-rendering feature
+- Assuming an existing preview-only narrow width like `max-w-[920px]` is source-faithful without checking the live legal target, upstream `CenterSection` width contract, and preview-route introduction PR history
 - Leaving the page title duplicated both in frontmatter hero and inside the MDX body
 - Keeping wrapper-only MDX components that force `page.tsx` to inject unnecessary custom components
 - Forgetting to switch from static `metadata` to frontmatter-driven `generateMetadata()`

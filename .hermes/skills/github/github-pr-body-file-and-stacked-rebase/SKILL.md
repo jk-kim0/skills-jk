@@ -161,12 +161,41 @@ read the conflicted files
 
 ## 4. Finish and force-push
 
-After the rebase succeeds:
+After the rebase succeeds, verify both ancestry and intended squash shape before pushing. Even if the PR already had one commit, a conflict-resolving rebase can briefly make the local branch look `ahead N, behind M` relative to its old remote; compare against `origin/main`, not the old PR remote, to confirm the final PR shape.
 
 ```bash
-git log --oneline --graph -5
-git push --force-with-lease origin HEAD:refs/heads/<branch-name>
+git status --short --branch
+git rev-parse --short HEAD
+git rev-parse --short origin/main
+git merge-base HEAD origin/main | cut -c1-7
+git rev-list --oneline origin/main..HEAD
+git diff --stat origin/main...HEAD
 ```
+
+Expected result for a squashed single-commit PR:
+- `merge-base` equals the current `origin/main` tip
+- `git rev-list origin/main..HEAD` contains exactly the intended commit(s), usually one
+- `git diff --stat origin/main...HEAD` contains only the PR-specific file set
+
+Then force-push with an explicit destination ref and verify the remote ref matches local HEAD:
+
+```bash
+git push --force-with-lease origin HEAD:refs/heads/<branch-name>
+git rev-parse HEAD
+git ls-remote origin refs/heads/<branch-name>
+```
+
+After push, check GitHub against the new head SHA, not stale runs from the old commit:
+
+```bash
+gh pr view <PR_NUMBER> --json headRefOid,mergeable,mergeStateStatus,statusCheckRollup,commits,url
+gh run list --branch <branch-name> --limit 5 --json headSha,status,conclusion,workflowName,url
+```
+
+Interpretation:
+- `mergeable=MERGEABLE` plus `mergeStateStatus=BLOCKED` usually means conflicts are resolved and required checks are pending.
+- Treat checks as attached only when their `headSha` equals the just-pushed HEAD.
+
 
 ## 4a. Rebuilding a stacked PR chain as single-commit branches
 

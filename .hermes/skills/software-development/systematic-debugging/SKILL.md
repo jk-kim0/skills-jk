@@ -92,6 +92,12 @@ pytest tests/test_module.py -v --tb=long
 - Git diff, recent commits
 - New dependencies, config changes
 
+Special CI contract check:
+- If a CI failure comes from a repository source-based test (for example a Node test that regex-matches source files), inspect the exact assertion before changing product code.
+- Determine whether the product behavior/regression is real, or whether the test encoded an overly rigid implementation shape.
+- When the intended behavior is still correct and only the source shape evolved, prefer the smallest test update that preserves the behavioral contract.
+- Example pattern: a test expected `previewModeEnabled ? [internalFooterColumn]`, but a follow-up safely evolved it to `[{ ...internalFooterColumn, mobileLayout: "single" as const }]`. The correct fix was to relax the matcher, not revert the product change.
+
 **Action:**
 
 ```bash
@@ -131,6 +137,62 @@ THEN investigate that specific component.
 - Fix at the source, not at the symptom
 
 **Action:** Use `search_files` to trace references:
+
+### 6. For browser layout bugs, measure document overflow before changing CSS
+
+**WHEN the symptom is mobile right-side blank space, horizontal scrolling, clipped sticky behavior, or "there is empty space on one side":**
+
+Do not guess from screenshots or visible content alone.
+Measure the actual overflow first and identify the exact offending element.
+
+Useful browser-console probe:
+
+```js
+(() => {
+  const all = [...document.querySelectorAll('body *')];
+  const offenders = all
+    .map((el) => {
+      const r = el.getBoundingClientRect();
+      const cs = getComputedStyle(el);
+      return {
+        tag: el.tagName.toLowerCase(),
+        className: (el.className || '').toString().slice(0, 160),
+        text: (el.innerText || el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 100),
+        left: Math.round(r.left),
+        right: Math.round(r.right),
+        width: Math.round(r.width),
+        scrollWidth: el.scrollWidth,
+        clientWidth: el.clientWidth,
+        overflowX: cs.overflowX,
+        whiteSpace: cs.whiteSpace,
+        display: cs.display,
+      };
+    })
+    .filter((x) => x.right > window.innerWidth + 1 || x.left < -1 || x.scrollWidth > x.clientWidth + 1)
+    .sort((a, b) => (b.scrollWidth - b.clientWidth) - (a.scrollWidth - a.clientWidth));
+
+  return {
+    viewportWidth: window.innerWidth,
+    documentClientWidth: document.documentElement.clientWidth,
+    documentScrollWidth: document.documentElement.scrollWidth,
+    bodyClientWidth: document.body.clientWidth,
+    bodyScrollWidth: document.body.scrollWidth,
+    offenders: offenders.slice(0, 40),
+  };
+})()
+```
+
+What to look for:
+- `documentElement.scrollWidth > clientWidth` confirms true horizontal overflow
+- a footer/sidebar/nav/list wrapper can be the real cause even if the user noticed it while scrolling the main content
+- common causes are:
+  - `white-space: nowrap` on long labels
+  - narrow multi-column grid/flex layouts on mobile
+  - children whose minimum content width plus gap exceeds the viewport
+
+Follow-up rule:
+- once you find the offender, inspect the source CSS/layout contract before fixing
+- prefer removing the structural cause (for example, a mobile 2-column grid that cannot fit nowrap labels) over masking it with `overflow-x: hidden`
 
 ```python
 # Find where the function is called
@@ -325,6 +387,76 @@ Use these Hermes tools during Phase 1:
 - **`terminal`** — Run tests, check git history, reproduce bugs
 - **`web_search`/`web_extract`** — Research error messages, library docs
 - **`session_search`** — When the user references a prior session, recover the previous investigation instead of re-deriving it from scratch
+
+### Mobile/browser layout overflow triage
+
+When the user reports a right-side blank gutter, unexpected horizontal scroll, or content that shifts sideways on mobile, do not assume the visible page body is the source.
+
+Investigate in this order:
+
+1. Measure the real page overflow first:
+   - `window.innerWidth`
+   - `document.documentElement.clientWidth`
+   - `document.documentElement.scrollWidth`
+   - `document.body.scrollWidth`
+2. Enumerate candidate overflowing elements by scanning for nodes whose bounding box extends beyond the viewport or whose `scrollWidth > clientWidth`.
+3. Inspect computed layout on the worst offenders:
+   - `display`, `gridTemplateColumns`, `gap`
+   - `whiteSpace`, `overflowX`, `flexWrap`
+   - actual link/text widths via `getBoundingClientRect()`
+4. Verify whether the cause is global chrome such as a header/footer rather than the route's main content.
+
+Common mobile root cause pattern:
+- narrow viewport
+- multi-column grid retained on mobile
+- `white-space: nowrap` on long localized links
+- grid column minimums + gap exceed the container width
+
+Additional mobile layout pitfall:
+- there may be no horizontal overflow at all, yet the page still looks wrong because a top-level page section lost its mobile side padding
+- symptom: content cards or intro blocks expand to the full viewport width (`left: 0`, `right: viewport`), while sibling sections still keep `px-6`-style gutters
+- this indicates a container contract mismatch, not an overflow bug
+- fix the page-level section wrapper first; do not patch each child card/grid independently unless the page container contract is already correct
+
+Typical symptom signature:
+- page body looks fine near the top
+- `main` or `footer` has larger `scrollWidth` than `clientWidth`
+- one grid column starts within the viewport but ends past the right edge
+- OR `documentElement.scrollWidth === clientWidth`, but the affected page section and its cards all measure exactly `window.innerWidth` with `padding-left/right: 0px`
+
+Useful browser probe:
+```js
+() => {
+  const all = [...document.querySelectorAll('body *')];
+  return {
+    viewport: window.innerWidth,
+    docScrollWidth: document.documentElement.scrollWidth,
+    bodyScrollWidth: document.body.scrollWidth,
+    offenders: all
+      .map((el) => {
+        const r = el.getBoundingClientRect();
+        const cs = getComputedStyle(el);
+        return {
+          tag: el.tagName.toLowerCase(),
+          className: String(el.className || '').slice(0, 120),
+          text: (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 80),
+          left: Math.round(r.left),
+          right: Math.round(r.right),
+          width: Math.round(r.width),
+          scrollWidth: el.scrollWidth,
+          clientWidth: el.clientWidth,
+          display: cs.display,
+          whiteSpace: cs.whiteSpace,
+          overflowX: cs.overflowX,
+          flexWrap: cs.flexWrap,
+          gridTemplateColumns: cs.gridTemplateColumns,
+        };
+      })
+      .filter((x) => x.right > window.innerWidth + 1 || x.scrollWidth > x.clientWidth + 1)
+      .slice(0, 40),
+  };
+}
+```
 
 ### Hermes/TUI-specific checks
 

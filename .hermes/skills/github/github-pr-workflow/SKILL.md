@@ -154,11 +154,24 @@ EOF
 
 Small one-line bodies can still use `--body "..."`, but `--body-file` is safer and avoids command substitution / shell quoting issues when the text includes Markdown code spans like `` `src/file.ts` ``.
 
+Issue-linking and closing rule:
+- Default to non-closing issue references in PR titles/bodies/comments.
+- Do **not** use auto-closing keywords such as `Closes #<issue>`, `Fixes #<issue>`, or `Resolves #<issue>` unless the user explicitly asked for the PR merge to close that issue.
+- Safe default PR body section:
+  ```md
+  ## Related issue
+  - [#433](https://github.com/<owner>/<repo>/issues/433)
+  ```
+- This applies even more strongly in stacked or multi-PR work, where an early merge can close the issue before the full chain lands.
+- If you already opened a PR with an auto-closing keyword by mistake, edit the PR body immediately to remove it before merge.
+- When in doubt, leave issue closure to a separate explicit user decision or a later manual issue comment.
+
 Important temp-file safety rule:
 - Prefer a repo-external temp path such as `/tmp/pr-body.md` or another absolute temp location.
 - Do **not** default to writing PR/issue body drafts inside the repository or worktree root (for example `.tmp-pr-body.md`) unless you intentionally want that file tracked.
 - If you must place a draft file inside the checkout temporarily, exclude it from `git add` and run `git status --short` before commit so you do not accidentally commit the body file.
 - Practical failure pattern: creating the PR body inside the worktree, staging broad paths, then needing an amend commit only to remove the stray temp file.
+- The same separation rule applies to repository guidance changes discovered during implementation work: if you edit AGENTS.md, checked-in skills, or other repo-operational guidance as a follow-up to feature work, prefer a separate branch and separate PR instead of silently bundling those guidance changes into the feature PR.
 
 Options: `--draft`, `--reviewer user1,user2`, `--label "enhancement"`, `--base develop`
 
@@ -533,7 +546,28 @@ git push -u origin HEAD
      gh pr edit <pr-number> --base <intended-base-branch>
      ```
    - This is especially useful when updating multiple stacked branches quickly and one branch appears to vanish or lose its expected base.
-  - If you flatten a formerly stacked PR directly onto `main`, immediately rewrite the PR title/body so they no longer claim an old parent branch or parent PR. A common stale-state bug is: the code/base are already `main`-based, but the PR body still says `base branch: <old-parent-branch>` or `parent PR: #...`, which misleads reviewers.
+   - If you flatten a formerly stacked PR directly onto `main`, immediately rewrite the PR title/body so they no longer claim an old parent branch or parent PR. A common stale-state bug is: the code/base are already `main`-based, but the PR body still says `base branch: <old-parent-branch>` or `parent PR: #...`, which misleads reviewers.
+   - Important recovery pattern for existing open PRs: GitHub can still show an open PR with `headRefName` / prior `headRefOid` metadata even when the actual remote head branch ref is gone. Practical symptom set:
+     ```bash
+     gh pr view <pr-number> --json headRefName,headRefOid,url
+     git ls-remote origin refs/heads/<head-branch>
+     ```
+     where `gh pr view` returns a branch name/SHA but `git ls-remote` returns nothing.
+   - In that state, do not trust local `origin/<branch>` refs or GitHub mergeability badges. Recreate the missing remote branch explicitly from the intended local worktree/branch:
+     ```bash
+     git -C <worktree> rev-parse HEAD
+     git -C <worktree> push --force origin HEAD:refs/heads/<head-branch>
+     git ls-remote origin refs/heads/<head-branch>
+     ```
+   - GitHub may print a generic `Create a pull request for '<branch>'` message during this recovery push even though the PR already exists. That does not mean a new PR was created; verify the existing PR's `headRefOid` again after the push.
+   - After a successful rebase/squash update, `mergeStateStatus` can remain `BEHIND`, `UNKNOWN`, or even stale `DIRTY` briefly. Before doing another rewrite, verify the real ancestry first:
+     ```bash
+     git fetch origin --prune
+     git merge-base origin/<head-branch> origin/main
+     git rev-parse origin/main
+     git rev-list --count origin/main..origin/<head-branch>
+     ```
+     If the merge-base equals `origin/main` and the ahead count is the expected PR commit count, treat the branch as correctly rebased and wait for GitHub state to catch up rather than rewriting it again.
 
 5. When a parent PR in a stacked chain gets a hotfix, propagate that fix through child PRs by rebasing each child onto the updated parent branch, then force-pushing.
    - Common symptom: several open child PRs fail the same CI step even though the root cause lives in an earlier parent PR.
@@ -554,14 +588,26 @@ git push -u origin HEAD
      git -C .worktrees/<child-2> rebase origin/<child-1-branch>
      git -C .worktrees/<child-2> push --force-with-lease
      ```
-   - After each force-push, check that new workflow runs attached to the rewritten head branch:
+   - After each force-push, verify that fresh workflow runs attached to the rewritten head SHA, not merely that the branch has some recent runs:
      ```bash
-     gh run list --branch <branch> --limit 3
-     gh pr view <pr-number> --json statusCheckRollup,mergeStateStatus,url
+     git rev-parse HEAD
+     gh run list --branch <branch> --limit 3 --json headSha,status,conclusion,workflowName,url
+     gh pr view <pr-number> --json headRefOid,statusCheckRollup,mergeStateStatus,url
      ```
+   - Compare `git rev-parse HEAD`, PR `headRefOid`, and each run's `headSha`. Only treat the rerun as attached correctly when the new runs reference the current rewritten HEAD SHA.
+   - Practical interpretation: `mergeable=MERGEABLE` plus `mergeStateStatus=BLOCKED` immediately after a rebase/force-push often means the conflict is already resolved and required checks are merely pending on the new head. Do not report it as an unresolved merge conflict unless GitHub actually reports a conflict/unmergeable state.
    - If the same CI error disappears on the parent but persists on children, suspect that the children were not rebased onto the updated parent yet.
 
-5. `gh pr diff` can fail on very large PRs.
+5. Existing PR follow-up hygiene.
+   - When the user asks to improve an existing PR and names a few files as examples, inspect the full PR file list first:
+     ```bash
+     gh pr view <PR_NUMBER> --json files --jq '.files[].path'
+     ```
+   - Apply the same narrow mechanical cleanup to every PR file that shares the pattern, not only the examples named by the user.
+   - For directory-scoped component moves, avoid repeating the family/route name in both directory and filename. Prefer contextual filenames such as `form.tsx`, `page-section.tsx`, `list-page.tsx`, or `download-gate-page.tsx` under `src/components/sections/<family>/...` when the directory already supplies the family name.
+   - After renames, update imports and source-reading tests together, then stage with `git add` and check `git diff --cached --name-status` so git records pure renames (`R100`) rather than noisy delete/add pairs.
+
+6. `gh pr diff` can fail on very large PRs.
    - GitHub may return HTTP 406 / `PullRequest.diff too_large` when the PR changes hundreds of files.
    - In that case, inspect files with:
      ```bash

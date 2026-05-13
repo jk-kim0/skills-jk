@@ -227,6 +227,19 @@ Before finalizing summary counts like preview entrypoints, verify them from actu
 It is easy to overcount `/t/*` surfaces by memory.
 Use a small script or exact file listing and correct the page before publish if needed.
 
+### README-vs-code precedence lesson
+
+For latest-main migration dashboard updates, do not treat `README.md` as authoritative when it conflicts with the actual route and sitemap implementation.
+In `corp-web-japan`, README can lag behind merged rollout changes. For example, a README note can still say `/events` is not publicly launched even when latest `src/app/events/page.tsx` and `src/app/sitemap.ts` show it as a live public canonical route.
+
+Preferred precedence for public-status classification:
+1. route implementation under `src/app/**`
+2. sitemap and metadata behavior
+3. content loaders / href builders
+4. README only as supporting context
+
+If README disagrees with code, call out the mismatch in your audit notes if relevant, but keep the wiki page aligned to the code snapshot rather than the stale README wording.
+
 ### Cross-language source-of-truth lesson
 
 When the user explicitly says one wiki language page is the latest source of truth (for example `Website-Migration-Plan-ko`) and asks you to update sibling pages from it, do not re-derive JA/EN content from `origin/main` unless the user also asks for a fresh audit.

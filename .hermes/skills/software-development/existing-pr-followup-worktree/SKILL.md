@@ -19,12 +19,17 @@ Core rule:
 - New branch: no, unless the user explicitly asks
 - New PR: no, unless the user explicitly asks
 
-Important distinction learned from review follow-up work:
-- "Every new task should start from a fresh worktree + fresh branch" applies to new independent work.
-- "Please update PR #N" or any review/follow-up on work already under review means: use a fresh worktree, but attach it to the existing PR branch and push back to that same branch.
+Important distinction:
+- New independent work -> fresh worktree + fresh branch.
+- Follow-up on PR #N -> fresh worktree on the existing PR branch, then push back to that same branch.
+- If the user says "PR 1, 2, 3, 4" or similar shorthand, resolve the real PR numbers/branches before editing.
+- If a feature-PR follow-up reveals a repo-wide guidance / AGENTS / skill-policy update, do not leave that edit on the feature PR by default; remove it from the feature branch and open a separate doc/policy PR when appropriate.
+- If a follow-up reveals that deleted UI section components should be preserved for design review, restore them on the same PR branch and use the internal-demo preservation pattern in `references/preserve-orphan-ui-demo-route.md` instead of re-deleting them.
+
 - Do not satisfy the fresh-worktree requirement by creating a second branch/PR for the same review cycle.
-- If the referenced PR is already merged and its head branch has been deleted, you cannot continue on that original PR branch. In that case, verify the merge commit is now on `origin/main` (or the PR base branch), create a fresh worktree from that merged tip, and open a new follow-up branch/PR for the requested additional work.
-- Important branch-reuse rule learned from post-merge follow-up work: even if you still have the old local branch or recreate the same branch name after the PR merged, do not use that same branch name for a new follow-up PR. Reusing the merged branch name can make the next PR carry the already-merged commit(s) together with the new follow-up commit(s), producing a misleading multi-commit diff. For post-merge follow-up, create a fresh branch name from latest `origin/main`.
+- If the referenced PR is already merged and its head branch has been deleted, you cannot continue on that original PR branch. In that case, verify the merge commit is now on `origin/main` (or the PR base branch), create a fresh worktree from that merged tip, and open a new follow-up branch/PR only if the user still wants additional changes.
+- After each push, verify the actual remote PR head SHA (`gh pr view --json headRefName,headRefOid` and, if needed, `git ls-remote origin refs/heads/<branch>`) instead of assuming the web UI has already caught up.
+
 - Exception: if the requested "follow-up" actually depends on code or route structure that already landed on latest `origin/main` but is missing from the old PR branch, do not force the change onto the stale PR branch. Treat it as a new independent task: branch from latest `origin/main`, open a separate PR, and mention explicitly why the old PR branch was no longer the right base.
 - Practical heuristic for this exception: if you discover during inspection that the target route family, helper layer, sitemap shape, or canonical-path policy already changed on `origin/main` after the old PR branched, switching to a new main-based branch is usually safer than backporting those structural assumptions into the old PR.
 - Additional split-PR case: if the user explicitly asks to take part of an open PR (for example an extract/refactor-only subset) and make it a separate PR, do not assume it belongs on the existing PR branch just because the work originated there.
