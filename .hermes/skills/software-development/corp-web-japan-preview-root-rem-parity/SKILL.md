@@ -86,5 +86,42 @@ Example:
 4. rebuild token-equivalent values in preview
 5. compare live and preview in the browser on the exact preview deployment URL
 
+## Route lookup pitfall for company pages
+Do not assume guessed `querypie.com/ja/<slug>` paths are the correct live source for company-family pages.
+
+Practical lesson:
+- `about-us` and `certifications` can live under `querypie.ai/<slug>` and then resolve to `www.querypie.com/ja/company/<slug>`
+- guessed paths like `www.querypie.com/ja/about-us` or `www.querypie.com/ja/certifications` can 404 even though the real page exists elsewhere
+
+Required check before measuring typography:
+1. open the exact user-requested source domain/path first
+2. if it redirects, measure the final live destination that actually renders the page
+3. only treat a page as missing after checking the real redirect target or canonical live path
+
+## When the user wants one shared company-body size across several pages
+Default parity advice is page-specific, but the user may explicitly ask for one shared body size across multiple company pages such as `about-us`, `certifications`, and `contact-us`.
+
+In that case:
+- do not average blindly or keep the smallest measured page value just because one source page computes smaller under a 15px root
+- first identify the dominant shared token family among the requested pages
+- convert that family into the 16px-root environment, then apply one common token to the user-named pages only
+
+Practical lesson from company-page follow-up work:
+- source `certifications` and `contact-us` body copy measured `16.875px / 26.25px` at a `15px` root
+- that corresponds to a `1.125rem / 1.75rem` token family
+- in corp-web-japan's 16px-root environment, the strict token-equivalent reconstruction is `18px / 28px`, not `15px / 28px`
+- however, if the user wants one shared body size across `about-us`, `certifications`, and `contact-us`, treat `18px / 28px` as the upper bound candidate, not an automatic final answer
+- a user can still find the mathematically reconstructed `18px` too large in the 16px-root preview environment and prefer a visually calmer common compromise such as `16px / 28px`
+- when that happens, prefer the user-approved shared value over strict token reconstruction
+
+Approval rule learned from the same follow-up:
+- if a first typography adjustment already went up for review and the next step is another visible size change, do not silently iterate again
+- summarize the candidate value first and get explicit user approval before changing the PR branch
+- this is especially important when moving between `18px` and `16px` class-level body text decisions, because both can be defensible but only one matches the user's visual preference
+
+Important scope rule:
+- if the user asks for a shared company-page token, limit the shared-token rollout to the pages they explicitly named
+- do not automatically drag in neighboring families such as `news` list/detail typography until those were separately measured or explicitly included by the user
+
 ## Practical example
 A CTA title that looks like `52px` in source Styles but computes to `48.75px` under a 15px root should usually become `52px` again in corp-web-japan, because the preview keeps a 16px root.

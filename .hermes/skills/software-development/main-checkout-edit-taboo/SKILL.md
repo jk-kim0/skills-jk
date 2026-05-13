@@ -114,6 +114,44 @@ git -C .worktrees/<flat-name> diff --stat
 
 7. Continue work only in the non-main worktree.
 
+## Preferred recovery when root `main` dirt is meaningful and a fresh latest-main task must start now
+
+A recurring real-world case is:
+- root checkout is on `main`
+- there are meaningful local changes already sitting in that root checkout
+- the user asks for a new task that should start from latest `origin/main`
+- continuing on dirty `main` would violate the taboo, but simply discarding the dirt would lose work
+
+Preferred handling for that case:
+1. briefly tell the user that root `main` is dirty and cannot be used directly
+2. preserve the dirty root state onto a clearly named non-main branch **from the root checkout itself**
+3. commit the preserved files there
+4. switch the root checkout back to `main`
+5. hard-reset or fast-forward root `main` to the latest `origin/main`
+6. create a fresh worktree/branch from that clean latest-main baseline
+7. do the new task only in the fresh worktree
+
+Example pattern:
+
+```bash
+git status --short --branch
+git switch -c preserve/<topic>
+git add <intended-files>
+git commit -m "chore: preserve local main changes before new task"
+git switch main
+git fetch origin --prune
+git reset --hard origin/main
+git worktree add .worktrees/<flat-name> -b <branch-name> origin/main
+```
+
+Why this pattern matters:
+- it preserves the user's existing local work as inspectable branch history rather than a stash
+- it restores the root `main` checkout to a clean control baseline immediately
+- it avoids mixing old root-local dirt into the new task branch
+- it keeps the next implementation branch truly based on the latest remote main tip
+
+Use this preservation-branch pattern when the dirty root changes are coherent and worth keeping as their own line of work. Use the patch-file migration flow above when the changes must be transplanted directly into the new task worktree instead.
+
 ## Done criteria
 
 - any discovered main-checkout pollution has been reported

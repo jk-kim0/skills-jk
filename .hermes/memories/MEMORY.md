@@ -172,7 +172,7 @@ In corp-web-japan preview resource publication work, the user is concerned about
 §
 In corp-web-japan PR follow-up work, gh pr view can briefly lag after push; verify the actual remote branch tip with `git ls-remote origin refs/heads/<pr-branch>` before assuming the PR head failed to update.
 §
-In corp-web-japan typography work, the user prefers site-wide consistency over route-local parity exceptions: do not keep `/t/about-us` as a special text-color or body-typography exception; align it to shared site defaults instead. Current documented defaults are route-level `main` `text-slate-950`, ordinary descriptive/body copy `text-slate-600`, and for marketing/company body copy the preferred default is `15px/28px` (`text-[15px] leading-7`) unless a different shared pattern is explicitly required.
+In corp-web-japan typography work, the user prefers site-wide consistency over route-local parity exceptions: do not keep `/t/about-us` as a special text-color or body-typography exception; align it to shared site defaults instead. Defaults: `main` `text-slate-950`, body copy `text-slate-600`, and marketing/company body copy `text-[15px] leading-7` unless another shared pattern is required. When reviewing the common setting itself, remove local extra `mt-*` or `max-w-*` overrides from named lead/intro components by default.
 §
 In corp-web-japan demo list-route rollout work, canonical list paths should stay under the demo namespace: use-cases `/demo/use-cases`, AIP `/demo/aip`, ACP `/demo/acp`. Do not invent `/demo-acp` or lift use-cases to `/use-cases` unless the user explicitly changes the route policy.
 §

@@ -93,6 +93,11 @@ Current practical route-local integration pattern:
 - route renders `ResourceListLoadMore` directly inside `ResourceListContentSection`
 - use a stable remount key like `key={`blog:${initialVisibleCount}`}` or `key={`whitepaper:${initialVisibleCount}`}` on the route-side caller when needed
 
+Special current route lessons:
+- `/events` has a featured/upcoming event plus a `pastEvents` list; apply load-more only to `pastEvents`, preserving `asof` handling in the same `searchParams` object and passing `resolvedSearchParams?.until` only to the load-more helper
+- `/resources` aggregates multiple resource families whose raw numeric IDs can collide; before using the shared load-more helper, prefix aggregate-only item IDs such as `blog:28`, `whitepapers:28`, `manuals:7` while preserving original `href` values
+- `/news` uses a distinct card/list component rather than `ResourceListItems`; preserve that UI by creating a small news-specific client wrapper (for example `NewsArticleLoadMore`) that reuses `ProgressiveLoadMore` and the shared helper functions while rendering `NewsArticleList` for visible items
+
 ### 4. Keep load-more opt-in and route-scoped
 
 Important finding:
@@ -100,10 +105,11 @@ resource list routes in this repo do not all want the same behavior.
 
 Current safe rule:
 - wire load-more only in the target routes the user asked for
-- current proven targets include public `/blog`, public `/whitepapers`, preview `/t/use-cases`, and the internal `/internal/load-more` demo route
-- keep other list pages such as `/events`, preview resource routes, or preview demo routes like `/t/demo/aip` and `/t/demo/acp` on their existing rendering path unless the user explicitly expands scope
+- current proven targets include public `/blog`, public `/whitepapers`, public `/demo/use-cases`, public `/demo/acp`, public `/events`, public `/resources`, public `/news`, and the internal `/internal/load-more` demo route
+- keep other list pages such as `/manuals`, `/introduction-deck`, `/glossary`, and demo routes like `/demo/aip` on their existing rendering path unless the user explicitly expands scope
+- if the task is an audit rather than implementation, classify routes by actual `ResourceListLoadMore`/route-specific wrapper + `resolveResourceListVisibleCount` usage on latest `origin/main`, not by memory or old preview-route names
 
-This avoids accidental UX changes outside the intended surfaces.
+This avoids accidental UX changes outside the intended surfaces and keeps coverage reports grounded in the current route taxonomy.
 
 ### 5. Ensure `ResourceItem`-like list items carry `id`
 
@@ -175,6 +181,26 @@ Recommended copy used in this repo:
 - pending state: `読み込み中...`
 - range label: `表示中の範囲: ID {newest} ～ {oldest} ({visible}/{total}件)`
 
+## Coverage audit workflow
+
+Use this when the user asks which features/pages have or do not have load-more.
+
+1. Re-audit the latest baseline, preferably a detached worktree at `origin/main`, before writing findings.
+2. Search for `ResourceListLoadMore`, `ProgressiveLoadMore`, `resolveResourceListVisibleCount`, and `ResourceListItems`.
+3. Classify list/index routes by current route path and source file:
+   - applied: route imports/uses `ResourceListLoadMore` and computes `initialVisibleCount` with `resolveResourceListVisibleCount`
+   - not applied: route renders `ResourceListItems` directly or uses a separate list component such as news list UI
+   - internal/demo: classify separately from public routes
+4. Include current content counts when they are cheap to derive from `src/content/**`; use them only as prioritization signals, not as proof that load-more is or is not needed.
+5. For GitHub issue output, include the baseline commit SHA, the exact evidence pattern, applied routes, non-applied candidate routes, and implementation notes for special layouts such as `/events` past-events-only pagination or `/resources` aggregate-list ordering.
+
+Useful quick probes from a clean baseline:
+
+```bash
+rg "ResourceListLoadMore|ProgressiveLoadMore|resolveResourceListVisibleCount|ResourceListItems" src/app src/components src/lib
+find src/content -path '*.mdx' | sed 's#^src/content/##' | cut -d/ -f1-2 | sort | uniq -c
+```
+
 ## Verification checklist
 
 Run at least:
@@ -185,6 +211,20 @@ Current useful targeted tests:
 ```bash
 node --test tests/src/lib/resource-list-load-more.test.mjs
 node --test tests/src/app/blog/page.test.mjs tests/src/app/whitepapers/page.test.mjs
+node --test tests/src/app/demo/use-cases/page.test.mjs tests/src/app/demo/acp/page.test.mjs
+node --test tests/src/app/events/page.test.mjs tests/src/app/resources/page.test.mjs tests/src/app/news/page.test.mjs
+node --test tests/src/components/ui/progressive-load-more.test.mjs
+```
+
+When adding a route-specific wrapper or new tests, also run:
+```bash
+node scripts/ci/assert-test-groups.mjs
+npm run typecheck
+```
+
+If the fresh worktree has no local `node_modules` and the root checkout has dependencies installed, a temporary PATH-only typecheck can avoid a slow install:
+```bash
+PATH=/path/to/root/node_modules/.bin:$PATH npm run typecheck
 ```
 
 Then:
@@ -196,6 +236,9 @@ npm run typecheck
 
 - making load-more mandatory in `ResourceListPage` and unintentionally changing unrelated list pages
 - adding `id` only to blog/whitepaper while forgetting other `ResourceItem`-typed publication builders
+- applying raw numeric IDs to aggregate `/resources` lists where different families can share the same ID; prefix aggregate-only IDs before `?until=` restoration
+- forcing `/news` into `ResourceListItems` and losing the existing news card design; use a news-specific wrapper around `NewsArticleList` instead
+- applying load-more to the entire `/events` page and accidentally paginating the featured/upcoming event; paginate only `pastEvents`
 - using title-based React keys instead of `id`
 - storing `?page=N` when the requirement is ID-based loaded-range restoration
 - restoring to the exact matching item index instead of rounding up to the current chunk size

@@ -606,7 +606,8 @@ git push -u origin HEAD
      ```
    - Apply the same narrow mechanical cleanup to every PR file that shares the pattern, not only the examples named by the user.
    - For directory-scoped component moves, avoid repeating the family/route name in both directory and filename. Prefer contextual filenames such as `form.tsx`, `page-section.tsx`, `list-page.tsx`, or `download-gate-page.tsx` under `src/components/sections/<family>/...` when the directory already supplies the family name.
-   - After renames, update imports and source-reading tests together, then stage with `git add` and check `git diff --cached --name-status` so git records pure renames (`R100`) rather than noisy delete/add pairs.
+   - If the user explicitly chooses a family folder for root-level survivor components (for example moving internal-demo-only section components from `src/components/sections/*.tsx` to `src/components/sections/internal-demo/*.tsx`), keep the change mechanical: `git mv`, update only direct imports, and add/extend a source-reading test that asserts both the new location exists and the old root-level files no longer exist.
+   - After renames, update imports and source-reading tests together, then stage with `git add -A` and check `git diff --cached --name-status` so git records pure renames (`R100`) rather than noisy delete/add pairs. Prefer `git add -A` over listing both old and new paths manually: once `git mv` has removed the old path, a manual pathspec for the deleted root file can fail before staging the rename.
 
 6. `gh pr diff` can fail on very large PRs.
    - GitHub may return HTTP 406 / `PullRequest.diff too_large` when the PR changes hundreds of files.

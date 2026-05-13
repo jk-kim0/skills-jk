@@ -103,6 +103,32 @@ When `TopPageSections` still owned most of the top page, the solution overview w
 
 This is a good incremental step when the user wants route-local copy now, but a full page decomposition is not part of the current PR.
 
+## Typography consistency for explanatory page paragraphs
+
+When the user asks for about-us, certifications, news intro/list pages, contact-us, or similar static/support pages to use more consistent paragraph typography, treat those pages as one explanatory-copy family that is separate from long-form publication article prose.
+
+Preferred default for this repo's explanatory paragraph copy:
+- `text-[15px] leading-7 text-slate-600`
+- use normal weight by default for body paragraphs
+- use this for hero/supporting paragraphs, section intro copy, and contact/help explanatory text
+
+Preferred small supporting text:
+- `text-sm leading-6 text-slate-500`
+- use this for checklist/support bullets, captions, and other secondary helper text
+
+Important distinction:
+- static page explanatory copy should converge on the default above
+- publication detail prose may intentionally keep a different contract such as `text-base leading-6 text-slate-500`
+- when a consistency request mentions `news`, explicitly distinguish between the news list/intro layer and the news detail article-body layer before changing shared publication prose
+
+Audit rule:
+- compare font size, line-height, text color, and weight together
+- watch for accidental drift such as one page using `font-light`, another using `text-slate-500`, and a third using slightly non-token arbitrary sizes
+
+Implementation preference:
+- prefer shared class tokens/constants or shared semantic primitives over introducing heavy new wrapper abstractions
+- keep semantic section component names like `*Lead`, `*Description`, or `*BodyCopy`, but point them at the shared text token so route-local authoring stays readable
+
 ## Public form page variation
 
 The same route-authoring rule also applies when the page contains a large interactive form.

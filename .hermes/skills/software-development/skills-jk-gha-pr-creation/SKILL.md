@@ -201,11 +201,16 @@ When the user asks to create a PR from the current local workspace state rather 
   - Practical no-op-collapse pattern from repeated `skills-jk` sweeps:
     - it is acceptable to copy a broader candidate set from the dirty root checkout into the fresh latest-main worktree first, especially when many `.hermes/skills/**` and memory files look plausibly relevant
     - immediately after copying, inspect the fresh worktree's real status:
+      - `git -C <worktree> status --short --branch`
       - `git -C <worktree> diff --name-only | sort`
       - `git -C <worktree> ls-files --others --exclude-standard | sort`
     - expect many copied files to disappear from the worktree diff as no-ops because latest `origin/main` already contains them
     - stage and commit only the files that still appear as modified/untracked in the fresh worktree after that collapse
     - do not try to re-add already-absorbed files by hand just because they were part of the root candidate list
+    - important pitfall: before the first commit in that fresh worktree, do not use only `git -C <worktree> diff --name-only origin/main...HEAD` to decide whether any payload survived
+      - that triple-dot `origin/main...HEAD` comparison only reflects committed branch history and can stay empty while the fresh worktree still has real uncommitted transplanted changes
+      - for the pre-commit collapse check, trust working-tree signals first: `git status --short`, `git diff --name-only`, and `git ls-files --others --exclude-standard`
+      - use `origin/main...HEAD` as the authoritative payload view only after the surviving changes have been committed
   - Additional sequential-follow-up lesson from repeated same-day `skills-jk` sweeps:
     - a freshly created follow-up PR can merge quickly, have its remote branch auto-deleted, and be incorporated into `origin/main` before the user asks again
     - meanwhile the dirty root checkout may still show a much larger old candidate set because it is sitting on a stale merged branch with additional untouched local edits
