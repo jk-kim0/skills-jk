@@ -7,6 +7,21 @@ description: Safely edit files when working in a git worktree so Hermes file-edi
 
 Use this skill whenever you are making code or workflow changes in a separate git worktree instead of the repository's main checkout.
 
+## Absolute taboo: never edit main checkout
+
+A workspace checked out to `main` is a protected control workspace. Do not modify files there. Treat this as a hard safety rule, not a preference.
+
+Before any repository edit, run:
+
+```bash
+pwd
+git rev-parse --show-toplevel
+git branch --show-current
+git status --short --branch
+```
+
+If the active branch is `main`, stop before editing and create/select a linked worktree under the repository's own `.worktrees/` directory. Only edit inside that non-main worktree unless the user explicitly authorizes main-workspace edits for that exact task.
+
 ## Why this exists
 
 In Hermes, shell commands can run in the intended worktree via `terminal(workdir=...)`, but file-edit tools such as `read_file`, `write_file`, and `patch` may still operate relative to the current chat/session cwd if you do not give explicit paths. That can lead to accidental edits in the main checkout even when your git worktree and branch setup were correct.
@@ -41,9 +56,14 @@ In Hermes, shell commands can run in the intended worktree via `terminal(workdir
    - If changes appeared in the wrong checkout, stop and fix it before continuing.
 
 5. If edits landed in the wrong checkout:
-   - Copy the changed files into the intended worktree if needed.
+   - Report the violation to the user briefly before continuing.
+   - Capture the wrong-checkout diff with `git diff --binary > /tmp/<repo>-main-pollution.patch`.
+   - Create/select the intended non-main worktree or branch.
+   - Apply the captured patch in the intended worktree with `git apply --index` when possible, or plain `git apply` if needed.
+   - If the patch fails, stop and report the conflict while preserving the patch file path.
    - Restore tracked files in the wrong checkout with `git restore ...`.
-   - Remove unintended untracked files manually.
+   - Remove only unintended untracked files that were clearly created by the mistaken task, after listing them.
+   - Do not stash by default; preserve work in the branch/worktree instead.
    - Re-run `git status --short` in both locations to confirm cleanup.
 
 6. Only commit from the intended worktree.

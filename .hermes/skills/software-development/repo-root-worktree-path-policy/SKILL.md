@@ -13,6 +13,21 @@ metadata:
 
 Use this as the default policy whenever a workflow says to create a fresh worktree, unless the user explicitly overrides it.
 
+## Absolute taboo: never edit main checkout
+
+A workspace checked out to `main` is a protected control workspace. Do not modify files there. Treat this as a hard safety rule, not a preference.
+
+Before any repository edit, run:
+
+```bash
+pwd
+git rev-parse --show-toplevel
+git branch --show-current
+git status --short --branch
+```
+
+If the active branch is `main`, stop before editing and create/select a linked worktree under the repository's own `.worktrees/` directory. Only edit inside that non-main worktree unless the user explicitly authorizes main-workspace edits for that exact task.
+
 ## Core rule
 
 Create linked worktrees under the repository's own `.worktrees/` directory.

@@ -530,12 +530,13 @@ git push -u origin HEAD
      gh pr comment 123 --body-file /tmp/pr-comment.md
      ```
 
-4. In stacked PR chains, verify remote branch refs directly after rebases or force-pushes.
-   - `gh pr view` can lag, and GitHub can briefly show stale commit lists or an outdated branch/base relationship.
+4. After rebases or force-pushes, verify remote branch refs directly before trusting PR metadata.
+   - This applies both to stacked PR chains and to ordinary follow-up updates on an existing open PR.
+   - `gh pr view` can lag, and GitHub can briefly show stale commit lists, an outdated `headRefOid`, or an outdated branch/base relationship even when the push already succeeded.
    - Check the actual remote head first:
      ```bash
      git rev-parse HEAD
-     git ls-remote origin refs/heads/<stacked-branch>
+     git ls-remote origin refs/heads/<branch>
      ```
    - If the remote ref is missing or wrong, push with an explicit refspec instead of relying on inferred branch destinations:
      ```bash

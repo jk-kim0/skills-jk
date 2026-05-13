@@ -134,6 +134,29 @@ sed -n '1,120p' path/to/file
 git diff -- path/to/file
 ```
 
+If the user specifically asks what local changes exist in the `main` workspace, keep the task focused on the live root checkout and avoid drifting into PR/history forensics unless provenance is requested. Use this compact local-dirty audit:
+
+```bash
+pwd
+git rev-parse --show-toplevel
+git branch --show-current
+git status --short --branch
+git diff --stat
+git diff --name-status
+git diff --cached --stat
+git diff --cached --name-status
+git ls-files --others --exclude-standard
+git rev-list --left-right --count main...origin/main
+git log --oneline --decorate --max-count=12 main..origin/main
+```
+
+Report:
+- workspace path and current branch
+- whether the branch is ahead/behind origin
+- staged vs unstaged vs untracked changes
+- file-by-file intent summary from `git diff`
+- caution if local `main` is behind `origin/main`, because the dirty diff is relative to the stale local base
+
 If there is also a current PR/worktree for local follow-up work, inspect that separately:
 
 ```bash

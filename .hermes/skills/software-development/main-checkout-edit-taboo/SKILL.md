@@ -1,0 +1,123 @@
+---
+name: main-checkout-edit-taboo
+description: "Mandatory safety rule for repository work: never create local file changes in a workspace checked out to main; always use a non-main worktree unless explicitly authorized."
+version: 1.0.0
+author: Hermes Agent
+license: MIT
+metadata:
+  hermes:
+    tags: [git, worktree, safety, repository, taboo]
+---
+
+# Main checkout edit taboo
+
+Use this skill for any repository work that might read, write, patch, generate, restore, commit, or push files.
+
+## Absolute rule
+
+Never create local file changes in a workspace checked out to `main`.
+
+Treat the main checkout as a protected control workspace for inspection, fetch, status, and cleanup only. This is a hard taboo, not a preference.
+
+Only exception: the user explicitly authorizes editing the main workspace for the exact current task.
+
+## Mandatory pre-edit gate
+
+Before any file edit or generated file write, run:
+
+```bash
+pwd
+git rev-parse --show-toplevel
+git branch --show-current
+git status --short --branch
+```
+
+If `git branch --show-current` returns `main`, do not edit. Create or select a linked worktree under the repo root:
+
+```bash
+git fetch origin --prune
+git worktree add .worktrees/<flat-name> -b <branch-name> origin/main
+```
+
+Then verify:
+
+```bash
+git -C .worktrees/<flat-name> branch --show-current
+git -C .worktrees/<flat-name> status --short --branch
+```
+
+## File-tool safety
+
+When working from a non-main worktree, use absolute paths for `read_file`, `write_file`, and `patch`. Do not assume file tools inherit `terminal(workdir=...)`.
+
+After the first edit, check both locations:
+
+```bash
+git status --short --branch
+git -C .worktrees/<flat-name> status --short --branch
+```
+
+If changes appear in the main checkout, stop, report the violation, move/reapply changes into the intended worktree if needed, and restore main before continuing.
+
+## Automatic remediation when a violation is discovered
+
+If local changes are discovered in a `main` checkout and they appear to be agent-created or task-related, do not leave them there and do not continue normal work from main.
+
+Perform this recovery automatically:
+
+1. Report the violation to the user briefly.
+   - Say that main checkout pollution was found.
+   - List the changed files.
+   - Say that recovery is being performed.
+
+2. Capture the root workspace diff before touching anything:
+
+```bash
+git status --short --branch
+git diff --binary > /tmp/<repo>-main-pollution.patch
+git diff --stat
+```
+
+3. Create or select the correct non-main worktree/branch:
+
+```bash
+git fetch origin --prune
+git worktree add .worktrees/<flat-name> -b <branch-name> origin/main
+```
+
+If the intended branch/worktree already exists, verify it is not `main` and use that.
+
+4. Move the mistaken changes into the non-main worktree:
+
+```bash
+git -C .worktrees/<flat-name> apply --index /tmp/<repo>-main-pollution.patch || git -C .worktrees/<flat-name> apply /tmp/<repo>-main-pollution.patch
+```
+
+If the patch does not apply cleanly, stop and report the conflict instead of improvising. Preserve the patch path.
+
+5. Restore the root main workspace:
+
+```bash
+git restore <changed-tracked-files>
+# remove only untracked files that were clearly created by the mistaken task, after listing them
+```
+
+Do not stash by default. Prefer preserving work in the branch/worktree over stashing.
+
+6. Verify both locations:
+
+```bash
+git status --short --branch
+git -C .worktrees/<flat-name> status --short --branch
+git -C .worktrees/<flat-name> diff --stat
+```
+
+7. Continue work only in the non-main worktree.
+
+## Done criteria
+
+- any discovered main-checkout pollution has been reported
+- task-related mistaken changes have been moved to a non-main worktree/branch
+- root main workspace has been restored to its pre-task clean/control state, except explicitly pre-existing unrelated changes
+- all new edits are in a non-main worktree
+- commits and pushes happen from the worktree branch, never from `main`

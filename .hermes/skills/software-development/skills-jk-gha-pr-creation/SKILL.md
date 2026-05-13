@@ -219,7 +219,20 @@ When the user asks to create a PR from the current local workspace state rather 
     - however, do not assume the surviving payload only shrinks monotonically: new tracked root edits can also appear between repeated user requests while `origin/main` advances, so the next surviving diff may be a different small set than the previous PR payload
     - practical rule: on each repeated request, rebuild the candidate list from the current dirty root checkout first, then transplant into a brand-new latest-main worktree and trust only the post-copy collapsed diff there
     - report the final PR scope from the fresh worktree diff against latest `origin/main`, not from the stale root candidate list
-  - After the create-pr workflow finishes, verify the resulting PR object and the payload separately:
+  - Additional open-PR separation rule from repeated local sweeps:
+    - the previous follow-up PR may still be OPEN while the dirty root checkout has accumulated further tracked changes on top of it
+    - do **not** automatically widen that open PR just because some files overlap
+    - first compare the current root files against the open PR worktree/branch tip and split the root candidate set into:
+      1. files identical to the open PR state
+      2. files changed differently than the open PR state
+      3. files not present on the open PR at all
+    - if buckets (2) or (3) exist and the user did not explicitly ask for one cumulative PR, preserve the existing open PR as-is and open a new latest-main PR for only the additional surviving changes
+    - practical pattern:
+      - inspect the open PR branch with `gh pr list --head <branch> --state open --json number,url,title`
+      - compare root files byte-for-byte against the fresh worktree for that PR branch when needed
+      - seed a brand-new latest-main worktree with only the files outside bucket (1)
+      - trust the collapsed diff in that new worktree as the payload for the new PR
+    - this avoids silently broadening an in-review PR after the user already has a reviewable URL for it  - After the create-pr workflow finishes, verify the resulting PR object and the payload separately:
     - PR object lookup: `env -u GITHUB_TOKEN gh pr list --head <branch> --state all --json number,state,url,title,headRefName,baseRefName`
     - payload lookup: `git -C <worktree> diff --name-only origin/main...HEAD | sort`
    - Prefer the payload list above as the final source of truth for "what this PR contains".
