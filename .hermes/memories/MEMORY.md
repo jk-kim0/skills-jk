@@ -86,8 +86,6 @@ In corp-web-v2, Solutions parity is implemented via src/app/[locale]/solutions/[
 §
 In corp-web-v2, if `src/content/mdx` contains only blog and white-paper families, treat demo MDX source as not yet migrated in that repo snapshot.
 §
-In corp-web-v2 worktrees under the repo root, targeted Vitest runs can resolve dependencies from the parent repo-root node_modules, so a separate worktree-local node_modules install is not always required.
-§
 In corp-web-v2 route-policy follow-up work, when renaming canonical public content paths like white-paper -> white-papers, the user wants code routes, MDX links, and public asset/image directories updated consistently in one pass to match the wiki naming convention.
 §
 In corp-web-v2 Solutions work, the user wants `/solutions/**` pages implemented as individual static `page.tsx` routes rather than an MDX-rendered catch-all, because most Solutions content is considered unsuitable for MDX.
@@ -237,3 +235,5 @@ In the repo-local Hermes setup under ~/workspace/skills-jk/.hermes/, the user wa
 In corp-web-japan page-parity reviews, if text is not in a side-by-side layout with an image/media that narrows the content column, treat the default text content width as 1200px; do not reopen that as a design-choice question.
 §
 In corp-web-japan test structure work, the user wants only genuinely reusable infra helpers kept in shared test helper locations; page-specific or page-family-specific helpers should be colocated near the relevant mirrored test paths instead of centralized under tests/helpers.
+§
+corp-web-japan main requires `Detect changed scope`, but ci.yml pull_request ignores docs/README/AGENTS/public md/skills md changes, so docs-only PRs can miss the required check.

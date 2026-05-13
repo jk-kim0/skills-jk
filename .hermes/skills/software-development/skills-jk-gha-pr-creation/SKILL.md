@@ -206,9 +206,20 @@ When the user asks to create a PR from the current local workspace state rather 
     - expect many copied files to disappear from the worktree diff as no-ops because latest `origin/main` already contains them
     - stage and commit only the files that still appear as modified/untracked in the fresh worktree after that collapse
     - do not try to re-add already-absorbed files by hand just because they were part of the root candidate list
+  - Additional sequential-follow-up lesson from repeated same-day `skills-jk` sweeps:
+    - a freshly created follow-up PR can merge quickly, have its remote branch auto-deleted, and be incorporated into `origin/main` before the user asks again
+    - meanwhile the dirty root checkout may still show a much larger old candidate set because it is sitting on a stale merged branch with additional untouched local edits
+    - when that happens, do **not** reuse the previous follow-up worktree or assume the previous PR is still the right target
+    - re-check all three facts explicitly:
+      - `env -u GITHUB_TOKEN gh pr list --head <previous-branch> --state all --json number,state,mergedAt,url`
+      - `git fetch origin --prune`
+      - `git branch -f main origin/main`
+    - if the previous PR is already merged or its remote branch is gone, start one more brand-new latest-main worktree and repeat the transplant/collapse process
+    - expect the surviving payload to shrink again, sometimes to only a few files, because the earlier follow-up PR may already have absorbed most of the root-local changes
+    - report the final PR scope from the fresh worktree diff against latest `origin/main`, not from the stale root candidate list
   - After the create-pr workflow finishes, verify the resulting PR object and the payload separately:
-- PR object lookup: `env -u GITHUB_TOKEN gh pr list --head <branch> --state all --json number,state,url,title,headRefName,baseRefName`
-     - payload lookup: `git -C <worktree> diff --name-only origin/main...HEAD | sort`
+    - PR object lookup: `env -u GITHUB_TOKEN gh pr list --head <branch> --state all --json number,state,url,title,headRefName,baseRefName`
+    - payload lookup: `git -C <worktree> diff --name-only origin/main...HEAD | sort`
    - Prefer the payload list above as the final source of truth for "what this PR contains".
      - Do not summarize the PR scope from the dirty root checkout alone.
      - Do not assume every locally changed file belongs in the final PR just because it was part of the user's current root workspace.

@@ -494,9 +494,12 @@ Important source-of-truth rule learned from `/t/certifications` work:
 
 Important browser-verification rule learned from the same work:
 - when the user asks for the preview page to match the existing `querypie.com` rendering, open both the live URL and the preview URL in the browser and inspect the actual rendered result before deciding layout structure
-- do not rely only on assumptions from neighboring local preview pages such as `/t/news` or `/t/about-us`
+- if the user provides an exact Preview Deployment URL, verify that exact deployed URL literally; do not substitute stage, localhost, or a different route just because it seems equivalent
+- do not claim a layout/background fix is resolved from code inspection alone when the user is asking about a deployed preview; distinguish clearly between `code updated locally` and `verified on the requested deployed URL`
+- do not rely only on assumptions from neighboring local preview routes such as `/t/news` or `/t/about-us`
 - if your initial structural assumption is wrong, change course immediately based on browser evidence
 - practical example: for `/ja/company/certifications`, the live page did **not** have a left company-info sidebar inside the main content area even though a sidebar seemed plausible from other local preview patterns; the correct follow-up was to remove the preview sidebar and match the live single-column 1200px content span instead
+- practical example from `/t/about-us`: removing an inner `max-w-[1200px]` wrapper was not sufficient because the gray-background section still lived inside an outer `max-w-[1440px]` shell. When a full-bleed background still looks constrained on preview, inspect the parent DOM chain on the exact deployed URL and look for any outer `max-w-*`, `mx-auto`, or section shell that still limits the background layer.
 
 Use browser computed-style measurement for high-fidelity follow-up polish:
 - measure live and preview computed styles for the exact intro paragraph, card title/detail text, CTA headings, buttons, and card containers

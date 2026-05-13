@@ -134,6 +134,14 @@ For the verdict, gather several of:
   - when the user asks for visual parity on a specific migrated route, open the exact preview route URL itself, not just the preview site root
   - if that exact route returns 404 / deployment-not-found / missing page, treat that as evidence that the PR is not a valid visual-implementation PR for the requested target
   - separate `preview exists` from `requested route is implemented in preview`; they are not the same thing
+- Important "check not completed yet" investigation pattern for PRs with deploy checks:
+  - do not conclude too early from a `pending` PR check; first inspect whether the PR head was just updated and a replacement run has only just started
+  - compare PR `updatedAt`, head SHA, and the current workflow run `createdAt`/`status` before calling the check stuck
+  - if the new run is genuinely active, poll once briefly and then inspect the failing step instead of reporting only `still pending`
+  - for GitHub Actions jobs that succeed through `actions/checkout` but fail inside an external deploy step, separately verify whether the downstream deploy system expects a live remote branch ref rather than the PR merge ref
+  - concrete failure signature: Actions checks out `pull/<number>/merge` successfully, but the deploy step retries after a deleted/cancelled preview deployment and then fails with Vercel `incorrect_git_source_info` saying the requested branch or commit reference does not exist
+  - in that case, verify the remote branch directly with `git ls-remote origin refs/heads/<head-branch>`; an empty result means the PR can still exist while the branch ref required by the deploy system is gone
+  - classify that as an external preview-deploy input/reference failure, not as a repository checkout or test failure
 
 ## Output style
 

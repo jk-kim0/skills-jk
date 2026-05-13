@@ -195,6 +195,14 @@ When the user asks not just whether an issue is valid, but to rewrite the issue 
 - Additional stale-issue pattern for test-taxonomy / CI issues: do not treat a large remaining count of root-level `tests/*.test.*` files as automatic evidence that the taxonomy migration is still broadly incomplete. Recount the files on latest `origin/main`, then separate them into (a) cross-cutting repository assertions that intentionally stay near the test root and (b) genuinely route-specific/source-coupled outliers that still should be mirrored under `tests/src/**`. This prevents issue bodies from carrying forward obsolete claims like "many root tests still need migration" after the mirrored structure has already landed for most route-owned tests.
 - When narrowing a CI-gating issue after recent merges, explicitly verify whether the current `main` branch still has the gating machinery at all (for example `scripts/ci/**`, grouped node-test runners, changed-file assertions, workflow path filters). If the latest `main` still runs only a monolithic workflow job, rewrite the issue around refreshing/rebasing the still-open gating PR rather than implying that the already-merged taxonomy/helper groundwork remains the main unfinished work.
 - Additional PR-state pitfall for latest-main issue rewrites: do not trust an open PR body that still says it is stacked on an older parent PR. Check the PR head SHA, merge-base against `origin/main`, and current checks directly. A PR can still describe itself as stacked in its body even after being rebased into a clean one-commit diff on top of latest `main`. In that case, rewrite the issue around the actual state: the work is implemented and reviewable on the open PR, but not yet merged into `main`.
+- Additional umbrella-issue rewrite pattern: when the original issue describes a broad CI / taxonomy / rollout plan that has since mostly landed on `origin/main`, rewrite it as a current-state umbrella instead of preserving stale future-tense implementation prose.
+  - Explicitly separate three buckets:
+    1. already merged on latest `origin/main`
+    2. implemented on open follow-up PRs but not yet on `main`
+    3. genuinely remaining latest-main scope
+  - If needed, update the issue title too so it reads as a current-state record rather than an old implementation plan.
+  - Be careful not to mark open PR work as complete just because the follow-up PR exists; for a "latest main" rewrite, open-PR work still belongs in the not-yet-complete bucket.
+  - This pattern is especially useful when the old body still says things like "single verify job always runs" even though latest `main` already has `paths-ignore`, changed-scope detection, shard test scripts, and conditional build execution.
 
 ## Output Style
 
