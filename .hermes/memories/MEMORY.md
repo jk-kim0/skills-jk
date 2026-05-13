@@ -172,7 +172,7 @@ In corp-web-japan preview resource publication work, the user is concerned about
 §
 In corp-web-japan PR follow-up work, gh pr view can briefly lag after push; verify the actual remote branch tip with `git ls-remote origin refs/heads/<pr-branch>` before assuming the PR head failed to update.
 §
-In corp-web-japan typography work, the user prefers site-wide consistency over route-local parity exceptions: do not keep `/t/about-us` as a special text-color or body-typography exception; align it to shared site defaults instead. Defaults: `main` `text-slate-950`, body copy `text-slate-600`, and marketing/company body copy `text-[15px] leading-7` unless another shared pattern is required. When reviewing the common setting itself, remove local extra `mt-*` or `max-w-*` overrides from named lead/intro components by default.
+In corp-web-japan typography/style unification work, the user prefers site-wide consistency over route-local parity exceptions: do not keep `/t/about-us` as a special text-color or body-typography exception; align pages to shared defaults, and when the user names a baseline page for unification, apply that baseline literally across spacing, typography, and width without leaving future-facing or page-specific exceptions. Defaults remain `main` `text-slate-950`, body copy `text-slate-600`, and marketing/company body copy `text-[15px] leading-7` unless another shared pattern is required; when reviewing the common setting itself, remove local extra `mt-*` or `max-w-*` overrides from named lead/intro components by default.
 §
 In corp-web-japan demo list-route rollout work, canonical list paths should stay under the demo namespace: use-cases `/demo/use-cases`, AIP `/demo/aip`, ACP `/demo/acp`. Do not invent `/demo-acp` or lift use-cases to `/use-cases` unless the user explicitly changes the route policy.
 §
@@ -226,7 +226,7 @@ In the repo-local Hermes config at ~/workspace/skills-jk/.hermes/config.yaml, ch
 §
 In corp-web-japan, the user wants remaining legacy `/posts/` route/code/content remnants removed entirely rather than preserved for event compatibility.
 §
-In corp-web-japan path taxonomy work, the user wants the temporary `t-` prefix kept only in app route paths; do not use `t-` in component or test family names. Use neutral family names like `aip`, `acp`, and `fde` instead of `t-services-aip`, `t-services-acp`, or `t-services-fde`.
+In corp-web-japan taxonomy work: AIP/ACP use preview `/t/platforms/{aip,acp}` and final `/platforms/{aip,acp}`; AIP child pages use `/platforms/aip/{slug}` except no `/platforms/aip/fde-services`; FDE stays `/t/services/fde` and final `/services/fde`. `/t/*` removal is a final public-release step; preview-route rename PRs should not add old-preview redirects or public routes unless scoped.
 §
 In corp-web-japan path taxonomy naming, the user wants a single canonical family name chosen on general convention rather than current code habit; use `home` instead of `top-page` for the homepage component/test family.
 §

@@ -273,10 +273,12 @@ Use a stacked PR chain when all of the following are true:
 - stage N+1 depends on files introduced or reorganized in stage N
 - keeping each PR small and reviewable matters more than making every PR independently landable from `main`
 
-Typical example:
+Typical examples:
 - PR 1: add docs-only CI skip
 - PR 2: split monolithic CI into smoke + scoped test jobs
 - PR 3: add changed-files gating on top of the new scoped jobs
+- PR 1: introduce a shared UI/layout primitive plus its contract test
+- PR 2: migrate existing pages/routes to that primitive and remove the now-redundant page-specific wrappers
 
 Recommended workflow:
 1. Fast-forward local `main` to latest `origin/main` first.
@@ -286,6 +288,8 @@ Recommended workflow:
 5. For each staged PR, set the GitHub base branch explicitly to the immediate parent branch, not to `main`.
 6. In each PR body, state clearly that it is a stacked PR and name the parent base branch.
 7. Keep each PR scope limited to exactly one stage of the issue plan; do not leak later-stage optimization logic into earlier PRs.
+8. For child PRs that depend on a new parent primitive/module, run both the child page tests and the parent primitive/module contract test from the child worktree so the stack is verified as reviewers will see it.
+9. After opening the child PR, verify both the actual remote branch refs with `git ls-remote` and the PR base branch with `gh pr view`; do not rely only on the PR creation URL.
 
 Scope discipline for this pattern:
 - Stage 1 should usually be the smallest safe behavior change with minimal surface area.
@@ -301,6 +305,22 @@ Verification discipline:
 Common pitfall:
 - Opening all stage PRs directly against `main` even though later stages depend on earlier branch-only files. That creates noisy diffs and can make review impossible.
 - The correct fix is to stack the dependent PRs and use explicit `gh pr create --base <parent-branch> --head <child-branch>`.
+
+Post-merge child PR cleanup:
+- If the parent PR in a stacked chain is squash-merged and its branch is deleted, a child PR can automatically appear based on `main` while its head still contains the parent branch's original unsquashed commit.
+- Symptom: `gh pr view <child> --json baseRefName,commits` shows `baseRefName: main`, but `git rev-list origin/main..origin/<child-branch>` includes both the old parent commit and the child commit.
+- Fix the child PR by rebasing only the child commit onto the new `origin/main` tip:
+  ```bash
+  git fetch origin --prune
+  git -C .worktrees/<child> rebase --onto origin/main <old-parent-commit-sha> <child-branch>
+  git -C .worktrees/<child> push --force-with-lease origin HEAD:refs/heads/<child-branch>
+  ```
+- After this rewrite, update the child PR body to remove stale stacked-parent wording, then verify the real remote branch and PR commit list:
+  ```bash
+  git ls-remote origin refs/heads/<child-branch>
+  env -u GITHUB_TOKEN gh pr view <child-pr> --json baseRefName,headRefOid,commits,files,statusCheckRollup
+  ```
+- Do not treat `mergeStateStatus=BLOCKED` immediately after this push as a conflict if the PR now contains the expected single commit; it usually means fresh required checks are pending.
 
 1. Treat each remaining issue bullet as its own independent branch/worktree/PR.
 2. Create one fresh worktree from latest `main` per item; do not bundle multiple follow-ups into one branch just because they came from the same issue.
@@ -386,6 +406,15 @@ Typical example:
 Practical rule:
 - for rescued skill/doc PRs, validate against current source files and the smallest relevant tests, not just against the old diff alone
 - this is especially important for route names, canonical paths, gating flows, helper module paths, and other repo contracts that can drift while local main was stale
+
+## Copy-candidate review PR pattern
+
+When the user asks for several copy candidates and also asks to open the PR before choosing the final copy:
+- do not select a single final sentence on their behalf
+- render all requested candidates in the affected page or review surface so the Preview Deployment can be used for comparison
+- include the exact candidate text in the PR body for review without needing to inspect the diff
+- keep the implementation deliberately temporary/review-oriented, and note in the PR body that a follow-up should reduce the page to the selected final copy
+- if external corporate-site examples were checked for wording style, summarize the reference pattern in the PR body without over-quoting or making the page copy sound like sourced legal text
 
 ## Pre-push rule
 
@@ -494,29 +523,103 @@ Practical rule:
 - run `node scripts/ci/assert-test-groups.mjs` before push
 - if it fails, add the narrowest regex to the appropriate group, usually `staticPages` for route/static-page structure tests
 
-## CI workflow / ruleset safety for docs-only PRs
+## CI workflow / ruleset safety for docs-only PRs and final status checks
 
 When changing `corp-web-japan` GitHub Actions workflows, do not inspect workflow triggers in isolation. Also inspect the active repository ruleset / required status checks.
 
-Practical repo-specific lesson:
-- `main` is protected by a ruleset whose required status check currently includes `Detect changed scope`
+Practical repo-specific lessons:
+- `main` may be protected by a ruleset whose required status check includes an early CI job such as `Detect changed scope`
 - that check is emitted by `.github/workflows/ci.yml`
 - if `ci.yml` uses workflow-level `pull_request.paths-ignore` for docs-only files such as `README.md`, a docs-only PR can end up with the required check missing entirely
 - GitHub then treats the PR as blocked by a missing required check, even though the omission came from workflow trigger filtering rather than a test failure
+- requiring an early job such as `Detect changed scope` is also insufficient as a final CI-complete signal: branch protection can pass as soon as scope detection succeeds, before smoke/scoped tests/build have finished
 
-Safe fix pattern:
-1. keep the required `Detect changed scope` check always creatable on PRs by avoiding workflow-level `pull_request.paths-ignore` for docs-only changes on `ci.yml`
+Safe fix pattern for missing required checks on docs-only PRs:
+1. keep the required scope-detection check always creatable on PRs by avoiding workflow-level `pull_request.paths-ignore` for docs-only changes on `ci.yml`
 2. if you remove that trigger-level ignore, do **not** automatically run the full CI stack on every docs-only PR
 3. instead, keep the lightweight `changes` job always running, and gate heavier jobs (`Smoke`, scoped tests, build) with `needs.changes.outputs.*` so docs-only PRs emit the required check but skip expensive work
 4. preserve `push.paths-ignore` separately if main-branch docs-only pushes should still avoid CI cost
+
+Safe fix pattern for final CI-complete required checks:
+1. add a final aggregate job after all CI jobs, for example `ci-result` with name `CI result`
+2. set `if: ${{ always() }}` on the aggregate job so it runs even when dependencies fail or are skipped
+3. include every relevant upstream CI job in `needs`, including scope detection, smoke, scoped test shards, and build
+4. in the aggregate step, treat only `success` and `skipped` dependency results as pass states
+5. treat `failure`, `cancelled`, and any other result as failure
+6. after merging, update the repository required status check from the early job (`Detect changed scope`) to the aggregate job (`CI result`)
+
+Minimal aggregate-job shell pattern:
+
+```yaml
+  ci-result:
+    name: CI result
+    runs-on: ubuntu-latest
+    needs:
+      - changes
+      - smoke
+      - test-publications
+      - test-forms
+      - test-routing-seo
+      - test-static-pages
+      - test-assets-shell
+      - test-cross-cutting
+      - build
+    if: ${{ always() }}
+    steps:
+      - name: Verify CI dependency results
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          SMOKE_RESULT: ${{ needs.smoke.result }}
+          TEST_PUBLICATIONS_RESULT: ${{ needs.test-publications.result }}
+          TEST_FORMS_RESULT: ${{ needs.test-forms.result }}
+          TEST_ROUTING_SEO_RESULT: ${{ needs.test-routing-seo.result }}
+          TEST_STATIC_PAGES_RESULT: ${{ needs.test-static-pages.result }}
+          TEST_ASSETS_SHELL_RESULT: ${{ needs.test-assets-shell.result }}
+          TEST_CROSS_CUTTING_RESULT: ${{ needs.test-cross-cutting.result }}
+          BUILD_RESULT: ${{ needs.build.result }}
+        run: |
+          failed=0
+
+          check_result() {
+            local name="$1"
+            local result="$2"
+
+            case "$result" in
+              success|skipped)
+                printf '%s: %s\n' "$name" "$result"
+                ;;
+              *)
+                printf '%s: %s\n' "$name" "$result"
+                failed=1
+                ;;
+            esac
+          }
+
+          check_result 'Detect changed scope' "$CHANGES_RESULT"
+          check_result 'Smoke' "$SMOKE_RESULT"
+          check_result 'Test publications' "$TEST_PUBLICATIONS_RESULT"
+          check_result 'Test forms' "$TEST_FORMS_RESULT"
+          check_result 'Test routing and SEO' "$TEST_ROUTING_SEO_RESULT"
+          check_result 'Test static pages' "$TEST_STATIC_PAGES_RESULT"
+          check_result 'Test assets and shell' "$TEST_ASSETS_SHELL_RESULT"
+          check_result 'Test cross-cutting contracts' "$TEST_CROSS_CUTTING_RESULT"
+          check_result 'Build' "$BUILD_RESULT"
+
+          exit "$failed"
+```
 
 Verification checklist for this class of change:
 - inspect the repo ruleset with `gh api repos/<owner>/<repo>/rulesets` and the specific ruleset details
 - confirm which check context is actually required
 - read `.github/workflows/ci.yml` and verify the required check's job still exists under all intended PR paths
-- after pushing, verify the new PR head actually shows the required check in `gh pr view --json statusCheckRollup`
+- run `actionlint .github/workflows/ci.yml`
+- run a YAML parse check such as `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci.yml")'`
+- after pushing, verify the new PR head actually shows the workflow/checks in `gh pr view --json statusCheckRollup`
+- also verify the remote branch SHA with `git ls-remote origin refs/heads/<branch>` before trusting laggy PR metadata
 
-This avoids a subtle mismatch: `required check exists in branch protection` + `workflow trigger skips the job entirely`.
+This avoids two subtle mismatches:
+- `required check exists in branch protection` + `workflow trigger skips the job entirely`
+- `required check is green` + `later CI jobs are still running or have failed`
 
 ## Verification
 

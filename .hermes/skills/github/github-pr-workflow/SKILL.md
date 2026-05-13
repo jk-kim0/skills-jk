@@ -488,6 +488,35 @@ git push -u origin HEAD
 
 ## Useful PR Commands Reference
 
+## `gh pr view` branch-targeting compatibility note
+
+When verifying a PR by branch name after creation or push, prefer passing the branch name as the positional argument:
+
+```bash
+gh pr view <branch-name> --json number,title,url,headRefName,baseRefName,state
+```
+
+Do not assume `gh pr view --head <branch>` is available. Some `gh` versions do not support a `--head` flag for `pr view` and will fail with:
+
+```text
+unknown flag: --head
+```
+
+Safe rule:
+- for `gh pr view`, use one of:
+  - PR number
+  - PR URL
+  - branch name as the positional argument
+- reserve explicit `--head` usage for commands that actually document that flag in the installed `gh` version
+
+Practical verification pattern after PR creation:
+
+```bash
+gh pr create ...
+gh pr view <branch-name> --json number,title,url,headRefName,baseRefName,state
+```
+
+
 | Action | gh | git + curl |
 |--------|-----|-----------|
 | List my PRs | `gh pr list --author @me` | `curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/$OWNER/$REPO/pulls?state=open"` |
@@ -533,6 +562,10 @@ git push -u origin HEAD
 4. After rebases or force-pushes, verify remote branch refs directly before trusting PR metadata.
    - This applies both to stacked PR chains and to ordinary follow-up updates on an existing open PR.
    - `gh pr view` can lag, and GitHub can briefly show stale commit lists, an outdated `headRefOid`, or an outdated branch/base relationship even when the push already succeeded.
+   - CLI compatibility pitfall: not all `gh` versions support `gh pr view --head <branch>`. A safer cross-version pattern is to pass the branch name as the positional PR selector:
+     ```bash
+     env -u GITHUB_TOKEN gh pr view <branch-name> --json number,title,url,headRefName,baseRefName,state
+     ```
    - Check the actual remote head first:
      ```bash
      git rev-parse HEAD
@@ -548,6 +581,7 @@ git push -u origin HEAD
      ```
    - This is especially useful when updating multiple stacked branches quickly and one branch appears to vanish or lose its expected base.
    - If you flatten a formerly stacked PR directly onto `main`, immediately rewrite the PR title/body so they no longer claim an old parent branch or parent PR. A common stale-state bug is: the code/base are already `main`-based, but the PR body still says `base branch: <old-parent-branch>` or `parent PR: #...`, which misleads reviewers.
+   - When a stacked parent PR is squash-merged and its branch is deleted, the child PR may automatically retarget to `main` while its head still contains the parent's original, now-unmerged-by-SHA commit. Symptom: `gh pr view <child> --json baseRefName,commits` shows `baseRefName=main` and both the parent original commit plus the child commit. Fix by rebasing the child with `git rebase --onto origin/main <original-parent-commit-sha> <child-branch>`, then force-push and update the PR body to remove stacked-parent language. Verify with `git rev-list --oneline origin/main..HEAD` and `gh pr view <child> --json commits,files,baseRefName` before reporting success.
    - Important recovery pattern for existing open PRs: GitHub can still show an open PR with `headRefName` / prior `headRefOid` metadata even when the actual remote head branch ref is gone. Practical symptom set:
      ```bash
      gh pr view <pr-number> --json headRefName,headRefOid,url
@@ -599,7 +633,7 @@ git push -u origin HEAD
    - Practical interpretation: `mergeable=MERGEABLE` plus `mergeStateStatus=BLOCKED` immediately after a rebase/force-push often means the conflict is already resolved and required checks are merely pending on the new head. Do not report it as an unresolved merge conflict unless GitHub actually reports a conflict/unmergeable state.
    - If the same CI error disappears on the parent but persists on children, suspect that the children were not rebased onto the updated parent yet.
 
-5. Existing PR follow-up hygiene.
+5. Existing PR Follow-up Hygiene.
    - When the user asks to improve an existing PR and names a few files as examples, inspect the full PR file list first:
      ```bash
      gh pr view <PR_NUMBER> --json files --jq '.files[].path'
@@ -608,9 +642,17 @@ git push -u origin HEAD
    - For directory-scoped component moves, avoid repeating the family/route name in both directory and filename. Prefer contextual filenames such as `form.tsx`, `page-section.tsx`, `list-page.tsx`, or `download-gate-page.tsx` under `src/components/sections/<family>/...` when the directory already supplies the family name.
    - If the user explicitly chooses a family folder for root-level survivor components (for example moving internal-demo-only section components from `src/components/sections/*.tsx` to `src/components/sections/internal-demo/*.tsx`), keep the change mechanical: `git mv`, update only direct imports, and add/extend a source-reading test that asserts both the new location exists and the old root-level files no longer exist.
    - After renames, update imports and source-reading tests together, then stage with `git add -A` and check `git diff --cached --name-status` so git records pure renames (`R100`) rather than noisy delete/add pairs. Prefer `git add -A` over listing both old and new paths manually: once `git mv` has removed the old path, a manual pathspec for the deleted root file can fail before staging the rename.
+   - When the user asks to "fix the PR" / "PR 고쳐줘" after several incremental follow-up commits, do not stop at fixing the immediate failing check.
+   - Default to a full branch-hygiene pass unless the user narrows scope:
+     - inspect review comments and CI failures
+     - fix the actual issue
+     - rebase onto latest `origin/main`
+     - if the branch history is only iterative fixups, squash to one clean commit
+     - force-push the cleaned branch
+   - Only preserve a multi-commit PR history when the user explicitly asks for it or the commits are meaningfully staged for review.
 
 6. `gh pr diff` can fail on very large PRs.
-   - GitHub may return HTTP 406 / `PullRequest.diff too_large` when the PR changes hundreds of files.
+
    - In that case, inspect files with:
      ```bash
      gh pr view <PR_NUMBER> --json files --jq '.files[].path'

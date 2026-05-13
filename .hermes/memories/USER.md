@@ -104,7 +104,7 @@ User does not need local build testing or local dev servers for corp-web-japan c
 §
 When asking to rewrite repository wiki documentation, the user wants it based on the latest main branch implementation rather than an in-progress feature branch.
 §
-When documenting corp-web-japan issues or link audit tables, the user prefers all links written in markdown [path](url) format, wants a Korean translation column next to Japanese labels, and when showing Japanese text to the user expects a Korean translation in parentheses immediately after it.
+For corp-web-japan issue/link-audit docs, user prefers markdown [path](url) links, Korean translation columns for Japanese labels, and Korean translations after Japanese text. For Japanese web copy, user values comparing wording alternatives and tone differences before final selection.
 §
 PRs should only be closed after explicit user approval. Unless the user explicitly instructs 'close the PR', do not close it.
 §
@@ -184,7 +184,7 @@ In corp-web-japan copy/content follow-up work, if the user asks to correct a mis
 §
 In corp-web-japan publication/routing audits, the user wants review focus on actual missing redirects and wrong redirect targets on the latest origin/main baseline, not on 'shrink/removal candidates.' Evidence should be prioritized from latest main code, route implementation, and stage/live behavior.
 §
-In corp-web-japan, when preview /t/* routes are promoted or replaced, the user does not want the /t/* endpoints kept at all and does not want redirect compatibility left behind, unless they explicitly ask for a specific /t/* path to remain. Default policy: remove /t/* route files entirely, not redirect them.
+In corp-web-japan, ask and confirm before implementing route renames/canonical-route decisions. When preview /t/* routes are promoted/replaced, do not keep /t/* endpoints or redirects unless explicitly requested.
 §
 For visual/layout bugs, the user expects direct verification against the exact provided live page and Preview Deployment URL before claiming a fix, and strongly prefers one-pass thorough fixes over iterative trial-and-error that makes them re-test repeatedly.
 §
