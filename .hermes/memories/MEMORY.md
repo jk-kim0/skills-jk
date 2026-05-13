@@ -232,7 +232,7 @@ In corp-web-japan path taxonomy naming, the user wants a single canonical family
 §
 In the repo-local Hermes setup under ~/workspace/skills-jk/.hermes/, the user wants the openai-codex credential labeled `gpt4` to be prioritized first in the credential pool (ahead of gpt3/gpt8/gpt11) while keeping `credential_pool_strategies.openai-codex=fill_first`.
 §
-In corp-web-japan page-parity reviews, if text is not in a side-by-side layout with an image/media that narrows the content column, treat the default text content width as 1200px; do not reopen that as a design-choice question.
+In corp-web-japan, default text content width is 1200px unless a side-by-side image/media layout narrows it; for legal/document preview pages, `max-w-[920px]` is incorrect and should not be preserved.
 §
 In corp-web-japan test structure work, the user wants only genuinely reusable infra helpers kept in shared test helper locations; page-specific or page-family-specific helpers should be colocated near the relevant mirrored test paths instead of centralized under tests/helpers.
 §

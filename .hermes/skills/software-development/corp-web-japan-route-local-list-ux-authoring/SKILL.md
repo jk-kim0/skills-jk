@@ -101,6 +101,13 @@ Additional narrow-refactor pattern learned from the `/t/events` + `/internal/eve
   - the old inline class bundle is gone from the route source
 - This keeps route-local authoring intact while still removing duplicated structure.
 
+Additional lesson from the `/news` list-width regression:
+- If you split a page-level `max-w-[1200px]` wrapper into separate intro and list primitives, do not assume the list still inherits the same width contract automatically.
+- Re-check which primitive now owns the actual content-column width. Title-only wrappers such as `NewsPageIntro` should not silently become the only `max-w-[1200px]` boundary if the visible list/content block is expected to align to that same column.
+- When the list block itself owns width and spacing (for example top margin plus `mx-auto max-w-[1200px]`), prefer a semantically strong name such as `*ListSection` over a vague wrapper name like `*ListArea`.
+- Naming rule for this repo: if a wrapper carries real layout responsibility (content-column width, section spacing, list block boundary), treat it as a section primitive, not a generic area/container.
+- Add a source-level regression assertion for the width contract when this kind of split happens so future spacing/title refactors do not accidentally free the list back to a wider parent section.
+
 ## Done criteria
 
 - `page.tsx` visibly owns the page copy and links

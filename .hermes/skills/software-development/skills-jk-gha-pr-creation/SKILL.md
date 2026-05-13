@@ -216,6 +216,8 @@ When the user asks to create a PR from the current local workspace state rather 
       - `git branch -f main origin/main`
     - if the previous PR is already merged or its remote branch is gone, start one more brand-new latest-main worktree and repeat the transplant/collapse process
     - expect the surviving payload to shrink again, sometimes to only a few files, because the earlier follow-up PR may already have absorbed most of the root-local changes
+    - however, do not assume the surviving payload only shrinks monotonically: new tracked root edits can also appear between repeated user requests while `origin/main` advances, so the next surviving diff may be a different small set than the previous PR payload
+    - practical rule: on each repeated request, rebuild the candidate list from the current dirty root checkout first, then transplant into a brand-new latest-main worktree and trust only the post-copy collapsed diff there
     - report the final PR scope from the fresh worktree diff against latest `origin/main`, not from the stale root candidate list
   - After the create-pr workflow finishes, verify the resulting PR object and the payload separately:
     - PR object lookup: `env -u GITHUB_TOKEN gh pr list --head <branch> --state all --json number,state,url,title,headRefName,baseRefName`

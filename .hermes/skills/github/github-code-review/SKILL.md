@@ -296,6 +296,7 @@ When performing a code review (local or PR), systematically check:
 - No unnecessary complexity or premature abstraction
 - DRY — no duplicated logic that should be extracted
 - Functions are focused (single responsibility)
+- For layout/refactor PRs, trace container-width ownership end-to-end instead of reviewing only the renamed/extracted wrapper. If a route previously wrapped both title and list/content inside one `max-w-*` container, an extracted intro/title wrapper must not leave the sibling list/content area unconstrained unless the wider layout is explicitly intended.
 
 ### Testing
 - New code paths tested?

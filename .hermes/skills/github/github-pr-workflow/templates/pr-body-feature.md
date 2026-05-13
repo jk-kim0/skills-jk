@@ -8,7 +8,11 @@
 
 <!-- Why is this change needed? Link to issue if applicable -->
 
-Closes #
+## Related issue
+
+<!-- Prefer a non-closing reference by default. Example: [#433](https://github.com/<owner>/<repo>/issues/433) -->
+
+- 
 
 ## Changes
 

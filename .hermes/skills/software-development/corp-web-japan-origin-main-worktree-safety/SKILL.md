@@ -152,10 +152,16 @@ This is safer than trying to salvage a half-populated checkout whose path name h
 
 5.2 Prefer repo-root `.worktrees/<flat-name>` paths, even when recovering from a broken worktree.
 
-Practical fallback pattern:
+Practical fallback pattern from the repository root:
 
 ```bash
 git worktree add .worktrees/<topic> -b <branch-name> origin/main
+```
+
+If your current shell is already inside another linked worktree, do not use a relative `.worktrees/<topic>` path. That will create a nested worktree under the current worktree, not under the repository root. Either `cd` to the main repository root first, or use absolute paths with `git -C <repo-root>`:
+
+```bash
+git -C /path/to/corp-web-japan worktree add /path/to/corp-web-japan/.worktrees/<topic> -b <branch-name> origin/main
 ```
 
 Then verify with:
@@ -231,6 +237,32 @@ Counterexample where splitting is still correct:
 ## Multiple remaining issue follow-ups: split into one PR per scope item
 
 When a corp-web-japan issue has already been narrowed to a small set of remaining tasks and the user asks to "proceed with the remaining work" as separate PRs:
+
+### Issue-authored PR plan execution rule
+
+A recurring pattern in this repo is that the issue body itself already contains an execution split such as:
+- `PR 1`
+- `PR 2`
+- `PR 3`
+- `PR 4`
+
+Treat that as an implementation contract, not just background prose, when all of the following are true:
+- the user asks to implement those PRs directly
+- each PR scope is already described in the issue body
+- the scopes are independent enough to land from `main` without depending on each other
+
+Preferred execution pattern:
+1. re-check the latest `origin/main`
+2. create one fresh worktree and one fresh branch per planned PR scope
+3. implement each PR against `main` unless there is a real code dependency requiring a stack
+4. run the lightest source-level verification that matches each PR's moved files / route imports / path-based tests
+5. push each branch and open each PR separately
+6. comment on the parent issue with the resulting PR numbers/URLs so the issue remains the navigation hub
+
+Important distinction from the stacked-PR guidance above:
+- if the issue's `PR 1..N` plan describes independent cleanup batches, do **not** restack them by default just because they were numbered sequentially
+- use stacked PRs only when later branches truly depend on earlier branch-only changes
+- otherwise, open all planned PRs directly against `main`
 
 ## Staged issue implementation: prefer a small stacked PR chain when later steps depend on earlier ones
 
@@ -439,6 +471,52 @@ Recommended audit sequence before deleting:
 Important user-specific rule for this repo:
 - if the user says `/posts` endpoints were only temporary implementation artifacts and are no longer used, do not preserve even event-only compatibility by default
 - treat that as authorization to remove the route, its helper/parser layer, the temporary HTML corpus, and the related guidance/tests together
+
+## New test file assignment safety
+
+When adding any new `tests/**/*.test.mjs` file in `corp-web-japan`, update `scripts/ci/test-groups.mjs` in the same PR unless the file already matches an existing group matcher.
+
+Verification:
+
+```bash
+node scripts/ci/assert-test-groups.mjs
+```
+
+Failure signature if missed:
+
+```text
+AssertionError [ERR_ASSERTION]: Unassigned test files:
+tests/<new-test>.test.mjs
+```
+
+Practical rule:
+- run the new targeted test first
+- run `node scripts/ci/assert-test-groups.mjs` before push
+- if it fails, add the narrowest regex to the appropriate group, usually `staticPages` for route/static-page structure tests
+
+## CI workflow / ruleset safety for docs-only PRs
+
+When changing `corp-web-japan` GitHub Actions workflows, do not inspect workflow triggers in isolation. Also inspect the active repository ruleset / required status checks.
+
+Practical repo-specific lesson:
+- `main` is protected by a ruleset whose required status check currently includes `Detect changed scope`
+- that check is emitted by `.github/workflows/ci.yml`
+- if `ci.yml` uses workflow-level `pull_request.paths-ignore` for docs-only files such as `README.md`, a docs-only PR can end up with the required check missing entirely
+- GitHub then treats the PR as blocked by a missing required check, even though the omission came from workflow trigger filtering rather than a test failure
+
+Safe fix pattern:
+1. keep the required `Detect changed scope` check always creatable on PRs by avoiding workflow-level `pull_request.paths-ignore` for docs-only changes on `ci.yml`
+2. if you remove that trigger-level ignore, do **not** automatically run the full CI stack on every docs-only PR
+3. instead, keep the lightweight `changes` job always running, and gate heavier jobs (`Smoke`, scoped tests, build) with `needs.changes.outputs.*` so docs-only PRs emit the required check but skip expensive work
+4. preserve `push.paths-ignore` separately if main-branch docs-only pushes should still avoid CI cost
+
+Verification checklist for this class of change:
+- inspect the repo ruleset with `gh api repos/<owner>/<repo>/rulesets` and the specific ruleset details
+- confirm which check context is actually required
+- read `.github/workflows/ci.yml` and verify the required check's job still exists under all intended PR paths
+- after pushing, verify the new PR head actually shows the required check in `gh pr view --json statusCheckRollup`
+
+This avoids a subtle mismatch: `required check exists in branch protection` + `workflow trigger skips the job entirely`.
 
 ## Verification
 

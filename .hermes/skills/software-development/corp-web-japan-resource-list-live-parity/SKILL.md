@@ -113,18 +113,26 @@ Preferred approach:
 - keep the current desktop sticky vertical sidebar behavior
 - change only the mobile layout so the category chips no longer force one long horizontal row
 
-Recommended options in order:
-1. mobile `grid` with 2 columns
-2. mobile `flex-wrap`
+Current corp-web-japan preference:
+1. bottom-sheet / drawer pattern for resource-style sidebars with 5+ items or longer Japanese labels
+2. mobile grid / flex-wrap only for shorter, low-count category sets where seeing all options immediately is better
 3. only if the design explicitly wants horizontal scrolling, shrink chip padding/font size as a fallback
 
-Default recommendation:
+Drawer pattern contract:
+- keep mobile and desktop render trees separate
+- render a mobile trigger button that shows the active label
+- render the category links in a `role="dialog"` / `aria-modal="true"` bottom sheet
+- keep the desktop sidebar as a separate `hidden lg:block` sticky nav
+- keep `aria-expanded` on the trigger and close on backdrop/Escape
+
+Default recommendation for resource families:
+- use the drawer pattern instead of preserving horizontal scrolling
 - remove mobile `min-w-max`
 - remove the forced one-line `nowrap` row on mobile
 - avoid relying on horizontal scroll as the primary mobile behavior
 - keep desktop `lg:flex-col` / sticky behavior unchanged
 
-Typical class-direction changes:
+Typical class-direction changes when using grid/flex-wrap instead of drawer:
 - `ResourceListSidebarViewport`: reduce/remove mobile `overflow-x-auto` when moving to wrapped/grid mobile layout
 - `ResourceListSidebarList`: replace `flex min-w-max gap-3` mobile behavior with `grid grid-cols-2 gap-3` or `flex flex-wrap gap-3`
 - `ResourceListSidebarLink`: make mobile chips `w-full` and center them if using grid/wrap
@@ -148,6 +156,20 @@ Do not automatically refactor all public list pages unless the user explicitly a
 A safe approach is:
 - add optional class hooks to shared primitives
 - apply the live-parity overrides only in the target route
+
+## Resource-list section taxonomy / helper placement
+When a follow-up asks whether a resource-list helper belongs at `src/components/sections/` root or under a family directory, classify ownership before moving files:
+- keep broad shared entry surfaces at root when they are intentionally imported across many resource/demo/publication list routes
+- move helper-only implementation details under a family directory when they are only surfaced through a root entry or concrete sidebar component
+- update source-reading tests at the same time because this repo has tests that read component files by exact path
+
+Current pattern from issue #432:
+- keep `src/components/sections/resource-list-section.tsx` as the root shared entry
+- move the drawer helper to `src/components/sections/resource-list/mobile-sidebar-drawer.tsx`
+- keep `resource-list-section.tsx` re-exporting `ResourceListMobileSidebarDrawer` from that family helper path so existing callsites can continue importing from the shared entry
+- update `tests/resource-list-page-structure.test.mjs` to read `src/components/sections/resource-list/mobile-sidebar-drawer.tsx`
+
+Do not move `resource-list-section.tsx` itself just because its helper moved; it remains a broad shared primitive/entry unless the user explicitly asks to collapse the root entry too.
 
 ## Verification
 Run the lightest checks first:

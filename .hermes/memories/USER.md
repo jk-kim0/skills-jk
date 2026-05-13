@@ -6,7 +6,7 @@ User prefers the assistant to choose the method it can handle best for the task,
 §
 User prefers polite Korean and may use Korean chat shorthand like ㅇㅇ, ㅇㅋ, ㄱㄱ.
 §
-For repo work, default to PR+CI; use Closes/Fixes only when the PR fully resolves the linked issue.
+User does not want PRs to auto-close issues; only the user decides when to close issues.
 §
 User wants PR status checked before commit/push on repo work to avoid continuing on a merged PR branch.
 §
@@ -136,7 +136,7 @@ User does not want Python code used for simple Vercel CLI/environment inspection
 §
 `workdir=~/workspace` is only a tool default; the agent's real live cwd may differ each run. For repo-context tasks, always verify the actual current directory first and never equate it with the tool workdir.
 §
-In corp-web-japan, the user prefers shorter page-level component names and direct `max-w-[1200px]` containers over thin `*PageContent` wrappers unless the wrapper has distinct responsibility.
+For this website, avoid overlapping wrapper layers unless each has a proven distinct responsibility; prefer simpler page.tsx composition and combine always-paired wrappers unless separation is truly necessary.
 §
 User does not want dev servers started for testing unless they explicitly request it.
 §

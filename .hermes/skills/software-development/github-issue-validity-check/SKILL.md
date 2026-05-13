@@ -165,6 +165,11 @@ When the user asks not just whether an issue is valid, but to rewrite the issue 
 - When the user asks for a progress comment rather than a full rewrite, structure the comment as: (1) latest-main commit checked, (2) assumptions in the original issue that are no longer true, (3) concrete implementation now present with file paths, (4) regression/live evidence, and (5) a short conclusion on whether the issue is effectively complete or should be narrowed to follow-up scope.
 - For navigation/link issues, replace speculative tables with a final implemented link policy once the work is merged.
 - If you are reviewing a freshly edited issue body, re-fetch `origin/main` and re-check open PRs immediately before final judgment. In fast-moving repos, a PR can merge between the rewrite and the follow-up review, which can instantly stale statements like "no robots/sitemap implementation yet" or "PR #X is still open".
+- Important latest-main issue-rewrite discipline: do not stop after checking only the issue text plus `origin/main`. Before editing the issue, explicitly fast-forward local `main` (or otherwise verify the exact latest `origin/main` baseline) and inspect all currently open PRs in the repository, then distinguish three buckets in the rewritten issue body:
+  - already merged into latest `main`
+  - still only present on open PRs and therefore not yet on `main`
+  - unrelated open PRs that should not be cited as active follow-up for this issue
+- Practical stale-issue pattern: an issue body may say PRs like `#424` / `#425` are still open follow-ups, but after a fresh `main` update those PRs may already be merged and disappear from the open-PR list. Re-checking every open PR before editing prevents writing a second stale body.
 - For SEO/readiness issues specifically, verify both the existence of metadata route files (`src/app/robots.ts`, `src/app/sitemap.ts`) and whether related PRs are still open before calling the work missing or in-flight.
 - For route-specific SEO activation issues (for example a newly public `/news` surface), do not stop after confirming the list/index route exists. Check all three layers separately for both the list page and representative detail pages: (1) page metadata/canonical, (2) robots index/follow behavior, and (3) sitemap inclusion. Then, if a hosted stage/prod target is available, confirm the raw HTML and `sitemap.xml` with `curl` so you can distinguish "list page launched" from "detail pages still noindex" and report a precise partial-validity verdict.
 - When reviewing all open issues in a repo, first fetch a single latest `origin/main` baseline and reuse it for the whole pass. Then classify each issue into: still valid, partially valid / body stale, or effectively fixed / stale. This is especially useful for long-lived cleanup issues whose body names old file paths. Verify the exact cited paths still exist before trusting the issue scope; if the files are gone or moved but the underlying problem remains, recommend rewriting the issue body instead of simply closing it.
@@ -185,6 +190,17 @@ When the user asks not just whether an issue is valid, but to rewrite the issue 
 - For long-lived architecture / refactor audit issues, explicitly distinguish between:
   - migration / broad implementation work that is already effectively complete on latest `main`
   - narrow remaining taxonomy / naming / exception-handling questions
+- Additional practical pattern for taxonomy / ownership issues on latest `main`:
+  - do not keep the issue body at the level of abstract principles only
+  - enumerate the actual current files on `origin/main` for the target directory with `git ls-tree -r --name-only origin/main <dir>`
+  - split the current files into concrete buckets such as:
+    - keep at root / shared
+    - move into family subdirectories
+    - orphan / revalidate before moving
+  - for each root-level file, inspect real import/use relationships with repository search instead of relying on the filename alone
+  - when the current tree already contains many family subdirectories, rewrite the issue as a latest-main cleanup / exception-reduction plan rather than as a greenfield taxonomy proposal
+  - include explicit PR sequencing in the rewritten issue body: first the least controversial route-owned files, then shared-family boundary cases, then orphan / ambiguous survivors
+  - if tests read source files by exact path, call that out in the issue body as part of the required follow-up so later implementation PRs do not miss path-sensitive test updates
 - Practical stale-issue pattern learned from corp-web-japan issue rewrites:
   - an issue may still read like "we need to move `/t/*` pages into route-local authoring" even though latest `origin/main` already has most `/t/*` routes in route-local `page.tsx` + section-composition form
   - in that case, do not preserve the old issue as a generic migration-plan document
@@ -203,6 +219,18 @@ When the user asks not just whether an issue is valid, but to rewrite the issue 
   - If needed, update the issue title too so it reads as a current-state record rather than an old implementation plan.
   - Be careful not to mark open PR work as complete just because the follow-up PR exists; for a "latest main" rewrite, open-PR work still belongs in the not-yet-complete bucket.
   - This pattern is especially useful when the old body still says things like "single verify job always runs" even though latest `main` already has `paths-ignore`, changed-scope detection, shard test scripts, and conditional build execution.
+- Practical file-presence check for latest-main issue rewrites: when the issue scope depends on whether specific files still exist on latest `origin/main`, do not rely on the local checkout if `main` may be stale.
+  - Use `git cat-file -e origin/main:<path>` for exact existence checks on named files.
+  - Use `git ls-tree -r --name-only origin/main <dir>` to recount files such as tests on the latest-main tree without creating a worktree.
+  - This is especially useful for umbrella issues about test-taxonomy cleanup, where the real question is whether root-level outlier files are still present on `origin/main` and whether mirrored replacements now exist there.
+- Additional fast-moving-issue pitfall: if you rewrite an issue, then the user asks again shortly after, re-check latest `origin/main` and open PR state from scratch instead of assuming your just-written issue body is still current.
+  - In active repos, a couple of follow-up PRs can merge between turns and flip the correct framing from "merge pending on open PRs" to "already complete on latest main; close candidate".
+  - When that happens, update both body and title accordingly so the issue stops reading like an active implementation tracker and instead becomes a completion-state record or close candidate.
+- When rewriting an issue whose remaining scope is covered by open follow-up PRs, capture each PR's current mergeability and stacking state instead of only saying "open".
+  - Use `gh pr view <n> --json baseRefName,headRefName,headRefOid,mergeStateStatus,statusCheckRollup,url`.
+  - If a PR is stacked on another branch, state that it is not latest-main-complete until the base PR lands or the stack is rebased.
+  - If `mergeStateStatus` is `DIRTY`, explicitly frame the next action as rebase/conflict resolution on latest `origin/main`; do not present the PR as ready-to-merge.
+  - If the current checkout is dirty or behind, create a temporary detached worktree at `origin/main` for file inspection, then remove that worktree after updating the issue so local user edits are not disturbed.
 
 ## Output Style
 
