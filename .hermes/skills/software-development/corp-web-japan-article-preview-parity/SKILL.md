@@ -128,6 +128,7 @@ Practical rule:
 - `src/app/blog/[id]/[slug]/page.tsx`
 - `src/lib/publications/get-publication-post.ts`
 - `src/content/blog/<id>.mdx`
+- For shared publication-MDX layout follow-ups such as first-body-image width or CTA-wrapper extraction, see `references/shared-publication-mdx-layout-fixes.md`.
 
 ### Legacy/preview resource-post route
 - `src/app/posts/[category]/[slug]/page.tsx`

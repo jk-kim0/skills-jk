@@ -35,10 +35,12 @@ Important observed pattern:
 - when that mix exists, a broader list-page label is more accurate than a media-only label
 
 Current preferred outcome for this repo when `/news` contains both kinds:
-- page H1 in `src/app/news/page.tsx`: `ニュース・お知らせ`
-- metadata title in `src/app/news/page.tsx`: `ニュース・お知らせ | QueryPie AI`
+- page H1 in `src/app/news/page.tsx`: `ニュース`
+- metadata title in `src/app/news/page.tsx`: `ニュース | QueryPie AI`
 
 Do not narrow the page label to something like media coverage only unless official announcements have first been split out of the `/news` corpus.
+
+When changing the `/news` list page heading or title, update source-reading tests in the same PR. In particular, `tests/news/mdx-routing-and-preview.test.mjs` asserts the visible `NewsPageTitle` text; if the H1 changes, adjust that expectation and run `node --test tests/news/mdx-routing-and-preview.test.mjs` plus `npm run test:publications` before pushing.
 
 Blog shadow/redirect behavior may also matter:
 - `src/content/blog/*.mdx`
