@@ -232,7 +232,15 @@ When the user asks to create a PR from the current local workspace state rather 
       - compare root files byte-for-byte against the fresh worktree for that PR branch when needed
       - seed a brand-new latest-main worktree with only the files outside bucket (1)
       - trust the collapsed diff in that new worktree as the payload for the new PR
-    - this avoids silently broadening an in-review PR after the user already has a reviewable URL for it  - After the create-pr workflow finishes, verify the resulting PR object and the payload separately:
+    - this avoids silently broadening an in-review PR after the user already has a reviewable URL for it
+  - Final repeated-sweep reporting rule:
+    - when you update local `main`, discover that earlier follow-up PRs have already merged, and then open one more PR from the current dirty root checkout, report those as three distinct facts rather than one blended success statement:
+      1. local `main` is now aligned to latest `origin/main`
+      2. earlier follow-up PRs/branches were checked and are already merged or obsolete
+      3. the newly created PR contains only the surviving diff that still remains unique on top of latest `origin/main`
+    - include the new PR number/URL, branch name, commit hash, and the final payload file list from the fresh worktree diff
+    - do not describe the whole stale root candidate set as if it were the PR payload
+  - After the create-pr workflow finishes, verify the resulting PR object and the payload separately:
     - PR object lookup: `env -u GITHUB_TOKEN gh pr list --head <branch> --state all --json number,state,url,title,headRefName,baseRefName`
     - payload lookup: `git -C <worktree> diff --name-only origin/main...HEAD | sort`
    - Prefer the payload list above as the final source of truth for "what this PR contains".
