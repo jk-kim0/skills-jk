@@ -122,7 +122,7 @@ For corp-web-v2 documentation sidebar requests, preserve the exact ordered struc
 §
 The user requires repo work to start from latest main by default, expects local `main` to be explicitly fast-forward updated when review is said to be based on current main, and wants PR branches rebased onto latest main before push/PR update.
 §
-Across repos, prefer repo-root `.worktrees/`; avoid changing main checkouts unless explicitly requested.
+TABOO: never edit `main`; if violated, report, move diff to a non-main worktree/branch, then restore root workspace clean.
 §
 User cares strongly about code structure and file paths, including tests: place test files on paths mirroring the source file paths they cover.
 §

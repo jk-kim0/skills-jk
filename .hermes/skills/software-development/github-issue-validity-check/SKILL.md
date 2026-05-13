@@ -136,10 +136,15 @@ For a valid/invalid verdict, gather at least one of:
 
 ## Rewriting an issue to match latest `main`
 
+When the user asks to "update" an existing GitHub issue, treat that as an issue-rewrite task, not as a request to add a comment or provide a chat summary. The expected action is to verify whether the issue goal is achieved on the latest `main`, identify what changed, preserve the existing issue sections as much as possible, and rewrite the actual issue body so it reflects current truth.
+
+Language rule for issue rewrites: preserve the existing issue body's language by default unless the user explicitly asks for another language or bilingual format. If the issue is currently Korean, rewrite in Korean; if it is English, rewrite in English. Do not apply repo-internal PR/doc language rules to the issue body unless the user asks for them.
+
 When the user asks not just whether an issue is valid, but to rewrite the issue so it reflects the current state of the latest `main` branch:
 
 1. Read the current issue body with `gh issue view <number> --json title,body,state,url`.
-2. Inspect `origin/main`, not the current feature branch.
+2. Note the existing language and section structure before drafting; keep headings/sections where still meaningful, and only remove or reshape stale sections when latest-main evidence makes them invalid.
+3. Inspect `origin/main`, not the current feature branch.
    - Prefer a detached worktree from `origin/main` if the current branch has stacked PR changes or other in-flight edits.
 3. Compare the issue's original intended scope against the current implementation.
 4. Split the rewrite into three buckets:

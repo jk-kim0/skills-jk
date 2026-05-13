@@ -21,12 +21,11 @@ Core rule:
 
 Important distinction:
 - New independent work -> fresh worktree + fresh branch.
-- Follow-up on PR #N -> fresh worktree on the existing PR branch, then push back to that same branch.
-- If the user says "PR 1, 2, 3, 4" or similar shorthand, resolve the real PR numbers/branches before editing.
-- If a feature-PR follow-up reveals a repo-wide guidance / AGENTS / skill-policy update, do not leave that edit on the feature PR by default; remove it from the feature branch and open a separate doc/policy PR when appropriate.
-- If a follow-up reveals that deleted UI section components should be preserved for design review, restore them on the same PR branch and use the internal-demo preservation pattern in `references/preserve-orphan-ui-demo-route.md` instead of re-deleting them.
-
+- Follow-up on PR #N -> fresh worktree on the existing PR branch; fix CI/review state, rebase if needed, resolve conflicts, and force-push. Do not wait for post-rebase CI unless asked.
+- Resolve shorthand PR numbers/branches before editing. If the request covers all open PRs, re-check `gh pr list`/`gh pr view` as you go because stacked parents can merge mid-session and change the set.
+- If deleted UI section components must be preserved for design review, restore them on the same PR branch and use `references/preserve-orphan-ui-sections.md`.
 - Do not satisfy the fresh-worktree requirement by creating a second branch/PR for the same review cycle.
+- If GitHub shows `DIRTY`/`BEHIND`/`BLOCKED`/`UNSTABLE` or there are no actionable review comments, consult `references/pr-followup-triage-with-stale-pr-state.md` before editing files.
 - If the referenced PR is already merged and its head branch has been deleted, you cannot continue on that original PR branch. In that case, verify the merge commit is now on `origin/main` (or the PR base branch), create a fresh worktree from that merged tip, and open a new follow-up branch/PR only if the user still wants additional changes.
 - After each push, verify the actual remote PR head SHA (`gh pr view --json headRefName,headRefOid` and, if needed, `git ls-remote origin refs/heads/<branch>`) instead of assuming the web UI has already caught up.
 

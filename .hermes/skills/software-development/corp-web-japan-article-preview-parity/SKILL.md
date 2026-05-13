@@ -112,6 +112,18 @@ Useful browser-console expression pattern:
 
 After the browser diff, inspect these files first:
 
+### Page-local MDX structure first for single-article visual issues
+Before changing the shared article shell, inspect the target content file itself for wrapper/layout constructs that can explain the visual delta.
+
+High-value checks in `src/content/**.mdx`:
+- a first body image wrapped in `<Box center>` around `<ArticleFileImage ... />`, which can make the image appear narrower than the content column even when the shared shell is correct
+- manual spacing with `<br />` before a `<ButtonLink ...>` CTA, which may still read as visually cramped and is often better replaced with a small explicit margin wrapper such as `<div className="mt-6">...</div>`
+- duplicated hero/body image usage with `hideHeroImageOnDetail: true`, where the perceived "hero size bug" can actually be the body image wrapper rather than the route header image
+
+Practical rule:
+- if the request is about one specific article page and the cause is visible in that page's MDX structure, prefer a page-local MDX fix over editing `PublicationPostPage` or global publication component styles
+- only change the shared shell when multiple pages need the same behavior or the MDX does not explain the problem
+
 ### Current blog/publication route
 - `src/app/blog/[id]/[slug]/page.tsx`
 - `src/lib/publications/get-publication-post.ts`

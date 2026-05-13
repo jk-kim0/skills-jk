@@ -233,6 +233,7 @@ This is a different failure mode from page-route `redirect()` and is easy to mis
 - Treating production drift as if it were a latest-main code bug
 - Assuming `NextResponse.redirect("/relative")` in a route handler is safe without stage/runtime verification
 - Stopping at static code inspection when stage or production runtime behavior may still differ from latest main
+- For detail-only frontmatter toggles such as `hideTocOnDetail`, do not require the records repository normalize step to carry the field unless list/record behavior needs it. In this repo, standard publication detail pages call `createStandardPublicationPostLoader`, which re-renders the MDX body and reads fresh frontmatter via `renderPublicationMdx`; the TOC is hidden when the post loader returns `toc: []`, and `PublicationPostPage` only renders the TOC block when `post.toc.length > 0`. Verify that chain before calling an event/blog/news/use-case TOC toggle broken.
 
 ## When this matters most
 
