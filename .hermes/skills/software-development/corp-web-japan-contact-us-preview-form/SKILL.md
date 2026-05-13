@@ -564,6 +564,25 @@ npm run e2e:local:contact-us:stage
 
 This avoids unnecessary no-op PRs after a merged rollout.
 
+## Two-column top-alignment pitfall
+
+For the `/contact-us` page layout, if the right-side form panel appears visually lower than the left-side title/intro column, first verify the actual rendered y-positions in the browser before changing spacing values. In one stage check, the measured `h1` top and form-panel top were already equal, but relying on default grid stretching still left the layout vulnerable to future content/size changes.
+
+Preferred hardening for this user:
+- on the two-column grid container, set `items-start`
+- on the right-side form panel wrapper, set `self-start`
+- prefer this explicit alignment fix before tweaking arbitrary top margin/padding values
+
+Why:
+- it expresses the actual layout contract directly: both columns start at the same top edge
+- it avoids accidental regressions when either the intro copy or the form contents change height
+- it is a smaller, more stable fix than compensating with ad hoc spacing offsets
+
+Practical example:
+- `src/components/sections/contact-us-page-section.tsx`
+  - grid wrapper -> `items-start`
+  - `ContactUsFormPanel` -> `self-start`
+
 ## Done criteria
 
 Preview-phase done criteria:
