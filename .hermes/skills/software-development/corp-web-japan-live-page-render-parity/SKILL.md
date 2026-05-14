@@ -27,6 +27,7 @@ Reference notes:
 - `references/platform-aip-value-card-and-feature-copy-parity.md` — concrete `/t/platforms/aip` value-card equal-height and AipFeatureCopy width/placement parity measurements from stage-vs-live browser comparison.
 - `references/aip-self-hosted-hero-video-pattern.md` — concrete `/t/platforms/aip` note for replacing the current YouTube hero iframe with QueryPie-hosted media while preserving the measured hero wrapper geometry.
 - `references/platform-aip-value-card-fixed-height.md` — concrete `/t/platforms/aip` value-card row-height audit showing why the visible card wrapper, not only the grid/reveal wrapper, must fill the equal-height grid track.
+- `references/platform-aip-parity-implementation-pattern.md` — concrete `/t/platforms/aip` implementation pattern for turning browser findings into a PR: mobile-stacked feature rows, mobile-fluid/desktop-fixed media via CSS variables, reveal wrapper width/height contracts, route-local feature copy widths, and equal-height value cards.
 
 Important findings from real usage:
 - Browser text snapshots can claim the structure is correct while the rendered layout still differs materially.

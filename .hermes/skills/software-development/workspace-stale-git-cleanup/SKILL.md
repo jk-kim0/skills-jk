@@ -199,6 +199,13 @@ Important counter-case for root checkouts:
   - exact/no-op alias equivalence to the default branch tip
 - if the clean root branch still has unique diff versus latest default and a disposable rebase onto the latest default conflicts broadly, preserve it even if there is no open PR
 - practical interpretation: `clean + non-default + no open PR` is not enough by itself; a root checkout can still represent unpublished local work and should remain parked there until the user chooses a more destructive cleanup path
+- additional workspace lesson: a closed-but-unmerged root branch whose remote branch still exists and whose tip still has unique commits or non-empty net diff versus latest default should be treated as an unpublished local line, not as stale cleanup residue
+- do not auto-switch such a root back to default just to make the workspace look tidy
+
+Important counter-case for clean unpublished worktrees/branches:
+- a clean branch/worktree with no open PR is not automatically stale in documentation-heavy repos or wiki repos
+- if it is ahead of the latest default branch by substantial real content, has a coherent non-trivial net diff, and a synthetic squash / disposable rebase onto latest default succeeds cleanly, classify it as `meaningful unpublished branch` and preserve it
+- this is especially common for wiki/documentation branches that were never published as PRs but still carry large, reviewable migration-plan or structure updates
 
 Additional practical root-cleanup case:
 - sometimes the only thing preventing a safe fast-forward of `main` is unpublished local repo-maintenance work under paths like `.agents/skills/**`

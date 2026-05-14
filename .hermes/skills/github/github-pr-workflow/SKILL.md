@@ -172,6 +172,7 @@ Important temp-file safety rule:
 - If you must place a draft file inside the checkout temporarily, exclude it from `git add` and run `git status --short` before commit so you do not accidentally commit the body file.
 - Practical failure pattern: creating the PR body inside the worktree, staging broad paths, then needing an amend commit only to remove the stray temp file.
 - The same separation rule applies to repository guidance changes discovered during implementation work: if you edit AGENTS.md, checked-in skills, or other repo-operational guidance as a follow-up to feature work, prefer a separate branch and separate PR instead of silently bundling those guidance changes into the feature PR.
+- Exception: if an open PR already exists for the same guide/skill/docs source-of-truth, update that existing PR instead of opening a parallel PR. Parallel docs/skill PRs for the same workflow create competing canonical documents and should be avoided unless the user explicitly asks for a split.
 
 Options: `--draft`, `--reviewer user1,user2`, `--label "enhancement"`, `--base develop`
 

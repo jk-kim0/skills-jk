@@ -135,16 +135,33 @@ When a repository needs both human-readable guidance and an agent skill for the 
 Preferred shape:
 
 - Put the complete, canonical procedure in `docs/<topic>.md` or another repo documentation page when humans and agents both need to read it.
-- Keep the repo-local `SKILL.md` as a thin wrapper that covers:
+- Keep the repo-local `SKILL.md` as a very thin trigger/index that covers only:
   - when to load the skill
-  - load order and related skills
-  - high-level execution rules
   - the exact path to the canonical docs page
-  - verification reminders that force the docs page to be read
-- Do not duplicate long scripts, taxonomy tables, exhaustive checklists, or session-specific examples in both the docs page and the skill.
+  - optional pointers to related skills, without restating their procedures
+- Do not duplicate scripts, taxonomy tables, viewport lists, reporting formats, verification checklists, done criteria, examples, or step-by-step execution rules in both the docs page and the skill.
+- If the reviewer says the skill and docs are still duplicative, remove more from the skill rather than arguing that the remaining duplicate is only a summary.
 - If the skill needs session-specific or deeply technical supporting detail that is not appropriate for human-facing docs, place it under `references/` and add a one-line pointer from `SKILL.md`.
 
 Use this pattern especially after a reviewer notes duplication between a docs guide and a skill. Make the docs page complete, then reduce the skill to a durable trigger/reference layer.
+
+## Skill Library Maintenance Shape
+
+When updating the skill library after a session, prefer class-level umbrella skills over one-session-one-skill entries.
+
+Default update order:
+1. Patch a skill that was actually loaded or used in the session if it governs the same task class.
+2. If no loaded skill fits, patch an existing umbrella skill after checking `skills_list` / `skill_view`.
+3. Put session-specific measurements, error transcripts, reproduction recipes, or detailed page examples under `references/<topic>.md`, then add a one-line pointer from `SKILL.md`.
+4. Create a new skill only when no existing class-level skill covers the workflow.
+
+Naming rule:
+- A good skill name describes a recurring class of work, e.g. `browser-render-parity-comparison` or `corp-web-japan-live-page-render-parity`.
+- A bad skill name only makes sense for today's task, e.g. a PR number, issue number, URL slug, exact error string, feature codename, or `fix-<specific-bug>`.
+
+Maintenance pitfall:
+- Do not append every session's raw findings directly to a large umbrella `SKILL.md`. If the learning is mostly concrete measurements or task-specific evidence, move the detail into `references/` and keep the umbrella body to the general rule and a pointer.
+- User style/workflow corrections are skill material, not only memory material: embed them in the governing skill as a pitfall or required step so the next session starts with the corrected workflow.
 
 ## Editing Existing In-Repo Skills
 

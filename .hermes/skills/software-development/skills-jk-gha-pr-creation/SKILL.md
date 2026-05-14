@@ -76,8 +76,9 @@ Instead:
 - If the branch has an existing open PR, the workflow may fail or create duplicate intent; check first
 - After dispatching the PR-creation workflow, verify completion with `gh run watch` and then confirm the resulting PR with `gh pr view` or `gh pr status`
 - `gh pr checks` may legitimately report no checks for the new PR branch; if so, also inspect `gh run list --branch <branch>` before concluding that no CI ran
-- When the local workspace contains mixed changes, inspect `git status --short`, `git diff --stat`, and representative diffs before staging. In `skills-jk`, it is common to have meaningful tracked changes under `.hermes/` mixed with local-only artifacts such as `.claude/worktrees/`, scratch files like `test.txt`, onboarding/runtime state in `.hermes/config.yaml`, and usage trackers such as `.hermes/skills/.curator_state`, `.hermes/skills/.usage.json`, and `.hermes/skills/.usage.json.lock`; exclude those temporary artifacts from the PR unless the user explicitly asks to include them.
-- Conversely, do not over-exclude tracked `.hermes/` changes just because they look local. Durable repo-managed updates such as `.hermes/memories/MEMORY.md`, bundled skill content under `.hermes/skills/**`, and derived `.hermes/skills/.bundled_manifest` can be legitimate PR payload when the user asks to turn the current local Hermes workspace sweep into a reviewable PR.
+- When the local workspace contains mixed changes, inspect `git status --short`, `git diff --stat`, and representative diffs before staging. In `skills-jk`, it is common to have meaningful tracked changes under `.hermes/` mixed with local-only artifacts such as `.claude/worktrees/`, scratch files like `test.txt`, and usage trackers such as `.hermes/skills/.curator_state`, `.hermes/skills/.usage.json`, and `.hermes/skills/.usage.json.lock`; exclude those temporary artifacts from the PR unless the user explicitly asks to include them.
+- Do not treat a tracked repo config file as disposable just because it reflects local Hermes runtime behavior. In particular, `.hermes/config.yaml` is repo-managed and if it changed intentionally, it should be reviewed via git: either include it in the current PR when scope matches, or split it into its own dedicated PR when mixing it into a skill/memory PR would muddy scope.
+- Conversely, do not over-exclude tracked `.hermes/` changes just because they look local. Durable repo-managed updates such as `.hermes/memories/MEMORY.md`, bundled skill content under `.hermes/skills/**`, derived `.hermes/skills/.bundled_manifest`, and intentional `.hermes/config.yaml` updates can all be legitimate PR payload when the user asks to turn the current local Hermes workspace sweep into a reviewable PR.
 
 ## Local workspace sweep workflow
 
@@ -219,11 +220,14 @@ When the user asks to create a PR from the current local workspace state rather 
   - Additional sequential-follow-up lesson from repeated same-day `skills-jk` sweeps:
     - a freshly created follow-up PR can merge quickly, have its remote branch auto-deleted, and be incorporated into `origin/main` before the user asks again
     - meanwhile the dirty root checkout may still show a much larger old candidate set because it is sitting on a stale merged branch with additional untouched local edits
+    - the root checkout may even still be parked on that old merged branch rather than on `main`; treat that as stale control-state, not as the branch that should receive the new PR work
     - when that happens, do **not** reuse the previous follow-up worktree or assume the previous PR is still the right target
-    - re-check all three facts explicitly:
+    - re-check all four facts explicitly:
+      - `env -u GITHUB_TOKEN gh pr status` to detect whether the current root branch itself is already merged/closed
       - `env -u GITHUB_TOKEN gh pr list --head <previous-branch> --state all --json number,state,mergedAt,url`
       - `git fetch origin --prune`
       - `git branch -f main origin/main`
+    - if the current root branch or previous follow-up PR is already merged, leave the dirty root checkout untouched, update the local `main` ref to latest `origin/main`, and create one more brand-new latest-main worktree/branch for the new PR
     - if the previous PR is already merged or its remote branch is gone, start one more brand-new latest-main worktree and repeat the transplant/collapse process
     - expect the surviving payload to shrink again, sometimes to only a few files, because the earlier follow-up PR may already have absorbed most of the root-local changes
     - however, do not assume the surviving payload only shrinks monotonically: new tracked root edits can also appear between repeated user requests while `origin/main` advances, so the next surviving diff may be a different small set than the previous PR payload
