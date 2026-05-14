@@ -129,6 +129,29 @@ Implementation preference:
 - prefer shared class tokens/constants or shared semantic primitives over introducing heavy new wrapper abstractions
 - keep semantic section component names like `*Lead`, `*Description`, or `*BodyCopy`, but point them at the shared text token so route-local authoring stays readable
 
+## Section wrapper ownership vs dead CSS checks
+
+When reviewing a marketing-page wrapper that receives repeated `className` values from `page.tsx`, first distinguish between:
+- actual dead/no-op CSS with no visual effect
+- layout CSS that is visually required but should be owned by the section primitive instead of repeated at call sites
+
+Practical pattern from the about-us page:
+- `max-w-[1200px]`, `mx-auto`, `px-6`, and `lg:px-0` were not no-op; removing them outright would change the UI by letting content expand full width.
+- The problem was ownership drift: every `AboutUsSection` call site had to repeat the same content-container contract, and the muted section used a one-off inner `<div>` only to preserve full-width background plus centered content.
+- The stable refactor was to make `AboutUsSection` render a full-width outer `<section>` for background and an inner `div` that owns `mx-auto max-w-[1200px] px-6 lg:px-0`, while leaving only section-specific vertical spacing (`pt-*`, `pb-*`, `py-*`) at the route call site.
+- Keep the scope page-family-local unless there is evidence the same contract repeats across multiple company-family routes. Do not immediately promote an about-us-only wrapper cleanup into a broad company-family primitive.
+
+Review questions before implementing:
+1. If the repeated class is removed without replacement, does the rendered layout change? If yes, it is not dead CSS.
+2. Is the repeated class a per-section design decision, or the section primitive's default container contract?
+3. Does a special case, such as muted/full-width background, only exist because the primitive does not yet own a stable outer/inner wrapper split?
+4. Can the refactor preserve UI by moving the repeated container into the component while leaving vertical spacing authored at the route level?
+
+Test adjustment:
+- Add source-based assertions that the section primitive owns the shared container contract.
+- Add negative assertions that `page.tsx` no longer repeats the full container class or one-off inner wrapper.
+- Keep copy/composition assertions in the route test so route-local authoring remains protected.
+
 ## Public form page variation
 
 The same route-authoring rule also applies when the page contains a large interactive form.

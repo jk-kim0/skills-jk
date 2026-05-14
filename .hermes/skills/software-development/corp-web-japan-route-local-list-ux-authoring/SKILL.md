@@ -108,6 +108,15 @@ Additional lesson from the `/news` list-width regression:
 - Naming rule for this repo: if a wrapper carries real layout responsibility (content-column width, section spacing, list block boundary), treat it as a section primitive, not a generic area/container.
 - Add a source-level regression assertion for the width contract when this kind of split happens so future spacing/title refactors do not accidentally free the list back to a wider parent section.
 
+Additional lesson from cookie-preference route-local item authoring:
+- When a list item component receives visible copy through prop-shaped APIs such as `label="..."` and `description={<p>...</p>}`, treat it as suspect under route-local authoring even if the copy technically lives in `page.tsx`.
+- Prefer splitting the item into small child primitives so the route reads like authored JSX:
+  - wrapper primitive owns only the list item shell, e.g. `<CookiePreferenceItem>...</CookiePreferenceItem>`
+  - header/control primitive owns the toggle/label wiring, e.g. `<CookiePreferenceItemHeader id="necessary" disabled>必須 Cookie</CookiePreferenceItemHeader>`
+  - description/body primitive owns typography, e.g. `<CookiePreferenceItemDescription><p>...</p></CookiePreferenceItemDescription>`
+- Keep functional identifiers such as toggle IDs as explicit props on the control primitive, but author visible labels and prose as children.
+- After refactoring, search the route and shared component for the old prop API (`<XItem id=`, `label="`, `description={`, `label: string`, `description: ReactNode`) and add structure tests that assert the old prop-shaped copy contract is absent.
+
 ## Done criteria
 
 - `page.tsx` visibly owns the page copy and links

@@ -364,6 +364,26 @@ Then summarize:
   - keep local cleanup and remote PR lifecycle as separate facts; deleting a local branch/worktree does not close the PR
 - Practical stale case: if a once-open local branch's remote head disappears after fetch, `gh pr list --state all --head <branch>` now shows `MERGED`, and `git diff develop..branch` (or the repo default branch equivalent) is empty, remove both the linked worktree and local branch as merged residue.
 - Practical preservation case: if a no-open-PR candidate later reappears under a different branch/worktree name with a small real diff vs latest `origin/main` and its synthetic squash rebases cleanly, reclassify it as a `meaningful unpublished branch` instead of deleting it from the earlier stale verdict.
+- Additional practical case: when a dirty worktree on a merged/stale branch still looks meaningful, create a fresh latest-main spike worktree and transplant only the current dirty patch before deciding whether the change still matters.
+  - Signal pattern:
+    - the original branch/worktree has no open PR and old branch history is clearly stale or already merged
+    - the live worktree still has a focused dirty patch in a small set of files
+    - synthetic rebase of the whole worktree-state squash onto latest `origin/main` conflicts broadly, making it hard to tell whether the current local idea still has value
+  - Recommended handling:
+    1. create a fresh worktree from latest `origin/main` on a clearly temporary branch such as `spike/<topic>-latest`
+    2. copy only the currently dirty tracked files plus intentional untracked source files from the stale worktree into that fresh worktree
+    3. inspect the resulting residual diff against latest main
+    4. classify the transplanted result separately from the original stale branch history:
+       - if the residual diff is empty or trivial, the old dirty patch is mostly stale residue
+       - if the residual diff still expresses a coherent design or implementation direction, it remains meaningful even though the old branch lineage should be retired
+       - if some copied files become orphaned or unwired on latest main, split them from the meaningful subset before deciding what to keep
+  - Useful summary labels:
+    - `meaningful residual patch on fresh latest-main spike`
+    - `stale branch history, residual patch still meaningful`
+    - `orphan residual files after latest-main transplant`
+  - Practical interpretation:
+    - this latest-main transplant is not a publishing step; it is an adjudication tool for deciding whether a stale dirty branch still contains value
+    - it is especially useful when the user's real question is not "can this old branch rebase cleanly?" but "does the current local idea still mean anything on today's main?"
 - Practical rebase case: when rebasing a docs/content branch onto a newer base that renamed a directory, Git may stop with `CONFLICT (file location)` for files that were originally added under the old path. If there is no textual conflict and the resolution is simply to keep the files under the new renamed directory, stage those files at the new path and continue the rebase instead of aborting.
 
 ## Good trigger phrases

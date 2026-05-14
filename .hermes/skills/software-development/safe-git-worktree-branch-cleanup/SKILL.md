@@ -456,6 +456,52 @@ Useful summary labels:
 - `root-local skill residue -> separate docs PR`
 - `root-local meaningful skill edit -> local backup branch before main refresh`
 
+Additional practical case: when there are no open PRs at all, the desired cleanup end-state is usually much smaller
+
+Signal pattern:
+- `gh pr list --state open` returns `[]`
+- most linked worktrees are clean and branch tips now show upstream `[gone]` after `git fetch --prune`
+- one or more dirty worktrees may still exist with real unpublished local edits
+- root `main` is clean or can be made clean safely
+
+Recommended handling:
+1. treat every non-root clean worktree as a stale candidate by default
+2. remove all clean detached helpers and all clean branch-backed worktrees that are not explicit preservation lines
+3. delete the corresponding stale local branches after their worktrees are gone
+4. keep only:
+   - root default-branch worktree
+   - any dirty worktree with meaningful local edits
+   - explicit preservation branches such as `preserve/*`
+5. fast-forward root `main` to `origin/main`
+
+Practical interpretation:
+- when open PR count is zero, there is usually no value in leaving dozens of clean historical worktrees or merged local branches around
+- a good final state is often `root main + only genuinely dirty worktree(s) + explicit preserve branch(es)`
+- report this outcome explicitly so the user knows the workspace was reduced to the minimum safe set rather than merely lightly pruned
+
+Additional practical case: when there are no open PRs at all, the desired cleanup end-state is usually much smaller
+
+Signal pattern:
+- `gh pr list --state open` returns `[]`
+- most linked worktrees are clean and branch tips now show upstream `[gone]` after `git fetch --prune`
+- one or more dirty worktrees may still exist with real unpublished local edits
+- root `main` is clean or can be made clean safely
+
+Recommended handling:
+1. treat every non-root clean worktree as a stale candidate by default
+2. remove all clean detached helpers and all clean branch-backed worktrees that are not explicit preservation lines
+3. delete the corresponding stale local branches after their worktrees are gone
+4. keep only:
+   - root default-branch worktree
+   - any dirty worktree with meaningful local edits
+   - explicit preservation branches such as `preserve/*`
+5. fast-forward root `main` to `origin/main`
+
+Practical interpretation:
+- when open PR count is zero, there is usually no value in leaving dozens of clean historical worktrees or merged local branches around
+- a good final state is often `root main + only genuinely dirty worktree(s) + explicit preserve branch(es)`
+- report this outcome explicitly so the user knows the workspace was reduced to the minimum safe set rather than merely lightly pruned
+
 Additional lesson from repeated repo-local cleanup:
 - the same kind of residue can appear in non-root worktrees too, especially in merged feature worktrees that touched repo-local checked-in skills
 - if a merged/closed PR worktree is otherwise clean and its only remaining dirt is repo-local skill residue under `.agents/skills/**`, restore those files first and then re-evaluate the worktree for removal
@@ -1291,6 +1337,24 @@ Only preserve the branch when those checks do not clearly prove it is stale.
 
 Local `backup/*` branches often accumulate during repeated workspace cleanup and PR follow-up work. Do not treat every backup branch as automatically preservable just because it is not attached to a worktree.
 
+Also recognize explicit preservation branches such as `preserve/*` as a separate category from stale helper residue.
+
+Practical rule:
+- if the branch name is an explicit preservation namespace like `preserve/*`, keep it by default during ordinary workspace cleanup unless the user explicitly asks to audit or delete preservation branches too
+- this is especially important after earlier main-checkout recovery flows that created a named preservation branch to save meaningful local work before refreshing `main`
+- do not auto-delete a `preserve/*` branch just because it has no open PR and no attached worktree
+- instead, report it as an intentionally preserved backup line and leave the final decision to the user unless they clearly asked for deeper stale-branch adjudication
+- do not imply that a `preserve/*` branch has a GitHub URL or web-review surface by default; verify first with `git ls-remote origin refs/heads/<branch>` and, if useful, `gh pr view <branch>` or `gh pr list --head <branch>`
+- if the preserve branch exists only locally, report it explicitly as `local-only preserve branch; no GitHub link yet` and offer push as a separate explicit action instead of talking as though a review URL already exists
+
+Also recognize explicit preservation branches such as `preserve/*` as a separate category from stale helper residue.
+
+Practical rule:
+- if the branch name is an explicit preservation namespace like `preserve/*`, keep it by default during ordinary workspace cleanup unless the user explicitly asks to audit or delete preservation branches too
+- this is especially important after earlier main-checkout recovery flows that created a named preservation branch to save meaningful local work before refreshing `main`
+- do not auto-delete a `preserve/*` branch just because it has no open PR and no attached worktree
+- instead, report it as an intentionally preserved backup line and leave the final decision to the user unless they clearly asked for deeper stale-branch adjudication
+
 For each backup branch, collect:
 
 ```bash
@@ -1393,6 +1457,25 @@ Report:
 - branches deleted
 - remaining dirty worktrees
 - anything preserved intentionally for safety
+
+### Minimal-safe end-state rule
+
+Do not keep hunting for deletions just to make the repo look emptier.
+If the final live snapshot shows only this reduced set, the cleanup is already complete:
+- the root/default-branch checkout
+- branch-backed worktrees that correspond to currently open PR head branches
+- dirty worktrees with meaningful local tracked or source-like untracked changes
+
+In that situation:
+- do not describe the repo as "partially cleaned" or imply more automatic deletion is still expected
+- explicitly report that no further safe stale deletions remain
+- distinguish `stale branch/worktree history` from `meaningful current dirty patch`
+- if a no-open-PR worktree is dirty and its diff/untracked files look like real source/test work rather than disposable residue, preserve it and call it out as an intentional remaining line
+
+Useful summary language:
+- `already at minimum safe repo-local state`
+- `remaining non-PR worktree preserved because it has meaningful local edits`
+- `no additional safe stale worktrees/branches remain`
 
 ## Practical lessons
 

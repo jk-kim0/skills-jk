@@ -143,14 +143,42 @@ When converting from inline-content or wrapper-heavy MDX:
 When the user asks to apply a PR #461-style commonization to legal pages, treat it as a page-family primitive cleanup:
 - compare the current legal pages first: single-document routes such as EULA / Terms of Service and multi-version routes such as Privacy Policy
 - preserve `page.tsx` as the visible page-composition owner, but remove page-specific wrappers whose only job is to assemble the same legal header/body shape
-- prefer extending `src/components/sections/legal/document.tsx` with a common vocabulary such as `LegalDocumentHero` rather than creating one wrapper per route
-- `LegalDocumentHero` can safely absorb family differences through props/children, for example:
+- prefer extending `src/components/sections/legal/document.tsx` with shared legal-family primitives rather than creating one wrapper per route
+- for Issue-449-style work, align legal vocabulary to the Company-family authoring shape without importing Company primitives directly:
+  - `LegalDocumentSection` corresponds to `CompanyPageSection` and owns the outer legal shell
+  - `LegalDocumentIntro` corresponds to `CompanyPageIntro` and owns legal header vertical rhythm
+  - `LegalDocumentTitle` corresponds to `CompanyPageTitle`
+  - `LegalDocumentLead` corresponds to `CompanyPageLead` / the old legal description text
+  - `LegalDocumentLayout` corresponds to `CompanyPageLayout` and wraps the document body area
+  - `LegalDocumentBody` and `legalDocumentBodyClassName` remain legal-specific body/MDX primitives
+- when the user says legal pages still look different or asks to unify UI/className settings, treat route-local legal className props as suspect even if the markup names already match:
+  - compare legal primitives against `src/components/sections/company/page-primitives.tsx`
+  - align the shared legal primitive className contract with the company family where requested, especially section padding/width, intro gap/pt/text alignment, title typography, and lead text token usage
+  - remove route-local differences such as `<LegalDocumentIntro divider>`, `<LegalDocumentIntro className="...">`, `<LegalDocumentTitle variant="compact">`, and `<LegalDocumentBody className="[&_h1:first-child]:mt-0">` / `[&_h2:first-child]:mt-0` when the goal is family-wide UI consistency
+  - remove compatibility-wrapper spacing that bypasses the shared intro contract, such as `LegalDocumentHero` wrapping title/lead in a nested `<div className="flex flex-col gap-3">` or adding `className={cn(children && "flex flex-col gap-4", className)}`; if the request is to match company-family spacing, let `LegalDocumentHero` render meta/title/lead/children directly under `LegalDocumentIntro` so `gap-10` / `lg:gap-[50px]` remains the source of truth
+  - if a legal page needs a title-adjacent control row (for example privacy-policy title + version selector), do not keep route-local wrapper divs like `<div className="flex flex-col gap-3">` or `<div className="flex flex-wrap items-center gap-4">`; introduce or use a shared legal primitive such as `LegalDocumentTitleActions` in `src/components/sections/legal/document.tsx`, then render `<LegalDocumentTitleActions><LegalDocumentTitle>...</LegalDocumentTitle><...Selector /></LegalDocumentTitleActions>` from the route
+  - move first-body-heading normalization into `legalDocumentBodyClassName` instead of keeping per-route `LegalDocumentBody className` overrides
+  - if `LegalDocumentLead` is meant to match the company family, reuse `companyBodyTextClassName` from `@/components/ui/text-tokens` rather than duplicating a nearby text class
+  - update both mirrored route tests (`tests/src/app/t/...`) and older top-level legal tests (`tests/legal-*.test.mjs`) so they assert the shared primitive className contract and assert route-local overrides are absent; privacy-policy currently has both `tests/legal-privacy-policy-preview.test.mjs` and `tests/src/app/t/privacy-policy/page.test.mjs`, and both must be updated when replacing title/selector wrapper markup
+- route authoring should migrate to the new visible composition shape, for example:
+  - `<LegalDocumentSection>`
+  - `<LegalDocumentIntro>`
+  - `<LegalDocumentTitle>{frontmatter.title}</LegalDocumentTitle>`
+  - optional `<LegalDocumentMeta>` / `<LegalDocumentLead>` / selector controls
+  - `<LegalDocumentLayout><LegalDocumentBody>...</LegalDocumentBody></LegalDocumentLayout>`
+- keep compatibility aliases during a refactor-only PR unless the user explicitly asks for a hard breaking rename:
+  - `LegalDocumentPageSection` delegates to `LegalDocumentSection`
+  - `LegalDocumentHeader` delegates to `LegalDocumentIntro`
+  - `LegalDocumentDescription` delegates to `LegalDocumentLead`
+  - `LegalDocumentHero` may remain as a compatibility wrapper implemented with `Intro` + `Meta` + `Title` + `Lead`
+- do not keep using compatibility names in the migrated route authoring surface; the aliases are for older imports and staged migration safety, not the preferred vocabulary
+- `LegalDocumentHero` can safely absorb family differences while it remains as a compatibility wrapper, for example:
   - `title`
   - optional `meta` / effective date
   - optional `description`
-  - optional selector controls as children for versioned pages
+  - optional selector controls as children
   - optional `divider`
-  - optional `titleVariant="compact"`
+- Do not reintroduce title variants such as `titleVariant="compact"` when the goal is company-family typography parity. In the shared legal typography contract, `LegalDocumentTitle` should match `CompanyPageTitle`, and route-specific title sizing belongs behind an explicit new product decision rather than a compatibility prop.
 - centralize repeated MDX evaluation in `src/lib/legal-mdx-source.ts`; keep the cached source reader, and add a helper such as `renderLegalMdx<Frontmatter extends Record<string, unknown>>({ sourcePath, components })` so pages do not each import `evaluate`, `remarkGfm`, or repeat `parseFrontmatter: true`
 - keep route-specific content source path and custom MDX component adapter choices in the route or route-family owner; for example privacy policy may still pass `components: buildPrivacyPolicyDocumentComponents()` while EULA and Terms use the default legal document MDX components
 - remove now-redundant route-specific wrapper modules when their responsibilities have moved into the common legal vocabulary, e.g. a `terms-of-service/section.tsx` that only exported `TermsOfServiceHero`, `TermsOfServiceBody`, and an MDX render helper
@@ -222,8 +250,65 @@ Practical implication learned from `/t/privacy-policy` review:
 - A privacy-policy implementation with `src/app/t/privacy-policy/page.tsx`, `src/app/t/privacy-policy/[slug]/page.tsx`, version discovery in `src/lib/privacy-policy/records.ts`, and versioned files under `src/content/privacy-policy/*.mdx` can still be an appropriate structure for a versioned legal document collection.
 - However, for this user, do **not** over-correct into a `page.tsx` that is only a thin wrapper around a route-local or section-level `document-page.tsx` / `document-renderer.tsx` helper. Even for a versioned legal route, `src/app/t/privacy-policy/[slug]/page.tsx` should remain the page-composition owner: the file should visibly contain the caller/layout composition that places the header, effective date, title, description, selector area, MDX body, CTA, and footer.
 - What may be extracted from `page.tsx` is the component implementation detail, not the page composition itself. Good extraction targets are things like a version selector component, language selector component, selector wrapper component, or MDX heading/link components under `src/components/sections/privacy-policy/**`.
+- However, do not preserve selector components just because privacy-policy is a multi-version legal route. If the user says the language switcher or change-history control is unnecessary on `/t/privacy-policy`, remove those controls from `src/app/t/privacy-policy/[slug]/page.tsx` entirely instead of keeping dead UI around as a reusable abstraction.
+- Practical follow-up from the `/t/privacy-policy` header-controls cleanup: when removing those controls, also delete the now-unused files under `src/components/sections/privacy-policy/` rather than leaving orphaned `document-header-controls.tsx` or `version-selector.tsx` modules behind, and update the privacy-policy structure tests to assert that the route no longer renders `PrivacyPolicyLanguageSelector`, `PrivacyPolicyVersionSelector`, or `PrivacySelectorBox`.
 - Avoid hiding the full page composition in `src/components/sections/privacy-policy/document-page.tsx`, a route-local `document-renderer.tsx`, or another helper that turns `src/app/t/privacy-policy/[slug]/page.tsx` back into a thin caller. The route file should still show how the page is assembled.
 - When the route renders versioned legal MDX through `buildPublicationMdxComponents()` or another local MDX adapter, compare the adapter against the upstream/source-site table component contract before assuming the MDX content is wrong. In the privacy-policy investigation, the source MDX and migrated MDX both preserved `rowSpan`, `colSpan`, and `width`, but the local MDX adapter dropped those props because `Table.Td`/`Table.Th` only accepted `children` and `cellBackgroundColor` and did not forward the remaining DOM props to `<td>` / `<th>`. That causes merged cells and column widths to disappear at render time even though the MDX source is correct.
+- For `/t/privacy-policy` follow-up cleanup, treat header controls as two separate responsibilities:
+  - language selector (`Korean / English`)
+  - version selector (`Change history` / version dropdown)
+  If the user says the language selector is unnecessary, do **not** infer that the version selector should also be removed. Privacy policy is the normal multi-version legal variant, so preserving version-history navigation can still be required even when cross-language links are removed.
+- Also treat the intro block itself as separable responsibilities. In privacy-policy follow-up work, the user may ask to remove only one top-of-page line at a time:
+  - the pre-title meta line such as `Effective date: 2026-01-15`
+  - the post-title lead/description line such as `QueryPie Privacy Policy effective Jan 15, 2026.`
+  - the version selector row
+  Do **not** collapse these into one bulk "header cleanup" unless the user explicitly asks for all of them. Remove exactly the requested line(s), keep the remaining intro pieces intact, and update route-structure tests to assert the removed JSX is absent while preserved intro controls still remain.
+
+## Legal-adjacent cookie preference typography and rhythm audit
+
+When the user asks about legal page typography and includes `/t/cookie-preference` / Cookie設定 copy, inspect both the route-specific components and the shared legal primitives before answering. This page has migrated over time, so do not answer from memory.
+
+Historical implementation to recognize when reviewing older branches:
+- `src/app/t/cookie-preference/page.tsx` rendered the hero title with `CookiePreferenceHeroTitle` and the intro prose with `CookiePreferenceHeroDescription`.
+- `src/components/sections/cookie-preference/page.tsx` defined those primitives separately from `src/components/sections/legal/document.tsx`.
+- `CookiePreferenceHeroTitle` rendered an `h1` with `text-[56.25px] font-normal leading-[67.5px] text-[#24292F]`.
+- `CookiePreferenceHeroDescription` rendered a wrapper `div` with `text-[15px] font-light leading-[24.375px] tracking-[0.3375px] text-[#57606A]`; the nested `<p>` had no class and inherited those values.
+
+Current/refactored implementation to verify on the active branch:
+- cookie preference may now render `LegalDocumentSection`, `LegalDocumentIntro`, `LegalDocumentTitle`, and `LegalDocumentLead` directly from `src/components/sections/legal/document.tsx`.
+- `LegalDocumentTitle` may be identical across cookie/privacy/eula/terms pages, but title-to-first-text spacing can still differ if the next rendered node differs.
+- `LegalDocumentLead` commonly reuses `companyBodyTextClassName`; verify `src/components/ui/text-tokens.ts` for the actual body size/line-height/weight/tracking before reporting exact typography.
+
+Important diagnostic learned from legal-family typography follow-up:
+- do not equate "uses the same legal primitive names" with "has the same visual rhythm".
+- Compare the rendered tree around the title, not just the imported component names:
+  - cookie preference can place `<LegalDocumentTitle>` and `<LegalDocumentLead>` as siblings inside `<LegalDocumentIntro>`, so the title/lead gap is controlled by `LegalDocumentIntro`'s flex gap such as `gap-10` / `lg:gap-[50px]`.
+  - privacy/eula/terms can place only the title inside `<LegalDocumentIntro>`, then render `<LegalDocumentLayout><LegalDocumentBody>...</LegalDocumentBody></LegalDocumentLayout>` after the header; their title/body gap is therefore controlled by the body/layout boundary and by the first MDX node's margins.
+  - if the first MDX node is a paragraph, `legalDocumentBodyClassName` paragraph margin/line-height controls the apparent gap and prose size.
+  - if the first MDX node is a heading, the legal MDX adapter may map MDX `#` to DOM `h2`; first-child heading margin normalization can make the first section heading sit much closer to the page title than a lead paragraph does.
+- When explaining a perceived mismatch, report these three layers separately:
+  1. hero title typography (`LegalDocumentTitle` class)
+  2. intro/lead typography (`LegalDocumentLead` / text-token class)
+  3. title-to-first-body spacing (`LegalDocumentIntro` gap vs `LegalDocumentBody` first-child margins)
+- If the user asks to make the post-intro gap consistent whether `LegalDocumentLead` exists or not, make `LegalDocumentIntro` own the bottom rhythm, not each following body/list component:
+  - add a shared bottom margin to `LegalDocumentIntro` such as `mb-10 ... lg:mb-[50px]` alongside the existing internal `gap-10` / `lg:gap-[50px]`
+  - normalize first-child margins inside `legalDocumentBodyClassName` for `h1`, `h2`, `h3`, `h4`, `p`, `ul`, and `ol` so the first MDX node does not add a second, content-type-dependent top margin
+  - remove route-specific follow-up margins such as `CookiePreferenceSettingsSection`'s `mt-[52.5px]`; otherwise cookie preference keeps a different gap even after the shared legal intro changes
+  - update structure tests to assert the shared intro bottom margin, first-child body-margin normalization, and absence of route-specific margins
+
+When the user explicitly asks to replace cookie preference's legal-page-specific hero wrappers with shared legal primitives:
+- update `src/app/t/cookie-preference/page.tsx` to render `LegalDocumentSection`, `LegalDocumentIntro`, `LegalDocumentTitle`, and `LegalDocumentLead`
+- keep `CookiePreferenceSettingsSection`, `CookiePreferenceList`, and the cookie toggle/list primitives; the request is about the legal intro typography, not the whole page implementation
+- delete unused `CookiePreferenceHeroSection`, `CookiePreferenceHeroContent`, `CookiePreferenceHeroTitle`, and `CookiePreferenceHeroDescription` exports from `src/components/sections/cookie-preference/page.tsx`
+- preserve and update the existing mirrored test `tests/src/app/t/cookie-preference/page.test.mjs`; do not overwrite it with a narrower new test because it already covers metadata, route-local copy, shell separation, and toggle/client boundaries
+- add assertions that the route imports `@/components/sections/legal/document`, renders legal title/lead primitives, no longer references the cookie hero wrappers, and that the cookie page section file no longer exports those wrappers
+
+Compatibility-prop / dead-contract pitfall:
+- if `LegalDocumentIntroProps` or compatibility wrappers such as `LegalDocumentHero` / `LegalDocumentHeader` expose a `divider` prop, verify the implementation actually uses it before describing it as behavior.
+- A prop can be TypeScript-valid because it appears in the props type, while still being a dead/no-op API if the component implementation ignores it. Call this out as "valid but misleading" and either remove the prop or implement the divider behavior when cleaning the primitive contract.
+- When the user asks whether a legal primitive is an actual contract, do a source-wide usage audit before preserving it. Search both `src/` and `tests/`, but classify `tests/` matches as contract assertions rather than production usage.
+- If a compatibility alias or helper is not used in `src/`, prefer removing it from `src/components/sections/legal/document.tsx` instead of keeping it for hypothetical staged migration safety. Update structure tests to assert absence with `assert.doesNotMatch(...)` so the dead contract is not reintroduced.
+- In the current legal-family primitive shape, keep only actually used exports such as `LegalDocumentSection`, `LegalDocumentIntro`, `LegalDocumentLayout`, `LegalDocumentTitleActions`, `LegalDocumentTitle`, `LegalDocumentLead`, `LegalDocumentBody`, and `legalDocumentBodyClassName`; remove unused wrappers such as `LegalDocumentPageSection`, `LegalDocumentHeader`, `LegalDocumentHero`, `LegalDocumentMeta`, and `LegalDocumentDescription` unless a current route imports them.
 
 ## Width / shell provenance audit for legal pages
 

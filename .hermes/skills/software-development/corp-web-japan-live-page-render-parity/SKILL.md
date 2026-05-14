@@ -22,6 +22,8 @@ Reference notes:
 - `references/about-us-parity-pitfalls.md` — concrete `/about-us` pitfalls for CTA-width interpretation and mixed-width team-card measurement.
 - `references/pr-preview-stage-render-audit-pattern.md` — reusable pattern for auditing a PR Preview Deployment against `stage.querypie.ai` across affected routes using Playwright geometry, screenshot pixel diffs, and wrapper padding/gutter root-cause analysis.
 - `references/certifications-mobile-gutter-audit.md` — concrete `/certifications` narrow-mobile gutter/card-width audit showing how `px-[30px]` behaves at 300/320/360/390px and when to prefer a card-gallery gutter preset.
+- `references/platform-aip-hero-spacing-parity.md` — concrete `/t/platforms/aip` measurement showing how to distinguish header-to-H1 top offset from already-correct intra-hero rhythm, and why `PlatformPageSection` should own the family top offset.
+- `references/aip-self-hosted-hero-video-pattern.md` — concrete `/t/platforms/aip` note for replacing the current YouTube hero iframe with QueryPie-hosted media while preserving the measured hero wrapper geometry.
 
 Important findings from real usage:
 - Browser text snapshots can claim the structure is correct while the rendered layout still differs materially.
@@ -519,6 +521,51 @@ Practical rule:
 - do not assume that because the hero is visually two-column, the headline itself belongs only to the left column
 
 This matters a lot for perceived parity, because users notice immediately when the title width is constrained compared with the live page.
+
+### F1. For hero-spacing audits, separate absolute page offset from internal hero rhythm
+When the user asks specifically about `h1` position, GNB spacing, and the gap between `h1` and the first paragraph/content/box, do not collapse all deltas into one generic "hero spacing" finding.
+
+Measure these as separate anchors on both URLs:
+- header/GNB rect height and bottom
+- `h1` top/bottom/height and computed font-size/line-height
+- `header.bottom -> h1.top`
+- `h1.bottom -> first paragraph.top`
+- `first paragraph.bottom -> first media.top` when the hero contains a video/image
+- `first media.bottom -> first major section.top`
+- `h1.bottom -> first major section.top`
+
+Then classify the result:
+- if `h1 -> paragraph`, `paragraph -> media`, and `media -> first section` are identical, the internal hero rhythm is already faithful
+- if only `header.bottom -> h1.top` differs, report it as a hero start / top-offset issue, not as a body-content spacing issue
+- include both absolute viewport deltas and relative intra-hero deltas so the user can see whether the whole hero is shifted upward/downward versus internally mis-spaced
+
+Practical example from `/t/platforms/aip` vs `/ja/solutions/aip`:
+- stage header height was `64px`, live header height was `88px`
+- stage `header.bottom -> h1.top` was `16px`, live was `80px`
+- `h1.bottom -> first paragraph.top` was `20px` on both
+- `first paragraph.bottom -> YouTube media.top` was `80px` on both
+- `media.bottom -> first value-card section.top` was `120px` on both
+- conclusion: the stage page's internal hero/content rhythm matched live, but the hero started too close to the GNB/header
+
+### F2. Map spacing findings back to the family-level primitive before recommending fixes
+After measuring a top-spacing mismatch, inspect the current route and identify which class-level/family-level primitive owns the spacing before recommending a patch.
+
+Concrete corp-web-japan mapping from this session:
+- Platform family routes such as `/t/platforms/aip` use `src/components/sections/platform/page-primitives.tsx`.
+  - `PlatformPageSection` should own the GNB/header-to-page or GNB/header-to-h1 top offset for Platform-family hero/page starts, analogous to `CompanyPageSection` in the Company family.
+  - `PlatformHeroSection` should delegate to `PlatformPageSection`; do not make hero-only spacing the only owner when the same top-offset responsibility is a page-family primitive.
+  - Keep a separate `PlatformContentSection` (or equivalent body/content wrapper) for ordinary later sections so content sections do not accidentally inherit first-page/hero top padding.
+  - `AipHeroCopy`, `AipHeroInner`, `AipHeroTitle`, and `AipHeroLead` own internal hero rhythm/typography and should not be changed when only `header.bottom -> h1.top` differs.
+- Company family routes such as `/about-us`, `/contact-us`, `/certifications`, and `/news` use `src/components/sections/company/page-primitives.tsx`.
+  - `CompanyPageSection` owns the GNB/header-to-content or GNB/header-to-h1 top offset via `pt-[100px] lg:pt-[120px]`.
+  - `CompanyPageIntro` owns the h1-to-lead/body gap via `gap-10 lg:gap-[50px]` plus mobile-only `pt-[10px]`.
+  - `CompanyPageTitle` owns h1 typography only; do not change it to fix GNB spacing.
+  - `SiteHeader` / `site-header.module.css` owns the fixed header height (`--gnb-height: 64px`) but changing it affects the entire site chrome, so prefer family section primitives for body offset fixes unless the task is explicitly header-wide.
+
+Recommended reporting pattern:
+1. say whether the measured defect is a page absolute-offset issue or an internal hero/body rhythm issue
+2. name the primitive that owns that exact axis
+3. explicitly list nearby components that should not be touched because their measured rhythm already matches
 
 ### F. When matching a CTA section, compare every child element, not just the outer box
 A recurring parity failure is to "mostly match" the CTA by changing only the background, button, or one text node.
@@ -1018,6 +1065,30 @@ Reliable fix pattern:
 6. verify the exact Preview Deployment URL in a browser; check that category labels, visible feature title/body, external docs link, and lazy-loaded GIF natural dimensions appear after scrolling
 
 This preserves route-local authoring without losing server-authored semantic children inside a client-only parser.
+
+### K5. When replacing a preview-page YouTube hero embed, preserve measured wrapper geometry and move large video off the repo
+A practical finding from `/t/platforms/aip` review/planning work:
+- the current stage page uses a YouTube iframe inside `AipHeroVideo()` at `src/components/sections/aip/page.tsx`
+- the measured stage hero media box was already stable at `1024x576`
+- the risky part was not the layout wrapper, but the media delivery choice (`iframe` to YouTube)
+
+Reliable replacement pattern:
+1. measure the current wrapper and iframe/video geometry before proposing changes
+2. keep the approved hero wrapper classes, aspect ratio, rounding, and shadow stable unless the user explicitly asks for a layout change
+3. replace only the inner media implementation (`iframe` -> self-hosted player)
+4. keep only lightweight poster images in the repo under the route-aligned asset root, for example `public/services/aip/hero-video-poster.jpg`
+5. host the actual video on a QueryPie-owned storage/CDN origin rather than committing large `.mp4` files into the repo or serving them from generic Vercel-traced public paths
+6. prefer HLS (`.m3u8`) with `hls.js` plus MP4 fallback for long-term operation; MP4-only is acceptable for a fast first pass
+7. prefer poster-first click-to-play UX with `preload="metadata"`, `playsInline`, normal controls, and no forced sound autoplay by default
+
+Why this matters:
+- removes YouTube branding and third-party embed dependence
+- avoids bloating git history and deployment artifacts with large binary video files
+- preserves the already-accepted hero layout while changing only the delivery mechanism
+- generalizes to other corp-web-japan preview routes that may later replace YouTube or external media embeds
+
+See `references/aip-self-hosted-hero-video-pattern.md` for the concrete AIP baseline and the recommended storage/player split.
+
 ### L. After parity is proven, clean up by moving layout responsibility into shared primitives instead of stacking more route-level wrappers
 A recurrent trap in parity follow-up work:
 - first you achieve the right pixels by adding route-local wrappers, duplicated utility classes, or inline styles
@@ -1118,10 +1189,16 @@ Required measurement pattern for catalog/list pages:
    - gap
 4. then separately compare the nested image size and label text metrics inside each card
 
+Also compare the live interaction/query contract, not only visible filter labels:
+- on `/t/platforms/aip/integrations`, live category links used numeric query values such as `category=0..9`, while a preview implementation used keyword slugs such as `category=workflow-automation`
+- if public rollout is meant to preserve the migrated page behavior, treat that query contract as a parity target unless the user explicitly decides to change it
+- when converting route-local category keys to live-compatible values, avoid broad global string replacement: it can corrupt unrelated strings such as asset filenames (`microsoft-365` becoming `4`)
+- make the mapping deliberately and re-run the mirrored structure test plus a quick asset-path grep/diff review for every filename-bearing field
+
 Also keep this page-family caveat in mind:
 - the preview site's header/footer chrome may intentionally differ from the live `querypie.com/ja` chrome
 - in that case, evaluate parity primarily on the migrated body area unless the user explicitly asks for full-page chrome matching
-- for `/t/services/aip/integrations`, the meaningful parity target was the body composition: H1, description, category pills, 45-card grid, and CTA section
+- for `/t/services/aip/integrations`, the meaningful parity target was the body composition: H1, description, category pills, 45-card grid, CTA section, and filter query behavior
 
 ## Verification checklist before finalizing
 
