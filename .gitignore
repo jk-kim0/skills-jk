@@ -17,6 +17,9 @@ __pycache__/
 .hermes/gateway.lock
 .hermes/.update_check
 .hermes/SOUL.md
+.hermes/skills/.curator_state
+.hermes/skills/.usage.json
+.hermes/skills/.usage.json.lock
 .hermes/.env
 .env
 .env.*
