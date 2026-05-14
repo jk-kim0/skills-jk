@@ -39,6 +39,11 @@ User-specific requirement:
 
 When the user says `workspace 정리`, interpret it from the live cwd first rather than from the generic English word `workspace`.
 
+Execution style for this user:
+- start with a very short status line and rough time estimate, then act immediately
+- do not pause with a proposal-only response once the repo-local cleanup intent is clear
+- after the cleanup actions, do one last live snapshot pass before reporting completion
+
 Practical rule:
 - if `pwd` is already inside a git repository, default to **repo-local cleanup** for that current repository
 - in that case, do not ask whether they meant the whole `~/workspace` unless they explicitly say all repos / entire workspace
@@ -1448,15 +1453,31 @@ Typical safe classification order:
 3. map detached helpers by path/name PR-number hints like `pr318`, `pr-318`, or `pr_318`
 4. only then classify the remainder as true non-open-PR candidates
 
-## Recommended reporting format
+## 9b. Final live-state recheck should separate deletion history from current reality
 
-Report:
-- target repo used
-- whether `main` now matches `origin/main`
-- number of worktrees removed
-- branches deleted
-- remaining dirty worktrees
-- anything preserved intentionally for safety
+For this user, the final answer should not stop at "I deleted X". Re-run a final live snapshot and report both:
+- what was deleted during this cleanup pass
+- what exists right now
+
+Minimum final snapshot for repo-local cleanup:
+
+```bash
+git status --short --branch
+git worktree list --porcelain
+gh pr list --state open --json number,headRefName,headRefOid,url
+git branch -vv --no-abbrev
+```
+
+If the repo uses a repo-internal worktree container such as `.worktrees/`, also compare the registered worktrees against the on-disk child directories so you can report whether orphan residue still exists:
+
+```bash
+find <repo>/.worktrees -mindepth 1 -maxdepth 1 -type d | sort
+```
+
+Interpretation:
+- if the remaining state is just root `main` plus branch-backed worktrees for currently open PR head branches, the repo is already at the minimum safe repo-local state
+- in that case, say explicitly that no additional safe stale worktrees/branches remain
+- if the on-disk `.worktrees/*` directories match the registered worktrees and no extra orphan directories remain, report that the repo-internal worktree container is consistent too
 
 ### Minimal-safe end-state rule
 
