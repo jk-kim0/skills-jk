@@ -112,10 +112,12 @@ Additional lesson from cookie-preference route-local item authoring:
 - When a list item component receives visible copy through prop-shaped APIs such as `label="..."` and `description={<p>...</p>}`, treat it as suspect under route-local authoring even if the copy technically lives in `page.tsx`.
 - Prefer splitting the item into small child primitives so the route reads like authored JSX:
   - wrapper primitive owns only the list item shell, e.g. `<CookiePreferenceItem>...</CookiePreferenceItem>`
-  - header/control primitive owns the toggle/label wiring, e.g. `<CookiePreferenceItemHeader id="necessary" disabled>必須 Cookie</CookiePreferenceItemHeader>`
-  - description/body primitive owns typography, e.g. `<CookiePreferenceItemDescription><p>...</p></CookiePreferenceItemDescription>`
+  - toggle/control primitive owns the toggle button + label wiring, e.g. `<CookiePreferenceToggleField id="necessary" disabled>必須 Cookie</CookiePreferenceToggleField>`
+  - toggle description primitive owns only the semantic paragraph tag for the toggle's explanatory text, e.g. `<CookiePreferenceToggleDescription>...</CookiePreferenceToggleDescription>` renders a plain `<p>` internally for one-paragraph descriptions.
 - Keep functional identifiers such as toggle IDs as explicit props on the control primitive, but author visible labels and prose as children.
-- After refactoring, search the route and shared component for the old prop API (`<XItem id=`, `label="`, `description={`, `label: string`, `description: ReactNode`) and add structure tests that assert the old prop-shaped copy contract is absent.
+- Do not require route files to wrap every one-paragraph description in `<p>` when the primitive always represents a paragraph; keep the route focused on visible prose and let the primitive own repetitive semantic markup.
+- For legal-page-adjacent components, do not define page-specific typography classes in these cookie-preference primitives. Let the legal page / inherited legal text contract handle typography unless a separate shared token is explicitly introduced.
+- After refactoring, search the route and shared component for the old prop API (`<XItem id=`, `label="`, `description={`, `label: string`, `description: ReactNode`), old vague names (`CookiePreferenceItemHeader`, `CookiePreferenceItemDescription`), route-owned paragraph wrappers such as `<CookiePreferenceToggleDescription><p>...`, and cookie-specific typography/CTA leftovers such as `CookiePreferenceCta*`, `text-[...]`, `font-*`, `leading-[...]`, `tracking-[...]`, or hex text colors; add structure tests that assert those old contracts are absent.
 
 ## Done criteria
 

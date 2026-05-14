@@ -307,6 +307,24 @@ When the user asks to merge `/t/solutions/aip/fde-services` and `/t/services/fde
 - keep existing public redirect route handlers unchanged unless the user explicitly asks for rollout; for this class of cleanup, the upstream redirect to `https://www.querypie.com/ja/solutions/aip/fde-services` can remain while only local preview endpoints are consolidated
 - update non-indexability and page-structure tests so the deleted preview route is no longer listed and the surviving `/t/services/fde` test asserts the old route/component/assets are absent
 
+### `/t/platforms/aip/integrations`
+
+When matching the live QueryPie Japan integrations page, preserve the live query-parameter compatibility layer while keeping the local implementation's semantic category keys as the source of truth.
+
+Important finding from the live page:
+- the source page accepts numeric category query values such as `?category=0` through `?category=9`
+- those numeric values map by UI order to semantic integration categories, for example `0 -> workflow-automation`, `1 -> google-workspace`, `2 -> project-management`, and `9 -> search-navigation`
+- local corp-web-japan code should not make numeric IDs the canonical category model; use semantic keys in authored data, filters, tests, and internal links
+- normalize incoming numeric query values at the route/search-param boundary so copied live URLs still land on the correct filtered view
+
+Implementation guidance:
+- add a small numeric-to-semantic mapping near the page's category model rather than scattering conversions in card data
+- keep `categoryKeys` / category constants semantic and add a regression test that rejects numeric category keys in the canonical model
+- add URL/query tests for representative numeric values so future refactors do not silently break live URL compatibility
+- when writing issue/PR notes, describe this as compatibility with live incoming URLs, not as a route-taxonomy change
+
+Reference: `references/aip-integrations-category-query-compat.md` captures the observed live behavior and the recommended test guard.
+
 ### `/t/services/acp`
 
 Do not assume ACP is a simple four-card static page.
