@@ -12,7 +12,7 @@ User wants PR status checked before commit/push on repo work to avoid continuing
 §
 For repo work, the user wants brief progress updates, immediate execution once the requested change is clear, and no long passive waits. Give a short status/estimate first, avoid proposal-only pauses, and if commands run long or estimates are exceeded, stop and report status promptly instead of waiting silently.
 §
-User prioritizes actual website appearance over technical implementation details when evaluating stakeholder-facing UI changes.
+User prioritizes actual website appearance for stakeholder-facing UI, expects critical re-evaluation of visual claims, and wants shared design-policy issues distinguished from page-specific defects.
 §
 User says there is no policy that the Japanese site's default font must be Pretendard JP; do not treat that as a constraint.
 §

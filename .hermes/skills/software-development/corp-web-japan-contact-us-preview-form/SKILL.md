@@ -583,6 +583,33 @@ Practical example:
   - grid wrapper -> `items-start`
   - `ContactUsFormPanel` -> `self-start`
 
+### Post-PR-461 company-page primitive nuance
+
+After the company-page header/layout refactor, `/contact-us` may be built on shared primitives such as:
+- `CompanyPageSection`
+- `CompanyPageLayout preset="equalColumns"`
+- a contact-us-only `ContactUsFormPanel`
+
+In that shape, split spacing responsibilities carefully:
+- horizontal/two-column alignment belongs to `CompanyPageLayout`
+- contact-us-only right-column visual nudges belong to `ContactUsFormPanel`
+- footer gap belongs to the outer `CompanyPageSection` bottom padding, not to the form panel
+
+What worked well in a later follow-up:
+- if the user explicitly wants the right form column to sit slightly lower on desktop for visual balance, a contact-us-only class like `lg:mt-[10px]` on `ContactUsFormPanel` is acceptable
+- do not push that kind of offset down into the shared `CompanyPageLayout`, because that primitive is also used by other company pages such as about-us, certifications, and news
+
+Important footer-gap lesson:
+- if the user asks for the distance from the last visible content block to the start of the footer to be a specific value (for example 78px), the correct control point is the outer section padding in the shared company-page primitive, not `mb-*` on the last card/component
+- after the PR 461 company-page primitive shape, treat changes to `CompanyPageSection`, `CompanyPageIntro`, and `CompanyPageTitle` spacing as shared company-page behavior by default, not as contact-us-only exceptions
+- only keep truly contact-us-specific right-column visual nudges in `ContactUsFormPanel` (for example a desktop-only `lg:mt-[10px]` offset when the user explicitly wants the form column slightly lower)
+- do not add a contact-us-only `CompanyPageSection` preset like `compactFooter` unless the user explicitly asks for a page-specific permanent exception that should not affect sibling company pages
+- in the verified follow-up, the better end state was:
+  - shared `CompanyPageSection` default desktop bottom padding updated to the desired common value
+  - shared `CompanyPageIntro` owning the common intro spacing tweak
+  - only `ContactUsFormPanel` keeping the contact-us-only desktop offset
+- avoid faking footer distance with inner card padding or card bottom margin; that mixes component-internal spacing with page-level vertical rhythm and makes future layout reuse harder
+
 ## Done criteria
 
 Preview-phase done criteria:

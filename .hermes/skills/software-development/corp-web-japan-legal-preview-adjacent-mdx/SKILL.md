@@ -138,18 +138,39 @@ When converting from inline-content or wrapper-heavy MDX:
 - remove unnecessary wrapper components from MDX
 - remove custom MDX component injections that only existed for those wrappers
 
+## Commonizing existing legal page families
+
+When the user asks to apply a PR #461-style commonization to legal pages, treat it as a page-family primitive cleanup:
+- compare the current legal pages first: single-document routes such as EULA / Terms of Service and multi-version routes such as Privacy Policy
+- preserve `page.tsx` as the visible page-composition owner, but remove page-specific wrappers whose only job is to assemble the same legal header/body shape
+- prefer extending `src/components/sections/legal/document.tsx` with a common vocabulary such as `LegalDocumentHero` rather than creating one wrapper per route
+- `LegalDocumentHero` can safely absorb family differences through props/children, for example:
+  - `title`
+  - optional `meta` / effective date
+  - optional `description`
+  - optional selector controls as children for versioned pages
+  - optional `divider`
+  - optional `titleVariant="compact"`
+- centralize repeated MDX evaluation in `src/lib/legal-mdx-source.ts`; keep the cached source reader, and add a helper such as `renderLegalMdx<Frontmatter extends Record<string, unknown>>({ sourcePath, components })` so pages do not each import `evaluate`, `remarkGfm`, or repeat `parseFrontmatter: true`
+- keep route-specific content source path and custom MDX component adapter choices in the route or route-family owner; for example privacy policy may still pass `components: buildPrivacyPolicyDocumentComponents()` while EULA and Terms use the default legal document MDX components
+- remove now-redundant route-specific wrapper modules when their responsibilities have moved into the common legal vocabulary, e.g. a `terms-of-service/section.tsx` that only exported `TermsOfServiceHero`, `TermsOfServiceBody`, and an MDX render helper
+
+This is analogous to the company-page PR #461 pattern: move repeated header/body shell language into shared primitives, then express each page's actual composition with those primitives directly in the route file.
+
 ## Testing strategy
-Add or update a narrow source-structure test such as `tests/legal-terms-of-service-preview.test.mjs`.
+Add or update narrow source-structure tests such as `tests/legal-terms-of-service-preview.test.mjs` and mirrored route tests under `tests/src/app/t/<route>/page.test.mjs`.
 
 Verify:
-1. `page.tsx` reads the adjacent MDX file under the same route directory
+1. `page.tsx` reads the adjacent MDX file under the same route directory, or the versioned content root for multi-version routes
 2. `generateMetadata()` derives title/description from frontmatter
-3. `parseFrontmatter: true` is enabled
-4. the hero reads `frontmatter.date`, `frontmatter.title`, and `frontmatter.description`
-5. the MDX file contains frontmatter with `title`, `description`, `date`
+3. `parseFrontmatter: true` is enabled in the shared legal MDX helper when evaluation is centralized
+4. the hero reads `frontmatter.date`, `frontmatter.title`, and `frontmatter.description` directly or through `LegalDocumentHero` props
+5. the MDX file contains frontmatter with `title`, `description`, and `date` where applicable
 6. the MDX file no longer contains wrapper-only layout markup such as `<Box ...>` or `<CenterSection ...>`
 7. if the MDX body was reflowed, long prose follows the requested wrap width without splitting words and without accidentally absorbing a following plain paragraph into the previous bullet/list item
 8. preview-aware footer links still point through the preview toggle helper if applicable
+9. deleted route-specific wrapper files are asserted absent, and no tests still read those deleted files
+10. every duplicate legal structure test is updated: this repo can have both top-level tests such as `tests/legal-mdx-cache.test.mjs` / `tests/legal-privacy-policy-preview.test.mjs` and mirrored route tests under `tests/src/**`
 
 Useful assertions:
 - `assert.match(source, /export async function generateMetadata\(\): Promise<Metadata>/)`
@@ -251,6 +272,9 @@ This matters because `privacy-policy` may be a structural exception due to versi
 - Keeping wrapper-only MDX components that force `page.tsx` to inject unnecessary custom components
 - Forgetting to switch from static `metadata` to frontmatter-driven `generateMetadata()`
 - Forgetting to update the source-structure tests when changing the route-local pattern
+- Centralizing MDX evaluation without preserving the TypeScript constraint expected by `evaluate`; use a generic such as `Frontmatter extends Record<string, unknown>` if needed
+- Updating only the route-specific tests and missing older/top-level duplicate legal tests that still assert the previous structure or still read a deleted wrapper module
+- Letting a commonization PR hide the route's page composition in a new helper; the goal is shared vocabulary, not making `page.tsx` opaque
 
 ## Done criteria
 - The legal document body lives in `src/app/.../content.mdx`

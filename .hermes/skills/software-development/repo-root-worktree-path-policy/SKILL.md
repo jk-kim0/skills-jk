@@ -45,6 +45,28 @@ git worktree add .worktrees/fix-seo-baseline -b fix/seo-baseline origin/main
 git worktree add .worktrees/pr-321-followup origin/feature/pr-321
 ```
 
+## Important branch-selection distinction
+
+Choose the worktree base from the real review intent, not only from whether a PR number was mentioned.
+
+- New independent work with no unmerged dependency -> create the worktree from `origin/main` on a fresh branch.
+- Follow-up fixes to an existing open PR -> create a fresh worktree on that existing PR branch and update the same PR.
+- New work that should use an existing open PR as the baseline, but should land in its own later PR -> create a fresh worktree from the open PR head branch, create a new child branch there, and open a stacked PR whose base is the parent PR branch.
+
+Representative stacked-PR pattern:
+
+```bash
+git fetch origin --prune
+git worktree add .worktrees/contact-us-form-offset -b fix/contact-us-form-panel-offset origin/refactor/issue-459-company-page-contract
+# ...commit...
+gh pr create --base refactor/issue-459-company-page-contract --head fix/contact-us-form-panel-offset
+```
+
+Why this matters:
+- it keeps the parent PR review scope unchanged
+- it lets the child PR be reviewed or merged after the parent lands
+- it avoids silently pushing new scoped work into the parent PR when the user only meant “use that implementation as the baseline”
+
 ## Why this policy exists
 
 - keeps worktrees colocated with the owning repository

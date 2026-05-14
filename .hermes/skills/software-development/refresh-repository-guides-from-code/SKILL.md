@@ -149,6 +149,35 @@ Prefer implementation-backed statements such as:
 
 Avoid vague prose that will drift quickly.
 
+### 6.1 When docs cite repository file paths as reference examples, prefer commit-pinned GitHub links
+
+If the user wants readers to open example files directly from the docs, do not leave those examples as plain code spans only.
+Use GitHub links pinned to an immutable commit SHA so the reference keeps pointing at the exact reviewed snapshot even if later refactors move or rewrite the file.
+
+Preferred rule:
+- real file or directory examples -> link them
+- generic placeholder patterns such as `src/app/<route>/page.tsx` or `src/content/<family>/<slug>.mdx` -> keep them as plain code patterns
+
+Recommended source SHA for these links:
+- use the latest reviewed repository snapshot that the doc is intentionally describing
+- in a repo-doc refresh against current reality, this is often the current `origin/main` SHA
+- in PR-specific developer guides, this can also be the exact base/main snapshot the examples were validated against
+
+Link shapes:
+- file -> `https://github.com/<owner>/<repo>/blob/<sha>/<path>`
+- directory -> `https://github.com/<owner>/<repo>/tree/<sha>/<path>`
+
+Practical steps:
+1. decide which cited paths are real examples versus generic patterns
+2. resolve the immutable commit SHA you want to freeze
+3. convert real example paths to markdown links using `blob/<sha>` or `tree/<sha>`
+4. keep placeholder conventions unlinked so the prose still reads as a reusable pattern rather than a claim about one exact file
+
+Why this matters:
+- later code movement does not silently repoint the docs at a different file
+- reviewers can inspect the exact snapshot discussed in the document
+- "example path" and "generic naming contract" stay clearly separated
+
 ### 7. Verify the doc update itself
 
 Before finishing:

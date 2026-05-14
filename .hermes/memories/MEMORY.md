@@ -120,8 +120,6 @@ The active Hermes runtime uses HERMES_HOME=~/workspace/skills-jk/.hermes in this
 §
 Hermes session files for this setup are stored under ~/workspace/skills-jk/.hermes/sessions, and direct file inspection there can reveal recent Telegram sessions beyond what session_search returns.
 §
-User asked to roll back git-installed Hermes from unstable main HEAD to a recent stable release; local Hermes repo was checked out at tag v2026.4.16 and the gateway was restarted.
-§
 For searching all historical file paths in a git repo and filtering by substring, the user uses the one-liner: git log --all --name-only --pretty=format: | sed '/^$/d' | sort -u | grep '<substring>'.
 §
 In corp-web-japan blog migration work, the user does not want broad synthetic labels like 'multilingual route support'; prefer explicit per-locale facts such as 'EN/JA/KO detail pages and public blog list route are implemented.'
@@ -172,7 +170,7 @@ In corp-web-japan preview resource publication work, the user is concerned about
 §
 In corp-web-japan PR follow-up work, gh pr view can briefly lag after push; verify the actual remote branch tip with `git ls-remote origin refs/heads/<pr-branch>` before assuming the PR head failed to update.
 §
-In corp-web-japan typography/style unification work, the user prefers site-wide consistency over route-local parity exceptions: do not keep `/t/about-us` as a special text-color or body-typography exception; align pages to shared defaults, and when the user names a baseline page for unification, apply that baseline literally across spacing, typography, and width without leaving future-facing or page-specific exceptions. Defaults remain `main` `text-slate-950`, body copy `text-slate-600`, and marketing/company body copy `text-[15px] leading-7` unless another shared pattern is required; when reviewing the common setting itself, remove local extra `mt-*` or `max-w-*` overrides from named lead/intro components by default.
+In corp-web-japan typography/style unification work, the user prefers site-wide consistency over route-local parity exceptions: do not keep `/t/about-us` as a special text-color or body-typography exception; align pages to shared defaults, and when the user names a baseline page for unification, apply that baseline literally across spacing, typography, and width without leaving future-facing or page-specific exceptions.
 §
 In corp-web-japan demo list-route rollout work, canonical list paths should stay under the demo namespace: use-cases `/demo/use-cases`, AIP `/demo/aip`, ACP `/demo/acp`. Do not invent `/demo-acp` or lift use-cases to `/use-cases` unless the user explicitly changes the route policy.
 §
@@ -226,7 +224,7 @@ In the repo-local Hermes config at ~/workspace/skills-jk/.hermes/config.yaml, ch
 §
 In corp-web-japan, the user wants remaining legacy `/posts/` route/code/content remnants removed entirely rather than preserved for event compatibility.
 §
-In corp-web-japan taxonomy work: AIP/ACP use preview `/t/platforms/{aip,acp}` and final `/platforms/{aip,acp}`; AIP child pages use `/platforms/aip/{slug}` except no `/platforms/aip/fde-services`; FDE stays `/t/services/fde` and final `/services/fde`. `/t/*` removal is a final public-release step; preview-route rename PRs should not add old-preview redirects or public routes unless scoped.
+In corp-web-japan taxonomy: AIP/ACP use preview `/t/platforms/{aip,acp}` and final `/platforms/{aip,acp}`; AIP child pages use `/platforms/aip/{slug}` except no FDE child; FDE stays `/t/services/fde` -> `/services/fde`. Use `Aip*`, not `AipService*`, for AIP page/section primitives. `/t/*` removal is final-release only.
 §
 In corp-web-japan path taxonomy naming, the user wants a single canonical family name chosen on general convention rather than current code habit; use `home` instead of `top-page` for the homepage component/test family.
 §
@@ -237,3 +235,5 @@ In corp-web-japan, default text content width is 1200px unless a side-by-side im
 In corp-web-japan test structure work, the user wants only genuinely reusable infra helpers kept in shared test helper locations; page-specific or page-family-specific helpers should be colocated near the relevant mirrored test paths instead of centralized under tests/helpers.
 §
 corp-web-japan main requires `Detect changed scope`, but ci.yml pull_request ignores docs/README/AGENTS/public md/skills md changes, so docs-only PRs can miss the required check.
+§
+In this environment, read_file output includes display-only line-number prefixes like `1|`; do not treat that formatted output as raw file contents when rewriting files, or repeated saves can duplicate those prefixes into documents.

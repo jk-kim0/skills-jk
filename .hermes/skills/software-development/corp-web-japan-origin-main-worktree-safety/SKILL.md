@@ -438,6 +438,14 @@ Practical follow-up nuance:
 - In that situation, do not stash reflexively.
 - First verify whether the branch is still exactly based on the current remote main tip:
 
+Existing PR rebase nuance:
+- If an existing PR is CI-green but `gh pr view` reports `mergeStateStatus: DIRTY`, treat it as a latest-main rebase/conflict task rather than a test-failure task.
+- Rebase the existing PR branch onto `origin/main`, resolve conflicts while preserving latest-main changes, rerun the narrow affected checks, and push with `git push --force-with-lease`.
+- After resolving conflicts, run `GIT_EDITOR=true git rebase --continue` in non-interactive agent sessions so Git does not open Vim and hang the turn.
+- When latest `main` promoted or renamed public routes while the PR branch still contains older preview-route assumptions (for example `/t/about-us` -> `/about-us`, or `/t/certifications` -> `/certifications`), resolve conflicts in favor of latest-main canonical route files and tests. Reapply only the PR's intended structural or contract change on top; do not resurrect old preview paths in route tests just because they appear in the branch side of the conflict.
+- After such route-promotion conflicts, run narrow source checks that prove both sides of the contract: affected route tests, any path/CI assignment assertions such as `node scripts/ci/assert-test-groups.mjs`, and lightweight TypeScript/ESLint checks for touched helper scripts when available.
+
+
 Additional PR-head rewrite nuance:
 - After a rebase plus squash/soft-reset rewrite, `gh pr view` can briefly lag and still show the old commit list.
 - Before assuming the force-push failed, verify the actual remote branch tip directly:

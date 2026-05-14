@@ -254,6 +254,7 @@ Important zero-check diagnostic:
   - read the relevant workflow triggers (`on:` blocks)
 - Some repositories only have `workflow_dispatch`, comment-driven, or repository-dispatch automations. In those repos, a rebased/pushed PR can legitimately have zero attached checks.
 - In that case, report explicitly that the PR is rebased/updated successfully but the repo has no automatic PR CI for that branch/event, so there is no failing check to fix.
+- Also do not assume a docs-only or guidance-only PR will necessarily miss checks just because the repository has a known path-ignore caveat; verify the actual PR `statusCheckRollup` or `gh pr checks` result after creation, because some docs-only changes can still attach required checks and preview/deploy workflows.
 
 **With gh:**
 
@@ -633,23 +634,24 @@ gh pr view <branch-name> --json number,title,url,headRefName,baseRefName,state
    - Practical interpretation: `mergeable=MERGEABLE` plus `mergeStateStatus=BLOCKED` immediately after a rebase/force-push often means the conflict is already resolved and required checks are merely pending on the new head. Do not report it as an unresolved merge conflict unless GitHub actually reports a conflict/unmergeable state.
    - If the same CI error disappears on the parent but persists on children, suspect that the children were not rebased onto the updated parent yet.
 
-5. Existing PR Follow-up Hygiene.
-   - When the user asks to improve an existing PR and names a few files as examples, inspect the full PR file list first:
-     ```bash
-     gh pr view <PR_NUMBER> --json files --jq '.files[].path'
-     ```
-   - Apply the same narrow mechanical cleanup to every PR file that shares the pattern, not only the examples named by the user.
-   - For directory-scoped component moves, avoid repeating the family/route name in both directory and filename. Prefer contextual filenames such as `form.tsx`, `page-section.tsx`, `list-page.tsx`, or `download-gate-page.tsx` under `src/components/sections/<family>/...` when the directory already supplies the family name.
-   - If the user explicitly chooses a family folder for root-level survivor components (for example moving internal-demo-only section components from `src/components/sections/*.tsx` to `src/components/sections/internal-demo/*.tsx`), keep the change mechanical: `git mv`, update only direct imports, and add/extend a source-reading test that asserts both the new location exists and the old root-level files no longer exist.
-   - After renames, update imports and source-reading tests together, then stage with `git add -A` and check `git diff --cached --name-status` so git records pure renames (`R100`) rather than noisy delete/add pairs. Prefer `git add -A` over listing both old and new paths manually: once `git mv` has removed the old path, a manual pathspec for the deleted root file can fail before staging the rename.
+5. Existing PR follow-up hygiene.
+5. Existing PR follow-up hygiene.
    - When the user asks to "fix the PR" / "PR 고쳐줘" after several incremental follow-up commits, do not stop at fixing the immediate failing check.
-   - Default to a full branch-hygiene pass unless the user narrows scope:
-     - inspect review comments and CI failures
-     - fix the actual issue
-     - rebase onto latest `origin/main`
-     - if the branch history is only iterative fixups, squash to one clean commit
-     - force-push the cleaned branch
-   - Only preserve a multi-commit PR history when the user explicitly asks for it or the commits are meaningfully staged for review.
+   - When the user points to an existing PR and asks to rename a term/component family, update that same PR branch rather than creating a new PR. Keep the diff narrow, but rename all project-facing occurrences in the touched route/component/test family: imports, JSX tags, exported function names, default export names, related structure tests, and route-family module filenames that still carry the obsolete term. Before pushing, run a targeted grep for the old term/path and the narrow route-family test so tests do not keep asserting stale wording.
+  - Default to a full branch-hygiene pass unless the user narrows scope:
+    - inspect review comments and CI failures
+    - fix the actual issue
+    - rebase onto latest `origin/main`
+    - if the branch history is only iterative fixups, squash to one clean commit
+    - force-push the cleaned branch
+    - if the surviving commits/scope changed materially, refresh the PR title/body so Summary/Test Plan match the cleaned branch
+  - For UI/CSS follow-up branches with several incremental spacing/layout tweaks, do not leave the PR body describing the intermediate history. Rewrite it around the final landed contract on the branch:
+    - describe the final CSS values that remain after the latest push, not the earlier trial values
+    - separate page-specific exceptions from shared primitive/layout rules
+    - explicitly note removed semantic-only variants or overrides when the final result simplified back to one shared rule
+    - keep the file list and test plan aligned with the surviving diff, not the earlier larger scope
+  - Only preserve a multi-commit PR history when the user explicitly asks for it or the commits are meaningfully staged for review.
+
 
 6. `gh pr diff` can fail on very large PRs.
 
@@ -662,3 +664,55 @@ gh pr view <branch-name> --json number,title,url,headRefName,baseRefName,state
      gh pr view <PR_NUMBER> --json files --jq '.files[].path' | grep '^src/app/api/' || true
      ```
    - Use this to verify whether a scoped set of files is still present after history cleanup or PR splitting.
+
+7. When working with git worktrees, prefer absolute worktree paths in follow-up verification commands.
+
+   - Tool runners do not always keep the same current working directory across calls.
+   - A relative path like:
+     ```bash
+     cd .worktrees/<branch>
+     ```
+     can fail if the next command runs from a different directory than expected.
+   - Safer patterns:
+     ```bash
+     WT=/absolute/path/to/repo/.worktrees/<branch>
+     cd "$WT"
+     git status --short
+     ```
+     or:
+     ```bash
+     git -C /absolute/path/to/repo/.worktrees/<branch> status --short
+     ```
+   - This matters most after PR creation/push, when you do one last remote-head verification pass and want to avoid a false failure caused only by cwd drift.
+
+8. Never write file-tool line-number prefixes back into tracked files.
+
+   - Some file-reading tools render content with display prefixes like:
+     ```text
+     1|first line
+     2|second line
+     ```
+     or, after repeated misuse, even nested forms like:
+     ```text
+     1| 1| 1|real content
+     ```
+   - Those prefixes are presentation metadata, not file content.
+   - Do **not** copy `read_file` output directly into `write_file`, `patch`, PR comments, or committed docs without stripping the prefixes first.
+   - Safe rule:
+     - use `read_file` for inspection only
+     - use raw filesystem reads / editor buffers / scripts for full-file rewrites
+     - after any file rewrite sourced from tool output, run a verification grep or regex check for accidental `^\s*\d+\|` line starts before committing
+   - This matters especially in docs-only PR follow-up work, where a mistaken rewrite can silently replace the whole file with line-number-prefixed content.
+
+9. Markdown links to GitHub paths containing `[` or `]` need extra escaping.
+
+   - Paths like `src/app/blog/[id]/[slug]/page.tsx` are not safe to paste raw into ordinary Markdown links.
+   - Two things must happen:
+     - escape `[` and `]` in the visible link label
+     - percent-encode bracket characters in the URL path (`[` -> `%5B`, `]` -> `%5D`)
+   - Safe shape:
+     ```md
+     [src/app/blog/\[id\]/\[slug\]/page.tsx](https://github.com/<owner>/<repo>/blob/<commit>/src/app/blog/%5Bid%5D/%5Bslug%5D/page.tsx)
+     ```
+   - Prefer commit-pinned blob/tree URLs when the doc is meant to preserve a stable historical example.
+   - After editing Markdown with bracketed route paths, inspect the rendered or raw final file once before commit to ensure the link label and URL were both encoded correctly.

@@ -98,6 +98,12 @@ Why this worked:
 - other form pages still use the old layout path
 
 ### 6. Use CSS to create parity, but do not change field structure
+Important follow-up rule from later PR refinement:
+- if the user clarifies that a spacing tweak is a shared page rule rather than a contact-us-only exception, do a quick audit before adding another page-local override
+- absorb shared heading/section/intro spacing into the shared page primitive or shared layout shell
+- keep only the truly page-specific exception local to the contact-us section module or form panel
+- practical example: keep the form-panel offset page-specific, but fold top/bottom section spacing and intro spacing back into the shared primitive once the user says those changes should apply generally
+
 In `form-ui.module.css`, the proven styling was:
 - smaller default gap than before
 - contact-sales-only desktop grid at `min-width: 1024px`
