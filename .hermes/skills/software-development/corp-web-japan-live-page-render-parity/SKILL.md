@@ -23,7 +23,10 @@ Reference notes:
 - `references/pr-preview-stage-render-audit-pattern.md` — reusable pattern for auditing a PR Preview Deployment against `stage.querypie.ai` across affected routes using Playwright geometry, screenshot pixel diffs, and wrapper padding/gutter root-cause analysis.
 - `references/certifications-mobile-gutter-audit.md` — concrete `/certifications` narrow-mobile gutter/card-width audit showing how `px-[30px]` behaves at 300/320/360/390px and when to prefer a card-gallery gutter preset.
 - `references/platform-aip-hero-spacing-parity.md` — concrete `/t/platforms/aip` measurement showing how to distinguish header-to-H1 top offset from already-correct intra-hero rhythm, and why `PlatformPageSection` should own the family top offset.
+- `references/platform-aip-mobile-overflow-parity.md` — concrete `/t/platforms/aip` desktop-vs-mobile comparison showing how desktop parity can hide mobile overflow: fixed 540–600px feature media plus non-stacking flex rows squeezed mobile text into 30px columns.
+- `references/platform-aip-value-card-and-feature-copy-parity.md` — concrete `/t/platforms/aip` value-card equal-height and AipFeatureCopy width/placement parity measurements from stage-vs-live browser comparison.
 - `references/aip-self-hosted-hero-video-pattern.md` — concrete `/t/platforms/aip` note for replacing the current YouTube hero iframe with QueryPie-hosted media while preserving the measured hero wrapper geometry.
+- `references/platform-aip-value-card-fixed-height.md` — concrete `/t/platforms/aip` value-card row-height audit showing why the visible card wrapper, not only the grid/reveal wrapper, must fill the equal-height grid track.
 
 Important findings from real usage:
 - Browser text snapshots can claim the structure is correct while the rendered layout still differs materially.
@@ -1040,14 +1043,22 @@ A practical finding from `/t/platforms/aip` parity work:
 - the source live page rendered AIP feature GIFs at fixed widths such as `540`, `580`, `520`, and `600` px from `MainFeatureDescription imageWidth`
 - the preview passed `width`/`height` to `next/image`, but the immediate wrapper had only `max-w-full`; inside the flex row this allowed media to stretch much wider, e.g. about `920px`
 - fixing only the image's intrinsic props was insufficient; the wrapper that owns the visual chrome also needed an explicit width
+- after media width is fixed, still measure the copy column separately: in one `/t/platforms/aip` audit, the first three `AipFeatureCopy` wrappers were about `59px`, `158px`, and `146px` narrower than live even though media width and the `80px` row gap matched
+- do not treat route-local `max-w-*` values on feature copy as authoritative until they are checked against live/source layout
 
-Reliable fix pattern:
+Reliable desktop fix pattern:
 - make the feature media wrapper `flex-none` / non-stretching
 - set the wrapper width to the route-authored/source-derived media width, for example `style={{ width }}`
 - keep the inner image `className="h-auto w-full"`
 - re-measure on the exact preview deployment URL after the PR deploy
 
-This mirrors the source `MainFeatureDescription` behavior where the media wrapper owns `style={{ width: `${props.imageWidth}px` }}` rather than letting the flex row stretch the media.
+Important mobile follow-up from a later `/t/platforms/aip` audit:
+- a desktop-correct fixed media width can become the mobile bug if the same row remains `flex-row` / `flex-row-reverse` at `390px`
+- in that state, images can keep `540`, `580`, or `600px` desktop widths while the text column collapses to `30px`-wide vertical strips and the mobile scroll height nearly doubles
+- when applying this desktop-width pattern, also add an explicit mobile contract: stack the feature row on small screens and constrain the media wrapper to the content column before restoring the source fixed width at desktop breakpoints
+- see `references/platform-aip-mobile-overflow-parity.md` for the measured stage-vs-live example
+
+This mirrors the source `MainFeatureDescription` behavior where the media wrapper owns `style={{ width: `${props.imageWidth}px` }}` rather than letting the flex row stretch the media, but the responsive breakpoint behavior must still be checked separately.
 
 ### K4. JSX marker components in an interactive preview section may disappear across a client boundary
 A practical finding from `/t/platforms/acp` parity work:
@@ -1132,6 +1143,8 @@ Important real finding from `/t/platforms/aip` value-card parity:
   - white multi-line card titles authored inside that overlay
   - body copy and learn-more action inside the card body
 - a preview implementation that simply renders image -> heading below -> paragraph can pass text/section-order checks but still fail visual parity
+- another AIP value-card pitfall: the grid row/reveal wrapper can have equal row height while the actual visible white card wrapper still shrinks to content height; measure and fix the `article`/`li` that owns the card chrome, not only the outer grid item
+- concrete measured example: live cards were all about `549.63px` high, while stage visible card wrappers were about `485.63px`, `459.63px`, and `433.64px`
 
 Reliable fix pattern:
 1. inspect the legacy/source component and CSS, not just the MDX source and browser text snapshot
@@ -1189,9 +1202,11 @@ Required measurement pattern for catalog/list pages:
    - gap
 4. then separately compare the nested image size and label text metrics inside each card
 
-Also compare the live interaction/query contract, not only visible filter labels:
-- on `/t/platforms/aip/integrations`, live category links used numeric query values such as `category=0..9`, while a preview implementation used keyword slugs such as `category=workflow-automation`
-- if public rollout is meant to preserve the migrated page behavior, treat that query contract as a parity target unless the user explicitly decides to change it
+Also compare the live interaction/query contract, not only visible filter labels, but classify it by rollout scope:
+- on `/t/platforms/aip/integrations`, live category links used numeric query values such as `category=0..9`, while the preview implementation used keyword slugs such as `category=workflow-automation`
+- for a `/t/*` preview-tracking issue, do **not** automatically treat live numeric query compatibility as remaining preview work; the preview-local contract may intentionally use semantic keyword keys
+- if public rollout is explicitly in scope and existing public URLs/bookmarks must be preserved, then treat the live query contract as a separate public URL-compatibility target
+- if a PR adding numeric query compatibility was closed as wrong-scope, do not keep that compatibility as a parity requirement in the preview issue; record it as out of scope or future rollout-only
 - when converting route-local category keys to live-compatible values, avoid broad global string replacement: it can corrupt unrelated strings such as asset filenames (`microsoft-365` becoming `4`)
 - make the mapping deliberately and re-run the mirrored structure test plus a quick asset-path grep/diff review for every filename-bearing field
 

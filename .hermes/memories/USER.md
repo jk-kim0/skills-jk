@@ -46,7 +46,7 @@ In corp-web-v2 asset migration work, the user prefers non-image assets like anim
 §
 User does not want local or CI reruns to be left waiting for long periods; avoid long passive waits when checking verification after repo changes.
 §
-For repo work, the user expects changes to be committed, pushed, and reflected in the PR without being asked again.
+For repo work, the user expects changes to be committed, pushed, reflected in the PR without being asked again; existing PR body rewrites should be grounded in the current diff/files/check status and remove stale claims.
 §
 In corp-web-v2, the user wants repeated local npm install in fresh worktrees avoided when possible because it causes significant delay.
 §

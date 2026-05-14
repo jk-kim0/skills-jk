@@ -247,17 +247,29 @@ Use this only after verifying the staged resolution is correct and you want to k
 
 Use the fully-qualified destination ref when needed. This is especially useful if `HEAD` is detached during or right after rebase-related recovery.
 
-## 5. Update the PR body after rebase
+## 5. Update the PR body after rebase or final-implementation cleanup
 
-After rebasing onto `main`, the PR may now contain fewer commits or only the final task-specific diff.
-Rewrite the PR body so it describes only what remains in the PR.
+Use this section not only after a rebase, but also when the user asks to rewrite an existing PR body so it matches the final implementation.
+The body must describe the current PR diff, not the original plan, older stacked work, or stale verification notes.
 
 Recommended checks:
 
 ```bash
-git diff --stat origin/main...HEAD
-gh pr view <PR_NUMBER> --json title,body,baseRefName,headRefName,url
+git fetch origin --prune
+gh pr view <PR_NUMBER> --json number,title,body,state,baseRefName,headRefName,headRefOid,files,commits,mergeStateStatus,url
+gh pr diff <PR_NUMBER> --name-only
+gh pr diff <PR_NUMBER> --patch --color never > /tmp/pr-<PR_NUMBER>.diff
+git diff --stat origin/main...origin/<head-branch> || true
+gh pr checks <PR_NUMBER> --watch=false || true
+gh run list --branch <head-branch> --limit 5 --json headSha,status,conclusion,workflowName,url
 ```
+
+Body-writing rules:
+- describe only the files and behavior that remain in the current diff
+- remove stale sections that mention files, routes, tests, or scope no longer present in the PR
+- make the verification section match the latest attached checks for the PR head SHA; if relying on CI/preview, name the head SHA or say checks passed on that head
+- keep repository language conventions from project guidance (for example some repos require English PR titles/bodies even when user chat is Korean)
+- use `--body-file` for the edit and verify the result with `gh pr view`
 
 Then replace the body with a body file describing:
 - the current summary

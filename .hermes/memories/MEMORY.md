@@ -114,8 +114,6 @@ The corp-web-japan GitHub wiki repository is locally cloned at ../corp-web-japan
 §
 In corp-web-japan, the `/events` route currently exists as a functional page shell before content is ready; it is not part of the current public launch scope.
 §
-The active Hermes runtime uses HERMES_HOME=~/workspace/skills-jk/.hermes in this setup; treat that as the primary home for session state, logs, and agent-local artifacts unless evidence shows a different profile/home.
-§
 Hermes session files for this setup are stored under ~/workspace/skills-jk/.hermes/sessions, and direct file inspection there can reveal recent Telegram sessions beyond what session_search returns.
 §
 For searching all historical file paths in a git repo and filtering by substring, the user uses the one-liner: git log --all --name-only --pretty=format: | sed '/^$/d' | sort -u | grep '<substring>'.
@@ -140,7 +138,7 @@ In corp-web-japan, when a refactor workflow is likely to be repeated across sess
 §
 In corp-web-japan static-page route-local authoring, docs/code-location-conventions.md can be outdated; the user's desired target pattern is current src/app/page.tsx on latest main, src/app/solutions/ai-dashi/page.tsx is only partially refactored toward that goal, and src/app/solutions/ai-crew/page.tsx is the archetypal pre-refactor anti-pattern.
 §
-In corp-web-japan static-page authoring, src/app/**/page.tsx should contain the copy text and the calls/composition that use components, while src/components/sections/** should define the components used by page.tsx and hold the style/UI/UX implementation details such as classes, JavaScript, and styling behavior.
+In corp-web-japan, route-local means `src/app/**/page.tsx` owns copy/order/composition while UI/styling components live under `src/components/sections/**` unless excepted. `InternalDemo*` is okay only for strictly internal-demo-local UI; reusable/component-candidate symbols need production-ready neutral names.
 §
 In corp-web-japan main as of 2026-05-03, local `next build --webpack` fails on an existing baseline CSS Modules error in `src/components/layout/site-header.module.css`: `:root` selector is not pure. This is independent of the use-cases MDX migration branch.
 §
@@ -176,8 +174,6 @@ In corp-web-japan, .github/workflows/ci.yml and deploy-preview.yml both support 
 §
 In corp-web-japan manuals work, the real replacement target for legacy /api-docs.html is https://docs.querypie.com/ja/api-reference.
 §
-On this machine, exiftool is installed and available in PATH.
-§
 In corp-web-japan, Vercel WAF custom rules are now managed as a repo-committed source of truth under ops/vercel-firewall/, with a project-specific JSON payload plus README, and applied project-scoped via full PUT to /v1/security/firewall/config for corp-web-japan.
 §
 In corp-web-japan news rollout, direct redirects/opening to external media pages for local news items are intentionally avoided because external media links often break; local /news detail rendering is preferred over direct external card navigation.
@@ -202,7 +198,7 @@ In corp-web-japan publication-helper planning, the user wants the current low-le
 §
 In corp-web-japan legal preview work, route-local self-contained placement under src/app/t/<route>/ can be preferable to broad src/content/legal-preview + src/lib/legal-preview indirection; for versioned privacy-policy previews, the user expects `src/app/t/privacy-policy/[slug]/page.tsx` to own page composition while `src/app/t/privacy-policy/page.tsx` may remain a thin latest-version wrapper that derives the last document date.
 §
-In corp-web-japan, for standalone static/legal preview pages like terms-of-service, the user prefers route-local MDX colocation: keep page.tsx and content.mdx in the same route directory (e.g. src/app/t/terms-of-service/) rather than placing the MDX under src/content.
+In corp-web-japan legal MDX work: standalone legal pages like terms-of-service prefer route-local MDX colocation (page.tsx + content.mdx). Effective dates should come from ../corp-web-contents source/history; if no explicit source date exists, use the source file's first-add git date.
 §
 In the repo-local Hermes setup at ~/workspace/skills-jk/.hermes/config.yaml, mcp_servers.chrome-devtools is configured with npx chrome-devtools-mcp@latest and Hermes reports it enabled via `hermes mcp list`.
 §
@@ -236,4 +232,6 @@ corp-web-japan main requires `Detect changed scope`, but ci.yml pull_request ign
 §
 In this environment, read_file output includes display-only line-number prefixes like `1|`; do not treat that formatted output as raw file contents when rewriting files, or repeated saves can duplicate those prefixes into documents.
 §
-corp-web-japan AIP integrations filters use semantic keyword keys (e.g. `workflow-automation`), not numeric IDs; normalize live numeric query params to keywords if needed.
+corp-web-japan AIP integrations filters use semantic keyword keys (e.g. `workflow-automation`), not numeric IDs; for issue 454, do not keep live numeric query/filter parity as remaining scope—PR #490 was closed as wrong-scope.
+§
+In corp-web-japan AIP parity, live hero YouTube is square/no-shadow and poster-first using `public/aip/aip-video-thumb-jp.png`; immediate iframe or rounded/shadowed video chrome is a defect.

@@ -22,7 +22,7 @@ State check:
 - OPEN PR -> reuse that branch in a fresh worktree, then fix/rebase/push
 - MERGED or CLOSED PR -> do not revive the old branch; start from latest `origin/main` with a fresh branch/PR
 
-See `references/merged-pr-followup.md`.
+See both follow-up refs.
 
 - If deleted UI section components must be preserved for design review, restore them on the same PR branch and use `references/preserve-orphan-ui-sections.md`.
 - Do not satisfy the fresh-worktree requirement by creating a second branch/PR for the same review cycle.

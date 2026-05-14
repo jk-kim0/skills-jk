@@ -551,6 +551,33 @@ Important user-specific rule for this repo:
 - if the user says `/posts` endpoints were only temporary implementation artifacts and are no longer used, do not preserve even event-only compatibility by default
 - treat that as authorization to remove the route, its helper/parser layer, the temporary HTML corpus, and the related guidance/tests together
 
+## Source-inspection-only section component survivor follow-up
+
+When a corp-web-japan tracking issue identifies section components that are only kept alive by source-inspection tests, do not jump directly to deletion. First classify whether the component has a visual/interaction contract worth preserving as an internal demo reference.
+
+Safe pattern for reusable section/UI primitives that are not currently on a canonical route:
+1. Search runtime imports and source-based tests for the component path/export.
+2. If the component is a visual primitive or client interaction surface and deletion is not clearly intended, reconnect it to an existing noindex internal demo route such as `/internal/demo-sections` rather than leaving it as test-only residue.
+3. Render a compact example that exercises the meaningful props/states, and include route-visible copy explaining the current decision: not deleted, not canonical-route reconnected yet, preserved for internal demo/contract review.
+4. Update the route's mirrored source-inspection test so the internal route explicitly imports/renders the survivor components and asserts the rationale text. This converts the old "test-only survivor" into an intentional internal-demo contract.
+5. Keep `src/app/internal/<route>/` reserved for route entry files unless the user explicitly asks for route-adjacent component files. For `/internal/demo-sections`, `src/app/internal/demo-sections/` should contain `page.tsx` only; put internal-demo-only widgets under `src/components/sections/internal-demo/**` and import them with the `@/components/sections/internal-demo/...` alias.
+6. Keep authored copy and CTA wiring in `page.tsx` when route-local authoring is requested. For client widgets, keep the client component focused on interaction/rendering (for example accordion state), and pass route-authored items/labels/URLs from `page.tsx`.
+7. Update source-inspection tests to assert both sides of the contract: the internal demo route imports/renders the components, the old orphan source paths are absent, and `src/app/internal/<route>/` does not accumulate non-page component files. Search and update older tests that read the old paths directly (for example asset-path, launch-readiness, and link-integrity tests).
+8. Keep the PR narrow: internal demo route + internal-demo section components + directly affected source tests. Avoid promoting to canonical routes or changing public navigation unless the user explicitly asks for that route decision.
+
+Example from issue #395:
+- `src/components/sections/ai-crew/avatar.tsx` and `src/components/sections/ai-dashi/faq.tsx` were only referenced by tests.
+- The first safe follow-up was to import/render `AICrewAvatar` and `AIDashiFaq` on `src/app/internal/demo-sections/page.tsx`, then extend `tests/src/app/internal/demo-sections/page.test.mjs` to pin that preservation contract.
+- When the user corrected the route-local placement, the better final shape was to keep `src/app/internal/demo-sections/` to `page.tsx` only, move internal-only demo widgets to `src/components/sections/internal-demo/{ai-crew-avatar,ai-dashi-faq,role-slides,use-case-showcase}.tsx`, update `page.tsx` to use `@/components/sections/internal-demo/...` imports, keep FAQ copy/CTA in `page.tsx`, and assert both the old orphan paths and route-adjacent component files are gone.
+
+- For client/interactive survivor components that contain copy or CTA targets, keep the real authored copy/CTA ownership in `page.tsx`; make the internal-demo client component own only interaction/rendering mechanics and accept items/CTA props from the route.
+- Search all source-based tests for the old paths and update their assertions to the new route-local contract. Typical hidden references include asset-path tests, launch-readiness/link-integrity tests, and mirrored route tests.
+
+Example from issue #395:
+- `src/components/sections/ai-crew/avatar.tsx` and `src/components/sections/ai-dashi/faq.tsx` were only referenced by tests.
+- The first safe follow-up was to render them on `src/app/internal/demo-sections/page.tsx` and extend the mirrored route test to pin that preservation contract.
+- The corrected follow-up keeps `src/app/internal/demo-sections/` to `page.tsx` only, moves avatar/FAQ/role-slider/showcase implementation files to `src/components/sections/internal-demo/**`, keeps FAQ items and `aiDashiConsultUrl` in `page.tsx`, and updates tests to assert both the old orphan paths and route-adjacent component files no longer exist.
+
 ## New test file assignment safety
 
 When adding any new `tests/**/*.test.mjs` file in `corp-web-japan`, update `scripts/ci/test-groups.mjs` in the same PR unless the file already matches an existing group matcher.

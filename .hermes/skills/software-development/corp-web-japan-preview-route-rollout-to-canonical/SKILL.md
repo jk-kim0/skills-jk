@@ -106,6 +106,52 @@ Preserve public metadata like:
 
 Do not accidentally carry over preview-only `noindex,nofollow` metadata into the canonical public route.
 
+### Legal-page SEO exposure parity
+
+When publishing legal or policy pages from `/t/*` to canonical public routes, do not assume every newly public route should be added to `src/app/sitemap.ts` or removed from `robots.ts` restrictions.
+
+First audit the current `www.querypie.com/ja` behavior and mirror it deliberately:
+
+```bash
+python3 - <<'PY'
+import re, urllib.request
+paths=['/ja/cookie-preference','/ja/terms-of-service','/ja/privacy-policy','/ja/eula']
+base='https://www.querypie.com'
+
+def fetch(url):
+    req=urllib.request.Request(url, headers={'User-Agent':'Mozilla/5.0 Hermes SEO audit'})
+    with urllib.request.urlopen(req, timeout=20) as r:
+        return r.status, r.geturl(), r.headers, r.read().decode('utf-8','replace')
+
+for p in ['/robots.txt','/sitemap.xml']:
+    st,u,h,body=fetch(base+p)
+    print('\n==', p, st, u)
+    for legal in paths:
+        print(legal, legal in body or base+legal in body)
+    if p == '/robots.txt':
+        print('\n'.join(body.splitlines()[:80]))
+
+for p in paths:
+    st,u,h,body=fetch(base+p)
+    print('\n==', p, st, u)
+    print('x-robots-tag:', h.get('x-robots-tag'))
+    print('meta robots:', re.findall(r'<meta[^>]+name=["\\']robots["\\'][^>]*>', body, re.I)[:3])
+    print('canonical:', re.findall(r'<link[^>]+rel=["\\']canonical["\\'][^>]*>', body, re.I)[:3])
+PY
+```
+
+Practical result observed during legal-page publish work:
+- `www.querypie.com/sitemap.xml` includes `/ja/cookie-preference` and `/ja/eula`, but not `/ja/terms-of-service` or `/ja/privacy-policy`.
+- `www.querypie.com/robots.txt` disallows `/ja/terms-of-service` and `/ja/privacy-policy`.
+- The live legal page HTML still uses meta robots `index, follow` on all four pages.
+
+For corp-web-japan, the matching implementation is:
+- keep `/cookie-preference` and `/eula` in `src/app/sitemap.ts`
+- exclude `/terms-of-service` and `/privacy-policy` from `src/app/sitemap.ts`
+- add `disallow: ["/privacy-policy", "/terms-of-service"]` to `src/app/robots.ts`
+- keep page-level metadata as `robots: { index: true, follow: true }` for all four pages, matching the live HTML meta robots contract
+- update `tests/seo-metadata.test.mjs`, `tests/canonical-endpoints.test.mjs`, and launch-readiness/indexability tests so sitemap inclusion/exclusion and robots disallow are asserted explicitly
+
 ### 2. Decide whether the old `/t/*` page should be deleted or redirected
 
 Important corp-web-japan default:
@@ -320,3 +366,30 @@ Latest-main-safe rollout pattern:
 Practical heuristic:
 - if the old public route only contains temporary readiness logic or a thinner shell, while the preview route contains the real canonical-ready UX, treat the task as a canonical promotion of the preview implementation, not as a one-line gate removal.
 - this keeps the final route architecture cleaner and avoids leaving a duplicate preview list implementation behind.
+
+## Legal-page rollout lesson learned
+
+When the user asks to publish legal pages by removing `/t/` from routes such as `/t/privacy-policy`, treat it as a combined legal-surface rollout, not as a content rewrite.
+
+Current corp-web-japan legal rollout pattern:
+- move the existing local page implementations from:
+  - `src/app/t/cookie-preference/page.tsx` -> `src/app/cookie-preference/page.tsx`
+  - `src/app/t/terms-of-service/page.tsx` + `content.mdx` -> `src/app/terms-of-service/`
+  - `src/app/t/privacy-policy/page.tsx` and `[slug]/page.tsx` -> `src/app/privacy-policy/`
+  - `src/app/t/eula/page.tsx` + `content.mdx` -> `src/app/eula/`
+- delete the old public external redirect handlers such as `src/app/privacy-policy/route.ts`, not just shadow them with a page file
+- unless explicitly requested, do not keep `/t/*` compatibility redirects for these published legal pages
+- change footer legal links to direct canonical hrefs rather than `t("/privacy-policy", previewModeEnabled)` etc.; other non-legal preview-switched navigation can remain unchanged
+- update privacy-policy version selector navigation from `/t/privacy-policy/${nextSlug}` to `/privacy-policy/${nextSlug}`
+- update `src/app/sitemap.ts` for the newly published legal pages
+- make published legal metadata canonical and indexable (`robots: { index: true, follow: true }`) where the page owns metadata directly; for privacy-policy, the alias page may delegate to the shared `generatePrivacyPolicyMetadata` helper, so source tests should assert delegation plus the helper's indexable robots rather than requiring a literal `robots` block in the alias file
+- move mirrored tests from `tests/src/app/t/<route>/page.test.mjs` to `tests/src/app/<route>/page.test.mjs` and fix relative helper imports
+- update `scripts/ci/test-groups.mjs` whenever these mirrored tests move out from under `tests/src/app/t/`
+- run a negative grep for old legal preview/external targets before finishing:
+  - `/t/(cookie-preference|terms-of-service|privacy-policy|eula)`
+  - `src/app/t/(cookie-preference|terms-of-service|privacy-policy|eula)`
+  - `t("/(cookie-preference|terms-of-service|privacy-policy|eula)`
+  - `www.querypie.com/ja/(cookie-preference|terms-of-service|privacy-policy|eula)`
+
+Docs pitfall:
+- if route-aligned authoring docs contain commit-pinned GitHub links to the old `/t/*` legal examples, do not mechanically rewrite the URL path while leaving the old commit SHA; that creates broken historical links. Prefer repo-relative links for newly moved examples, or update to a commit that actually contains the moved paths after the PR lands.

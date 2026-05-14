@@ -140,6 +140,7 @@ This often reveals why one option appears to work while another does not.
 - A cookie being writable manually in DevTools/browser console strongly suggests the bug is application logic, not browser storage policy.
 - Inspecting the deployed bundle is the fastest way to verify whether production still has old logic or whether a different runtime path is overriding the new logic.
 - A very common failure mode is: the app correctly saves a `user-selected-*` cookie during the explicit user action, but a later provider/bootstrap initialization path deletes it because a consent flag is false.
+- In Next.js/React SSR, a preference can be persisted correctly while the refreshed UI still appears reset because of a hydration mismatch: a client component initializes `useState(() => readDocumentCookie())`, the server render cannot access `document.cookie` and emits the default/off HTML, while the client state may initialize from the cookie. Evidence pattern: after refresh `document.cookie` still contains the saved value, the DOM switch shows `aria-checked="false"`, and the first click writes the opposite value (for example `0`) because React internally thought it was already on.
 
 ## Remediation pattern
 When fixing this class of bug, separate two cases:
@@ -157,7 +158,15 @@ A safe implementation shape is:
 - only delete `user-selected-*` cookies when `!value && userAction`
 - do not delete them during initial state hydration like `setFunctionalCookie(existingValue, false)`
 
+For Next.js/React SSR hydration mismatches:
+- Prefer reading the cookie on the server with `cookies()` and passing an `initialChecked`/`initialValue` prop into the client component so server HTML and client initial render agree.
+- If server propagation is too large for the scope, read `document.cookie` in `useEffect` after mount and update state there, accepting a possible brief default-state flash.
+- Avoid using `document.cookie` directly inside a `useState` initializer when the component is server-rendered; it can create server/client DOM-state disagreement even when persistence itself works.
+
 This preserves user-selected locale/theme/banner state across navigation while still allowing explicit cleanup when the user intentionally disables the relevant category.
+
+## References
+- `references/nextjs-ssr-cookie-toggle-hydration.md` — live evidence pattern and preferred Next.js App Router fix for cookie toggles that save correctly but visually reset after refresh because SSR HTML and client state disagree.
 
 ## Output format for findings
 Summarize in four parts:

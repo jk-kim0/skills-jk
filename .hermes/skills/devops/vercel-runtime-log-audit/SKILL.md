@@ -52,9 +52,11 @@ PY
 ### 0. Start with a fast existence check before broad collection
 
 Important current-environment caveat:
-- newer Vercel CLI builds may no longer support the older project-scoped historical query shape (`vercel logs --project ... --since ... --until ...`)
+- newer Vercel CLI builds may or may not support the older project-scoped historical query shape (`vercel logs --project ... --since ... --until ...`)
 - in some environments, `vercel logs --help` only exposes `vercel logs url|deploymentId`, i.e. live tailing for a ready deployment from now for a short period
+- in other environments, newer CLI builds do support project-scoped historical queries again, including `--project`, `--environment`, `--since`, `--until`, `--status-code`, `--json`, and `--no-branch`
 - before relying on older project/window examples from past notes, run `vercel logs --help` and verify which command shape is actually available
+- if historical CLI queries are available, prefer them for day-window wiki snapshots because they can work through the CLI's logged-in context even when `VERCEL_TOKEN` is not exported to child script environments
 - if only `url|deploymentId` tailing is supported, switch early to the direct `request-logs` API or document that exact historical recomputation is blocked from the current environment
 
 For a single-project audit, first confirm that recent production logs actually exist and see the rough status mix with a small bounded query:
