@@ -257,8 +257,31 @@ Recommended PR summary structure:
 
 ## Pitfalls
 
-- Treating a preview route-family rename as if it were public rollout. If the user says `/t/*` removal/public release is the final stage, only rename preview files/tests and metadata; do not create public routes, do not remove the preview system, and do not add old-preview compatibility redirects unless explicitly requested.
-- Proceeding after partial route-name confirmation when the user asked to be questioned first. Collect and confirm all remaining decisions such as detail-page canonical family, integrations path, nav base path, old preview route handling, and public redirect scope before editing.
+## Preview taxonomy rename is not public rollout
+
+When the user asks to rename `/t/*` preview routes as part of route taxonomy planning, do **not** treat it as a public-route rollout or as authorization to remove all preview endpoints.
+
+Before editing, explicitly confirm all naming/canonical decisions that materially affect route files, nav links, aliases, and tests. Do not ask one question, get one answer, and then proceed if other route-policy decisions remain open.
+
+For a preview-only rename stage:
+- move the existing preview route files to the new `/t/...` paths
+- update `metadata.alternates.canonical` to the new preview paths
+- update preview-navigation base links when the new public target taxonomy is already confirmed (for example `t("/platforms/aip", previewModeEnabled)`)
+- remove the old preview route files without adding compatibility redirects when the user says old preview routes should simply be renamed
+- keep existing public redirect routes unchanged unless the user explicitly includes public release in the current scope
+- do not create new public `page.tsx` files just because the future canonical public paths are known
+- do not create AIP child routes the user explicitly excludes (for example no `/platforms/aip/fde-services` when FDE stays under `/services/fde`)
+
+After renaming mirrored test paths under `tests/src/app/t/...`, update both CI routing and test assignment helpers if they enumerate those paths:
+- `.github/workflows/ci.yml` changed-scope filters
+- `scripts/ci/test-groups.mjs`
+- run `node scripts/ci/assert-test-groups.mjs`
+
+## Pitfalls
+
+- Treating a `/t/*` preview taxonomy rename as a public release/promotion task
+- Removing or redirecting preview routes before the planned final public release stage
+- Proceeding after only one naming answer when related route-policy questions are still unsettled
 - Leaving the canonical public route on the old externalized list while only changing nav links
 - Keeping both public and preview pages rendering the same list content independently
 - In corp-web-japan, automatically leaving a redirect behind for a `/t/*` path without an explicit user request

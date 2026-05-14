@@ -174,6 +174,33 @@ Important semantic-slot rule learned from AI Crew design-elements follow-up:
 
 When standardizing static company/info/resource pages such as `/t/about-us`, `/t/certifications`, `/contact-us`, or `/news`, prefer a relationship-owned intro contract instead of burying spacing in title or lead primitives.
 
+### Company page outer spacing contract
+
+Important follow-up from company-page spacing work on `contact-us` and shared page primitives:
+- treat the gap from the fixed GNB/header to the page's first heading as `CompanyPageSection` responsibility, not `Title` or route-local ad hoc margin tweaks
+- treat the gap from the last visible company-page content block to the footer start as `CompanyPageSection` bottom padding responsibility, not an inner card/component margin unless the user explicitly wants one block offset inside the page
+- use `CompanyPageSection` padding presets to express page-level spacing variants, and reserve inner wrappers like `ContactUsFormPanel` for component-local adjustments only
+
+Proven implementation pattern:
+- shared outer spacing lives in `src/components/sections/company/page-primitives.tsx`
+- page-specific footer-gap exceptions use a named `CompanyPageSection` padding preset such as `compactFooter`
+- route files opt into that preset explicitly, e.g. `<CompanyPageSection padding="compactFooter">`
+
+Concrete values verified in this repo after follow-up adjustments:
+- shared mobile company-page bottom padding was standardized to `pb-[60px]` across all `CompanyPageSection` presets
+- shared default desktop company-page bottom padding was reduced to `lg:pb-[80px]`
+- page-specific exceptions remained explicit in presets, for example:
+  - `compactHero`: `lg:pb-[84px]`
+  - `compactFooter`: `lg:pb-[78px]`
+- current mobile top padding for company pages remained `pt-[100px]`
+- with the fixed shared header height `--gnb-height: 64px`, the visible mobile gap from GNB bottom to the first `h1` reads as approximately `36px`
+- current intro vertical rhythm between `CompanyPageTitle` and the first descriptive block is owned by `CompanyPageIntro` with `gap-[50px]`
+
+Practical review rule:
+- if the user asks for a page-level spacing change that should affect company pages broadly, edit `CompanyPageSection` presets first
+- if the user asks for one page's last content block to sit slightly higher/lower inside the shared outer spacing, adjust the page-specific preset first
+- only use inner component margin such as a form-panel `lg:mt-*` when the request is specifically about internal two-column alignment within the page, not page-to-footer rhythm
+
 Recommended ownership split:
 - the intro wrapper owns the vertical rhythm between `h1` and the first descriptive block
 - title primitives own typography only (`font-size`, `line-height`, `weight`, `tracking`, `color`)
@@ -664,6 +691,32 @@ For typical corp-web-japan desktop layouts, a useful sanity check is:
 - viewport width 1280px
 - header content span often measures `left=40`, `right=1240`, `width=1200`
 - the target page content should visually start and end on those same x positions when the user explicitly asks for header-edge alignment
+
+## Developer-facing documentation and onboarding
+
+When the task is to explain route-local refactoring to developers instead of changing production code, keep the explanation grounded in the repository's current implementation rather than abstract definitions alone.
+
+Recommended explanation structure:
+1. what route-local refactoring is
+2. the route-vs-section responsibility split
+3. concrete before/after examples from current repo files
+4. pros, cons, and expected effects
+5. how to instruct an AI agent to do this class of work
+6. the repo-local skill and markdown docs to read next
+
+Important explanation rule:
+- do not describe route-local refactoring as merely "moving files closer to routes"
+- define it as making `src/app/**/page.tsx` the primary readable authoring surface while `src/components/sections/**` owns UI implementation details
+- explicitly contrast this with giant content registries, giant page-specific wrappers, and JSON-like data-blob authoring that hides real page copy
+
+Recommended concrete examples to cite when they match latest main:
+- `src/app/page.tsx` for the top-page route-local authoring direction
+- `src/app/about-us/page.tsx` for route-owned company-intro copy and JSX-authored repeated items
+- `src/app/t/platforms/acp/page.tsx` for children-based interactive section authoring that avoids `categories=[...]` data blobs
+- document-style exception example: `src/app/t/privacy-policy/[slug]/page.tsx` as an intentional thin legal wrapper pattern rather than a static marketing page target
+
+Reference support file:
+- `references/route-local-refactoring-developer-outline.md` — concise outline, examples, and AI-agent prompt patterns for developer-facing docs or onboarding material
 
 ## Verification
 

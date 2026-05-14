@@ -80,6 +80,8 @@ Explain each changed class in two buckets:
 
 ## Pitfalls
 
+## Pitfalls
+
 - conflating typography consistency with section spacing consistency
 - putting margin/width into a shared token and reducing reuse
 - claiming a width or margin was introduced by the standardization when it actually pre-existed

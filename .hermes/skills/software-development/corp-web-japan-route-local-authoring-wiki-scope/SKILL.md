@@ -123,10 +123,44 @@ Maintain at least these explicit family boundaries:
 
 If this boundary is being recorded in repository docs, update both the detailed route-local authoring guide and the short code-location conventions page when present.
 
+## Latest-main audit lessons from 2026-05-14 rewrite
+
+On the audited latest main commit `87a7f583fdd2af747a624d83f4f81cc8a993b187`, the Route-Local Authoring wiki needed these corrections:
+
+- `/about-us` and `/certifications`
+  - Do not classify them as `/t/*` preview-only or public upstream redirects if latest main has `src/app/about-us/page.tsx`, `src/app/certifications/page.tsx`, canonical metadata, and sitemap entries.
+  - Treat them as migrated public local non-MDX pages and as current company-page route-local references.
+- AIP / ACP preview route taxonomy
+  - Do not preserve older `/t/services/aip` or `/t/services/acp` wording as current state.
+  - Latest main uses `/t/platforms/aip` and `/t/platforms/acp` for the preview route files.
+  - Keep `/t/services/fde` separate; FDE remains a service route rather than an AIP child route in the current taxonomy.
+- Route-local developer docs
+  - Latest main added `docs/route-local-refactoring-for-developers.md` and `docs/route-local-refactoring-for-developers.ko.md`; mention these alongside `docs/static-page-route-local-authoring.md`, `docs/code-location-conventions.md`, and `.agents/skills/static-page-route-local-authoring/SKILL.md`.
+  - The new developer guide names `src/app/page.tsx`, `src/app/about-us/page.tsx`, and `src/app/t/platforms/acp/page.tsx` as direct current references.
+  - If the user asks for a stronger developer-facing route-local explainer, do not keep everything in one short intro page. Split it into:
+    1. a concise introduction / principle guide, and
+    2. a separate long-form examples document in both Korean and English.
+  - In that examples document, prefer real before/after code excerpts of at least roughly 30–50 lines, and include not only `page.tsx` but also the referenced module structure that the route depends on.
+  - When citing repository code in the examples document, use commit-pinned GitHub blob links rather than branch-relative links so the documentation stays stable after later refactors.
+  - Explicitly include at least one concrete `Big JSON Props` / compound-alias / top-level-data-blob example, and explain the practical maintenance failure mode: a small copy or ordering change can force synchronized multi-file or multi-array edits and increase the risk of rendering or contract mistakes.
+  - If the user asks for references or terminology, do not default to generic refactoring references first. Prioritize page-architecture references that explain page-level vs lower UI layers, such as:
+    - Next.js `page` / `layout` / project-structure docs for route-leaf and shared-UI concepts
+    - React component-hierarchy references for top-level vs child-component composition
+    - Feature-Sliced Design `Pages`, `Shared`, and `ui` segment terminology for generalized layer naming
+    - Atomic Design or presentational/container references for lower-level UI vocabulary
+  - In that kind of document, add a short terminology-mapping section that generalizes repo-local names like `page.tsx` and `src/components/sections/**` into broader terms such as `route-level page component`, `page composition layer`, `section component layer`, `presentational component`, `shared UI primitive`, and `screen component`.
+- Wiki rewrite shape
+  - The English `Route-Local-Authoring` page should be rewritten to match the same latest-main scope as `Route-Local-Authoring-ko`, not left as an older narrow static-marketing-candidate audit.
+  - Keep the document framed as a non-MDX page-authoring/public-rollout tracker, not as a generic content migration dashboard.
+
 ## Recommended verification queries
 
 Before finalizing the wiki page, explicitly inspect these latest-main files when relevant:
 
+- `src/app/page.tsx`
+- `src/app/about-us/page.tsx`
+- `src/app/certifications/page.tsx`
+- `src/app/sitemap.ts`
 - `src/app/contact-us/page.tsx`
 - `src/app/contact-us/submit/route.ts`
 - `src/app/privacy-policy/route.ts`
@@ -135,18 +169,21 @@ Before finalizing the wiki page, explicitly inspect these latest-main files when
 - `src/app/services/aip/route.ts`
 - `src/app/services/acp/route.ts`
 - `src/app/services/fde/route.ts`
-- `src/app/t/services/aip/page.tsx`
-- `src/app/t/services/acp/page.tsx`
+- `src/app/t/platforms/aip/page.tsx`
+- `src/app/t/platforms/acp/page.tsx`
 - `src/app/t/services/fde/page.tsx`
-- `src/app/t/services/aip/integrations/page.tsx`
-- `src/app/t/solutions/aip/usage-based-llm/page.tsx`
-- `src/app/t/solutions/aip/mcp-gateway/page.tsx`
-- `src/app/t/solutions/aip/fde-services/page.tsx`
+- `src/app/t/platforms/aip/integrations/page.tsx`
+- `src/app/t/platforms/aip/usage-based-llm/page.tsx`
+- `src/app/t/platforms/aip/mcp-gateway/page.tsx`
+- `src/app/t/plans/page.tsx`
+- `docs/route-local-refactoring-for-developers.md`
+- `docs/route-local-refactoring-for-developers.ko.md`
+- `docs/static-page-route-local-authoring.md`
+- `docs/code-location-conventions.md`
+- `.agents/skills/static-page-route-local-authoring/SKILL.md`
 
 Also inspect route-only redirects for these public paths before classifying them as migrated:
 
-- `/about-us`
-- `/certifications`
 - `/cookie-preference`
 - `/services/aip`
 - `/services/acp`
@@ -154,4 +191,7 @@ Also inspect route-only redirects for these public paths before classifying them
 - `/platform/ai/aip/*`
 - `/platform/security/*`
 - `/eula`
+- `/privacy-policy`
 - `/terms-of-service`
+
+Do not put `/about-us` or `/certifications` in the route-only redirect checklist unless current latest main actually removes their public local `page.tsx` routes.

@@ -20,6 +20,8 @@ For page-parity work, code inspection alone is not enough.
 
 Reference notes:
 - `references/about-us-parity-pitfalls.md` — concrete `/about-us` pitfalls for CTA-width interpretation and mixed-width team-card measurement.
+- `references/pr-preview-stage-render-audit-pattern.md` — reusable pattern for auditing a PR Preview Deployment against `stage.querypie.ai` across affected routes using Playwright geometry, screenshot pixel diffs, and wrapper padding/gutter root-cause analysis.
+- `references/certifications-mobile-gutter-audit.md` — concrete `/certifications` narrow-mobile gutter/card-width audit showing how `px-[30px]` behaves at 300/320/360/390px and when to prefer a card-gallery gutter preset.
 
 Important findings from real usage:
 - Browser text snapshots can claim the structure is correct while the rendered layout still differs materially.
@@ -236,6 +238,15 @@ A practical finding from `/t/certifications` follow-up work:
   - intrinsic image dimensions for the actual asset (`imageWidth` / `imageHeight`)
   - explicit rendered display dimensions for each item (`displayWidth` / `displayHeight`)
 - then verify those display dimensions against the exact live page in the browser
+
+Narrow-mobile gutter lesson from `/certifications` card/gallery review:
+- when auditing certification cards, measure both outer section gutter and card internal padding at 300/320/360/390px, not only a standard 390px mobile viewport
+- a `30px` outer gutter can be acceptable at 390px but visually conservative at 300–320px once card `px-8` is also applied
+- at 300px, `30px` section gutters plus `32px` card padding can leave only about `176px` of actual card content width
+- small changes can cross real wrapping thresholds: reducing the outer gutter from `30px` to `24px` made `Payment Card Industry Data` fit on one line in the audited PCI DSS card
+- treat this as a card/gallery-specific policy question, not proof that the global company-page gutter is wrong
+- if fixing it, prefer a named card-gallery gutter preset or dedicated wrapper over broad route-level class escape hatches; use `24px` as the safest compromise and `20px` when narrow-mobile card balance is the stronger priority
+- see `references/certifications-mobile-gutter-audit.md` for the session-specific measurements and issue wording
 
 Important clarification learned from the same task:
 - when the user says "match the visible pixel size" they mean the final human-visible rendered size on the page, not the source site's author token values and not the preview site's own 16px-root reinterpretation of the source rems
@@ -939,16 +950,130 @@ Important nuance:
 - browser vision can incorrectly describe the page body as blank or mostly empty even when the DOM and CSS confirm the content is present
 - when that happens, trust DOM geometry and fetched source over the vision summary
 
+### K2. For lazy media/GIF pages, scroll and wait before classifying images as missing
+A practical finding from `/t/platforms/aip` parity work:
+- on the hosted preview, route-aligned GIF assets returned `200 OK` via `curl -I`, and the files existed in `public/services/aip/*`
+- however, an initial top-of-page browser measurement reported the feature GIF `<img>` elements as `0x0`, `complete: false`, and `currentSrc: ""`
+- after scrolling down to the sections and waiting, the same images loaded and measured correctly
+- the initial `0x0` state was lazy-loading / viewport timing, not proof that the assets were missing
+
+Required media-parity workflow for long lazy-loaded pages:
+1. verify the asset URLs directly with `curl -I -L <preview-url>/path/to/asset.gif` or equivalent
+2. verify the files exist in the worktree under the intended route-aligned asset namespace
+3. navigate the browser to the exact preview deployment URL
+4. scroll to the media-heavy sections, wait several seconds, then re-measure `complete`, `naturalWidth`, `naturalHeight`, `currentSrc`, and `getBoundingClientRect()`
+5. only classify an image as missing if it still has no natural dimensions after it has entered or approached the viewport and the asset URL itself fails or points to the wrong file
+
+Useful browser-console pattern:
+```js
+new Promise((resolve) => {
+  window.scrollTo(0, document.body.scrollHeight);
+  setTimeout(() => {
+    resolve(Array.from(document.querySelectorAll('main img'))
+      .filter((img) => img.src.includes('/services/aip/'))
+      .map((img) => {
+        const r = img.getBoundingClientRect();
+        return {
+          alt: img.alt,
+          complete: img.complete,
+          naturalWidth: img.naturalWidth,
+          naturalHeight: img.naturalHeight,
+          currentSrc: img.currentSrc,
+          width: Math.round(r.width),
+          height: Math.round(r.height),
+          top: Math.round(r.top + scrollY),
+        };
+      }));
+  }, 8000);
+})
+```
+
+### K3. Feature media can be oversized because the wrapper lacks the source image width
+A practical finding from `/t/platforms/aip` parity work:
+- the source live page rendered AIP feature GIFs at fixed widths such as `540`, `580`, `520`, and `600` px from `MainFeatureDescription imageWidth`
+- the preview passed `width`/`height` to `next/image`, but the immediate wrapper had only `max-w-full`; inside the flex row this allowed media to stretch much wider, e.g. about `920px`
+- fixing only the image's intrinsic props was insufficient; the wrapper that owns the visual chrome also needed an explicit width
+
+Reliable fix pattern:
+- make the feature media wrapper `flex-none` / non-stretching
+- set the wrapper width to the route-authored/source-derived media width, for example `style={{ width }}`
+- keep the inner image `className="h-auto w-full"`
+- re-measure on the exact preview deployment URL after the PR deploy
+
+This mirrors the source `MainFeatureDescription` behavior where the media wrapper owns `style={{ width: `${props.imageWidth}px` }}` rather than letting the flex row stretch the media.
+
+### K4. JSX marker components in an interactive preview section may disappear across a client boundary
+A practical finding from `/t/platforms/acp` parity work:
+- the route authored ACP feature categories/items as JSX marker components so `page.tsx` kept the real copy/composition readable
+- the interactive feature browser was initially a single `"use client"` component that both parsed the marker children and rendered the carousel UI
+- on the deployed preview, the browser rendered only empty controls: no category labels, no feature title/body, and `Learn More` fell back to `#`
+- root cause: the marker components returned `null`; across the server/client boundary the client parser saw already-rendered `null` children rather than the original marker element tree
+
+Reliable fix pattern:
+1. keep route-authored marker JSX in `page.tsx`
+2. make the parser module a server component (no `"use client"`)
+3. parse marker elements on the server into plain serializable data such as `{ label, items: [{ title, bodyLines, imageSrc, learnMoreHref }] }`
+4. pass only that data into a narrow client component that owns `useState`, category switching, carousel dots, previous/next controls, and lazy media rendering
+5. update the mirrored structure test to assert both halves of the contract: server parser imports the client widget, and the client widget owns the interactive controls
+6. verify the exact Preview Deployment URL in a browser; check that category labels, visible feature title/body, external docs link, and lazy-loaded GIF natural dimensions appear after scrolling
+
+This preserves route-local authoring without losing server-authored semantic children inside a client-only parser.
 ### L. After parity is proven, clean up by moving layout responsibility into shared primitives instead of stacking more route-level wrappers
 A recurrent trap in parity follow-up work:
 - first you achieve the right pixels by adding route-local wrappers, duplicated utility classes, or inline styles
 - then the rendered result looks correct, but the implementation becomes structurally messy and hard to maintain
 - if you keep stacking overrides on top of shared primitives, later cleanup can accidentally re-break computed styles
 
+Important lesson from PR follow-up on shared company page primitives:
+- if the target is to remove custom `className` hooks from a shared primitive, do not fix parity regressions by adding new route-level `className`, `contentClassName`, or `contentWidthClassName` overrides
+- instead, rename/generalize the primitive to match its real responsibility and encode the allowed differences as semantic presets
+- concrete pattern:
+  - prefer `CompanyPageLayout` over `CompanyPageBodyLayout` when the wrapper can own hero, form, list, or main content layout, not just post-intro body content
+  - prefer `preset="single" | "equalColumns" | "aboutUsHero"` over redundant `columns={...}` plus `layoutPreset="..."`
+  - remove primitive-level escape-hatch props like `className?: string`, `contentClassName?: string`, and `contentWidthClassName?: string` once callsites no longer need them
+  - if section padding differs for a known layout case, use a narrow semantic prop such as `padding="compactHero"` rather than a raw padding class override
+- parity regressions caused by component composition should be fixed by moving JSX structure, not by patching CSS classes:
+  - for `/about-us`, keep the H1 and hero body/image layout in the same intro stack so the 50px H1-to-body gap is preserved
+  - for `/contact-us`, make the two-column `CompanyPageLayout` wrap the left intro/checklist column and the right form column; do not render a full-width intro above the form grid
+
 Important real finding from the internal MDX list CTA cleanup:
 - route-level `className` overrides on top of a shared CTA/button primitive produced duplicated utility classes in the final DOM
 - even when computed styles happened to match, the markup/layout quality was still not acceptable
 - the clean fix was to move the true default responsibility into the shared primitive and expose narrow hooks for the variant-specific geometry
+
+Important real finding from PR 461 company-page wrapper audit:
+- a PR can have zero callsite `className=...` overrides while still leaving the shared primitive API too permissive (`className`, `contentClassName`, `contentWidthClassName` escape hatches)
+- when the user's goal is to remove custom className settings, audit both:
+  1. actual route callsites that pass custom classes
+  2. shared component props that still allow future ad-hoc custom classes
+- do not fix structural regressions by adding another custom `className`; first check whether the JSX composition changed relative to the reference layout
+- concrete examples:
+  - `/about-us`: moving `CompanyPageBodyLayout` outside `CompanyPageIntro` removed the original 50px H1-to-body/image gap; the fix is to restore the composition so the body layout is inside the same stacked intro/hero wrapper, not to add a margin class
+  - `/contact-us`: splitting title/lead into a full-width intro above a separate 2-column body pushed the form down about 168px on desktop; the fix is to put the left intro/checklist and right form inside the same 2-column body layout, not to offset the form with custom classes
+  - minor differences such as `/certifications` mobile gutter or `/news` 8px bottom padding should be classified separately as common-wrapper policy choices vs strict parity defects
+
+Important real finding from `/t/platforms/aip` value-card parity:
+- source components can place major content visually inside an image/card chrome even when the browser snapshot flattens that content into headings and paragraphs
+- on live AIP, the `IntroducingQueryPie` value cards used:
+  - a gradient parent section
+  - white rounded cards with subtle shadow and overflow hidden
+  - a title container positioned over the top image
+  - white multi-line card titles authored inside that overlay
+  - body copy and learn-more action inside the card body
+- a preview implementation that simply renders image -> heading below -> paragraph can pass text/section-order checks but still fail visual parity
+
+Reliable fix pattern:
+1. inspect the legacy/source component and CSS, not just the MDX source and browser text snapshot
+2. identify whether the title/content is overlaid on media or lives below it
+3. encode that ownership in section primitives, e.g. a value-card image component that accepts `children` for the overlay title
+4. keep the route page as the copy/composition owner by authoring the multi-line title JSX in `page.tsx`
+5. add a structure test that asserts the overlay primitive exists and that route-aligned assets are present under the intended `public/<route-family>/...` namespace
+
+Preferred test assertions for this case:
+- source has the route-local CTA links to sibling preview pages
+- source does not link back to the upstream URL when a local preview sibling exists
+- section module contains the gradient section, value-card link primitive, and overlay class/pattern
+- every referenced value/feature media asset exists under the route-aligned public directory
 
 Preferred cleanup pattern after a parity fix stabilizes:
 1. identify which values are truly route-specific and which are actually the primitive's responsibility
@@ -956,14 +1081,15 @@ Preferred cleanup pattern after a parity fix stabilizes:
    - example: CTA section background, padding, text alignment
 3. move stable layout shells into shared helper primitives
    - example: dedicated `ResourceListCtaContent` and `ResourceListCtaCopy`
-4. expose narrowly scoped override props on reusable controls instead of appending conflicting utility classes
-   - example: `geometryClassName`, `labelClassName`, `iconWrapClassName`, `iconClassName` on a CTA button primitive
-5. simplify the route so it authors copy and composition only
+4. prefer semantic variants/presets over raw class override props when variation is genuinely needed
+   - example: `preset="aboutUsHero"` / `preset="equalColumns"` rather than `className="grid ..."`
+5. remove unused or unnecessary `className`/`contentClassName`/`contentWidthClassName` props from the shared primitive API after confirming callsites do not need them
+6. simplify the route so it authors copy and composition only
 
 Practical heuristic:
 - use inline style as a fast parity-debugging tool
-- but if the user explicitly asks for markup/layout quality cleanup, do not stop at the working visual result
-- refactor the primitive defaults so the final route no longer needs nested anonymous wrappers or duplicated utility stacks just to hold the same geometry
+- but if the user explicitly asks for markup/layout quality cleanup or custom className removal, do not stop at the working visual result
+- refactor the primitive defaults or composition so the final route no longer needs nested anonymous wrappers, duplicated utility stacks, or future escape-hatch class props just to hold the same geometry
 
 ## Good implementation pattern for `/t/*` company-info parity pages
 
@@ -1093,17 +1219,20 @@ Typical triggers:
 - "비교해서 검토해줘"
 - "적절히 구현되었는지 보고해줘"
 - "기존 UI와 콘텐츠를 그대로 옮겼는지 비판적으로 확인해줘"
+- "PR의 Preview Deployment와 stage의 웹페이지 렌더링 결과를 실제 비교해줘"
 
 In this mode:
 1. re-state the exact two URLs being compared before drawing conclusions
 2. inspect the exact requested stage/preview URL directly; do not substitute a different deployment or PR branch state
-3. compare both content parity and UI/layout parity separately
-4. report missing/changed content, structural layout differences, spacing/typography differences, and interaction differences as separate bullets
-5. be explicit about severity:
+3. if the user names a PR rather than a preview URL, get the current Vercel preview URL from `gh pr view <number> --json comments,statusCheckRollup` before comparing
+4. identify the routes actually affected by the PR diff and compare those routes, not only `/`
+5. compare both content parity and UI/layout parity separately
+6. report missing/changed content, structural layout differences, spacing/typography differences, and interaction differences as separate bullets
+7. be explicit about severity:
    - blocker: not the same content/structure
    - major: clearly visible layout/asset mismatch
    - minor: small spacing or typography drift
-6. end with an overall judgment such as:
+8. end with an overall judgment such as:
    - faithful migration
    - mostly faithful with notable gaps
    - not yet faithful
@@ -1111,6 +1240,14 @@ In this mode:
 Important pitfall learned from follow-up sessions:
 - if the conversation contains prior implementation or PR-status discussion, do not drift into branch/commit reporting when the current task is an audit of live URLs
 - anchor the response to the user's requested URLs and the rendered page comparison first
+- for PR preview-vs-stage audits, it is acceptable to use a short Playwright script from the repo root to capture full-page screenshots and DOM geometry for multiple routes; save temporary artifacts under `/tmp/<task-name>` and remove any repo-local helper scripts before finishing
+- if the script is stored under `/tmp`, Node may fail to resolve repo-local packages like `playwright`; either run the script from the repo, or use `createRequire('<repo>/package.json')` to resolve `playwright` and other dependencies from the repository installation
+- identify affected routes from `gh pr view <number> --json files` before browsing; for shared primitive refactors, compare every changed callsite route, not only the most obvious page
+- collect at least desktop and mobile viewport measurements when the PR changes shared page primitives or responsive containers
+- useful measured anchors include body height, h1 rect/style, section top/height, section computed padding/background, first paragraphs, key images, form/card wrappers, and changed route-specific content blocks
+- when screenshots look nearly identical, compute a pixel-diff summary from the saved screenshots (for example with repo-local `sharp` when Pillow/pixelmatch is unavailable) and report the diff bbox; this quickly distinguishes "body identical, footer shifted" from widespread layout drift
+- for contact/form pages, explicitly compare whether the form and intro live in the same grid or whether the preview split them into separate intro + body rows; this can move the form down even when text content is unchanged
+- for page-wrapper refactors, compare old wrapper computed padding/gutter against the new shared primitive; small numeric changes like `pb-20` -> `pb-[96px]`, `lg:pb-[128px]` -> `lg:pb-[120px]`, or `px-6` -> `px-[30px]` can cause visible footer shifts, card narrowing, and text rewrapping even when all content is present
 
 ### When turning a parity review into a GitHub issue, prefer code/DOM-backed examples over abstract prose
 A practical correction from `/t/about-us` parity review work:
@@ -1120,6 +1257,27 @@ A practical correction from `/t/about-us` parity review work:
   - live/stage rendered DOM (`outerHTML`, heading tags, measured widths)
 - when the issue argues that a difference is an intentional adaptation rather than a bug, show the exact code or DOM shape that creates that adaptation
 - when the issue argues that something is a bug, show the exact local code that causes it and the live/stage measured result
+
+### When the goal is UI commonization, do not over-treat stage deltas as parity bugs
+A practical correction from PR 461 company-page commonization review:
+- the user may ask to compare PR Preview against `stage.querypie.ai` not because stage pixel parity is the goal, but because stage is a useful baseline for detecting unintended visual breakage after commonizing UI primitives
+- if the user clarifies that the goal is shared UI consistency, reclassify findings through this lens:
+  1. `actual breakage`: overlap, missing content, broken assets/forms, unreadable/narrow content, excessive whitespace, or layout that feels clearly cramped/broken
+  2. `commonization follow-up`: small stage deltas that expose a missing semantic spacing/gutter preset
+  3. `non-issue`: exact pixel differences that are acceptable because the new shared primitive intentionally standardizes UI
+- do not recommend restoring old page-specific wrappers merely to match stage; prefer semantic shared primitive variants only when there is a real remaining layout need
+- for GitHub issues from this audit mode, frame the issue around consistent spacing/margin/padding and overly narrow/wide regions, not around making every page match stage exactly
+- explicitly list non-issues so future readers do not reopen stable pages or accepted commonization differences
+- before classifying a card/gallery page as cramped because its cards are narrower, identify the intended responsive model first:
+  - if the design is an equal-grid model where cards divide available viewport width into 1/2/3 columns while maintaining fixed-height rhythm, narrower cards on narrower devices are normal responsive behavior, not automatically a defect
+  - judge card/gallery quality by evidence such as unreadable text, broken logo sizing, collapsed vertical balance, awkward row/column rhythm, or clearly excessive inset — not by absolute card width alone
+  - if a live-site gutter differs from the local shared primitive gutter across multiple company pages, classify it as a company-page gutter policy difference, not a one-page defect
+  - only propose a page-specific gutter preset/wrapper when there is concrete visual breakage on that page; otherwise mark it as non-issue or future policy consideration
+- concrete PR 461/issue 468 examples:
+  - `/about-us`: no follow-up; stable after refactor
+  - `/contact-us`: form/spacing follow-up was handled by PR 467, then removed from remaining work
+  - `/certifications`: the initial mobile card/gutter concern was later reclassified as non-issue because the page uses the same broad responsive equal-card-grid model as the live page; the 30px vs ~24px gutter difference is a company-page policy delta, not a certifications-only defect
+  - `/news`: desktop CTA offset was only a small list-page spacing-preset signal, not a broken content/layout issue
 
 Recommended issue-writing pattern for parity audits:
 - quote the exact local code snippet, for example:
@@ -1163,6 +1321,7 @@ Heuristic for future audits:
 You are done when:
 - the live and preview pages have the same section order
 - key body elements have closely matching geometry or visual rhythm
-- major images/logos/maps are measured to similar sizes/positions
+- major images/logos/maps are measured to similar sizes/positions after lazy-loaded media has entered the viewport
 - section background bands and vertical spacing materially resemble the live page
-- preview has been rebuilt/restarted and verified in-browser after the final change
+- preview has been rebuilt/restarted or deployed and verified in-browser after the final change
+- for PR work, the exact Vercel preview deployment URL from the PR comment/check has been opened directly, not inferred from stage or localhost

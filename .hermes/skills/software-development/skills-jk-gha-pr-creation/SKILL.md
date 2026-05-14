@@ -199,6 +199,7 @@ When the user asks to create a PR from the current local workspace state rather 
     - In that case, do not force all root-changed files into the PR just to mirror the dirty root list.
     - Instead, report the branch diff that actually remains unique on top of latest `main`, and explain briefly that the other root-local changes were already absorbed upstream.
   - Practical no-op-collapse pattern from repeated `skills-jk` sweeps:
+  - Practical no-op-collapse pattern from repeated `skills-jk` sweeps:
     - it is acceptable to copy a broader candidate set from the dirty root checkout into the fresh latest-main worktree first, especially when many `.hermes/skills/**` and memory files look plausibly relevant
     - immediately after copying, inspect the fresh worktree's real status:
       - `git -C <worktree> status --short --branch`
@@ -208,6 +209,10 @@ When the user asks to create a PR from the current local workspace state rather 
     - stage and commit only the files that still appear as modified/untracked in the fresh worktree after that collapse
     - do not try to re-add already-absorbed files by hand just because they were part of the root candidate list
     - important pitfall: before the first commit in that fresh worktree, do not use only `git -C <worktree> diff --name-only origin/main...HEAD` to decide whether any payload survived
+      - that triple-dot `origin/main...HEAD` comparison only reflects committed branch history and can stay empty while the fresh worktree still has real uncommitted transplanted changes
+      - for the pre-commit collapse check, trust working-tree signals first: `git status --short`, `git diff --name-only`, and `git ls-files --others --exclude-standard`
+      - use `origin/main...HEAD` as the authoritative payload view only after the surviving changes have been committed
+
       - that triple-dot `origin/main...HEAD` comparison only reflects committed branch history and can stay empty while the fresh worktree still has real uncommitted transplanted changes
       - for the pre-commit collapse check, trust working-tree signals first: `git status --short`, `git diff --name-only`, and `git ls-files --others --exclude-standard`
       - use `origin/main...HEAD` as the authoritative payload view only after the surviving changes have been committed
@@ -235,8 +240,9 @@ When the user asks to create a PR from the current local workspace state rather 
     - practical pattern:
       - inspect the open PR branch with `gh pr list --head <branch> --state open --json number,url,title`
       - compare root files byte-for-byte against the fresh worktree for that PR branch when needed
-      - seed a brand-new latest-main worktree with only the files outside bucket (1)
-      - trust the collapsed diff in that new worktree as the payload for the new PR
+      - when building the candidate file list for the new PR, exclude any file whose root-workspace content is byte-identical to the open PR worktree copy
+      - only transplant files that are absent from the open PR worktree or differ from it byte-for-byte
+      - after transplant, trust the fresh worktree's working-tree status/diff as the payload for the new PR
     - this avoids silently broadening an in-review PR after the user already has a reviewable URL for it
   - Final repeated-sweep reporting rule:
     - when you update local `main`, discover that earlier follow-up PRs have already merged, and then open one more PR from the current dirty root checkout, report those as three distinct facts rather than one blended success statement:
