@@ -283,13 +283,17 @@ Typical examples:
 Recommended workflow:
 1. Fast-forward local `main` to latest `origin/main` first.
 2. Create PR 1 from `main`.
-3. Create PR 2 from the PR 1 branch only if PR 2 truly depends on PR 1.
-4. Create PR 3 from the PR 2 branch only if PR 3 truly depends on PR 2.
-5. For each staged PR, set the GitHub base branch explicitly to the immediate parent branch, not to `main`.
-6. In each PR body, state clearly that it is a stacked PR and name the parent base branch.
-7. Keep each PR scope limited to exactly one stage of the issue plan; do not leak later-stage optimization logic into earlier PRs.
-8. For child PRs that depend on a new parent primitive/module, run both the child page tests and the parent primitive/module contract test from the child worktree so the stack is verified as reviewers will see it.
-9. After opening the child PR, verify both the actual remote branch refs with `git ls-remote` and the PR base branch with `gh pr view`; do not rely only on the PR creation URL.
+3. Before starting PR 2, re-check PR 1's actual state with `gh pr view <parent> --json state,mergedAt,headRefName,mergeCommit` and `git fetch origin --prune`.
+   - If PR 1 has already merged and its branch was deleted, do not create PR 2 from the stale local PR 1 worktree/branch.
+   - Fast-forward local `main` to the merge commit and create PR 2 as an independent latest-main branch.
+   - Only keep PR 2 stacked when PR 1 is still open and PR 2 truly depends on branch-only files.
+4. Create PR 2 from the PR 1 branch only if PR 2 truly depends on PR 1 and PR 1 has not merged yet.
+5. Create PR 3 from the PR 2 branch only if PR 3 truly depends on PR 2.
+6. For each staged PR, set the GitHub base branch explicitly to the immediate parent branch, not to `main`.
+7. In each PR body, state clearly that it is a stacked PR and name the parent base branch. If the parent already merged, state it as a prior PR instead of a stacked base.
+8. Keep each PR scope limited to exactly one stage of the issue plan; do not leak later-stage optimization logic into earlier PRs.
+9. For child PRs that depend on a new parent primitive/module, run both the child page tests and the parent primitive/module contract test from the child worktree so the stack is verified as reviewers will see it.
+10. After opening the child PR, verify both the actual remote branch refs with `git ls-remote` and the PR base branch with `gh pr view`; do not rely only on the PR creation URL.
 
 Scope discipline for this pattern:
 - Stage 1 should usually be the smallest safe behavior change with minimal surface area.
@@ -416,6 +420,26 @@ When the user asks for several copy candidates and also asks to open the PR befo
 - keep the implementation deliberately temporary/review-oriented, and note in the PR body that a follow-up should reduce the page to the selected final copy
 - if external corporate-site examples were checked for wording style, summarize the reference pattern in the PR body without over-quoting or making the page copy sound like sourced legal text
 
+## Visual/layout validation commit pattern
+
+When the user wants to personally verify whether a UI/layout exception is still necessary, it is acceptable to push an explicit validation commit to the existing PR rather than only discussing the tradeoff.
+
+Use this pattern when all of the following are true:
+- the PR already exists and is meant for review/preview inspection
+- the user explicitly asks to remove an exception or apply a common setting so they can check the visual result
+- the change is reversible and scoped to the same UI/layout question
+
+Execution rules:
+1. Keep the commit separate from the original cleanup commit so reviewers can compare intent.
+2. Make the commit message state that it is a validation/test commit, not a final visual policy decision.
+   - Example subject: `test: validate shared about-us section spacing`
+   - Example body: `Remove section-specific vertical spacing from the about-us route so the PR can verify whether a single shared AboutUsSection spacing contract is sufficient.`
+3. Update narrow source-based tests so they describe the temporary validation contract accurately.
+4. Push to the same PR branch and verify the remote branch SHA and PR `headRefOid`.
+5. Report that CI/Preview Deploy has restarted; do not wait passively unless the user asks.
+
+This is different from a normal refactor PR: the purpose is to make a reviewable preview state for human visual judgment, so do not squash it immediately into the original commit unless the user later chooses that result as final.
+
 ## Pre-push rule
 
 Before pushing or updating a PR branch:
@@ -433,6 +457,22 @@ Practical same-session nuance learned from `/t/events` preview work:
 - If that rebase conflicts in a touched route because latest `main` already landed a helper-path cleanup (for example `@/lib/publications/event-publication-records` -> `@/lib/publications/events/records`), keep the latest-main helper/import path and reapply only your intended UI/behavior change on top.
 - Heuristic: preserve latest-main structural/path cleanups first, then layer the requested route behavior onto that file. Do not resolve the conflict by reviving the old helper path just because your branch started before the cleanup merged.
 
+Practical post-PR-creation nuance learned from issue #449 PR 1:
+- `origin/main` can also advance in the short window after `gh pr create`, causing the newly opened PR to immediately show `mergeStateStatus: BEHIND` even though the branch was latest-main-based when pushed.
+- Do not report the PR as done just because it opened successfully. After creation, verify the actual remote head SHA and PR metadata:
+  ```bash
+  git ls-remote origin refs/heads/<branch>
+  env -u GITHUB_TOKEN gh pr view <pr-number> --json headRefOid,mergeStateStatus,statusCheckRollup
+  ```
+- If the PR is already behind, fetch/rebase onto the new `origin/main`, rerun the narrow targeted tests touched by the PR, and push with `--force-with-lease`:
+  ```bash
+  git fetch origin --prune
+  git rebase origin/main
+  node --test <targeted-tests>
+  git push --force-with-lease origin HEAD:refs/heads/<branch>
+  ```
+- Re-verify that local HEAD, the remote branch ref, and PR `headRefOid` all match, and that `merge-base HEAD origin/main` equals the latest `origin/main`. Fresh check runs may briefly show an empty `statusCheckRollup`; use `gh run list --branch <branch>` to confirm new runs attached to the rewritten head SHA.
+
 Practical follow-up nuance:
 - If you are on a fresh latest-main worktree branch with uncommitted changes, `git rebase origin/main` will fail with `cannot rebase: You have unstaged changes`.
 - In that situation, do not stash reflexively.
@@ -443,7 +483,9 @@ Existing PR rebase nuance:
 - Rebase the existing PR branch onto `origin/main`, resolve conflicts while preserving latest-main changes, rerun the narrow affected checks, and push with `git push --force-with-lease`.
 - After resolving conflicts, run `GIT_EDITOR=true git rebase --continue` in non-interactive agent sessions so Git does not open Vim and hang the turn.
 - When latest `main` promoted or renamed public routes while the PR branch still contains older preview-route assumptions (for example `/t/about-us` -> `/about-us`, or `/t/certifications` -> `/certifications`), resolve conflicts in favor of latest-main canonical route files and tests. Reapply only the PR's intended structural or contract change on top; do not resurrect old preview paths in route tests just because they appear in the branch side of the conflict.
-- After such route-promotion conflicts, run narrow source checks that prove both sides of the contract: affected route tests, any path/CI assignment assertions such as `node scripts/ci/assert-test-groups.mjs`, and lightweight TypeScript/ESLint checks for touched helper scripts when available.
+- When a just-merged PR refactored the same area as the open PR, inspect that merged PR first with `gh pr view <merged-pr> --json body,files,commits,mergeCommit,title` and summarize its intent/scope before resolving conflicts. Preserve the merged PR's new vocabulary/structure/tests, then reapply only the open PR's intended delta on top. Example pattern: if a merged legal refactor introduces `LegalDocumentSection` / `LegalDocumentIntro` / `LegalDocumentLead` / `LegalDocumentLayout` and keeps `legalDocumentBodyClassName` as the styling primitive, keep those vocabulary assertions and apply typography changes only inside `legalDocumentBodyClassName` plus matching tests.
+- After such refactor conflicts, update the open PR body so it explains that it is now rebased on the merged refactor and names the final remaining contract rather than the pre-rebase implementation history.
+- After such route-promotion or same-area refactor conflicts, run narrow source checks that prove both sides of the contract: affected route tests, any path/CI assignment assertions such as `node scripts/ci/assert-test-groups.mjs`, and lightweight TypeScript/ESLint checks for touched helper scripts when available.
 
 
 Additional PR-head rewrite nuance:

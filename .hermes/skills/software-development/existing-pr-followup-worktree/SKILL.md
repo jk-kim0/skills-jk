@@ -11,18 +11,19 @@ metadata:
 
 # Existing PR Follow-up via Fresh Worktree
 
-Use this when the user asks for additional fixes or refinements to a PR that already exists.
+Use this for PR follow-up work.
 
 Core rule:
-- Fresh worktree: yes
-- Existing PR branch: yes
-- New branch: no, unless the user explicitly asks
-- New PR: no, unless the user explicitly asks
+- fresh worktree: yes
+- existing PR branch: yes, if the PR is OPEN
+- new branch/PR: no for an open-PR follow-up unless the user asks
 
-Important distinction:
-- New independent work -> fresh worktree + fresh branch.
-- Follow-up on PR #N -> fresh worktree on the existing PR branch; fix CI/review state, rebase if needed, resolve conflicts, and force-push. Do not wait for post-rebase CI unless asked.
-- Resolve shorthand PR numbers/branches before editing. If the request covers all open PRs, re-check `gh pr list`/`gh pr view` as you go because stacked parents can merge mid-session and change the set.
+State check:
+- OPEN PR -> reuse that branch in a fresh worktree, then fix/rebase/push
+- MERGED or CLOSED PR -> do not revive the old branch; start from latest `origin/main` with a fresh branch/PR
+
+See `references/merged-pr-followup.md`.
+
 - If deleted UI section components must be preserved for design review, restore them on the same PR branch and use `references/preserve-orphan-ui-sections.md`.
 - Do not satisfy the fresh-worktree requirement by creating a second branch/PR for the same review cycle.
 - If GitHub shows `DIRTY`/`BEHIND`/`BLOCKED`/`UNSTABLE` or there are no actionable review comments, consult `references/pr-followup-triage-with-stale-pr-state.md` before editing files.

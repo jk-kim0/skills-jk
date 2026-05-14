@@ -98,6 +98,19 @@ Required check before measuring typography:
 2. if it redirects, measure the final live destination that actually renders the page
 3. only treat a page as missing after checking the real redirect target or canonical live path
 
+## Legal/cookie pages: detect 15px-root values hardcoded into a 16px-root page
+When comparing a corp-web-japan preview legal/cookie page against `www.querypie.com/ja/**`, do not stop after confirming both pages currently report `html { font-size: 16px; }`.
+
+A preview page can still contain hardcoded pixel values that were copied from a 15px-root computed rendering. Look for repeated 0.9375 scaling versus live values:
+- live `60px / 72px` h1 vs preview `56.25px / 67.5px` means preview captured `3.75rem / 4.5rem` under a 15px root; reconstruct as `60px / 72px` for a 16px-root page.
+- live `20px / 28px` section labels vs preview `18.75px / 26.25px` means preview captured `1.25rem / 1.75rem`; reconstruct as `20px / 28px`.
+- live body/category descriptions `16px / 26px` vs preview `15px / 24.375px` means preview captured `1rem / 1.625rem`; reconstruct as `16px / 26px`.
+
+For legal document defaults, separate short cookie-preference parity from long-document readability:
+- cookie/list description parity candidate: `16px / 26px`, weight 300, tracking about `0.36px`, `#57606A`/`text-slate-600`.
+- long legal MDX body candidate: `16px / 28px` is usually calmer and more readable than preserving `15px`; if current legal components use `text-[15px] leading-7`, consider raising only the font-size to `16px` while keeping `leading-7`.
+- lead/intro paragraphs may be intentionally larger on live pages (for example `18px / 28px`); do not apply that size blindly to every legal body paragraph.
+
 ## When the user wants one shared company-body size across several pages
 Default parity advice is page-specific, but the user may explicitly ask for one shared body size across multiple company pages such as `about-us`, `certifications`, and `contact-us`.
 
@@ -122,6 +135,27 @@ Approval rule learned from the same follow-up:
 Important scope rule:
 - if the user asks for a shared company-page token, limit the shared-token rollout to the pages they explicitly named
 - do not automatically drag in neighboring families such as `news` list/detail typography until those were separately measured or explicitly included by the user
+
+## Cookie/legal body typography case
+
+Practical lesson from comparing:
+- `https://stage.querypie.ai/t/cookie-preference`
+- `https://www.querypie.com/ja/cookie-preference`
+
+Even when both currently report `html { font-size: 16px; }`, a preview implementation can still contain values that look like they were copied from a 15px-root computed environment:
+- preview title `56.25px / 67.5px` reconstructs to live `60px / 72px`
+- preview label `18.75px / 26.25px` reconstructs to live `20px / 28px`
+- preview body `15px / 24.375px` reconstructs to live `16px / 26px`
+
+For legal-page body typography, if the user chooses the live-cookie parity baseline, use:
+- body paragraph: `16px / 26px`
+- color: `text-slate-600`
+- keep larger lead/intro text separate; do not promote live cookie lead `18px / 28px` into the default legal body baseline unless explicitly requested
+
+Scope pitfall:
+- when asked to change legal pages' “본문 기본 문단” / default body paragraphs, update the shared legal document body paragraph rules and blockquote paragraphs, but do not automatically change headings, list items, tables, or cookie-preference-specific components unless the user explicitly expands scope.
+
+See `references/cookie-legal-body-typography.md` for the measured values and conversion table.
 
 ## Practical example
 A CTA title that looks like `52px` in source Styles but computes to `48.75px` under a 15px root should usually become `52px` again in corp-web-japan, because the preview keeps a 16px root.

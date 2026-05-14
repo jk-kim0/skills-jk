@@ -100,8 +100,6 @@ In corp-web-v2 Solutions static-page work, the user wants file/directory structu
 §
 In corp-web-v2 route-policy work, the user wants the webinars family to use top-level `/webinars` for the public list route as well, not `/demo/webinars`; align code and the Public-Content-URL-Naming-Convention wiki in the same batch.
 §
-User's Hermes CLI is git-installed under ~/.hermes/hermes-agent, with ~/.local/bin/hermes symlinked to ~/.hermes/hermes-agent/venv/bin/hermes, and current config lives in ~/workspace/skills-jk/.hermes/.
-§
 In corp-web-v2 Public-Content-URL-Naming-Convention updates, treat src/app/[locale]/features/demo/page.tsx and src/app/[locale]/features/documentation/page.tsx as legacy-only paths; do not count them as migration targets or implementation results.
 §
 In corp-web-v2 blog/white-paper MDX, the canonical upstream slug from corp-web-contents is now stored explicitly as frontmatter `slug` in each `src/content/mdx/blog/<id>/<locale>.mdx` and `src/content/mdx/white-papers/<id>/<locale>.mdx`, while the directory name remains the numeric content ID.
@@ -158,7 +156,7 @@ In corp-web-japan resource preview/publication work, the user explicitly does no
 §
 In corp-web-japan section-scoped static-page refactors, preserve the original rendered section order. If extracting a later section (e.g. use-cases) would move it ahead of an earlier section still trapped in a shared shell (e.g. platform), refactor the earlier section first or split the shared shell before extracting the later one.
 §
-In corp-web-japan CTA primitive refactors, the user prefers the section wrapper to be named `SimpleCtaSection` rather than the more generic `CtaSection`, while keeping child primitive names like `CtaContent`, `CtaCopy`, `CtaTitle`, `CtaDescription`, and `CtaActions` unchanged.
+In corp-web-japan CTA primitive refactors, the user prefers `SimpleCtaSection` over generic `CtaSection`, keeps child names like `CtaContent`/`CtaCopy`/`CtaTitle`/`CtaDescription`/`CtaActions`, and interprets `AipFreeTrialCtaSection` as “try AIP free” product intent, not “CTA used only on AIP pages.”
 §
 In corp-web-japan preview-site parity work, the user wants the preview website to keep a standard 16px root rem setup; when matching a live site that uses a 15px root, adjust component token sizes/spacing for visual parity rather than changing the preview site's root font-size.
 §
@@ -170,7 +168,7 @@ In corp-web-japan preview resource publication work, the user is concerned about
 §
 In corp-web-japan PR follow-up work, gh pr view can briefly lag after push; verify the actual remote branch tip with `git ls-remote origin refs/heads/<pr-branch>` before assuming the PR head failed to update.
 §
-In corp-web-japan typography/style unification work, the user prefers site-wide consistency over route-local parity exceptions: do not keep `/t/about-us` as a special text-color or body-typography exception; align pages to shared defaults, and when the user names a baseline page for unification, apply that baseline literally across spacing, typography, and width without leaving future-facing or page-specific exceptions.
+In corp-web-japan typography/layout unification work, the user prefers site-wide consistency over route-local parity exceptions and does not want inconsistent padding/margin/spacing assumed to be intentional or appropriate. When the user names a baseline page for unification, apply that baseline literally across spacing, typography, and width without leaving page-specific exceptions.
 §
 In corp-web-japan demo list-route rollout work, canonical list paths should stay under the demo namespace: use-cases `/demo/use-cases`, AIP `/demo/aip`, ACP `/demo/acp`. Do not invent `/demo-acp` or lift use-cases to `/use-cases` unless the user explicitly changes the route policy.
 §
@@ -214,7 +212,7 @@ In corp-web-japan publication UX, the user expects introduction-deck gated downl
 §
 In corp-web-japan mobile resource/demo sidebar UX, after comparing alternatives the user chose the bottom-sheet/drawer navigation pattern over the block-list/grid pattern as the preferred final direction.
 §
-In corp-web-japan service preview parity work, when the user asks to fix multiple `/t/services/*` pages together (such as ACP and FDE), they want each page handled in its own fresh worktree and its own separate PR, not bundled into one combined PR.
+In corp-web-japan preview-page parity work, when the user asks to fix multiple remaining pages together (e.g. issue 454 /t/services or /t/platforms pages), they expect each page handled in its own fresh worktree, branch, and separate PR.
 §
 The user wants the repeated repo-local stale-branch/worktree audit workflow encoded as a reusable skills-jk skill: classify non-open-PR branches by synthetic squash of current local state vs latest origin/main, test disposable rebase onto latest main, preserve meaningful local patches, and delete only clearly stale branches/worktrees.
 §
@@ -237,3 +235,5 @@ In corp-web-japan test structure work, the user wants only genuinely reusable in
 corp-web-japan main requires `Detect changed scope`, but ci.yml pull_request ignores docs/README/AGENTS/public md/skills md changes, so docs-only PRs can miss the required check.
 §
 In this environment, read_file output includes display-only line-number prefixes like `1|`; do not treat that formatted output as raw file contents when rewriting files, or repeated saves can duplicate those prefixes into documents.
+§
+corp-web-japan AIP integrations filters use semantic keyword keys (e.g. `workflow-automation`), not numeric IDs; normalize live numeric query params to keywords if needed.

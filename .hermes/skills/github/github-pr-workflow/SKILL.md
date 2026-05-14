@@ -636,10 +636,17 @@ gh pr view <branch-name> --json number,title,url,headRefName,baseRefName,state
 
 5. Existing PR follow-up hygiene.
 5. Existing PR follow-up hygiene.
+   - When resolving rebase conflicts on an existing UI/content PR, treat removals from merged PRs as first-class intent, not as disposable conflict noise. Before accepting the open-PR side of a conflict, list deleted/removed JSX, imports, helper components, visible copy, and tests from the merged PR and verify they do not get resurrected. This is especially important for UI header controls, metadata lines, descriptions/leads under headings, selectors, and route-local layout details that the user explicitly asked to remove.
+   - After conflict resolution, run a negative grep for exact removed strings/components and add or preserve tests that assert absence. Example checks: `grep -R "<RemovedComponent\|removed visible copy" <touched-files> || true`, plus source tests using `assert.doesNotMatch(...)`. Do this before amending/force-pushing so review feedback like “I already told you to delete this” is not repeated across pushes.
+   - When reconciling UI placement conflicts, preserve both content presence and relative position. If a selector/button was intentionally moved next to an H1, tests should pin the structure/order, not merely assert the component still exists somewhere in the file.
    - When the user asks to "fix the PR" / "PR 고쳐줘" after several incremental follow-up commits, do not stop at fixing the immediate failing check.
    - When the user points to an existing PR and asks to rename a term/component family, update that same PR branch rather than creating a new PR. Keep the diff narrow, but rename all project-facing occurrences in the touched route/component/test family: imports, JSX tags, exported function names, default export names, related structure tests, and route-family module filenames that still carry the obsolete term. Before pushing, run a targeted grep for the old term/path and the narrow route-family test so tests do not keep asserting stale wording.
   - Default to a full branch-hygiene pass unless the user narrows scope:
-    - inspect review comments and CI failures
+    - inspect review comments, CI failures, and `mergeStateStatus`
+    - if checks are green but `mergeStateStatus=DIRTY`, diagnose it as a latest-main conflict/rebase task rather than a test-failure task
+    - inspect the merged PR(s) or commits that advanced `origin/main` across the conflicted files, preserve their intent, and reapply only the open PR's intended delta
+    - when a merged PR intentionally removed UI/copy/metadata, preserve the full removal, not only the obvious component deletion. Do not resurrect adjacent deleted lines while resolving conflicts just because they are part of the open PR side's preferred structure. Example: if latest main removed privacy-policy header controls and date metadata, keep both removed; reapply only the shared legal primitive/className changes.
+    - after conflict resolution, grep for the removed symbols/text from the merged PR and update structure tests to assert absence when the removal is intentional. This catches accidental resurrection before push.
     - fix the actual issue
     - rebase onto latest `origin/main`
     - if the branch history is only iterative fixups, squash to one clean commit
@@ -650,6 +657,7 @@ gh pr view <branch-name> --json number,title,url,headRefName,baseRefName,state
     - separate page-specific exceptions from shared primitive/layout rules
     - explicitly note removed semantic-only variants or overrides when the final result simplified back to one shared rule
     - keep the file list and test plan aligned with the surviving diff, not the earlier larger scope
+  - When the user explicitly asks for a visible experiment or validation commit on an existing PR (for example removing section-specific spacing to see whether a shared spacing contract is sufficient), keep it on the same PR branch rather than opening a new PR. Make the commit message/body state that it is a validation commit, push it, and update the PR body so reviewers understand the branch’s current visual contract instead of the earlier safer baseline. Run the narrow structural/source tests that encode the contract, but do not over-verify locally if the user wants to inspect the Preview Deployment themselves.
   - Only preserve a multi-commit PR history when the user explicitly asks for it or the commits are meaningfully staged for review.
 
 

@@ -12,7 +12,7 @@ User wants PR status checked before commit/push on repo work to avoid continuing
 §
 For repo work, the user wants brief progress updates, immediate execution once the requested change is clear, and no long passive waits. Give a short status/estimate first, avoid proposal-only pauses, and if commands run long or estimates are exceeded, stop and report status promptly instead of waiting silently.
 §
-User prioritizes actual website appearance for stakeholder-facing UI, expects critical re-evaluation of visual claims, and wants shared design-policy issues distinguished from page-specific defects.
+User prioritizes rendered website consistency over nominal component reuse, expects critical re-evaluation of visual claims, and wants shared design-policy issues distinguished from page-specific defects.
 §
 User says there is no policy that the Japanese site's default font must be Pretendard JP; do not treat that as a constraint.
 §
@@ -172,8 +172,6 @@ In corp-web-japan resource-list refactors, the user wants page.tsx to keep route
 §
 For repo-local workspace cleanup, the user wants branches/worktrees not connected to an open PR treated as stale candidates by default, but local changes must be validated against the latest main branch HEAD first; if a branch has multiple commits, judge meaningfulness after squashing conceptually to the net diff vs latest main, and if the branch is behind, use rebase onto latest main as a quick signal of whether the branch history is stale.
 §
-In corp-web-japan resource-list route work, the user wants each page.tsx to keep direct route-authored hero markup (`ResourceListHeroSection`, `ResourceListHeroTitle`, `ResourceListHeroDescription`) and CTA sections; only the repeated sidebar structure may be extracted into a shared concrete component.
-§
 For stakeholder-facing webpage intro/description copy, never mention 'MDX'. Treat 'MDX' as an internal file-format term that should not appear in customer-facing explanatory text.
 §
 In corp-web-japan PR follow-up scope, removing demo /t entrypoints does not imply removing the general Preview Toggle UI or its API route. Keep that scope narrow unless the user explicitly asks to remove the global preview toggle.
@@ -186,10 +184,12 @@ In corp-web-japan publication/routing audits, the user wants review focus on act
 §
 In corp-web-japan, ask and confirm before implementing route renames/canonical-route decisions. When preview /t/* routes are promoted/replaced, do not keep /t/* endpoints or redirects unless explicitly requested.
 §
-For visual/layout bugs, the user expects direct verification against the exact provided live page and Preview Deployment URL before claiming a fix, and strongly prefers one-pass thorough fixes over iterative trial-and-error that makes them re-test repeatedly.
+For visual/layout bugs, the user expects direct verification against exact live/Preview URLs before claiming a fix, strongly prefers one-pass thorough fixes over iterative trial-and-error, and may request explicit validation commits pushed to the existing PR so they can inspect visual tradeoffs in Preview.
 §
 For querypie.com/ja page migrations in corp-web-japan, the user wants the existing page copied as-is without invented preview explanation text, rewritten title/description copy, or new CTA sections unless explicitly requested.
 §
 If browser interaction is needed while another agent is using the browser, the user wants new tabs/pages opened instead of reusing or disturbing existing browser tabs/windows.
 §
 For corp-web-japan and similar repo work, any reusable migration/workflow skill should be provided as a repo-local skill under .agents/skills/, not only as a built-in/global skill.
+§
+For GitHub living issues, user expects remaining-work items to be concrete and explainable, with explicit scope boundaries: what changes, what stays unchanged, and why it matters.

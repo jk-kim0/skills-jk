@@ -244,6 +244,22 @@ When the user asks to create a PR from the current local workspace state rather 
       - only transplant files that are absent from the open PR worktree or differ from it byte-for-byte
       - after transplant, trust the fresh worktree's working-tree status/diff as the payload for the new PR
     - this avoids silently broadening an in-review PR after the user already has a reviewable URL for it
+  - Multi-follow-up refinement from repeated same-root sweeps:
+    - by the time the user asks again, one or more earlier follow-up PRs may already be `MERGED` while another follow-up PR is still open, and the dirty root checkout can contain a mixture of:
+      1. files already absorbed by latest `origin/main`
+      2. files still represented by an open PR worktree
+      3. newly diverged files not present in either place
+    - safe order:
+      1. `git fetch origin --prune`
+      2. re-check every recent follow-up branch with `gh pr list --head <branch> --state all --json number,state,mergedAt,url`
+      3. fast-forward local `main` with `git branch -f main origin/main`
+      4. create one brand-new latest-main worktree for the new PR candidate
+      5. if some earlier follow-up PRs are still open, exclude root files that are byte-identical to those open-PR worktrees
+      6. copy the remaining candidate files into the new worktree and trust the post-copy collapse there
+    - practical rule:
+      - if a previous follow-up PR is now `MERGED`, do not keep treating its old worktree as an active comparator; latest `origin/main` already represents that line
+      - if a previous follow-up PR is still `OPEN`, use the open PR worktree as the comparator and exclude byte-identical files from the next PR candidate set
+      - after this filtering, the new PR payload should represent only files that are still unique versus both latest `origin/main` and any still-open follow-up PRs
   - Final repeated-sweep reporting rule:
     - when you update local `main`, discover that earlier follow-up PRs have already merged, and then open one more PR from the current dirty root checkout, report those as three distinct facts rather than one blended success statement:
       1. local `main` is now aligned to latest `origin/main`
