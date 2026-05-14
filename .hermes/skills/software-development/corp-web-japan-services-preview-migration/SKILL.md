@@ -18,11 +18,15 @@ Use this when a route currently redirects to `querypie.com/ja/...`, but the user
 
 ## When to use
 
-Typical examples:
-- `/services/aip` -> local preview at `/t/services/aip`
-- `/services/acp` -> local preview at `/t/services/acp`
-- `/services/fde` -> local preview at `/t/services/fde`
-- same pattern can apply to other redirect-backed areas under header/footer navigation
+Typical examples and current taxonomy:
+- AIP and ACP are platform products, not service-offering pages:
+  - final target: `/platforms/aip`, `/platforms/acp`
+  - preview target: `/t/platforms/aip`, `/t/platforms/acp`
+  - older `/t/services/aip` and `/t/services/acp` routes should be treated as pre-rename legacy preview paths when working on Issue 454 follow-up.
+- FDE remains a service-offering page because it is a project-style consulting/collaboration service rather than a platform product:
+  - preview route stays `/t/services/fde`
+  - final public route: `/services/fde`
+- same preview pattern can apply to other redirect-backed areas under header/footer navigation, but classify the route family before choosing `services`, `platforms`, or another noun.
 
 ## Goal
 
@@ -75,9 +79,9 @@ Practical reason learned from `/t/services/aip`, `/t/services/acp`, and `/t/serv
 - separate PRs keep review focused and make it easier to verify the exact preview deployment per page
 
 Recommended pattern:
-- one branch / PR for `/t/services/aip`
-- one branch / PR for `/t/services/acp`
-- one branch / PR for `/t/services/fde`
+- one branch / PR for the AIP rename or parity work (`/t/services/aip` -> `/t/platforms/aip` when following the Issue 454 taxonomy)
+- one branch / PR for the ACP rename or parity work (`/t/services/acp` -> `/t/platforms/acp` when following the Issue 454 taxonomy)
+- one branch / PR for `/t/services/fde` service-page work; do not move FDE into `platforms` unless the user explicitly reverses the taxonomy decision
 - repeat the same latest-main worktree safety checks for each page independently
 
 ## Implementation details
@@ -271,12 +275,37 @@ Why this matters:
 
 ## Page-family-specific migration heuristics
 
+### Route taxonomy decision for AIP / ACP / FDE
+
+Issue 454 established a route-family distinction that should be applied before implementing follow-up route moves:
+
+- AIP and ACP are platform products.
+  - Use plural `platforms` because they are parallel platform offerings (`AI Platform`, `Access Control Platform`).
+  - Preview targets: `/t/platforms/aip`, `/t/platforms/acp`.
+  - Final public targets: `/platforms/aip`, `/platforms/acp`.
+  - Treat older `/t/services/aip` and `/t/services/acp` as preview paths to rename, not as the final taxonomy.
+- FDE is not a platform product in this taxonomy.
+  - It is a project-style service/collaboration offering.
+  - Keep preview route `/t/services/fde`.
+  - Prefer `/services/fde` as the public service-family candidate unless the user changes the policy.
+- Do not mechanically convert all `/t/services/*` pages to `/t/platforms/*`; classify each family by product/service semantics first.
+- When updating a tracking issue after taxonomy decisions, verify the current `origin/main` path inventory before carrying forward old duplicate/canonical TODOs. In issue 454 follow-up, `src/app/t/solutions/aip/fde-services` was already absent while `src/app/t/services/fde/page.tsx` remained, so the duplicate-route cleanup belonged in an "already resolved" note, not in remaining work.
+
 ### `/t/services/fde`
 
 A reliable parity shortcut:
 - compare the live page against any existing local preview under `src/app/t/solutions/aip/fde-services/page.tsx`
 - if that solution preview already matches the same live source well, reuse its route-local copy and section-primitive structure rather than maintaining a second placeholder layout
 - keep the service preview route's own canonical path and route-aligned asset root (`public/services/fde/*`), but do not hesitate to mirror the proven hero / alternating feature-band / CTA structure
+
+When the user asks to merge `/t/solutions/aip/fde-services` and `/t/services/fde` into one page:
+- treat `/t/services/fde` as the final preview endpoint unless the user explicitly says otherwise
+- prefer the implementation whose route, canonical metadata, component path, and asset root already match the final endpoint (`src/app/t/services/fde/page.tsx`, `src/components/sections/fde/service-page.tsx`, `public/services/fde/*`)
+- verify duplicate assets by checksum before deleting the old route-aligned copies; identical hashes make the old `public/solutions/aip/fde-services/*` assets safe to remove
+- remove the duplicate preview route, duplicate section module, and duplicate route-specific tests rather than leaving a redirect or compatibility `/t/*` endpoint
+- update sibling preview links such as the FDE value card in `/t/services/aip` so they point to `/t/services/fde`, not the removed `/t/solutions/aip/fde-services`
+- keep existing public redirect route handlers unchanged unless the user explicitly asks for rollout; for this class of cleanup, the upstream redirect to `https://www.querypie.com/ja/solutions/aip/fde-services` can remain while only local preview endpoints are consolidated
+- update non-indexability and page-structure tests so the deleted preview route is no longer listed and the surviving `/t/services/fde` test asserts the old route/component/assets are absent
 
 ### `/t/services/acp`
 

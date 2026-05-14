@@ -104,6 +104,25 @@ Re-audit these specific cases because they changed over time and are easy to des
   - Verify whether `/contact-us` is a real local page plus submit flow, not just a redirect endpoint.
   - If `src/app/contact-us/page.tsx` and `src/app/contact-us/submit/route.ts` both exist, treat it as already migrated.
 
+## Static/info family-boundary lessons
+
+When updating route-local authoring docs or long-lived taxonomy issues such as issue #397, do not collapse every static/info page into one universal primitive family just because route-local authoring is complete.
+
+Maintain at least these explicit family boundaries:
+- Legal / document family
+  - Representative routes: `/t/eula`, `/t/privacy-policy`, `/t/privacy-policy/[slug]`, `/t/terms-of-service`
+  - Treat this as a separate family with legal document wrappers, legal body/MDX primitives, versioned policy content, document headers, long-form legal copy, and stable reading-width requirements.
+  - Do not compare or merge it mechanically with `MarketingPageSection` / company-intro primitives.
+- Company-intro / company family
+  - Representative routes: `/t/about-us`, `/t/certifications`
+  - Treat these as company identity / trust-context pages. They may share marketing shells where the layout contract actually matches, but this is not automatic.
+- Adjacent static/info routes
+  - `/t/cookie-preference` should be classified first by its settings / consent interaction contract.
+  - `/t/plans` should be classified first by its pricing / comparison / CTA semantics.
+  - Do not list these as unfinished company-intro commonization merely because they are static/informational.
+
+If this boundary is being recorded in repository docs, update both the detailed route-local authoring guide and the short code-location conventions page when present.
+
 ## Recommended verification queries
 
 Before finalizing the wiki page, explicitly inspect these latest-main files when relevant:

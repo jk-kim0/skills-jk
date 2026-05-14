@@ -26,6 +26,20 @@ Use this workflow when the user asks to:
 - remove header/footer preview switching for that specific route
 - keep the old `/t/*` path from rendering duplicate content
 
+## Do not confuse preview taxonomy rename with public rollout
+
+A route-family rename can be a preview-only taxonomy step, not a public release.
+Before applying this skill's canonical-promotion behavior, confirm whether the current task is actually public rollout.
+
+If the user says the public release or `/t/*` removal is a final/later stage:
+- do **not** create public `src/app/<route>/page.tsx` files yet
+- do **not** remove the `/t/*` preview system globally
+- do **not** add compatibility redirects for old preview routes unless explicitly requested
+- do rename the preview route files/tests directly, e.g. `/t/services/aip` -> `/t/platforms/aip`
+- update preview canonical metadata to the new `/t/...` path
+- update header/footer `t("/<public-target>", previewModeEnabled)` base paths only if the user confirmed the new eventual public target
+- keep existing public redirect routes unchanged when the user says public redirects are not part of the current PR
+
 ## Core idea
 
 Do not duplicate the preview implementation in two places long-term.
@@ -43,6 +57,7 @@ Preferred rollout:
 1. Start from latest `origin/main` in a fresh worktree.
 2. Re-read the current public route, preview route, and nav files from that worktree before editing.
 3. Confirm whether the public route already has canonical metadata that should be preserved.
+4. If the user explicitly asks to be questioned and confirmed before proceeding with naming/route decisions, gather all decision questions first and stop before file edits. Do not start implementing after only one confirmed item when other route-policy choices remain open.
 
 ## Files to inspect first
 
@@ -174,6 +189,41 @@ Also check whether the old public-route implementation relied on a preview-only 
 In the whitepaper case, `src/lib/publications/querypie-ja-whitepaper-links.ts` was only a derived array that reused local whitepaper records but swapped each `href` to the upstream `querypie.com/ja` detail URL.
 After promoting the local MDX-backed list to canonical, that module became dead code and should be deleted together with any now-stale imports in `src/content/resources.ts`, `src/lib/resource-posts.ts`, and related tests.
 
+## Mixed-state batch rollout rule
+
+When the user asks to "release" several `/t/*`-related pages together in one PR, do not assume every named page still needs the same class of code change.
+
+First inspect each requested surface and classify it into one of these buckets:
+- already canonical public page exists and `/t/*` preview is already gone
+- canonical public page exists but some docs/tests/navigation still describe it as preview-only
+- public route is still a redirect or legacy endpoint while `/t/*` contains the real implementation
+
+Execution rule for this repo/user:
+- keep the user-requested single PR when the rollout theme is still one homogeneous release batch
+- only promote the pages that still need promotion
+- for pages that are already canonical, limit the diff to truth-alignment work such as README/docs/tests if they still describe the old preview state
+- explicitly report that distinction to the user so they know why some named pages got code changes and others only got validation/alignment
+
+Practical example:
+- user requests `about-us`, `news`, `contact-us`, and `certifications` in one production-release PR
+- latest `main` already has canonical `/news` and `/contact-us`
+- only `/about-us` and `/certifications` still need route promotion from `/t/*`
+- the correct PR still stays combined, but code promotion is limited to those two pages while tests/docs are updated to reflect that `news` and `contact-us` were already released
+
+## Test relocation and shard-assignment pitfall
+
+If a route-source test mirrors the old preview path under `tests/src/app/t/...` and you promote the page to a canonical non-`/t` path, do not only rename the source route file.
+
+Also update all of the following in the same PR:
+- move the mirrored source-based test file to the canonical path under `tests/src/app/...`
+- fix the moved test's relative import path to shared helpers such as `tests/helpers/source-readers.mjs`
+- update `scripts/ci/test-groups.mjs` so the new test path still matches the intended shard/group
+- remove the old preview-path test file instead of leaving both copies behind
+
+Failure signatures if missed:
+- `ERR_MODULE_NOT_FOUND` from the moved test because the old `../../../../helpers/...` import depth is no longer correct
+- `AssertionError [ERR_ASSERTION]: Unassigned test files:` from `node scripts/ci/assert-test-groups.mjs`
+
 ## Verification
 
 At minimum run:
@@ -207,6 +257,8 @@ Recommended PR summary structure:
 
 ## Pitfalls
 
+- Treating a preview route-family rename as if it were public rollout. If the user says `/t/*` removal/public release is the final stage, only rename preview files/tests and metadata; do not create public routes, do not remove the preview system, and do not add old-preview compatibility redirects unless explicitly requested.
+- Proceeding after partial route-name confirmation when the user asked to be questioned first. Collect and confirm all remaining decisions such as detail-page canonical family, integrations path, nav base path, old preview route handling, and public redirect scope before editing.
 - Leaving the canonical public route on the old externalized list while only changing nav links
 - Keeping both public and preview pages rendering the same list content independently
 - In corp-web-japan, automatically leaving a redirect behind for a `/t/*` path without an explicit user request

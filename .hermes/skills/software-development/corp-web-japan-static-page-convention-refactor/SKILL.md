@@ -170,6 +170,38 @@ Important semantic-slot rule learned from AI Crew design-elements follow-up:
   - `</Section>`
 - practical follow-up from AI Crew design-elements work: replacing `AICrewDesignElementsSection title={...}` with `AICrewDesignElementsTitle` + `AICrewDesignElementsGrid` made the route easier to review because the main section heading and its emphasized phrase were visible directly in `page.tsx` instead of being passed through a prop
 
+## Intro spacing ownership for company / resource pages
+
+When standardizing static company/info/resource pages such as `/t/about-us`, `/t/certifications`, `/contact-us`, or `/news`, prefer a relationship-owned intro contract instead of burying spacing in title or lead primitives.
+
+Recommended ownership split:
+- the intro wrapper owns the vertical rhythm between `h1` and the first descriptive block
+- title primitives own typography only (`font-size`, `line-height`, `weight`, `tracking`, `color`)
+- lead/description primitives own typography only
+- the following section (`ListSection`, `GridSection`, `FormPanel`, etc.) owns only the gap after the intro block
+
+Why this is preferred:
+- the thing being standardized is the relationship `h1 -> first block`, not the title alone and not the first paragraph alone
+- it keeps typography-token work separate from layout ownership
+- it prevents one page from encoding the gap in `Title mb-*`, another in `Lead mt-*`, another in the next grid/list wrapper, and another in an implicit/no-rule layout
+
+Practical implementation rule:
+- if an existing title component has `mb-*`, remove that margin and move the spacing into the intro wrapper
+- if an existing lead/description component has `mt-*`, remove that margin and move the spacing into the intro wrapper
+- if a page currently creates the title-to-body gap from the next major layout wrapper (for example a hero/grid wrapper), move that spacing up into the intro wrapper and keep the next layout wrapper responsible only for its own internal layout
+
+Important future-proofing rule for pages that do not yet render a lead:
+- still shape the intro wrapper as a vertical stack now (for example `flex flex-col gap-*`) if a lead is likely to be introduced later
+- remove margin ownership from any dormant/future lead primitive in advance, so adding `<Lead>` later does not reintroduce spacing drift
+- practical example: on `/news`, prepare `NewsPageIntro` as the spacing owner and keep `NewsPageLead` margin-free even before the route actually renders a lead
+
+Review check:
+- inspect each page and answer three separate questions:
+  1. who owns `h1 -> first descriptive block` spacing?
+  2. who owns `intro -> next section` spacing?
+  3. do title/lead primitives contain accidental layout margins?
+- if the answers differ across sibling company/resource pages, treat that as a standardization defect
+
 ## Full-bleed background sections: keep the width wrapper as plain route markup
 
 Important follow-up from `/t/about-us`:

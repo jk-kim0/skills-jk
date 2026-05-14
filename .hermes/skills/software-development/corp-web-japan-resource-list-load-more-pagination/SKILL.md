@@ -183,16 +183,19 @@ Recommended copy used in this repo:
 
 ## Coverage audit workflow
 
-Use this when the user asks which features/pages have or do not have load-more.
+Use this when the user asks which features/pages have or do not have load-more, or asks to refresh a living GitHub issue such as `corp-web-japan` #451.
 
-1. Re-audit the latest baseline, preferably a detached worktree at `origin/main`, before writing findings.
-2. Search for `ResourceListLoadMore`, `ProgressiveLoadMore`, `resolveResourceListVisibleCount`, and `ResourceListItems`.
-3. Classify list/index routes by current route path and source file:
+1. Re-audit the latest baseline, preferably a detached worktree at `origin/main`, or use `git show origin/main:<path>` / `git ls-tree origin/main` if no file edits are needed. Do not trust a local `main` checkout that is behind `origin/main`.
+2. Fetch `origin/main`, record the full SHA and short SHA, and inspect first-parent commits merged since the issue's last recorded baseline. If the new commits are unrelated to load-more, say that explicitly in the refreshed issue instead of silently no-oping.
+3. Search for `ResourceListLoadMore`, `NewsArticleLoadMore`, `ProgressiveLoadMore`, `resolveResourceListVisibleCount`, and `ResourceListItems`.
+4. Classify list/index routes by current route path and source file:
    - applied: route imports/uses `ResourceListLoadMore` and computes `initialVisibleCount` with `resolveResourceListVisibleCount`
-   - not applied: route renders `ResourceListItems` directly or uses a separate list component such as news list UI
+   - news applied: route uses the route-specific `NewsArticleLoadMore` wrapper plus `resolveResourceListVisibleCount`, preserving `NewsArticleList`
+   - not applied: route renders `ResourceListItems` directly or uses a separate list component without the load-more helper
    - internal/demo: classify separately from public routes
-4. Include current content counts when they are cheap to derive from `src/content/**`; use them only as prioritization signals, not as proof that load-more is or is not needed.
-5. For GitHub issue output, include the baseline commit SHA, the exact evidence pattern, applied routes, non-applied candidate routes, and implementation notes for special layouts such as `/events` past-events-only pagination or `/resources` aggregate-list ordering.
+5. Include current content counts when they are cheap to derive from `src/content/**`; use them only as prioritization signals, not as proof that load-more is or is not needed.
+6. For GitHub issue output, include the baseline commit SHA, the exact evidence pattern, applied routes, non-applied candidate routes, implementation notes for special layouts such as `/events` past-events-only pagination or `/resources` aggregate-list ordering, and the current GitHub Actions status for the audited SHA. If local build/test is intentionally skipped, state that the refresh is based on static inventory plus CI/staging status.
+7. For repeated issue-refresh requests, update the issue even if the route classification did not change: refresh the timestamp/SHA, mention any newly merged unrelated PRs checked, and preserve the explicit “no high-priority follow-up” or remaining-scope status when still true.
 
 Useful quick probes from a clean baseline:
 
@@ -221,6 +224,17 @@ When adding a route-specific wrapper or new tests, also run:
 node scripts/ci/assert-test-groups.mjs
 npm run typecheck
 ```
+
+Existing source-reading contract tests can fail even when the new route-specific load-more tests pass. After changing an existing list route from direct full-list rendering to `ResourceListLoadMore` or a route-specific wrapper, search and update older tests that still assert direct render patterns such as `<ResourceListItems items={...} />`, `<NewsArticleList ... />`, or absence of load-more imports. Known places that have caught stale contracts:
+```bash
+rg "ResourceListItems|NewsArticleList|ResourceListLoadMore|NewsArticleLoadMore|resolveResourceListVisibleCount" tests
+```
+For public route changes, include broader groups such as:
+```bash
+npm run test:publications
+npm run test:routing-seo
+```
+If `origin/main` advances before push, rebase onto latest `origin/main` and rerun the failing groups after the rebase before force-pushing the PR branch.
 
 If the fresh worktree has no local `node_modules` and the root checkout has dependencies installed, a temporary PATH-only typecheck can avoid a slow install:
 ```bash
