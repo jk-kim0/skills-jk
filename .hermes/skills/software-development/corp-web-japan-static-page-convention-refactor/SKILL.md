@@ -24,6 +24,49 @@ Make the route file itself the primary readable implementation surface:
 - reduce dependence on page-specific content registries under `src/content/**`
 - keep only truly reusable primitives or small interactive helpers extracted
 
+## App route directory ownership
+
+Route-local authoring does not mean using `src/app/<route>/` as a general component bucket.
+
+For this repo, the default App Router route directory contract is:
+- `src/app/<route>/page.tsx` owns the route entrypoint and the readable page composition
+- colocate only framework route files there (`layout.tsx`, `loading.tsx`, `not-found.tsx`, metadata/route handlers, etc.) when they are actually needed
+- do not place ordinary section/widget component files beside `page.tsx` just to make them "route-local"
+- put page- or family-bound section implementation files under `src/components/sections/<family-or-surface>/**`
+- for internal demo surfaces, use an explicit family such as `src/components/sections/internal-demo/**` and keep `src/app/internal/<route>/` limited to `page.tsx` unless the user explicitly asks otherwise
+
+Important pitfall from the issue #395 follow-up:
+- moving `role-slides.tsx`, `use-case-showcase.tsx`, `ai-crew-avatar.tsx`, or `ai-dashi-faq.tsx` into `src/app/internal/demo-sections/` was the wrong interpretation of route-local authoring
+- the corrected structure kept `src/app/internal/demo-sections/page.tsx` as the only file in that route directory and moved the widgets to `src/components/sections/internal-demo/**`
+
+### Internal demo pages still need route-local readability
+
+Do not treat `internal` or demo-only routes as exempt from route-local authoring when they are mostly static review/demo pages.
+
+Practical correction from PR #496 / issue #395 follow-up:
+- `src/app/internal/demo-sections/page.tsx` was an internal demo route, but it still needed to be the readable authoring surface
+- the first fix kept component files out of the app route directory, but missed that `page.tsx` still had hard-to-review raw markup and top-level prop/data blobs
+- this was incomplete: internal demo pages can be route-local refactoring targets just like public static pages
+
+For internal demo routes, check for both dimensions:
+1. App route directory ownership:
+   - keep `src/app/internal/<route>/` limited to `page.tsx` unless framework route files are truly needed
+   - place demo-only UI implementation under a clear family such as `src/components/sections/internal-demo/**`
+2. Route readability:
+   - avoid large top-level blobs like `roleSlidesDemoProps`, `useCaseShowcaseDemoProps`, or `aiDashiFaqItems`
+   - avoid raw `<section className=...>` / `<article className=...>` wrappers in `page.tsx` when they obscure intent
+   - choose component names by ownership:
+     - `InternalDemo*` is acceptable for UI primitives that are strictly local to an internal demo page and not intended as reusable component candidates
+     - reusable primitives or preserved component candidates should use production-ready neutral names such as `SectionShowcaseSection`, `SectionShowcaseIntro`, `SectionShowcaseCardGrid`, and `SectionShowcaseCard`
+   - prefer children/slot-style demo authoring (`<RoleSlide>`, `<RolePainPoint>`, `<UseCaseCard>`, `<UseCaseBody>`, `<AIDashiFaqQuestion>`) so the example copy and structure are visible in section order
+
+Recommended structure-test update for this class of fix:
+- assert the route imports/renders the survivor components from `src/components/sections/internal-demo/**`
+- assert old orphan/root paths are absent
+- assert top-level prop blob names are absent
+- assert raw `<section className=` / `<article className=` are absent when semantic demo primitives are the intended contract
+- assert the route uses the semantic primitives and children slots that make the demo readable
+
 ## When auditing which pages do or do not fit this convention
 
 Do not limit the analysis to the explicit examples named in `docs/code-location-conventions.md`.
@@ -715,8 +758,10 @@ Recommended concrete examples to cite when they match latest main:
 - `src/app/t/platforms/acp/page.tsx` for children-based interactive section authoring that avoids `categories=[...]` data blobs
 - document-style exception example: `src/app/t/privacy-policy/[slug]/page.tsx` as an intentional thin legal wrapper pattern rather than a static marketing page target
 
-Reference support file:
+Reference support files:
 - `references/route-local-refactoring-developer-outline.md` — concise outline, examples, and AI-agent prompt patterns for developer-facing docs or onboarding material
+- `references/route-local-component-placement-correction.md` — session-specific correction showing that route-local authoring does not mean colocating UI component files beside `page.tsx`; includes the issue #395 internal-demo pitfall and review check
+- `references/internal-demo-route-local-and-production-ready-naming.md` — PR #496 / issue #395 correction covering internal demo route-local readability and the rule that exported component symbols should use production-ready names, not `InternalDemo*`
 
 ## Verification
 

@@ -75,6 +75,7 @@ Typical git steps:
 - stage the changed wiki page
 - create a clear commit message
 - push to the wiki repo's active branch
+- verify the push with `git status --short --branch`, `git log -1 --oneline`, and `git ls-remote origin refs/heads/<wiki-branch>`; GitHub REST repo/ref endpoints for `.wiki` repositories can return `404` even when the git push succeeded
 
 ## Practical lessons
 

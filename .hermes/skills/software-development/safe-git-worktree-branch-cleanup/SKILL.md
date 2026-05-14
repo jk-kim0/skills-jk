@@ -1477,6 +1477,50 @@ Useful summary language:
 - `remaining non-PR worktree preserved because it has meaningful local edits`
 - `no additional safe stale worktrees/branches remain`
 
+### Additional practical case: an open PR branch can still be ahead of its remote head and should be preserved as active follow-up work
+
+A local branch-backed worktree is not stale just because the GitHub PR is open and the local branch no longer matches the current remote PR head exactly.
+A common pattern during PR follow-up is:
+- `gh pr list --state open` still shows the branch as the open PR head branch
+- but local `git branch -vv` shows something like `ahead 1` or `ahead N, behind M`
+- the worktree may even be clean at that moment because the extra follow-up is already committed locally but not pushed yet
+
+Recommended handling:
+1. if the branch name still matches an open PR head branch, treat it as active by default
+2. compare the local branch SHA to the open PR `headRefOid`
+3. if the local branch is ahead of the remote PR head, preserve it as active local follow-up work, not stale residue
+4. only consider deletion after the PR is merged/closed and a refreshed snapshot shows upstream gone plus a clean worktree
+
+Practical interpretation:
+- `open PR + local ahead-of-remote state` is not a cleanup target
+- this state often means there is an unpublished follow-up commit waiting to be pushed, even if `git status` is clean
+- on a later cleanup pass, the same branch can become safely removable once the PR merges and the upstream disappears
+
+### Additional practical case: after a burst of merges, the right cleanup is often a bulk sweep of merged clean PR worktrees before updating main
+
+A common repo-local cleanup snapshot is:
+- `git fetch --prune` shows local `main` is behind `origin/main`
+- several branch-backed worktrees are still present
+- most of those branches now show upstream `[gone]`
+- `gh pr list --state open` returns only a much smaller active set than the number of local worktrees
+- per-worktree inspection shows many of the non-open-PR worktrees are completely clean
+- `gh pr list --state all --head <branch>` confirms those branches' PRs are already `MERGED`
+
+Recommended handling:
+1. inspect each non-open-PR worktree for real dirt first
+2. classify `merged PR + clean worktree + upstream gone` as safe stale residue
+3. remove those clean merged worktrees in one batch
+4. delete the corresponding local branches immediately after the worktrees are gone
+5. only then fast-forward root `main` to `origin/main`
+6. re-check that any remaining non-main worktree is either:
+   - an open PR head branch, or
+   - a dirty local line that still needs preservation
+
+Practical interpretation:
+- do not leave many clean merged PR worktrees around just because they are branch-backed
+- when the only survivor after the sweep is an open-PR worktree with meaningful local edits, that is the intended minimum-safe end state
+- this batch-remove-then-fast-forward order works well because it avoids reporting stale merged lines as if they were still active local context
+
 ## Practical lessons
 
 - In a large multi-worktree repo, most safe wins come from removing clean detached review/rebase/squash worktrees first.

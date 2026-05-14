@@ -198,6 +198,34 @@ Implementation preference:
 - keep the loader simple so it renders `bodySource` directly and extracts headings from `bodySource`
 - do not preserve a special-case strip helper unless there is a truly exceptional news-body shape that cannot be normalized at the content layer
 
+## Link hygiene checks
+
+When investigating runtime 404s or unexpected canonical redirects under a news detail URL, scan the news MDX body for relative Markdown links before assuming a routing bug. A common bad shape is an email address written as `[pr@querypie.com](pr@querypie.com)`: because the href lacks `mailto:`, the browser resolves it relative to the current detail URL, producing paths like `/news/14/pr@querypie.com`. In corp-web-japan publication MDX, prefer the existing shared MDX component over raw Markdown email links: write `Email : <EmailLink email="pr@querypie.com" />` (note the spaces around `:`) for this press-contact pattern. A raw `[pr@querypie.com](mailto:pr@querypie.com)` link is safe, but less aligned with the repo convention. If the affected news item was migrated from a hidden blog shadow record, scan and fix the same bad link in the shadow blog MDX as well so future copy migrations do not reintroduce it.
+
+Useful one-off audit pattern:
+
+```bash
+python - <<'PY'
+from pathlib import Path
+import re
+link_re = re.compile(r'\[([^\]]+)\]\(([^)]+)\)')
+email_re = re.compile(r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')
+paths = list(Path('src/content/news').glob('*.mdx'))
+# Include known hidden blog shadow records when news bodies were migrated from blog.
+paths += [Path('src/content/blog/25-terrasky-mitoco-buddy.mdx'), Path('src/content/blog/26-mitoco-buddy-release.mdx')]
+for p in sorted(path for path in paths if path.exists()):
+    text = p.read_text()
+    body = text.split('---', 2)[2] if text.startswith('---') and len(text.split('---', 2)) >= 3 else text
+    for n, line in enumerate(body.splitlines(), 1):
+        for label, href in link_re.findall(line):
+            if email_re.match(label) or email_re.match(href):
+                if not href.startswith('mailto:'):
+                    print(f'{p}:{n}: {line.strip()}')
+PY
+```
+
+When fixing this class of bug, add or update a source-level regression in `tests/news/imported-corpus.test.mjs` so Markdown links whose label or href is an email address must use `mailto:`. For the known press-contact records, also assert that the canonical source uses `<EmailLink email="pr@querypie.com" />` rather than a raw Markdown link. Include related hidden blog shadow records such as blog 25/26 when they are the migration source for canonical news posts.
+
 ## Tests to keep or add
 
 Keep/add these regression checks:
@@ -212,11 +240,13 @@ Keep/add these regression checks:
 - `/news/[id]/[slug]` loads by id and redirects only on slug mismatch
 - the news loader renders the MDX directly from `bodySource` and does not rely on a title-stripping helper
 
-3. imported corpus test
+3. imported corpus test (`tests/news/imported-corpus.test.mjs`)
 - each news file keeps `heroImageSrc: "/news/<id>/thumbnail.png"`
 - no file reuses the thumbnail in-body via `filepath="public/news/<id>/thumbnail.png"`
 - route-aligned assets exist
 - no news MDX file keeps a duplicated leading `# ` heading immediately after frontmatter
+- Markdown links whose text or href is an email address use a `mailto:` href, including related hidden blog shadow records for migrated news bodies
+- known press-contact records use the shared `<EmailLink email="pr@querypie.com" />` component and keep the source text formatted as `Email : <EmailLink email="pr@querypie.com" />`
 
 4. blog shadow redirect test
 - affected blog records are `hidden: true`
@@ -238,12 +268,14 @@ Targeted verification that worked well:
 
 ```bash
 node --test \
-  tests/news-blog-25-26-content-migration.test.mjs \
-  tests/news-imported-corpus.test.mjs \
-  tests/news-mdx-routing-and-preview.test.mjs \
-  tests/news-source-parity.test.mjs \
-  tests/blog-frontmatter-visibility-and-redirect.test.mjs
+  tests/news/article-body-migration.test.mjs \
+  tests/news/imported-corpus.test.mjs \
+  tests/news/mdx-routing-and-preview.test.mjs \
+  tests/news/source-parity.test.mjs \
+  tests/blog/frontmatter-visibility-and-redirect.test.mjs
 ```
+
+For a narrow email-link hygiene fix, `node --test tests/news/imported-corpus.test.mjs` plus `git diff --check` is usually sufficient before commit/push.
 
 ## Pitfalls
 

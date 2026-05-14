@@ -199,6 +199,51 @@ Verify:
 8. preview-aware footer links still point through the preview toggle helper if applicable
 9. deleted route-specific wrapper files are asserted absent, and no tests still read those deleted files
 10. every duplicate legal structure test is updated: this repo can have both top-level tests such as `tests/legal-mdx-cache.test.mjs` / `tests/legal-privacy-policy-preview.test.mjs` and mirrored route tests under `tests/src/**`
+11. when the user asks whether privacy-policy/legal MDX reads are cached like blog/whitepaper, compare the legal cache contract against the actual publication loaders in the same source-structure test:
+    - `src/lib/publications/create-standard-publication-post-loader.ts` has `bodySourceCache = new Map<string, string>()`, `bodySourceCache.get(sourcePath)`, and `bodySourceCache.set(sourcePath, source)`
+    - `src/lib/publications/create-gated-publication-post-loader.ts` has the same body-source cache pattern for gated whitepapers
+    - `src/lib/legal-mdx-source.ts` has `legalMdxSourceCache = new Map<string, Promise<string>>()`, `readCachedLegalMdxSource(sourcePath)`, `legalMdxSourceCache.get(sourcePath)`, and `legalMdxSourceCache.set(sourcePath, sourcePromise)`
+    - privacy policy version pages route `src/content/privacy-policy/${slug}.mdx` through `renderLegalMdx<PrivacyPolicyFrontmatter>({ sourcePath, ... })`
+    - single-version legal pages such as EULA and Terms call the same `renderLegalMdx` helper from a route-level `cache(async function ...)`
+
+If the implementation is already correct, keep the PR minimal and test-only: strengthen `tests/legal-mdx-cache.test.mjs` to pin the cache contract rather than making unnecessary product-code changes.
+
+12. when the user reports that changing the privacy-policy version selector looks like the whole page reloads, inspect the selector before blaming MDX/cache performance:
+    - `window.location.assign(`/privacy-policy/${nextSlug}`)` is document-level navigation and will look like a full page reload
+    - prefer App Router client navigation in `src/components/sections/privacy-policy/version-selector.tsx`: import `useRouter` from `next/navigation`, initialize `const router = useRouter()`, and call `router.push(`/privacy-policy/${nextSlug}`)` from `onChange`
+    - keep the guard against empty/current slug, but remove browser-only `typeof window` checks that only existed for `window.location`
+    - update both `tests/legal-privacy-policy-preview.test.mjs` and `tests/src/app/privacy-policy/page.test.mjs` to assert `useRouter`, `router.push(...)`, and absence of `window.location.assign`; this repo has duplicate privacy-policy structure tests and CI static-pages will fail if the mirrored test is missed
+    - run `npm run test:static-pages`, not just the narrow top-level legal test, after changing privacy-policy selector contracts
+    - explain clearly that this reduces document-level reload behavior, while the server-rendered RSC payload for the selected legal version may still be fetched
+
+## Legal MDX performance-delay triage
+
+When the user asks why privacy-policy or another legal MDX page is slow, do not stop at checking whether the MDX file read is cached. Separate these layers explicitly:
+1. Route/full-page caching: inspect live response headers with `curl -L -s -D - -o /dev/null <url>` and check `cache-control` plus `x-vercel-cache`.
+2. Dynamic rendering triggers: search for `cookies()`, `headers()`, `draftMode()`, `connection()`, `force-dynamic`, and `noStore` in route chrome and shared components. In this repo, `SiteHeader` and `SiteFooter` can make otherwise-static public pages dynamic because they read the preview-navigation cookie server-side.
+3. MDX source-read cache: verify `src/lib/legal-mdx-source.ts` has `legalMdxSourceCache`, `readCachedLegalMdxSource`, and that legal routes call `renderLegalMdx`.
+4. Request-local memoization: verify route-level `cache(async function ...)` around privacy/terms/eula render helpers, but remember React `cache()` is not a CDN or cross-request rendered-output cache.
+5. Render weight: measure source and rendered output size, not just file-read behavior. Privacy policy can be much heavier than EULA/Terms because of large table-heavy MDX.
+
+Useful probes:
+```bash
+curl -L -o /dev/null -s -w 'code=%{http_code} ttfb=%{time_starttransfer} total=%{time_total} size=%{size_download}\n' https://stage.querypie.ai/privacy-policy
+curl -L -s -D - -o /dev/null https://stage.querypie.ai/privacy-policy | sed -n '1,40p'
+python3 - <<'PY'
+from pathlib import Path
+for p in ['src/content/privacy-policy/2026-01-15.mdx','src/app/terms-of-service/content.mdx','src/app/eula/content.mdx']:
+    path = Path(p)
+    text = path.read_text()
+    print(p, 'bytes=', path.stat().st_size, 'lines=', text.count('\n') + 1, 'tables=', text.count('<Table'), 'td=', text.count('<Table.Td'), 'th=', text.count('<Table.Th'))
+PY
+```
+
+Interpretation rule:
+- If live headers show `cache-control: private, no-cache, no-store` and `x-vercel-cache: MISS`, the user-visible delay is likely not a missing MDX source-read cache. It is more likely full-route dynamic rendering plus MDX evaluation / large HTML generation.
+- If `cookies()` in shared chrome is the dynamic trigger, the biggest optimization is usually to split preview-cookie behavior out of the server-rendered public chrome or move it to a client-side mechanism, not to add another raw file-read cache.
+- For `/privacy-policy`, also check whether the latest-version alias directly renders the latest document instead of redirecting to `/privacy-policy/<slug>`; that can be a design/performance tradeoff but is separate from source-read caching.
+
+See `references/legal-mdx-cache-and-performance.md` for a concrete investigation snapshot and measured timings.
 
 Useful assertions:
 - `assert.match(source, /export async function generateMetadata\(\): Promise<Metadata>/)`
@@ -264,6 +309,130 @@ Practical implication learned from `/t/privacy-policy` review:
   - the version selector row
   Do **not** collapse these into one bulk "header cleanup" unless the user explicitly asks for all of them. Remove exactly the requested line(s), keep the remaining intro pieces intact, and update route-structure tests to assert the removed JSX is absent while preserved intro controls still remain.
 
+## Legal effective-date body placement
+
+For current corp-web-japan public legal pages, the single-version routes are under `src/app/eula/` and `src/app/terms-of-service/` (not the old preview-only `src/app/t/...` paths). If a legal source-structure test still points at `src/app/t/eula/content.mdx` or `src/app/t/terms-of-service/content.mdx`, update the test path to the current public route location instead of recreating old `/t` route files.
+
+Use the EULA body-line format as the canonical legal effective-date display style in MDX bodies:
+- place the line after the opening preamble/frontmatter gap and before the first article/section heading
+- render it as a bold standalone paragraph, e.g. `**Effective from Jul 17, 2025**`
+## Legal effective-date provenance and body placement
+
+When the user asks to expose an effective date for legal MDX (EULA, Terms of Service, Privacy Policy, or similar), do not invent a legal date from the current local file or from the assistant's guess. Use `../corp-web-contents` source content and git history as the source of truth unless the user gives a stronger legal source.
+
+General audit sequence:
+1. Search historical source paths in `../corp-web-contents`, including route/language/version families such as `pages/eula/**`, `pages/terms-of-service-*/**`, and `pages/privacy-policy-{en,ko}/<version>/**`.
+2. Inspect the source body for an explicit effective-date line first. Preserve the source date text when present; only change the local Markdown shape if requested (for example from a bullet item to an EULA-style bold body line).
+3. If the source body has no explicit effective-date line, inspect source metadata/title/version path for a clear document date, especially versioned privacy-policy paths and meta titles such as `QueryPie Privacy Policy (Nov 29, 2019)`.
+4. If there is still no explicit date information, use the date the source file first entered git history as the effective-date fallback. Use `git log --all --follow --diff-filter=A --date=short --format='%ad %h %s' -- <path>` and take the oldest add record.
+5. Document the provenance in the PR body when the date is inferred rather than copied from a body line.
+
+Preferred local display format for legal body effective dates is the EULA-style bold line placed after the opening preamble and before the first document heading, e.g. `**Effective from Jul 17, 2025**`. Avoid rendering effective dates as bullet-list items unless the user explicitly asks for source-exact Markdown.
+
+### EULA effective-date notes
+
+Recommended EULA audit sequence:
+1. Search historical EULA paths in `../corp-web-contents`, especially `pages/eula/en/content.mdx` and `pages/eula/*/meta.json`.
+2. Inspect EULA history with date-aware logs, for example:
+   - `git -C ../corp-web-contents log --all --date=short --format='%h %ad %an %s' -- pages/eula/en/content.mdx pages/eula/en/meta.json`
+   - `git -C ../corp-web-contents show --stat --date=short --format=fuller <commit> -- pages/eula/en/content.mdx pages/eula/en/meta.json`
+3. Classify the latest substantive EULA content update as the effective-date candidate.
+   - Ignore branch-preview/testing-only metadata commits, such as title-prefix test commits, when they do not change the legal body.
+   - In the observed corpus, the latest substantive EULA body update was `451247f1` on `2025-07-17` with message `EULA 버전 업데이트 등 (#614)`; use this only as an example and re-check current history before future edits.
+4. Store the machine-readable value in EULA frontmatter, e.g. `effectiveDate: "2025-07-17"`.
+5. Display the human-readable line in the MDX body immediately after the opening EULA preamble and before `# PART I: GENERAL TERMS`, e.g. `**Effective from Jul 17, 2025**`.
+6. Update the EULA frontmatter type in `src/app/t/eula/page.tsx` so `effectiveDate` remains part of the route's metadata contract even if the display line is authored in MDX.
+7. Add or update `tests/src/app/t/eula/page.test.mjs` assertions for:
+   - the frontmatter field
+   - the exact visible line
+   - the visible line appearing after the preamble and before `# PART I: GENERAL TERMS`
+
+Pitfall: do not use `작성일` / authored date for EULA display by default. For legal documents, prefer an effective-date label; if only a publication date is available, state that separately instead of implying legal effect.
+
+## Legal MDX source-formatting cleanup
+
+When the user asks to refactor legal MDX source rather than change legal meaning or visual design, first classify the legal corpus and write/refine a small docs page with the rules before doing broad mechanical rewrites.
+
+Current legal MDX corpus patterns to inspect:
+- single-version adjacent legal pages such as `src/app/t/eula/content.mdx` and `src/app/t/terms-of-service/content.mdx`
+- multi-version legal collections such as `src/content/privacy-policy/*.mdx`
+- upstream/source comparisons under `../corp-web-contents/pages/eula`, `../corp-web-contents/pages/terms-of-service-*`, and `../corp-web-contents/pages/privacy-policy-{en,ko}`
+
+Cleanup rules learned from the legal MDX refactor:
+- remove wrapper-only MDX layout components inherited from the old source stack, especially `Box` and `CenterSection`; the route/shared legal primitives own page layout
+- headings must start at column 1; remove wrapper-era indentation before `#` headings
+- replace paragraph-spacing `<br />` outside table cells with normal Markdown blank lines
+- preserve `<br />` inside `Table.Td` / `Table.Th` only when it represents intentional cell-internal line breaks and replacing it risks changing rendering
+- minimize unnecessary JSX string expressions in MDX component children; plain text such as `{'Purpose of collection'}` should become ordinary text where syntax allows
+- preserve `Table` / `Table.*` components when they are needed for legal table semantics, cell styling, spans, or structured rendering; do not remove them just because they are components
+- wrap long prose at word boundaries, including JSX table-cell text nodes; JSX collapses whitespace in text nodes, so wrapped text children are safe when no syntax-sensitive characters are introduced
+- keep nested list indentation valid; do not flatten nested bullets/numbered subitems during mechanical cleanup
+
+Recommended verification:
+- add or update a source-structure test that iterates every legal MDX file and asserts the rules above
+- use `[ \t]` rather than `\s` when testing same-line indentation; a regex like `/^\s+#{1,6}\s/m` can cross a newline and falsely flag a normal heading after a blank line
+- run the static legal/page test group plus `git diff --check` after broad rewrites
+
+See `references/legal-mdx-source-formatting.md` for condensed session details and example assertions.
+
+## Legal MDX body typography normalization audit
+
+When the user asks whether privacy-policy / terms-of-service / EULA body rendering changes the default font size, audit the shared legal MDX rendering path first rather than the individual route files only.
+
+Current route pattern to inspect:
+- single-version routes like `src/app/t/terms-of-service/page.tsx` and `src/app/t/eula/page.tsx`
+- multi-version privacy route `src/app/t/privacy-policy/[slug]/page.tsx`
+- shared body primitive `src/components/sections/legal/document.tsx`
+- shared MDX component mapper `src/components/sections/legal/mdx.tsx`
+- privacy wrapper adapter `src/components/sections/privacy-policy/document-body-components.tsx`
+- evaluator `src/lib/legal-mdx-source.ts`
+
+Key diagnostic rule:
+- if all three legal documents render via `<LegalDocumentBody>{evaluation.content}</LegalDocumentBody>`, then default-body typography issues usually live in `legalDocumentBodyClassName`, not in each route.
+
+Non-standard legal body font-size settings to remove by default:
+- body wrapper classes like `text-[16px] leading-[26px] text-slate-600` when they explicitly reset the default body size
+- paragraph overrides like `[&_p]:text-[16px]` / `[&_p]:leading-[26px]`
+- blockquote paragraph overrides like `[&_blockquote_p]:text-[16px]` / `[&_blockquote_p]:leading-[26px]`
+- list overrides that shrink body text, such as `[&_li]:text-[15px]` or `[&_blockquote_li]:text-[15px]`
+- component-local MDX mapper styles such as `LegalBodyH3` returning `<h4 className="mt-6 text-[15px] ...">`; MDX mappers should own semantic remapping and ids, while shared body classes own presentation
+
+Preferred cleanup shape:
+- let legal body text inherit/default font size
+- keep line-height on standard Tailwind tokens such as `leading-6` where the body class still needs rhythm control
+- keep legal document heading hierarchy, table styling, link styling, and first-child margin normalization in the shared legal body class; those are document-rendering styles, not default body font-size overrides
+- keep top-level `ul` / `ol` margins for document block rhythm, but do not let the same wide block margin apply unchanged to nested `li > ul` / `li > ol`
+- normalize nested bullet and nested numbered list rhythm explicitly, e.g. `"[&_li>ul]:mt-2 [&_li>ol]:mt-2"` plus `"[&_li>ul>li:last-child]:mb-0 [&_li>ol>li:last-child]:mb-0"`, so the parent list item, nested list items, and following sibling list item have visually consistent spacing
+- keep `parseFrontmatter: true`, `remarkGfm`, and the shared legal/publication MDX component-map pattern as standard rendering, not as suspicious custom styling
+
+Nested-list spacing pitfall:
+- A broad selector like `[&_ul]:mt-[1.3125rem]` / `[&_ol]:mt-[1.3125rem]` also matches nested lists inside list items.
+- If every `li` also has a bottom margin, the nested list's top margin and the nested list's last item margin can combine to make the parent list item gap look much larger than ordinary sibling gaps.
+- Fix the nested-list container spacing separately from top-level list spacing; do not globally shrink all list margins just to solve nested lists.
+
+Regression-test pattern:
+- update both top-level legal tests and mirrored route tests when they exist
+- assert the desired inherited/default body contract, for example `"leading-6 text-slate-600"`
+- assert the nested-list spacing contract, for example:
+  - `\[&_li>ul\]:mt-2 \[&_li>ol\]:mt-2`
+  - `\[&_li>ul>li:last-child\]:mb-0 \[&_li>ol>li:last-child\]:mb-0`
+- add negative assertions for the removed typography and spacing overrides, for example:
+  - `text-\[16px\] leading-\[26px\] text-slate-600`
+  - `\[&_p\]:text-\[16px\]`
+  - `\[&_blockquote_p\]:mt-0 \[&_blockquote_p\]:text-\[16px\]`
+  - `\[&_li\]:mb-2 \[&_li\]:text-\[15px\]`
+  - `\[&_li>ul\]:mt-\[1\.3125rem\]`
+  - `\[&_li>ol\]:mt-\[1\.3125rem\]`
+  - `className="mt-6 text-\[15px\]`
+
+Patch safety pitfall:
+- When patching long class arrays, use a proper patch block or a small script with exact string slicing. Do not paste analysis/prose into `new_string`; malformed replacement text can pollute tracked source and must be immediately detected with a focused read, grep for stray text, and `git diff --check` before committing.
+
+Report classification clearly in the PR body:
+- list what non-standard settings were found and removed
+- list what was inspected and intentionally kept as standard MDX rendering
+- state that the effective affected pages are privacy-policy, terms-of-service, and EULA because they share the legal MDX body primitive
+
 ## Legal-adjacent cookie preference typography and rhythm audit
 
 When the user asks about legal page typography and includes `/t/cookie-preference` / Cookie設定 copy, inspect both the route-specific components and the shared legal primitives before answering. This page has migrated over time, so do not answer from memory.
@@ -298,10 +467,18 @@ Important diagnostic learned from legal-family typography follow-up:
 
 When the user explicitly asks to replace cookie preference's legal-page-specific hero wrappers with shared legal primitives:
 - update `src/app/t/cookie-preference/page.tsx` to render `LegalDocumentSection`, `LegalDocumentIntro`, `LegalDocumentTitle`, and `LegalDocumentLead`
-- keep `CookiePreferenceSettingsSection`, `CookiePreferenceList`, and the cookie toggle/list primitives; the request is about the legal intro typography, not the whole page implementation
+- keep `CookiePreferenceList` and the cookie toggle/list primitives; the request is about legal intro/body typography, not removing the actual cookie controls
 - delete unused `CookiePreferenceHeroSection`, `CookiePreferenceHeroContent`, `CookiePreferenceHeroTitle`, and `CookiePreferenceHeroDescription` exports from `src/components/sections/cookie-preference/page.tsx`
 - preserve and update the existing mirrored test `tests/src/app/t/cookie-preference/page.test.mjs`; do not overwrite it with a narrower new test because it already covers metadata, route-local copy, shell separation, and toggle/client boundaries
 - add assertions that the route imports `@/components/sections/legal/document`, renders legal title/lead primitives, no longer references the cookie hero wrappers, and that the cookie page section file no longer exports those wrappers
+
+When the user clarifies that the goal is to remove every incorrect implementation that blocks UI commonization, do not stop at swapping names:
+- treat remaining cookie-preference-only wrappers as suspect, even if they are thin; if a wrapper only repeats the shared legal shell such as `max-w-[1200px]`, delete it and render the shared `LegalDocumentLayout` directly from the route
+- delete `src/components/sections/cookie-preference/page.tsx` if it only contains dead hero/CTA wrappers or a redundant `CookiePreferenceSettingsSection`
+- normalize cookie-list spacing away from arbitrary one-off values such as `gap-[40px]`, `gap-[20px]`, and `gap-[15px]`; prefer shared/Tailwind-scale spacing such as `gap-10`, `gap-5`, and `gap-4`
+- connect cookie preference descriptive prose to the shared legal/company body text token, e.g. `companyBodyTextClassName`, rather than leaving it as browser default text or page-local px typography
+- keep control-label emphasis minimal and semantic, such as `font-medium text-slate-950`, without reintroducing page-local font-size/line-height/tracking values
+- update source-structure tests to assert the bad implementation is absent, not merely unused: no import from `@/components/sections/cookie-preference/page`, no `CookiePreferenceSettingsSection`, no cookie hero/CTA wrappers, no `gap-[...]`/`text-[#...]`/route-local typography in the cookie list, and `sourceExists("src/components/sections/cookie-preference/page.tsx") === false` when the file is deleted
 
 Compatibility-prop / dead-contract pitfall:
 - if `LegalDocumentIntroProps` or compatibility wrappers such as `LegalDocumentHero` / `LegalDocumentHeader` expose a `divider` prop, verify the implementation actually uses it before describing it as behavior.
@@ -348,6 +525,7 @@ This matters because `privacy-policy` may be a structural exception due to versi
 
 ## Reference notes
 - `references/legal-family-width-audit.md` — evidence summary for why `max-w-[920px]` is incorrect for current legal preview shells, plus the rule that privacy-policy is the normal multi-version legal variant rather than a family-level exception.
+- `references/legal-effective-date-provenance.md` — source-priority and fallback rules for deriving legal effective dates from `../corp-web-contents`, including Terms of Service and Privacy Policy examples.
 
 ## Pitfalls
 - Moving legal preview MDX to `src/content/**` when the user prefers route-local adjacency for a single-document legal page

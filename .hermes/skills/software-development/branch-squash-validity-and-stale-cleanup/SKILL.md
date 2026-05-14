@@ -364,6 +364,18 @@ Then summarize:
   - keep local cleanup and remote PR lifecycle as separate facts; deleting a local branch/worktree does not close the PR
 - Practical stale case: if a once-open local branch's remote head disappears after fetch, `gh pr list --state all --head <branch>` now shows `MERGED`, and `git diff develop..branch` (or the repo default branch equivalent) is empty, remove both the linked worktree and local branch as merged residue.
 - Practical preservation case: if a no-open-PR candidate later reappears under a different branch/worktree name with a small real diff vs latest `origin/main` and its synthetic squash rebases cleanly, reclassify it as a `meaningful unpublished branch` instead of deleting it from the earlier stale verdict.
+- Additional practical case from `skills-jk` cleanup: unattached `backup/*` branches should not be preserved just because they were once created to save local root edits.
+  - Signal pattern:
+    - no attached worktree
+    - no open PR
+    - synthetic squash vs latest `origin/main` still shows an old net patch, but disposable rebase onto latest `origin/main` conflicts broadly across many older skill/memory files
+    - meanwhile the actually relevant live local work now exists elsewhere, such as a current dirty root worktree, a separate dirty follow-up worktree, or a newer open-PR follow-up branch
+  - Recommended handling:
+    1. treat the backup branch as a stale preservation artifact rather than as active work by default
+    2. confirm that the meaningful current local edits are already represented in a kept live worktree or newer branch
+    3. if the backup branch has no attached worktree and no unique current local patch to protect, delete the backup branch even if it once represented a meaningful preservation snapshot
+  - Useful summary label:
+    - `stale unattached backup residue`
 - Additional practical case: when a dirty worktree on a merged/stale branch still looks meaningful, create a fresh latest-main spike worktree and transplant only the current dirty patch before deciding whether the change still matters.
   - Signal pattern:
     - the original branch/worktree has no open PR and old branch history is clearly stale or already merged

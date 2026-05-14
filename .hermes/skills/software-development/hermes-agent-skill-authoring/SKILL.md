@@ -128,6 +128,24 @@ Pick the closest existing category. Don't invent new top-level categories casual
 
 `metadata.hermes.related_skills` unions both trees (`skills/` in-repo and `~/.hermes/skills/`) at load time. You CAN reference a user-local skill from an in-repo skill, but it won't resolve for other users who clone the repo fresh. Prefer referencing only in-repo skills from in-repo skills. If a frequently-referenced skill lives only in `~/.hermes/skills/`, consider promoting it to the repo.
 
+## Canonical Docs + Thin Skill Wrapper Pattern
+
+When a repository needs both human-readable guidance and an agent skill for the same workflow, avoid maintaining the same detailed checklist in two places.
+
+Preferred shape:
+
+- Put the complete, canonical procedure in `docs/<topic>.md` or another repo documentation page when humans and agents both need to read it.
+- Keep the repo-local `SKILL.md` as a thin wrapper that covers:
+  - when to load the skill
+  - load order and related skills
+  - high-level execution rules
+  - the exact path to the canonical docs page
+  - verification reminders that force the docs page to be read
+- Do not duplicate long scripts, taxonomy tables, exhaustive checklists, or session-specific examples in both the docs page and the skill.
+- If the skill needs session-specific or deeply technical supporting detail that is not appropriate for human-facing docs, place it under `references/` and add a one-line pointer from `SKILL.md`.
+
+Use this pattern especially after a reviewer notes duplication between a docs guide and a skill. Make the docs page complete, then reduce the skill to a durable trigger/reference layer.
+
 ## Editing Existing In-Repo Skills
 
 - **Small fix (typo, added pitfall, tightened trigger):** `skill_manage(action='patch', name=..., old_string=..., new_string=...)` works fine on in-repo skills.
