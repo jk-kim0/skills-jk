@@ -353,6 +353,34 @@ Implementation guidance for ACP parity:
 
 These heuristics are specific enough to save significant rediscovery time on future service-page parity work.
 
+### ACP static child-page inventory from `corp-web-contents`
+
+When the user asks which `../corp-web-contents` web pages still need to be imported as static pages, classify page families before implementing. Do not treat every `pages/**/ja/content.mdx` file as a static page target.
+
+For ACP, the recurring static child-page set is:
+- `solutions/acp/database-access-controller` -> preview `/t/platforms/acp/database-access-controller`
+- `solutions/acp/system-access-controller` -> preview `/t/platforms/acp/system-access-controller`
+- `solutions/acp/kubernetes-access-controller` -> preview `/t/platforms/acp/kubernetes-access-controller`
+- `solutions/acp/web-access-controller` -> preview `/t/platforms/acp/web-access-controller`
+- `solutions/acp/integrations` -> preview `/t/platforms/acp/integrations`
+
+Audit rules:
+- verify the matching live pages first, for example `https://www.querypie.com/ja/solutions/acp/<slug>` should return `200 OK`
+- treat `querypie/license/community/apply` and `company/contact-us` as form-backed pages, not static marketing-page imports, unless the user explicitly asks for form implementation
+- treat blog, whitepaper, news, events, documentation-resource, and demo entries as publication/MDX migration families rather than static-page imports
+- keep existing public ACP redirect routes such as `src/app/platform/security/*/route.ts` unchanged during preview import unless the user explicitly asks for public rollout
+
+Implementation notes:
+- use route-aligned assets under `public/platforms/acp/**` for these platform previews; do not put new ACP assets under generic `public/assets/**` or `public/t/**`
+- for ACP static child pages, make the asset directory mirror the app route slug, not the legacy product-code taxonomy from upstream assets:
+  - `public/platforms/acp/database-access-controller/*`, not `public/platforms/acp/products/dac/*`
+  - `public/platforms/acp/system-access-controller/*`, not `public/platforms/acp/products/sac/*`
+  - `public/platforms/acp/kubernetes-access-controller/*`, not `public/platforms/acp/products/kac/*`
+  - `public/platforms/acp/web-access-controller/*`, not `public/platforms/acp/products/wac/*`
+- after moving assets, run a negative grep such as `git grep -n '/platforms/acp/products/' -- . || true` so page code, tests, and public paths do not keep the intermediate `products/<code>` layer
+- copy only assets referenced by the new pages; a naive recursive copy from `corp-web-contents/public/{products,key-feature-icon,integration-icon}` can add many unused files
+- add a structure test under `tests/src/app/t/platforms/acp/**` that pins noindex preview metadata, source-inventory classification, route-aligned asset paths, and preservation of existing public redirects
+
 ## Test strategy
 
 Add focused regression coverage based on the selected mode rather than only broad repo tests.

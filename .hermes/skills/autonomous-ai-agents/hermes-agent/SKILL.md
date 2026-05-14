@@ -268,6 +268,8 @@ Type these during an interactive chat session.
 /plugins             List plugins (CLI)
 ```
 
+When users ask about external slash-command ecosystems (for example a real `/goal` command in OpenClaw-adjacent tooling), verify the candidate from upstream README + plugin manifest + marketplace page before recommending it. A concise reference note lives at `references/external-goal-command-landscape.md` and records the key distinction between execution-loop plugins and prompt-shaping helpers.
+
 ### Gateway
 ```
 /approve             Approve a pending command (gateway)

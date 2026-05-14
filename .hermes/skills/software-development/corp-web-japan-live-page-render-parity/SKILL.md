@@ -28,6 +28,8 @@ Reference notes:
 - `references/aip-self-hosted-hero-video-pattern.md` — concrete `/t/platforms/aip` note for replacing the current YouTube hero iframe with QueryPie-hosted media while preserving the measured hero wrapper geometry.
 - `references/platform-aip-value-card-fixed-height.md` — concrete `/t/platforms/aip` value-card row-height audit showing why the visible card wrapper, not only the grid/reveal wrapper, must fill the equal-height grid track.
 - `references/platform-aip-parity-implementation-pattern.md` — concrete `/t/platforms/aip` implementation pattern for turning browser findings into a PR: mobile-stacked feature rows, mobile-fluid/desktop-fixed media via CSS variables, reveal wrapper width/height contracts, route-local feature copy widths, and equal-height value cards.
+- `references/platform-preview-mobile-parity-batch.md` — concrete multi-page `/t/platforms/**` and `/t/services/fde` mobile parity batch notes: split one PR per page, batch stage-vs-live evidence collection, use `scrollWidth/clientWidth` to catch overflow, keep desktop-correct geometry stable, and apply mobile-first hero/feature-row fixes.
+- `references/plans-widget-source-contract-parity.md` — concrete `/t/plans` failure mode showing why source-backed widget/application-contract pages should preserve the upstream component/CSS contract instead of being manually reinterpreted as local Tailwind primitives.
 
 Important findings from real usage:
 - Browser text snapshots can claim the structure is correct while the rendered layout still differs materially.
@@ -217,6 +219,9 @@ A page can have all the same headings and paragraphs yet still differ due to:
 - wrong section background rhythm
 - uniformized image cards where live uses natural image sizes
 - a left/right two-column feature band being mirrored relative to live even though the copied text and media assets are all correct
+- source-backed widget/application-contract pages being manually reimplemented with local Tailwind primitives instead of preserving the upstream component/CSS contract
+
+When upstream source exists for a widget page, inspect and preserve the source component chain first. Do not treat the source as merely a visual reference to approximate with new primitives unless a direct-port strategy has been explicitly rejected.
 
 Important concrete lesson from `/t/solutions/aip/usage-based-llm` preview migration:
 - a migrated page can look superficially correct in snapshots because all headings, paragraphs, and images are present in the right order
@@ -1184,7 +1189,37 @@ For static company-info preview pages such as `/t/about-us`:
 - match the live page's visual structure using browser-measured geometry
 - keep the public non-preview redirect route untouched unless explicitly requested
 
-### L2. For integration-catalog pages, measure the wrapper elements that own the visual chrome
+### L2. For pricing/plans widget pages, preserve the upstream component contract, not only route-local copy
+A practical finding from `/t/plans` parity work:
+- the local route could pass source-structure tests because the visible copy lived in `page.tsx` and the comparison rows were authored directly in JSX
+- however, browser-rendered parity still failed because the implementation reinterpreted the upstream pricing widget into generic Tailwind marketing-card/table chrome
+- the missed contract came from `../corp-web-app/src/components/widget/pricing/{pricing,product,plan-card}.module.css` and `../corp-web-app/src/components/widget/compare-table/compare-table.module.css`, not from the route page alone
+
+Symptoms:
+- text snapshots and route-local tests look correct
+- product tabs render as narrow buttons or a generic tab row instead of 50/50 underline tabs
+- plan cards render as rounded bordered/shadow cards instead of upstream gradient cards with top-only radius
+- plan price is grouped with the title/description when upstream composes it as a separate card child
+- feature lists are full-width or border-separated instead of centered at the upstream list width
+- comparison table is wrapped in a rounded/shadow panel instead of the upstream flat fixed-width overflow table
+- vertical rhythm is much tighter than the upstream widget even though all sections are present
+
+Required workflow for `/ja/plans` / `/t/plans` and similar widget/application-contract pages:
+1. classify the page as a widget/application-contract page before applying static marketing route-local authoring rules
+2. inspect the upstream route and the full component/CSS chain in `../corp-web-app`, not just the route JSX
+3. measure the exact live/stage rendering for tabs, card wrappers, title/price/button/features, and comparison table wrappers/cells
+4. preserve the upstream authoring/composition boundary when it encodes visual semantics; route-local JSX readability is secondary to the widget contract
+5. add structure tests that pin the visual contract patterns, including positive assertions for upstream-like tabs/card gradients/table shape and negative assertions against generic card/table chrome
+
+Useful regression-test anchors for plans-style pricing pages:
+- positive: `border-b-2 border-[#dae1e7]`, `flex-1 cursor-pointer`, large root gap such as `gap-20`, upstream gradient strings for primary/black cards, `rounded-t-[20px]`, fixed feature-list width such as `w-[230px]`, fixed table width such as `w-[1200px]`, flat row borders such as `h-11 border-b border-[#dae1e7]`
+- negative: `rounded-[28px] border border-slate-200`, shadowed table wrappers, `bg-slate-50 text-slate-950`, or simplified grid-only card layout such as bare `lg:grid-cols-3`
+
+Practical rule:
+- if the upstream page is already a declarative JSX widget, do not treat successful route-local copy ownership as proof of visual parity
+- for widget pages, the component/CSS contract is part of the source of truth; test it directly so the same miss does not recur
+
+### L3. For integration-catalog pages, measure the wrapper elements that own the visual chrome
 A practical finding from `/t/services/aip/integrations` parity work:
 - browser snapshots can make the page look fully correct because all 45 card labels and filter labels are present
 - but for pixel parity, you must measure the actual wrapper elements that own background, radius, padding, and grid sizing
