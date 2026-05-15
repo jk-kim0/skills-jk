@@ -134,15 +134,19 @@ Preferred handling for that case:
 
 Important variant: the user may ask for both `main` refresh and immediate PR creation from the already-dirty root changes.
 
+Common trigger wording includes "이 repo 의 변경사항을 PR 로 작성해줘" / "create a PR from this repo's changes" when `git status` shows meaningful tracked/untracked changes on a root `main` checkout. Treat those changes as the user's intended PR payload unless inspection shows obvious unrelated runtime/cache residue.
+
 In that case, do not stop after merely preserving the dirty root on a branch.
 Use this exact sequence:
-1. commit the meaningful root changes onto a non-main branch from the root checkout
-2. switch root back to `main`
-3. fast-forward root `main` to latest `origin/main`
-4. open a fresh linked worktree for the preserved branch
-5. rebase that preserved branch onto the refreshed `origin/main`
-6. verify the PR diff is now only the intended preserved change
-7. push and create the PR from the non-main worktree
+1. inspect and summarize the intended payload first with `git diff --stat` and `git diff --name-status`, including untracked files that should be part of the PR
+2. commit the meaningful root changes onto a non-main branch from the root checkout
+3. switch root back to `main`
+4. fast-forward root `main` to latest `origin/main`
+5. open a fresh linked worktree for the preserved branch
+6. rebase that preserved branch onto the refreshed `origin/main`
+7. verify the PR diff is now only the intended preserved change
+8. push and create the PR from the non-main worktree
+9. verify local HEAD, remote branch HEAD, PR head SHA, base branch, and PR file list before reporting completion
 
 Why this variant matters:
 - it satisfies the user's `main 업데이트` request immediately instead of leaving root `main` stale
@@ -158,10 +162,11 @@ git -C .worktrees/<flat-name> rev-list --oneline origin/main..HEAD
 git -C .worktrees/<flat-name> diff --name-only origin/main...HEAD
 ```
 
-Practical rule for generated local runtime files during this preservation flow:
+Practical rule for generated local runtime files and untracked authored docs during this preservation flow:
 - do not automatically add machine-local generated files just because they are untracked in the dirty root checkout
+- do not automatically add untracked authored docs/guidance/planning files just because they look relevant; first verify whether they belong to the current request, another local branch, another agent's work, or an already-open PR
 - classify and usually exclude obvious runtime/usage artifacts such as lock files or local usage state when they are not part of the intended repo change
-- commit only the meaningful tracked files plus any intentional new authored reference/doc/source files
+- commit only the meaningful tracked files plus intentional new authored reference/doc/source files whose provenance and scope match the current PR
 
 Example pattern:
 

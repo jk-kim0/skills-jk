@@ -89,6 +89,34 @@ cd /path/to/main-checkout && git status --short
 cd /path/to/worktree && git status --short
 ```
 
+If the user questions whether work happened in a worktree, answer with evidence, not reassurance. Run a full provenance check and report the exact paths:
+
+```bash
+printf 'tool cwd: '; pwd
+cd /path/to/main-checkout
+git status --short --branch
+git branch --show-current
+git rev-parse --show-toplevel
+git rev-parse --git-dir
+git rev-parse --git-common-dir
+git worktree list --porcelain
+cd /path/to/worktree
+git status --short --branch
+git branch --show-current
+git rev-parse --show-toplevel
+git rev-parse --git-dir
+git rev-parse --git-common-dir
+git log --oneline --decorate --max-count=5
+git diff --name-status
+```
+
+Then explicitly distinguish:
+- the protected/root checkout path and branch,
+- the intended worktree path and branch,
+- whether either checkout has uncommitted diff,
+- whether the remote branch head matches the local worktree `HEAD`, and
+- any non-repo skill/memory edits made outside the project worktree.
+
 ## Pitfalls
 
 - `terminal(workdir=...)` succeeding does not guarantee `patch`/`write_file` will target that same directory implicitly.

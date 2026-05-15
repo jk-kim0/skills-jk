@@ -13,6 +13,16 @@ metadata:
 
 Use this when the user asks for E2E coverage of `corp-web-app` Contact Us on `https://stage.querypie.com`.
 
+## Current status warning
+
+As of PR #624 follow-up (`docs: 무효 문서와 E2E 검증 범위 정리`), the repo keeps the verified `@playwright/test` E2E specs under `tests/e2e/` instead of deleting the runner. Before removing any E2E spec, run it individually against the intended target and classify failures per test case.
+
+Current verified shape:
+- `tests/e2e/contact-us.spec.ts` is maintained for shell rendering, query prefill, unknown-prefill handling, required-field gating, and a real hosted submission completion check.
+- `tests/e2e/utm-tracking.spec.ts` is maintained for UTM cookie first/recent behavior plus Contact Us page/form usability with the UTM cookie present.
+- `tests/e2e/issue-551-demo-menu.spec.ts` is maintained for legacy `/features/demo` category navigation regression while that route still works.
+- Do not delete E2E coverage just because a hosted submission assertion is flaky. First verify the live stage site directly and split responsibilities if needed: Contact Us owns real submit completion; UTM owns attribution persistence and form readiness.
+
 ## Why this skill exists
 
 A common failure mode is to mix up:
@@ -24,13 +34,14 @@ These repos have different stage domains, different page shells, and different e
 
 For `corp-web-app` specifically:
 - stage domain is `https://stage.querypie.com`
-- Contact Us currently renders the newer public shell with:
+- Contact Us currently renders the public shell with:
   - H1 `Contact Us`
-  - lead copy including `Reach out today!`
+  - lead copy including `We're here to help with product consultations, resource requests, and technical inquiries.`
+  - bullet copy including `Talk with the right team for your product and rollout stage.`
   - submit button label `Proceed`
   - helper link text `Terms of Use`
 - the repo already has a Playwright runner under `tests/`
-- there is already a mixed UTM + Contact Us spec at `tests/e2e/utm-tracking.spec.ts`
+- Contact Us belongs in a dedicated `tests/e2e/contact-us.spec.ts`; UTM behavior belongs in `tests/e2e/utm-tracking.spec.ts`
 - Contact Us supports stable query prefills via `inquiry` and repeatable `product` query params
 
 Do NOT copy the `corp-web-japan` local-only Playwright harness pattern into this repo unless the user explicitly asks for a separate local-only structure.
@@ -69,15 +80,19 @@ Read these first:
 
 ### Current page shell on stage.querypie.com
 The English Contact Us page currently uses:
+- browser title: `QueryPie Contacts`
 - H1: `Contact Us`
 - lead text containing:
-  - `Connect with our experts. Accelerate your success.`
-  - `Quick, friendly guidance for your business—answers you'll appreciate, support you'll trust.`
-  - `Reach out today!`
+  - `We're here to help with product consultations, resource requests, and technical inquiries.`
+  - `Fill out the form on the right, and our team will review your inquiry and contact you within one business week.`
+- bullet text containing:
+  - `Talk with the right team for your product and rollout stage.`
+  - `Receive introduction materials and implementation consultation tailored to your inquiry.`
+  - `Receive follow-up by email after our team reviews your inquiry.`
 - submit button: `Proceed`
 - helper link text: `Terms of Use`
 
-If your assertions expect `Submit`, `Terms`, or the old `corp-web-v2` shell, you are in the wrong repo or using the wrong reference.
+If your assertions expect `Submit`, `Terms`, or the old `corp-web-v2` shell, you are in the wrong repo or using the wrong reference. If they expect `Reach out today!`, re-check live stage because that was an older shell.
 
 ### Existing Playwright runner
 `corp-web-app` already has a separate Playwright workspace under `tests/`:
@@ -142,8 +157,8 @@ Important finding:
 ### Shell render
 - title is `QueryPie Contacts`
 - H1 is `Contact Us`
-- lead contains `Connect with our experts. Accelerate your success.`
-- lead contains `Reach out today!`
+- lead contains `We're here to help with product consultations, resource requests, and technical inquiries.`
+- bullet contains `Talk with the right team for your product and rollout stage.`
 - `Proceed` is disabled initially
 - `Terms of Use` link is visible
 
@@ -182,15 +197,32 @@ Assert:
 - after selecting planned implementation date, `Proceed` becomes enabled
 
 ### Submit flow
-Fill a valid form and assert current hosted success state:
+Fill a valid Contact Us form and assert current hosted success state:
+- use an overrideable email/message (`CONTACT_US_E2E_EMAIL`, `CONTACT_US_E2E_MESSAGE`) so future runs can avoid hard-coded addresses if needed
+- fill optional phone (`010-1234-5678` worked on stage)
+- choose inquiry `Request for Product Demo`
+- check `AI Platform QueryPie AIP`
+- choose planned date `Within 3 months`
+- optionally check the marketing/news checkbox
+- after clicking `Proceed`, wait up to about 45s for the hosted server action to complete
 - success heading `Submission Complete`
 - success copy `Our team will review it and get back to you shortly.`
+- success link `Go to Home`
+
+### UTM + Contact Us split
+Do not duplicate the real hosted submission assertion inside `tests/e2e/utm-tracking.spec.ts` unless the user explicitly asks and live stage has been re-verified.
+During PR #624 follow-up, direct Contact Us submission passed, but the UTM spec variant that first landed with `utm-attribution` and then submitted Contact Us did not reach the completion screen within 45s. The useful stable split was:
+- `contact-us.spec.ts`: owns real hosted submit completion
+- `utm-tracking.spec.ts`: owns UTM cookie creation, first/recent attribution, cookie persistence after navigating to `/company/contact-us`, and form gating/enabled-state with UTM present
+
+This still verifies that E2E coverage performs real checks against `https://stage.querypie.com/` without making the UTM spec a duplicate hosted-submission flake.
 
 ## Practical pitfalls
 
 - Do not treat `stage.querypie.com` as `corp-web-v2`; it is `corp-web-app`
 - Do not reuse `corp-web-japan` Japanese assertions here
 - Do not assume the old Contact Us submit verification inside `tests/e2e/utm-tracking.spec.ts` is sufficient documentation or structure for new Contact Us work
+- Do not delete hosted-submit E2E coverage solely because an old combined UTM+submit case fails; first run a direct Contact Us submission against stage and split coverage by responsibility if direct submit works
 - When checking unknown inquiry prefills, expect `''`, not the placeholder label
 - `tests/` has its own `package.json`; install and run Playwright there:
 ```bash
@@ -200,9 +232,15 @@ npm run install:browsers
 npm run test:e2e:contact-us:stage
 ```
 
+## References
+
+- `references/pr-624-e2e-revival.md`: session note for reviving real Contact Us submission coverage while splitting UTM attribution coverage.
+
 ## Done criteria
 - branch/worktree is based on latest `origin/main`
 - dedicated Contact Us spec exists under `tests/e2e/`
-- stage execution script exists in `tests/package.json`
+- stage execution script exists in `tests/package.json` when adding a new dedicated command
 - docs are added and referenced
-- `cd tests && npm run test:e2e:contact-us:stage` passes against `https://stage.querypie.com`
+- `BASE_URL=https://stage.querypie.com npx playwright test --config=e2e/playwright.config.ts e2e/contact-us.spec.ts --reporter=line` passes from `tests/`
+- when touching the overall runner, `BASE_URL=https://stage.querypie.com npx playwright test --config=e2e/playwright.config.ts --reporter=line` passes from `tests/`
+- PR body does not contain stale claims such as “real submit removed” if current coverage now verifies `Submission Complete`

@@ -1455,6 +1455,53 @@ git worktree list
 
 Also report remaining dirty worktrees explicitly so the user can decide on follow-up cleanup.
 
+### 9.0a. Re-check live state before reporting local changes after a main refresh
+
+When the user asks `main branch 업데이트` and then asks what local changes remain, do not rely on a status snapshot taken before or during the main update. A branch switch, concurrent user action, or prior cleanup command can make that earlier snapshot stale.
+
+Before reporting, take a fresh live snapshot from the repo root:
+
+```bash
+git status --short --branch
+git diff --stat
+git diff --name-status
+git ls-files --others --exclude-standard
+git worktree list --porcelain
+```
+
+Then inspect every registered worktree, not only the root checkout:
+
+```bash
+git worktree list --porcelain | awk '
+  /^worktree / {path=$2; print "--- " path; system("git -C \"" path "\" status --short --branch")}
+'
+```
+
+Reporting distinction:
+- `uncommitted local changes` means tracked or untracked working-tree dirt in the root or registered worktrees
+- `local branch/worktree lines that differ from origin/main` means committed local branch state; report it separately from uncommitted changes
+- if the root is clean but other worktrees have clean branch commits, say explicitly that there are no uncommitted changes, only local branch/worktree commit differences
+
+Useful branch-difference snapshot:
+
+```bash
+for b in $(git for-each-ref --format='%(refname:short)' refs/heads); do
+  [ "$b" = "main" ] && continue
+  counts=$(git rev-list --left-right --count origin/main..."$b")
+  ahead=$(printf '%s' "$counts" | awk '{print $2}')
+  behind=$(printf '%s' "$counts" | awk '{print $1}')
+  up=$(git for-each-ref --format='%(upstream:short)' "refs/heads/$b")
+  wt=$(git worktree list --porcelain | awk -v br="refs/heads/$b" 'BEGIN{p=""} /^worktree /{p=$2} /^branch / && $2==br{print p}')
+  subj=$(git show -s --format='%s' "$b")
+  if [ "$ahead" != "0" ] || [ -n "$wt" ]; then
+    printf '%s|ahead_origin_main=%s|behind_origin_main=%s|upstream=%s|worktree=%s|subject=%s\n' "$b" "$ahead" "$behind" "${up:-}" "${wt:-}" "$subj"
+  fi
+done
+```
+
+Pitfall:
+- `git status --short --branch` output from an earlier non-main checkout may no longer describe the current root checkout after a main update. Re-run it immediately before the final answer and base the report on that latest output only.
+
 ## 9a. Do not assume all local worktrees live under the repo's internal `.worktrees/` directory
 
 A practical failure mode is to clean only `git worktree list` entries that happen to be under the repo root (for example `.worktrees/...`) and forget about sibling worktrees elsewhere in the workspace, such as:
@@ -1513,15 +1560,47 @@ If the final live snapshot shows only this reduced set, the cleanup is already c
 - branch-backed worktrees that correspond to currently open PR head branches
 - dirty worktrees with meaningful local tracked or source-like untracked changes
 
+Additional no-op completion case:
+- sometimes the cleanup request lands when the repo is already fully clean
+- if the live snapshot shows all of the following, treat the task as successfully complete with no further action:
+  - `git branch --show-current` is the default branch
+  - root `git status --short --branch` is clean
+  - local default branch tip equals `origin/<default>`
+  - `git worktree list` shows only the root worktree
+  - no extra local branches remain beyond the default branch
+- in that case, do one final verification snapshot and report it explicitly as `already clean / no additional safe cleanup targets`, rather than implying more cleanup work is still pending or searching for speculative deletions
+
 In that situation:
 - do not describe the repo as "partially cleaned" or imply more automatic deletion is still expected
 - explicitly report that no further safe stale deletions remain
 - distinguish `stale branch/worktree history` from `meaningful current dirty patch`
 - if a no-open-PR worktree is dirty and its diff/untracked files look like real source/test work rather than disposable residue, preserve it and call it out as an intentional remaining line
 
+Additional practical case: minimum-safe state can still include a small amount of non-deletable local residue
+
+A realistic final repo-local cleanup snapshot in PR-heavy repos can be:
+- root `main` clean and fast-forwarded to `origin/main`
+- one or more worktrees for currently open PR head branches
+- one dirty no-open-PR worktree that still contains meaningful unpublished local edits
+- one unattached local-only branch that has not yet been adjudicated as clearly stale or clearly worth deleting
+
+Interpretation:
+- this is still a successful cleanup result if every merged clean residue line was already removed
+- do not overstate the remaining items as if they were obvious stale failures
+- instead, separate them into:
+  1. `active open-PR lines`
+  2. `meaningful dirty local line preserved`
+  3. `local-only branch left for deeper stale-vs-value adjudication`
+
+Reporting rule:
+- say explicitly that the repo is already at or near the minimum safe repo-local state
+- if only a dirty local line and an unattached local-only branch remain beyond the open PR worktrees, say that additional deletion would require deeper adjudication rather than ordinary safe cleanup
+- if the user asked for cleanup plus PR creation and the remaining meaningful diff has already been spun into its own reviewable branch/PR, report that separately from the preserved leftover lines so the user can tell what was turned into PR work versus what was intentionally left alone
+
 Useful summary labels:
 - `already at minimum safe repo-local state`
 - `remaining non-PR worktree preserved because it has meaningful local edits`
+- `remaining unattached local branch requires deeper adjudication`
 - `no additional safe stale worktrees/branches remain`
 
 ### Additional practical case: clean non-PR worktree can still be meaningful unpublished local work

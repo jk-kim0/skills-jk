@@ -74,6 +74,14 @@ Instead:
 ## Pitfalls
 
 - Follow the active repository/global GitHub CLI safety policy when invoking `gh`. In this environment that means using `env -u GITHUB_TOKEN gh ...` rather than raw `gh ...`.
+- In `skills-jk`, do not create PRs with direct local `gh pr create` when the intent is to open a normal review PR. The repository-standard path is the `create-pr.yml` workflow so the PR is created by `github-actions[bot]`, not by the local human GitHub identity.
+- Practical user-specific rule: if you accidentally created the PR directly and it shows the user's account as author, treat that as incorrect for this repo. Create a bot-authored replacement PR via the workflow instead of pretending the existing PR is acceptable.
+- Safe repair pattern for that mistake:
+  1. verify the already-pushed branch tip/commit to preserve
+  2. create and push a replacement branch name if needed (for example `<branch>-bot`) pointing at the same commit
+  3. dispatch `.github/workflows/create-pr.yml` with the same title/body against that replacement branch
+  4. verify the new PR author is `app/github-actions` or another bot identity via `gh pr view --json author`
+  5. do not close the mistaken human-authored PR unless the user explicitly asks; report both PRs and let the user decide the cleanup action
 - Do not pass complex markdown directly to `gh pr create --body` in this repo unless there is a strong reason
 - `create-pr.yml` targets `main` as the base branch
 - The workflow appends a GitHub Actions bot footer to the body

@@ -7,9 +7,9 @@ description: "YouTube transcripts to summaries, threads, blogs."
 
 ## When to use
 
-Use when the user shares a YouTube URL or video link, asks to summarize a video, requests a transcript, or wants to extract and reformat content from any YouTube video. Transforms transcripts into structured content (chapters, summaries, threads, blog posts).
+Use when the user shares a YouTube URL or video link, asks to summarize a video, requests a transcript, wants to extract and reformat content from any YouTube video, or explicitly asks to download a YouTube video asset for local demo/prototype work. Transforms transcripts into structured content (chapters, summaries, threads, blog posts) and can capture video files when the request is about media assets rather than text.
 
-Extract transcripts from YouTube videos and convert them into useful formats.
+Extract transcripts from YouTube videos and convert them into useful formats. For media-file downloads with `yt-dlp`, including the Android/web-client fallback for HTTP 403 failures, see `references/yt-dlp-download-fallback.md`.
 
 ## Setup
 

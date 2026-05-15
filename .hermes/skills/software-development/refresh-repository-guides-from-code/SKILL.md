@@ -11,14 +11,15 @@ metadata:
 
 # Refresh repository guides from code
 
-Use when the user asks to bring repository guidance up to date with the current implementation.
+Use when the user asks to bring repository guidance up to date with the current implementation, or asks to audit/classify which repository docs, plans, READMEs, and guidance files are still valid before deciding what to rewrite.
 
 ## Goals
 
-1. Review the recent change window first.
+1. Review the recent change window first when an edit/refresh is requested; for a read-only validity audit, at least verify latest `origin/main` and recent last-touch commits for docs.
 2. Identify the project-owned guidance files that actually exist.
 3. Reconstruct the current contract from code, tests, and workflows.
-4. Update the guidance docs so they match reality.
+4. Classify docs as valid, partially valid/stale, invalid/historical, or external-confirmation-needed.
+5. Update the guidance docs so they match reality when the user requested edits; otherwise report a prioritized cleanup plan without changing files.
 
 ## Procedure
 
@@ -78,9 +79,22 @@ Common in-scope files:
 - top-level agent/instructions guide
 - a real `docs/` directory if present
 - intentional markdown notes for retained assets or operations
+- component-local READMEs under source directories when they describe reusable implementation contracts
+- test-runner READMEs under a separate `tests/` package
+- checked-in plan/proposal files when they are clearly part of the repo, not local Hermes session state
 
-Important lesson:
+For read-only validity audits, build a compact inventory first:
+```bash
+git ls-files | perl -ne 'print if m{(^|/)(README|CHANGELOG|TODO|PLAN|ROADMAP|NOTES|AGENTS|CLAUDE|docs|plans|wiki|\.agents|\.hermes/plans)/|\.(md|mdx|txt)$}i' | sort
+```
+Then separately search for plan-like files and plan-like language:
+```bash
+git ls-files | grep -Ei '(^|/)(plan|plans|roadmap|todo|migration|proposal|design).*\.(md|mdx|txt)$|\.(plan|plans)\.' || true
+```
+
+Important lessons:
 - When the request mentions a docs directory that is absent, narrow scope to the project-owned markdown files that actually exist and state that explicitly.
+- Do not call local `.hermes/plans` absent/present from memory; inspect it. If it is absent and no tracked plan files exist, explicitly say there are no active local plan files before classifying ordinary docs.
 
 ### 4. Reconstruct the live contract from implementation
 
@@ -106,7 +120,36 @@ Questions to answer:
 - Which commands in the docs are still valid?
 - Do the docs mention files or setup paths that no longer exist?
 
-### 5. Fix the most common stale-doc patterns
+### 5. Classify validity before editing when requested
+
+When the user asks which docs/plans are valid, do not jump straight to rewriting. Produce an evidence-backed classification:
+
+- **Valid**: core claims match current code/workflows/tests; only minor wording drift or external links remain.
+- **Partially valid / needs refresh**: the high-level idea is still true, but route inventory, filenames, scripts, line numbers, runtime location, or implementation details have drifted.
+- **Invalid / historical only**: the doc describes unimplemented plans, missing files/scripts, obsolete architecture, or a component structure that no longer exists. Prefer archive/delete/rewrite recommendations over treating it as active guidance.
+- **External confirmation needed**: local code cannot prove a claim because it depends on Vercel settings, private dashboards, internal service URLs, credentials, or live operational state.
+
+Useful cross-checks:
+```bash
+# root package commands and versions
+node -e "const p=require('./package.json'); console.log(JSON.stringify({scripts:p.scripts, engines:p.engines, next:p.dependencies?.next, react:p.dependencies?.react}, null, 2))"
+
+# separate test package scripts, if present
+[ -f tests/package.json ] && node -e "const p=require('./tests/package.json'); console.log(JSON.stringify(p.scripts,null,2))"
+
+# workflow reality
+git ls-files '.github/workflows/*' | sort
+
+# app-route reality
+git ls-files 'src/app/**/page.tsx' 'src/app/**/route.ts' 'src/app/**/sitemap*.ts' | sort
+
+# docs last-touch evidence
+for f in README.md docs/*.md tests/README.md src/**/README.md; do [ -e "$f" ] && printf '%s\t' "$f" && git log -1 --format='%cs %h %s' -- "$f"; done
+```
+
+When docs mention file paths or npm scripts, verify them against both root `package.json` and nested packages such as `tests/package.json` before marking them stale. A script can be valid but scoped to a subpackage.
+
+### 6. Fix the most common stale-doc patterns
 
 #### Old setup/tooling references
 
@@ -203,14 +246,16 @@ git commit -m "docs: refresh repository guides for current implementation"
 git push -u origin HEAD
 ```
 
-## Reporting checklist
+### 9. Reporting checklist
 
 Report:
-- recent change themes reviewed
+- repository path, branch, and latest `origin/main` SHA used as the baseline
+- whether active plan files exist, and where they were searched
 - which guidance files were actually in scope
-- the main contract changes reflected in docs
-- verification performed
-- branch and commit pushed
+- a validity classification: valid, partially valid/stale, invalid/historical, external-confirmation-needed
+- concrete evidence for stale/invalid verdicts: missing files, missing scripts, drifted route inventory, stale line-number diagrams, or generated/untracked artifact assumptions
+- prioritized cleanup/update recommendations
+- if edits were requested: recent change themes reviewed, contract changes reflected, verification performed, branch and commit pushed
 
 ## Practical lessons
 
@@ -219,3 +264,7 @@ Report:
 - Route-policy docs often lag behind migration work; reconcile them against live routes and sitemap behavior.
 - Verification instructions should match the repository’s real workflow instead of generic local-server advice.
 - Ignore markdown under worktrees, dependency directories, and other generated/vendor trees when identifying the real project documentation set.
+- For read-only documentation validity audits, it is acceptable to work on the current clean checkout without creating a docs branch, but still fetch/prune and verify `main` is aligned with `origin/main` before making current-state claims.
+- When a doc calls something an API/test/script generally, check nested package boundaries before declaring it missing; for example a Playwright script may live under `tests/package.json` rather than the root package.
+- Distinguish generated artifacts from missing source files. A path like `public/build-info.json` may be valid runtime output even when it is intentionally untracked.
+- Treat component-local READMEs as suspect when they list files/classes that no longer exist; cross-check against the actual component directory before trusting architecture diagrams in prose.
