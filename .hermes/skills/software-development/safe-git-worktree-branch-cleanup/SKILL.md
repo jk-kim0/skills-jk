@@ -336,6 +336,25 @@ Practical rule:
 - if those are the only remaining changes, treat the repo/worktree as effectively clean for stale-classification purposes, or delete just those local residue paths when the user asked for cleanup
 - if the remaining dirt is real project files (for example tracked deletions like `D postcss.config.mjs`), preserve the worktree
 
+Important provenance check before deleting untracked files:
+- do not treat every untracked file as disposable just because it appeared during the current session
+- especially under checked-in skill/doc trees such as `.hermes/skills/**`, `.agents/skills/**`, `docs/**`, or `references/**`, an untracked file may be meaningful local authored content rather than runtime junk
+- before deleting an untracked file, classify it with evidence:
+  - obvious lock/cache/usage artifact (for example `.lock`, machine-local usage DB, cache file)
+  - clearly generated diagnostics/build output
+  - or potentially user-authored content
+- safe rule:
+  - `rm` obvious runtime artifacts like lockfiles/caches only when their generated nature is clear
+  - do **not** delete prose/reference markdown or other content-like untracked files inside skill/doc trees without confirming provenance first or asking the user
+- if a tool interaction such as skill lookup/view seems to have created or modified repo-local files, prefer restoring tracked files only and report the remaining untracked files explicitly instead of silently deleting them all
+- useful checks:
+  ```bash
+  git ls-files --error-unmatch <path> >/dev/null 2>&1 && echo tracked || echo untracked
+  file <path>
+  ls -l <path>
+  ```
+- reporting rule: when cleanup restored tracked files but left untracked content-like files alone, say that directly instead of implying all dirt was safely disposable
+
 Important generated-artifact pitfall:
 - do not delete a path just because its name looks disposable, such as `log/`, `logs/`, `manifest.json`, `*.pub`, or similar build/output-looking names
 - first verify whether the path is actually untracked local residue versus tracked repository content:
@@ -667,6 +686,12 @@ A common pattern is:
 - the branch `HEAD` is exactly equal to local `main` / `origin/main`
 - the attached worktree is clean
 - the branch name suggests a one-off helper or topic, but the tree no longer differs from main at all
+
+Important counter-case:
+- the branch `HEAD` can still equal `main` / `origin/main`, yet the attached worktree may contain meaningful tracked modifications
+- in that case, the branch pointer itself is a no-op alias, but the live worktree is **not** stale residue
+- do not delete that worktree just because the branch SHA matches main; classify the current dirty patch separately
+- if you want cleaner naming, you may rename the branch into an explicit preservation namespace such as `preserve/*` or another user-meaningful local branch name before reporting the final state
 
 Check this with:
 

@@ -439,6 +439,21 @@ Execution rules:
 
 This is different from a normal refactor PR: the purpose is to make a reviewable preview state for human visual judgment, so do not squash it immediately into the original commit unless the user later chooses that result as final.
 
+## Small preview-route copy edit pattern
+
+When the user requests a narrow copy change on an existing corp-web-japan `/t/**` preview route, keep the implementation deliberately small rather than reopening the whole page-parity workflow.
+
+Recommended pattern:
+1. Start from latest `origin/main` in a fresh non-main worktree as usual.
+2. Edit the visible route copy in `src/app/**/page.tsx` and update matching page metadata (`metadata.title` / `metadata.description`) when the changed hero title or lead is also the browser/SEO preview text.
+3. Preserve the user's exact Japanese copy when they provide it; do not paraphrase or expand it into new marketing claims.
+4. Add or update the mirrored source-level route test so it asserts the new copy is present and any explicitly replaced old wording is absent.
+5. For copy-only changes, use the narrow source test first and rely on CI/Preview Deploy after push; do not start a local dev server or broaden into visual/browser parity unless the user asked for visual validation.
+
+Example shape from `/t/platforms/acp` hero-copy work:
+- update `src/app/t/platforms/acp/page.tsx` hero title/lead and metadata together
+- update `tests/src/app/t/platforms/acp/page.test.mjs` with positive assertions for the new title/description and negative assertions for the removed old title/extra explanatory sentence
+
 ## Pre-push rule
 
 Before pushing or updating a PR branch:
