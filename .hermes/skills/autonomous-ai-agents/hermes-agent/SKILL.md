@@ -199,6 +199,13 @@ hermes profile export NAME  Export to tar.gz
 hermes profile import FILE  Import from archive
 ```
 
+Important current-session limitation:
+- profiles are selected at process/session start (for example `hermes -p deep`) or changed as the sticky default for future launches with `hermes profile use <name>`
+- the currently running session does **not** support hot-swapping its active profile in place
+- `/profile` is for showing the active profile/info, not switching the current session to another profile
+- if the user wants the *current* session to behave more like another profile, the nearest in-session substitutes are `/model <name>` and `/reasoning <level>`
+- if the user wants the actual profile changed, start a new Hermes session with `-p/--profile` or change the sticky default for the next launch
+
 ### Credential Pools
 
 ```
