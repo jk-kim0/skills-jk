@@ -189,7 +189,7 @@ After resolving, rerun the focused source tests and the lightweight typecheck be
 
 Before push:
 - `git fetch origin --prune`
-- if needed, `git stash push -u`, `git rebase origin/main`, `git stash pop`
+- if `origin/main` advanced, rebase from a clean latest-main worktree context rather than stashing local edits in place
 - if rebase conflicts happen after another demo migration landed, resolve the shared registry files additively as described above
 - rerun focused tests
 - commit and push

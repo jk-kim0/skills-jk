@@ -99,7 +99,8 @@ If the patch does not apply cleanly, stop and report the conflict instead of imp
 
 ```bash
 git restore <changed-tracked-files>
-# remove only untracked files that were clearly created by the mistaken task, after listing them
+# do not delete content-like untracked files (docs, references, skills, markdown) just to clean root main
+# only remove obvious runtime/lock/cache artifacts after listing them; otherwise preserve/report them first
 ```
 
 Do not stash by default. Prefer preserving work in the branch/worktree over stashing.

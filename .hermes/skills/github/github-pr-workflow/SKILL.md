@@ -56,16 +56,24 @@ echo "Owner: $OWNER, Repo: $REPO"
 
 ## 1. Branch Creation
 
-This part is pure `git` — identical either way:
+This part is pure `git`. In repositories that use worktrees, or whenever the current/root checkout is on `main`, prefer a fresh linked worktree from the latest remote main tip instead of branching in place:
 
 ```bash
-# Make sure you're up to date against the REMOTE default branch
-# Prefer branching from origin/main, not from whatever local branch is checked out.
+# Make sure you're up to date against the REMOTE default branch.
+# Prefer a fresh worktree from origin/main, not a branch created from whatever checkout is currently active.
 git fetch origin --prune
-git checkout main && git pull origin main
+git worktree add .worktrees/<flat-name> -b feat/<topic> origin/main
 
-# Create and switch to a new branch from the latest remote main tip
-git checkout -b feat/add-user-authentication origin/main
+# Verify the new worktree really starts from the latest remote main tip
+git -C .worktrees/<flat-name> rev-parse HEAD origin/main
+git -C .worktrees/<flat-name> merge-base HEAD origin/main
+```
+
+If the repository does not use worktrees for that task, the in-place fallback is still:
+
+```bash
+git fetch origin --prune
+git checkout -b feat/<topic> origin/main
 ```
 
 Important safety rule:

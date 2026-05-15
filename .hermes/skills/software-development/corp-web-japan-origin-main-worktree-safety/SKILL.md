@@ -71,7 +71,6 @@ This step is mandatory in fast-moving repos: codebase assumptions can become sta
 3. If local `main` is dirty or behind, do NOT edit there.
 
 4. Fetch, re-check the remote tip, and create a fresh worktree from `origin/main`.
-4. Fetch and create a fresh worktree from latest `main`.
 
 Follow the common `repo-root-worktree-path-policy` skill for worktree location and naming.
 
@@ -79,7 +78,7 @@ Follow the common `repo-root-worktree-path-policy` skill for worktree location a
 git fetch origin main --quiet
 git checkout main
 git pull --ff-only origin main
-git worktree add .worktrees/<branch-name> -b <branch-name> main
+git worktree add .worktrees/<branch-name> -b <branch-name> origin/main
 ```
 
 If local `main` is intentionally left untouched for some exceptional reason, explicitly tell the user and still branch from the fetched latest `origin/main`.
@@ -89,7 +88,7 @@ Example:
 ```bash
 git checkout main
 git pull --ff-only origin main
-git worktree add .worktrees/fix-issue-62-seo-baseline -b fix/issue-62-seo-baseline main
+git worktree add .worktrees/fix-issue-62-seo-baseline -b fix/issue-62-seo-baseline origin/main
 ```
 
 4.1 Validate that the new worktree is a real linked checkout before editing.

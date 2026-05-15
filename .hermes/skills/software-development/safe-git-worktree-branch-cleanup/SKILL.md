@@ -415,15 +415,16 @@ git diff -- .agents/skills/... docs/...
 ```
 
 2. compare that file against likely source worktrees if relevant
-3. if the file is not part of any open PR worktree and the change is just local procedural residue, restore it instead of preserving it as meaningful repo work:
+3. do not treat a root-local skill/doc/reference edit as disposable merely because it is outside an open PR; preserve it first unless you can prove it is a machine-generated artifact or an exact duplicate of a kept branch/worktree:
 
 ```bash
-git restore --worktree -- <path>
+git diff -- <path>
+git ls-files --error-unmatch <path> >/dev/null 2>&1 && echo tracked || echo untracked
 ```
 
 Practical rule:
-- do not let a stray local skill/doc edit block `main` fast-forward during workspace cleanup
-- but only restore it when it is clearly not the active subject of an open PR or a kept dirty worktree
+- do not silently restore or delete repo-local skill/doc/reference content just to make `main` fast-forward
+- capture the full dirty path set first, preserve it onto a fresh latest-`origin/main` worktree/branch, and only then decide whether some paths are duplicate residue
 
 Important follow-up case from corp-web-japan cleanup:
 - sometimes the root `main` worktree ends the cleanup with exactly one meaningful repo-local skill/doc edit left (for example a checked-in `.agents/skills/**/SKILL.md` improvement) after all stale worktrees/branches were removed
@@ -436,30 +437,30 @@ Important follow-up case from corp-web-japan cleanup:
   5. then restore the root `main` worktree and fast-forward it to `origin/main`
 - lighter-weight variant when the user only asked to refresh local `main` and not to open a PR yet:
   1. create a fresh backup worktree/branch from latest `origin/main`
-  2. copy the meaningful dirty root files into that backup worktree
-     - do not limit this only to skill/doc files; include tracked and intentional untracked files that the user may want preserved
+  2. copy the full dirty root file set into that backup worktree before classifying anything away
+     - include tracked and intentional untracked files that the user may want preserved
      - a practical collection pattern is:
        - `git diff --name-only`
        - `git ls-files --others --exclude-standard`
   3. commit them locally on a clearly named backup branch such as `backup/...`
-  4. restore those files from root `main`
+  4. compare the preserved copy against latest `origin/main` and any existing follow-up branch/worktree before restoring anything from root `main`
   5. if the root checkout is now clean, fast-forward it with `git pull --ff-only origin main`
   6. report both the backup branch name and backup worktree path to the user
 - practical root-main-update pattern from repeated `skills-jk` use:
   - when the user simply says `main branch 업데이트해줘` while root `main` has meaningful local changes, do not block on the dirty root forever and do not force-reset it
   - before pulling, compare the current dirty tracked paths against the incoming `origin/main` diff paths since overlap means a direct fast-forward can fail or overwrite the user's intent
-  - if there is overlap, preserve the local changes first; if an earlier cleanup already created a matching backup worktree/branch for the same root-local line, prefer appending the new files there instead of creating yet another backup branch
-- after copying the current tracked/untracked files into that backup worktree, commit the preservation commit there, restore those files from root `main`, and only then run `git pull --ff-only origin main`
+  - if there is overlap, preserve the full local dirty set first; if an earlier cleanup already created a matching backup worktree/branch for the same root-local line, prefer appending the new files there instead of creating yet another backup branch
+- after copying the current tracked/untracked files into that backup worktree, commit the preservation commit there, verify which paths are truly duplicate/absorbed versus still unique, and only then restore the confirmed-duplicate root files before `git pull --ff-only origin main`
 - important verification step: after creating the backup worktree from latest `origin/main` and copying the root files over, immediately run `git -C <backup-worktree> status --short --branch` and `git -C <backup-worktree> diff --stat`
-  - some root-dirty files may already be absorbed by latest `origin/main`, so they will disappear as no-op copies in the backup
+  - some root-dirty files may already be absorbed by latest `origin/main`, but do not treat them as discardable until you have compared the preserved copy path-by-path against current main and any PR branch carrying related work
   - keep only the residual meaningful diff instead of assuming every copied file still represents unpublished work
   - practical example: root `next.config.ts` / `tsconfig.next.json` dirt can vanish after the backup worktree is based on newer `origin/main`, leaving only a smaller remaining route/test patch to preserve
 - this leaves root `main` actually updated while still preserving the user's local work in an inspectable branch/worktree
-- prefer this backup-branch variant over `git stash` when the user values inspectable branch/worktree preservation more than stash-based safekeeping
+- prefer this backup-worktree variant over `git stash`
 
 Useful summary labels:
-- `root-local skill residue -> separate docs PR`
-- `root-local meaningful skill edit -> local backup branch before main refresh`
+- `root-local skill/doc work preserved before any cleanup classification`
+- `latest-main backup worktree created before restoring root`
 
 Additional practical case: when there are no open PRs at all, the desired cleanup end-state is usually much smaller
 

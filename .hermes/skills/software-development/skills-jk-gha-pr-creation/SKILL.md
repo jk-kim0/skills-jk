@@ -143,12 +143,12 @@ When the user asks to create a PR from the current local workspace state rather 
     - In `skills-jk`, case (3) is common because the root checkout can stay dirty on an old merged branch while one or more fresh-worktree follow-up PRs are created and merged separately.
     - Do not blindly pile new local changes onto the still-open PR just because some files overlap; if the root diff is not materially the same as the open PR diff, split it into a new PR.
   - Safer fallback when a clean file-copy transplant is impractical:
-    - `git stash push -u -m '<note>'`
+    - create a preserve branch/worktree that captures the full current dirty file set first
     - refresh repository refs and update local `main` to latest `origin/main`
-    - create a fresh branch from `origin/main`
+    - create a fresh branch/worktree from `origin/main`
     - if there is an unmerged local commit you still need, cherry-pick it onto the new branch
     - if the cherry-pick becomes empty because latest `main` already contains that change, use `git cherry-pick --skip`
-    - `git stash pop`
+    - copy only the still-intended preserved diff into the fresh branch/worktree
   - This preserves the still-local work while avoiding accidental reuse of a stale merged-PR branch.
    - If there is an unmerged local commit you still need, cherry-pick it onto the new branch.
    - If the cherry-pick becomes empty because latest `main` already contains that change, use `git cherry-pick --skip` and continue.
@@ -175,9 +175,9 @@ When the user asks to create a PR from the current local workspace state rather 
 9. If `git rebase --continue` is blocked because you restored broader local workspace changes while the rebased commit itself only touches a smaller subset of files, temporarily move the unrelated non-index changes back out of the way.
    - Practical pattern:
      - stage the actual conflict-resolved file(s) that belong to the rebased commit
-     - `git stash push -u --keep-index -m '<temp-note>'`
+     - preserve the broader unrelated local changes in a separate worktree/branch or patch file first
      - `GIT_EDITOR=true git rebase --continue`
-     - re-apply the earlier broader workspace stash after the rebase finishes
+     - re-apply only the intended preserved changes after the rebase finishes
    - This is especially useful in `skills-jk` when a one-file commit is being rebased but the working tree also contains many restored local skill/memory edits from the user's current workspace.
    - Without this step, `git rebase --continue` can fail or become confusing because the rebase commit is ready, but unrelated restored changes are still sitting unstaged in the working tree.
 10. Push the branch, then create or update the PR.

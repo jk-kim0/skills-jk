@@ -165,8 +165,8 @@ terminal(command="REVIEW=$(mktemp -d) && git clone https://github.com/user/repo.
 Use separate repo-root worktrees to avoid collisions. Follow the common `repo-root-worktree-path-policy` skill.
 
 ```
-terminal(command="git worktree add .worktrees/issue-101 -b fix/issue-101 main", workdir="~/project")
-terminal(command="git worktree add .worktrees/issue-102 -b fix/issue-102 main", workdir="~/project")
+terminal(command="git worktree add .worktrees/issue-101 -b fix/issue-101 origin/main", workdir="~/project")
+terminal(command="git worktree add .worktrees/issue-102 -b fix/issue-102 origin/main", workdir="~/project")
 terminal(command="opencode run 'Fix issue #101 and commit'", workdir="~/project/.worktrees/issue-101", background=true, pty=true)
 terminal(command="opencode run 'Add parser regression tests and commit'", workdir="~/project/.worktrees/issue-102", background=true, pty=true)
 process(action="list")
