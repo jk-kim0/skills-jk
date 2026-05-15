@@ -174,10 +174,9 @@ Issue-linking and closing rule:
 - If you already opened a PR with an auto-closing keyword by mistake, edit the PR body immediately to remove it before merge.
 - When in doubt, leave issue closure to a separate explicit user decision or a later manual issue comment.
 
-### Important temp-file safety rule:
+Important temp-file safety rule:
 - Prefer a repo-external temp path such as `/tmp/pr-body.md` or another absolute temp location.
-- For iterative link/content cleanup PRs where the user says they will keep providing more pages or links, keep updating the same open PR branch and refresh the PR body/test plan after each pushed batch; do not open a new PR unless the user explicitly asks.
-
+- Do **not** default to writing PR/issue body drafts inside the repository or worktree root (for example `.tmp-pr-body.md`) unless you intentionally want that file tracked.
 - If you must place a draft file inside the checkout temporarily, exclude it from `git add` and run `git status --short` before commit so you do not accidentally commit the body file.
 - Practical failure pattern: creating the PR body inside the worktree, staging broad paths, then needing an amend commit only to remove the stray temp file.
 - The same separation rule applies to repository guidance changes discovered during implementation work: if you edit AGENTS.md, checked-in skills, or other repo-operational guidance as a follow-up to feature work, prefer a separate branch and separate PR instead of silently bundling those guidance changes into the feature PR.
@@ -650,6 +649,7 @@ gh pr view <branch-name> --json number,title,url,headRefName,baseRefName,state
    - After conflict resolution, run a negative grep for exact removed strings/components and add or preserve tests that assert absence. Example checks: `grep -R "<RemovedComponent\|removed visible copy" <touched-files> || true`, plus source tests using `assert.doesNotMatch(...)`. Do this before amending/force-pushing so review feedback like “I already told you to delete this” is not repeated across pushes.
    - When reconciling UI placement conflicts, preserve both content presence and relative position. If a selector/button was intentionally moved next to an H1, tests should pin the structure/order, not merely assert the component still exists somewhere in the file.
    - When the user asks to "fix the PR" / "PR 고쳐줘" after several incremental follow-up commits, do not stop at fixing the immediate failing check.
+   - For iterative link/content cleanup PRs where the user keeps providing more pages or links, keep updating the same open PR branch and refresh the PR body/test plan after each batch. When changing link constants or route targets, search for existing source-inspection tests that still assert the old target; CI failures can come from stale contract tests outside the latest touched files, such as route-family `cta-links.test.mjs` files. If the stale test is the failure, update it to the new local/canonical route, rerun the failed test plus directly affected route tests, rebase onto latest `origin/main`, push with `--force-with-lease` if the rebase rewrites commits, and verify fresh workflow runs attach to the rewritten head SHA.
    - When the user points to an existing PR and asks to rename a term/component family, update that same PR branch rather than creating a new PR. Keep the diff narrow, but rename all project-facing occurrences in the touched route/component/test family: imports, JSX tags, exported function names, default export names, related structure tests, and route-family module filenames that still carry the obsolete term. Before pushing, run a targeted grep for the old term/path and the narrow route-family test so tests do not keep asserting stale wording.
   - Default to a full branch-hygiene pass unless the user narrows scope:
     - inspect review comments, CI failures, and `mergeStateStatus`
