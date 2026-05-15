@@ -1494,10 +1494,40 @@ In that situation:
 - distinguish `stale branch/worktree history` from `meaningful current dirty patch`
 - if a no-open-PR worktree is dirty and its diff/untracked files look like real source/test work rather than disposable residue, preserve it and call it out as an intentional remaining line
 
-Useful summary language:
+Useful summary labels:
 - `already at minimum safe repo-local state`
 - `remaining non-PR worktree preserved because it has meaningful local edits`
 - `no additional safe stale worktrees/branches remain`
+
+### Additional practical case: clean non-PR worktree can still be meaningful unpublished local work
+
+A local branch-backed worktree should not be deleted just because:
+- its earlier PR is already `MERGED`
+- the branch is not tied to any current open PR
+- the worktree itself is currently clean
+
+Signal pattern:
+- `gh pr list --state all --head <branch>` shows only an older merged PR for the same branch name
+- `git status --short --branch` in the worktree is clean
+- but `git diff --stat origin/main..<branch>` is non-empty
+- and `git rev-list --left-right --count origin/main...<branch>` shows the branch is still ahead of latest `origin/main`
+
+Interpretation:
+- this is not ordinary merged-PR residue anymore
+- it usually means the branch accumulated a later unpublished follow-up commit after the merged PR
+- classify it as `meaningful unpublished local work`, not `stale`
+
+Safe handling:
+1. verify the branch is really still unique versus latest main:
+   ```bash
+   git diff --stat origin/main..<branch>
+   git log --oneline -1 <branch>
+   ```
+2. if the worktree is clean but the branch is ahead with a real diff, preserve it by default
+3. report it separately from open-PR worktrees as a local unpublished line the user may later push, PR, or discard intentionally
+
+Useful summary label:
+- `clean unpublished follow-up branch preserved`
 
 ### Additional practical case: an open PR branch can still be ahead of its remote head and should be preserved as active follow-up work
 
