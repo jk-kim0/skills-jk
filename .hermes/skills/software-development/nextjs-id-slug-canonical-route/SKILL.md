@@ -157,6 +157,8 @@ Useful assertions:
 - Assuming `/[id]/[slug]` automatically covers `/[id]` — it does not; add a sibling route
 - Forgetting to add static params for the new `[id]` route when static generation is expected
 - Returning content before redirecting mismatched slugs, which can create duplicate URLs
+- Do not over-apply canonical redirect behavior to product-tab or preview-section routes. If the root route must remain a stable user-facing URI, render the default tab/content at that URI instead of redirecting it to the default subroute.
+- For tabbed routes that may later be promoted or have a preview prefix removed (for example `/t/...` -> `/...`), avoid hardcoding the preview prefix in tab links. Prefer deriving tab destinations from the current pathname or another route-local base so only the route placement changes later.
 
 ## Done criteria
 

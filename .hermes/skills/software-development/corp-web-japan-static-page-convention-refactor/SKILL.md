@@ -169,6 +169,25 @@ Ask: “If I open only `page.tsx`, can I understand the page quickly?”
 
 If no, pull more structure back into the route.
 
+## Product-specific static routes and pricing/table pages
+
+Practical correction from `/t/plans` follow-up work:
+- if the user asks for explicit product routes such as `/t/plans/aip` and `/t/plans/acp`, use explicit static route folders (`src/app/t/plans/aip/page.tsx`, `src/app/t/plans/acp/page.tsx`) rather than a dynamic catch-all such as `src/app/t/plans/[product]/page.tsx`, unless they explicitly request dynamic routing
+- do not create route-adjacent shared page-content wrappers like `src/app/t/plans/plans-page-content.tsx` just to avoid a few repeated shell lines
+- do not hide product-specific pricing/comparison content behind wrappers such as `<PlansPageContent activeProduct="acp" />`, `<PlansContentShell activeProduct="acp">...`, or an intermediate `AipPlansContent` helper
+- if AIP and ACP pricing/comparison content are materially different, each product route `page.tsx` should directly author its own content using shared primitives
+- shared UI/layout primitives belong in `src/components/sections/<family>/...` (for example `src/components/sections/plans/section.tsx`), but `page.tsx` should remain the caller that composes those primitives and owns visible route-specific copy
+
+Good `/t/plans` shape:
+- `src/app/t/plans/aip/page.tsx` directly renders `<PlansPageSection>`, `<PricingRoot>`, `<ProductTabs>`, `<PlanRoot>`, and AIP `<CompareTable>` rows/cells
+- `src/app/t/plans/acp/page.tsx` directly renders `<PlansPageSection>`, `<PricingRoot>`, `<ProductTabs>`, and ACP `<PlanRoot>` cards
+- `src/components/sections/plans/section.tsx` exports primitives such as `PlanRoot`, `PlanCard`, `PricingRoot`, `ProductTabs`, `CompareTableRow`, and `CompareTableTextCell`; it does not own the page body or decode product content
+- structure tests should assert removed wrapper names stay absent (`PlansPageContent`, `PlansContentShell`, `AipPlansContent`) and that route pages contain the real plan/comparison JSX
+
+Pitfall to avoid:
+- saying "there is no duplicate code" because a wrapper hides all product content in one file is not the intended route-local refactor when the pricing/comparison content is not actually shared
+- the point is not to minimize all repeated shell markup; the point is to keep the real product-specific page composition readable in the relevant `page.tsx`
+
 ## Top-spacing ownership rule for fixed-header pages
 
 When a page renders the shared fixed `SiteHeader`, prefer the more standard split between global header clearance and page-specific visual hero spacing.
@@ -762,6 +781,7 @@ Reference support files:
 - `references/route-local-refactoring-developer-outline.md` — concise outline, examples, and AI-agent prompt patterns for developer-facing docs or onboarding material
 - `references/route-local-component-placement-correction.md` — session-specific correction showing that route-local authoring does not mean colocating UI component files beside `page.tsx`; includes the issue #395 internal-demo pitfall and review check
 - `references/internal-demo-route-local-and-production-ready-naming.md` — PR #496 / issue #395 correction covering internal demo route-local readability and the rule that exported component symbols should use production-ready names, not `InternalDemo*`
+- `references/plans-product-routes-route-local-correction.md` — `/t/plans` correction covering explicit static product routes, avoiding shared page-content wrappers, and keeping pricing/comparison content directly authored in product `page.tsx` files
 
 ## Verification
 

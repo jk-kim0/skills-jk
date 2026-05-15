@@ -205,6 +205,28 @@ Practical fix from PR #150:
 
 This avoids false CI failures where the implementation is correct but the test is still looking only at the old preferred source file.
 
+## Product sibling route authoring
+
+When a page family is split into explicit product sibling routes such as `/t/plans`, `/t/plans/aip`, and `/t/plans/acp`, do not assume a whole-page shared helper is justified just because two routes belong to the same family.
+
+Before extracting any shared component/helper:
+1. Check whether the actual authored body is shared.
+2. If only UI primitives, tabs, or layout shells are shared, keep those in `src/components/sections/**` and let each `page.tsx` call the primitives directly.
+3. If product bodies differ, each product route should own its own plan cards, comparison rows, CTAs, and other visible copy directly in its `page.tsx`.
+4. Use the root route, e.g. `/t/plans`, as a thin route entry that renders the default product content without changing the URI and handles legacy query redirects if needed.
+
+Pitfall from `/t/plans`:
+- AIP and ACP shared pricing UI primitives and product tabs, but did not share the actual pricing/comparison content.
+- AIP had its own plan cards plus a comparison table; ACP had different plan cards and no matching comparison table.
+- The wrong refactor was to introduce `src/app/t/plans/plans-page-content.tsx` or a new `PlansContentShell` wrapper to centralize the whole page body.
+- The correct refactor was:
+  - `src/app/t/plans/aip/page.tsx` owns AIP plan-card and comparison-table JSX directly.
+  - `src/app/t/plans/acp/page.tsx` owns ACP plan-card JSX directly.
+  - `src/app/t/plans/page.tsx` renders the AIP route content for `/t/plans` and redirects legacy `?aip` / `?acp` to the explicit sibling routes.
+  - `src/components/sections/plans/section.tsx` keeps only reusable primitives such as `PricingRoot`, `PricingHeader`, `ProductTabs`, `PlanRoot`, `PlanCard`, and `CompareTable*`.
+- Do not create a new shell/wrapper component when existing primitives already let `page.tsx` be the caller. Extra wrappers hide route composition and violate the route-local readability goal.
+- Add source tests that assert accidental whole-page helpers/wrappers are absent, for example no `plans-page-content.tsx`, no unwanted `[product]` dynamic route when explicit sibling routes are requested, no `PlansContentShell`, and no `PlansPageContent`.
+
 ## Good outcome checklist
 
 - Opening `page.tsx` shows the actual page narrative directly.

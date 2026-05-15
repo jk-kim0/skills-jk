@@ -174,9 +174,10 @@ Issue-linking and closing rule:
 - If you already opened a PR with an auto-closing keyword by mistake, edit the PR body immediately to remove it before merge.
 - When in doubt, leave issue closure to a separate explicit user decision or a later manual issue comment.
 
-Important temp-file safety rule:
+### Important temp-file safety rule:
 - Prefer a repo-external temp path such as `/tmp/pr-body.md` or another absolute temp location.
-- Do **not** default to writing PR/issue body drafts inside the repository or worktree root (for example `.tmp-pr-body.md`) unless you intentionally want that file tracked.
+- For iterative link/content cleanup PRs where the user says they will keep providing more pages or links, keep updating the same open PR branch and refresh the PR body/test plan after each pushed batch; do not open a new PR unless the user explicitly asks.
+
 - If you must place a draft file inside the checkout temporarily, exclude it from `git add` and run `git status --short` before commit so you do not accidentally commit the body file.
 - Practical failure pattern: creating the PR body inside the worktree, staging broad paths, then needing an amend commit only to remove the stray temp file.
 - The same separation rule applies to repository guidance changes discovered during implementation work: if you edit AGENTS.md, checked-in skills, or other repo-operational guidance as a follow-up to feature work, prefer a separate branch and separate PR instead of silently bundling those guidance changes into the feature PR.

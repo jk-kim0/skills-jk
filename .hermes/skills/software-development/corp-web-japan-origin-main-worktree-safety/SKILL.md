@@ -459,6 +459,13 @@ Practical same-session nuance learned from `/t/events` preview work:
 Practical post-PR-creation nuance learned from issue #449 PR 1:
 - `origin/main` can also advance in the short window after `gh pr create`, causing the newly opened PR to immediately show `mergeStateStatus: BEHIND` even though the branch was latest-main-based when pushed.
 - Do not report the PR as done just because it opened successfully. After creation, verify the actual remote head SHA and PR metadata:
+
+Practical existing-PR copy/metadata follow-up nuance:
+- If the user asks for a specific alignment such as "make `metadata.description` match `AcpHeroLead`", first inspect the existing PR branch. The requested condition may already be true even if the PR body or review context sounds stale.
+- Do not fabricate a no-op code change. If the file already matches, say so, then handle any real remaining PR hygiene such as rebasing a BEHIND branch, re-checking the exact lines after rebase, updating the PR body to describe the alignment, and pushing the rebased branch.
+- Verify with the narrowest relevant source test plus remote head SHA / PR `headRefOid` before reporting completion.
+
+Practical post-PR-creation verification command pattern:
   ```bash
   git ls-remote origin refs/heads/<branch>
   env -u GITHUB_TOKEN gh pr view <pr-number> --json headRefOid,mergeStateStatus,statusCheckRollup
@@ -509,6 +516,33 @@ printf 'merge-base '; git merge-base HEAD origin/main
 - If all three SHAs match, your branch has not diverged from latest `origin/main`; it is safe to commit the local change directly without doing a redundant pre-commit rebase.
 - Then commit, push, and let the normal PR workflow continue.
 - Only perform an actual rebase after committing if `origin/main` advanced or those SHAs differ.
+
+## Static finite variant routes in `/t/**` preview work
+
+When a preview/static marketing surface has a small finite set of variants (for example plans AIP/ACP), prefer explicit sibling App Router routes over a dynamic segment unless the user explicitly asks for a dynamic catch-all.
+
+Recommended shape:
+- root route keeps the default behavior without changing the URI, for example `/t/plans` renders the AIP view without redirecting
+- finite variants use explicit route files such as `src/app/t/plans/aip/page.tsx` and `src/app/t/plans/acp/page.tsx`, not `src/app/t/plans/[product]/page.tsx`
+- keep those route files thin: route metadata + a call into a route-local shared content module such as `src/app/t/plans/plans-page-content.tsx`
+- put the duplicated pricing/table/page composition in the route-local shared module, not in each product route
+- when tab links need to work both before and after `/t` prefix removal, derive destinations from the current pathname or a route-local base rather than hardcoding `/t/plans/...` inside the reusable tab component
+- keep source-inspection tests aligned with the explicit files and assert that product routes do not duplicate heavy composition such as `<PricingRoot>`, `<PlanCard>`, or `<CompareTable>`
+
+Pitfall: a dynamic `[product]` route looks compact, but for this user's static preview pages it hides the intended file structure and is harder to align with route-local authoring. If the user points this out, replace it with explicit sibling routes while keeping the shared route-local content module to avoid real duplication.
+
+## Page-copy / metadata alignment pitfalls
+
+When aligning `metadata.description` with visible route copy such as a hero lead, first verify the intended visible copy is correct and complete. Do not make the metadata match a previously mistaken shortened lead just because the current branch already contains that shortened text.
+
+Safe pattern:
+1. Re-read the user request and compare it against the pre-change/original copy if the user mentions preserving, shortening, or changing only part of a sentence.
+2. If the requested change is "first sentence only" or similar, preserve the remaining sentences and JSX structure such as `<br />` unless the user explicitly asks to remove them.
+3. Make `metadata.description` match the final intended visible text, usually by joining the same sentences without JSX tags.
+4. Update source-based tests so they assert the preserved sentences are present; avoid negative assertions that incorrectly forbid intentionally preserved text.
+5. In the PR body, describe the preservation explicitly (for example: "keeps the two-sentence hero lead; only rewrites the first sentence and aligns metadata with the full lead").
+
+Pitfall observed in PR follow-up work: if a user asks to align meta description with `AcpHeroLead`, that is not permission to keep an accidentally shortened `AcpHeroLead`. First repair the hero lead to the user's intended full copy, then align the metadata.
 
 ## Recommended test approach for SEO baseline work
 
@@ -697,6 +731,23 @@ This avoids two subtle mismatches:
 - `required check exists in branch protection` + `workflow trigger skips the job entirely`
 - `required check is green` + `later CI jobs are still running or have failed`
 
+## External-to-local content link replacement
+
+Use this pattern when the user provides `querypie.com/ja/features/documentation/**` or similar external QueryPie content URLs and asks to replace them with local website content paths.
+
+1. Keep the work in one ongoing PR when the user says they will continue providing links, unless they explicitly request separate PRs.
+2. Search the runtime source first (`src/**`), not only the line numbers the user provided. If the same legacy URL appears in a shared runtime constant such as `src/content/*-links.ts`, update that too. Do not edit docs/example files unless the user asked for documentation cleanup.
+3. Map legacy documentation families to current local canonical routes:
+   - AIP introduction deck legacy URL -> `/introduction-deck/1/querypie-aip`.
+   - Whitepaper legacy detail URLs -> canonical gated PDF route `/whitepapers/<id>/<slug>/pdf` for CTA/download actions.
+   - Remember `/whitepapers/<id>/<slug>/download` is compatibility only; use `/pdf` for new internal CTA targets.
+4. Verify the local target exists by reading the relevant MDX frontmatter under `src/content/introduction-deck/*.mdx` or `src/content/whitepapers/*.mdx`. Use the frontmatter `slug` as the route slug; do not copy legacy typos such as `ai-tranformation-japan` when the local slug is corrected.
+5. Add or update source-inspection tests near the touched route/family:
+   - homepage route contracts belong in `tests/src/app/page.test.mjs`
+   - AI Dashi shared link constants can be pinned from `tests/src/app/solutions/ai-dashi/page.test.mjs`
+   - assert both the intended local route and absence of `https://www.querypie.com/ja/features/documentation` in touched runtime sources.
+6. Run the narrow node tests and a source grep for the legacy URLs under `src/` before committing.
+
 ## Verification
 
 Run:
@@ -718,6 +769,7 @@ Notes:
 
 ## Pitfalls
 
+- For corp-web-japan internal-link cleanup, verify the local canonical detail route from the repo-local publication skill/content records before replacing legacy `querypie.com/ja` URLs. In particular, use-case detail pages are `/use-cases/:id/:slug` while the use-case list route remains `/demo/use-cases`; do not convert detail CTAs to `/demo/use-cases/:id/:slug`.
 - Planning from memory or repo policy summaries before checking the latest `main` implementation and recent commits
 - Treating `branch created from origin/main` as sufficient, without also reading the latest-main files that define the current behavior
 - Reading local `main`, then editing a separate worktree without re-reading files there

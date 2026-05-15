@@ -229,16 +229,19 @@ When the user asks only about one project and wants a quick answer, prefer these
 
 ```bash
 vercel logs --project <project> --environment production --since 24h --status-code 500 --json --no-branch --limit 1000
-vercel logs --project <project> --environment production --since 24h --status-code 5xx --json --no-branch --limit 1000
+vercel logs --project <project> --environment production --since 24h --status-code 502 --json --no-branch --limit 1000
+vercel logs --project <project> --environment production --since 24h --status-code 503 --json --no-branch --limit 1000
+vercel logs --project <project> --environment production --since 24h --status-code 504 --json --no-branch --limit 1000
 vercel logs --project <project> --environment production --since 24h --level error --json --no-branch --limit 1000
 ```
 
 Interpretation pattern:
 - first confirm logs exist with `--limit 50`
-- then run direct `404`, `500`, and `5xx` checks
-- if all three return zero and the sample query clearly shows recent production logs, it is reasonable to conclude there were no recent 404/5xx entries in that window
+- then run direct `404`, explicit integer `5xx` status checks such as `500`/`502`/`503`/`504`, and the `--level error` query
+- do not use `--status-code 5xx` unless the current CLI help and a probe confirm it works; some Vercel CLI/API paths reject it with `Validation error: statusCode must contain only comma-separated integers`
+- if all explicit status checks return zero and the sample query clearly shows recent production logs, it is reasonable to conclude there were no recent runtime-visible 404/5xx entries in that window
 - do not assume a broad general sample is sufficient to rule out same-day `500`s: the general `vercel logs --json` stream is recency-ordered, so a noisy later `404` period can push earlier same-day `500` rows out of a bounded sample
-- if the broad sample and direct `500` query disagree, trust the direct status-specific result for existence, then inspect the returned `500` rows directly
+- if the broad sample and direct integer status query disagree, trust the direct status-specific result for existence, then inspect the returned rows directly
 
 ### E. Summarize by project
 
@@ -350,6 +353,11 @@ Use this pattern:
    - the cleaned sample excluding self-generated verification traffic
 
 This is especially important when only a few requests exist in the window.
+
+For dated wiki snapshots, be explicit about this in the data-integrity note:
+- if the snapshot is for the current day and manual checks happened after collection, state that the checks are not included in the counts
+- if you later recompute a completed full-day window, previous same-day manual checks may legitimately appear inside the status-specific log sample; do not say they are excluded unless you bounded the query with `--until` before those checks
+- keep manual live checks in a separate section from log-derived counts
 
 ### J. Path-specific redirect audits: parse the structured JSON embedded in `message`
 

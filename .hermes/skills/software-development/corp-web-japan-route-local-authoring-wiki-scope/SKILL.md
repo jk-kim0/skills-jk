@@ -123,9 +123,11 @@ Maintain at least these explicit family boundaries:
 
 If this boundary is being recorded in repository docs, update both the detailed route-local authoring guide and the short code-location conventions page when present.
 
-## Latest-main audit lessons from 2026-05-14 rewrite
+## Latest-main audit lessons from Route-Local Authoring wiki rewrites
 
-On the audited latest main commit `87a7f583fdd2af747a624d83f4f81cc8a993b187`, the Route-Local Authoring wiki needed these corrections:
+When rewriting `Route-Local-Authoring*`, always re-audit latest `origin/main` instead of preserving prior classifications. Recent rewrites showed these specific traps:
+
+### 2026-05-14 baseline (`87a7f583fdd2af747a624d83f4f81cc8a993b187`)
 
 - `/about-us` and `/certifications`
   - Do not classify them as `/t/*` preview-only or public upstream redirects if latest main has `src/app/about-us/page.tsx`, `src/app/certifications/page.tsx`, canonical metadata, and sitemap entries.
@@ -152,6 +154,29 @@ On the audited latest main commit `87a7f583fdd2af747a624d83f4f81cc8a993b187`, th
 - Wiki rewrite shape
   - The English `Route-Local-Authoring` page should be rewritten to match the same latest-main scope as `Route-Local-Authoring-ko`, not left as an older narrow static-marketing-candidate audit.
   - Keep the document framed as a non-MDX page-authoring/public-rollout tracker, not as a generic content migration dashboard.
+
+### 2026-05-15 baseline (`d0c32d876cfc7fd5746a2151e84b83b0ea3d45d5`)
+
+- Legal and cookie pages changed status substantially; do not leave them as preview-only or redirect-only:
+  - `src/app/cookie-preference/page.tsx` exists and `/cookie-preference` is a public local page.
+  - `src/app/eula/page.tsx` and `src/app/eula/content.mdx` exist; `/eula` is a public local legal page.
+  - `src/app/terms-of-service/page.tsx` and `src/app/terms-of-service/content.mdx` exist; `/terms-of-service` is a public local legal page.
+  - `src/app/privacy-policy/page.tsx`, `src/app/privacy-policy/[slug]/page.tsx`, and `src/content/privacy-policy/*.mdx` exist; `/privacy-policy` and `/privacy-policy/:slug` are public local versioned legal pages.
+- Sitemap nuance matters:
+  - Latest `src/app/sitemap.ts` includes `/cookie-preference` and `/eula` static routes.
+  - `/privacy-policy` and `/terms-of-service` are public local pages but were not static sitemap entries on this baseline; record this as a follow-up/policy check rather than assuming absence means the pages are not public.
+- ACP child pages changed status:
+  - `/t/platforms/acp/database-access-controller`, `/kubernetes-access-controller`, `/system-access-controller`, `/web-access-controller`, and `/integrations` preview pages exist.
+  - Public `/platform/security/*` routes still redirect upstream, so classify these as `partial` preview-local/public-redirect, not `not yet migrated`.
+  - ACP integrations has preview implementation but still needs public canonical route decision.
+- Pricing nuance:
+  - `src/app/t/plans/page.tsx` exists as preview.
+  - `src/app/pricing/calculator/page.tsx` only calls `notFound()` and should not be documented as a public pricing implementation.
+- Developer/guidance docs expanded:
+  - Mention `docs/route-local-refactoring-examples.md`, `docs/route-local-refactoring-examples.ko.md`, `docs/company-page-layout-contract.md`, `docs/legal-mdx-refactoring-rules.md`, `docs/route-aligned-mdx-authoring-for-developers.md`, `docs/route-aligned-mdx-authoring-for-developers.ko.md`, and `docs/browser-render-parity-comparison.md` when summarizing current repository guidance.
+- Priority order changed:
+  - Remove legal/cookie public rollout from the remaining priority list once these are public local pages.
+  - Focus remaining Route-Local Authoring priorities on platform/service public taxonomy, AIP/ACP preview-to-public rollout, ACP integrations route decision, and pricing/key-values scope decisions.
 
 ## Recommended verification queries
 

@@ -14,6 +14,17 @@ metadata:
 
 Use this when the user says a local/preview corp-web-japan page should *look the same* as a live reference page, especially for static marketing/company pages like `/about-us`, and wants the rendered content body aligned rather than merely the text copied.
 
+## High-signal parity details to check
+
+Do not stop at section geometry, table/card widths, and screenshots. Also compare small rendered UI semantics that users notice immediately:
+- CTA suffix icons/glyphs: distinguish external-link arrows like `↗` from chevrons like `>` or SVG `ButtonArrowIcon` shapes.
+- Icon source and shape: if the reference uses an SVG component, inspect its `viewBox` and `path`, not only `innerText`.
+- Button/link affordance text: compare the visible label plus any aria-hidden icon together, not only the text label.
+
+Reference: `references/cta-glyph-parity.md` records the `/t/plans` lesson where screenshot review should have caught a `↗` text glyph replacing the upstream chevron SVG contract.
+
+Plans-page example: `corp-web-app` plan CTAs render through `ButtonLink` with `ButtonArrowIcon` (`viewBox="0 0 7 12"`, chevron path `M7 6L0.865033 12L0 11.154L5.26381 6L0 0.846L0.865033 0L7 6Z`). A local/stage `/t/plans` CTA using a text `↗` marker is a parity defect even if the button size and layout are otherwise close. Add or update a structure test for this icon contract when fixing it.
+
 ## Why this skill exists
 
 For page-parity work, code inspection alone is not enough.
@@ -1443,6 +1454,12 @@ Heuristic for future audits:
 - overfitting to screenshot vision summaries when DOM measurements disagree
 - matching text but leaving major size/spacing differences in place
 - adding extra card shadows, borders, or wrappers when the live page is flatter
+
+## Plans / pricing widget parity note
+
+When comparing `/t/plans` against `../corp-web-app`, treat it as a widget-contract page, not a generic static marketing page. In addition to text and route-local JSX structure, inspect the upstream pricing and compare-table component CSS. A recurring defect is a padding-only comparison-table scroll wrapper: upstream expands the scroll container into the page gutters with matching negative margin and padding, so the fixed-width table starts at the content edge on desktop and remains scrollable on mobile even when the page `main` uses `overflow-x-hidden`. Preserve that gutter-expanded wrapper contract rather than centering or padding-shifting the table inside the content area.
+
+For mobile render evidence, use real mobile emulation (`deviceScaleFactor`, `isMobile`, `hasTouch`) rather than only resizing a desktop page; otherwise Chrome can report a wider layout viewport and hide clipping/scrollbar issues.
 
 ## Done criteria
 

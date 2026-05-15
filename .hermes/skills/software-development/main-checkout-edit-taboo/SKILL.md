@@ -132,6 +132,37 @@ Preferred handling for that case:
 6. create a fresh worktree/branch from that clean latest-main baseline
 7. do the new task only in the fresh worktree
 
+Important variant: the user may ask for both `main` refresh and immediate PR creation from the already-dirty root changes.
+
+In that case, do not stop after merely preserving the dirty root on a branch.
+Use this exact sequence:
+1. commit the meaningful root changes onto a non-main branch from the root checkout
+2. switch root back to `main`
+3. fast-forward root `main` to latest `origin/main`
+4. open a fresh linked worktree for the preserved branch
+5. rebase that preserved branch onto the refreshed `origin/main`
+6. verify the PR diff is now only the intended preserved change
+7. push and create the PR from the non-main worktree
+
+Why this variant matters:
+- it satisfies the user's `main 업데이트` request immediately instead of leaving root `main` stale
+- it avoids opening a PR whose base is older than the freshly updated `origin/main`
+- it keeps the review diff narrow and avoids mixing root-control cleanup with feature/docs preservation
+
+Recommended verification for this variant:
+```bash
+git status --short --branch
+git rev-parse main
+git rev-parse origin/main
+git -C .worktrees/<flat-name> rev-list --oneline origin/main..HEAD
+git -C .worktrees/<flat-name> diff --name-only origin/main...HEAD
+```
+
+Practical rule for generated local runtime files during this preservation flow:
+- do not automatically add machine-local generated files just because they are untracked in the dirty root checkout
+- classify and usually exclude obvious runtime/usage artifacts such as lock files or local usage state when they are not part of the intended repo change
+- commit only the meaningful tracked files plus any intentional new authored reference/doc/source files
+
 Example pattern:
 
 ```bash
