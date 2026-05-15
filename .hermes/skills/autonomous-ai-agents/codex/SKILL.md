@@ -58,6 +58,50 @@ process(action="kill", session_id="<id>")
 | `--full-auto` | Sandboxed but auto-approves file changes in workspace |
 | `--yolo` | No sandbox, no approvals (fastest, most dangerous) |
 
+## Config troubleshooting
+
+Codex CLI config is commonly at `~/.codex/config.toml`. For Codex CLI 0.130.0 model/service-tier details and a known-good gpt-5.5 config, see `references/codex-cli-0.130-model-and-service-tier.md`.
+
+If Codex fails with:
+
+```
+Error loading config.toml: unknown variant `standard`, expected `fast` or `flex`
+in `service_tier`
+```
+
+then the installed Codex CLI no longer accepts `service_tier = "standard"`. Do not blindly change this to `fast`: if the user's intent is normal/non-fast mode, remove the `service_tier` line entirely so Codex uses its default service tier.
+
+Do not use `service_tier = "flex"` as the automatic replacement unless verified against the user's account/API path; some setups parse it locally but fail at runtime with `Unsupported service_tier: flex`.
+
+Verify config parsing with a lightweight command such as `codex --help`. If possible, also run a minimal Codex command that reaches the API before declaring the fix complete.
+
+## Model selection
+
+For repo-heavy coding workflows, prefer `gpt-5.5` with `model_reasoning_effort = "high"` as the default when it is available and verified with a minimal `codex exec` call. Keep `gpt-5.4` as a balanced fallback for routine coding or when stability/predictability matters more than frontier model quality. Keep `gpt-5.4-mini` for explicitly fast/simple tasks.
+
+Recommended profile shape:
+
+```toml
+model = "gpt-5.5"
+model_reasoning_effort = "high"
+
+[profiles.fast]
+model = "gpt-5.4-mini"
+model_reasoning_effort = "low"
+
+[profiles.balanced]
+model = "gpt-5.4"
+model_reasoning_effort = "medium"
+
+[profiles.deep]
+model = "gpt-5.5"
+model_reasoning_effort = "high"
+
+[profiles.deep_xhigh]
+model = "gpt-5.5"
+model_reasoning_effort = "xhigh"
+```
+
 ## PR Reviews
 
 Clone to a temp directory for safe review:
