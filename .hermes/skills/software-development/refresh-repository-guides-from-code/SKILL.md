@@ -26,15 +26,15 @@ Use when the user asks to bring repository guidance up to date with the current 
 
 - Confirm the target repository and active branch/worktree.
 - Fetch `origin --prune`.
-- Create a fresh docs branch from `origin/main` unless the user explicitly wants a different base.
+- Create a fresh docs worktree/branch from `origin/main` unless the user explicitly wants a different base.
 - Verify the merge-base matches `origin/main` before editing.
 
 Example:
 ```bash
 git fetch origin --prune
-git checkout -b docs/refresh-guides origin/main
-git merge-base HEAD origin/main
-git rev-parse origin/main
+git worktree add .worktrees/docs-refresh-guides -b docs/refresh-guides origin/main
+git -C .worktrees/docs-refresh-guides merge-base HEAD origin/main
+git -C .worktrees/docs-refresh-guides rev-parse origin/main
 ```
 
 ### 2. Inspect recent commits before reading docs

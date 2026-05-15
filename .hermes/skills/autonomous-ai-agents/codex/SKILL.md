@@ -70,8 +70,8 @@ terminal(command="REVIEW=$(mktemp -d) && git clone https://github.com/user/repo.
 
 ```
 # Create worktrees (follow repo-root-worktree-path-policy)
-terminal(command="git worktree add .worktrees/issue-78 -b fix/issue-78 main", workdir="~/project")
-terminal(command="git worktree add .worktrees/issue-99 -b fix/issue-99 main", workdir="~/project")
+terminal(command="git worktree add .worktrees/issue-78 -b fix/issue-78 origin/main", workdir="~/project")
+terminal(command="git worktree add .worktrees/issue-99 -b fix/issue-99 origin/main", workdir="~/project")
 
 # Launch Codex in each
 terminal(command="codex --yolo exec 'Fix issue #78: <description>. Commit when done.'", workdir="~/project/.worktrees/issue-78", background=true, pty=true)

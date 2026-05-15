@@ -57,7 +57,7 @@ Interpretation:
 git fetch origin --prune
 git checkout main
 git pull --ff-only origin main
-git worktree add .worktrees/<flat-name> -b <branch-name> main
+git worktree add .worktrees/<flat-name> -b <branch-name> origin/main
 ```
 
 Then verify the fresh worktree base:

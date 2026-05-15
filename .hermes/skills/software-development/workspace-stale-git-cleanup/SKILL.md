@@ -187,8 +187,8 @@ Additional practical root-cleanup case:
 - do **not** assume stash is the best preservation method; many users consider stash-based preservation lower value than keeping an inspectable worktree/branch
 - preferred order:
   1. keep the work on a branch/worktree when preservation meaningfully matters
-  2. only use a narrowly-scoped stash when the user clearly prioritizes finishing cleanup over keeping that work visible in git state, or when the same work is already preserved elsewhere
-- this avoids turning meaningful local work into easy-to-forget stash entries just to make cleanup appear complete
+  2. if root `main` must be refreshed, first copy the full dirty file set into a fresh latest-`origin/main` preserve worktree/branch and verify it there
+- this avoids turning meaningful local work into easy-to-forget hidden state just to make cleanup appear complete
 - another safe stale case is a branch-backed worktree whose branch has no PR, is clean, and its tip is already exactly `origin/main` (or tracks `origin/main` with no unique commits); in that case both the worktree and local branch are just redundant local clones of main and can be removed
 
 Important counter-case for root checkouts:
@@ -212,14 +212,14 @@ Additional practical root-cleanup case:
 - do **not** assume stash is the best preservation method; many users consider stash-based preservation lower value than keeping an inspectable worktree/branch
 - preferred order:
   1. keep the work on a branch/worktree when preservation meaningfully matters
-  2. only use a narrowly-scoped stash when the user clearly prioritizes finishing cleanup over keeping that work visible in git state, or when the same work is already preserved elsewhere
-- this avoids turning meaningful local work into easy-to-forget stash entries just to make cleanup appear complete
-- in PR-heavy repos this can happen repeatedly during one cleanup session because `origin/main` keeps advancing while the user continues asking for cleanup; each new root-local skill tweak should be stashed before the next fast-forward so `main` can return to a clean synced state
+  2. if cleanup must continue, create another fresh latest-`origin/main` preserve worktree/branch instead of defaulting to stash
+- this avoids turning meaningful local work into easy-to-forget hidden state just to make cleanup appear complete
+- in PR-heavy repos this can happen repeatedly during one cleanup session because `origin/main` keeps advancing while the user continues asking for cleanup; each new root-local tweak should be preserved onto a fresh worktree/branch before the next fast-forward so `main` can return to a clean synced state
 
 Worktree-local variant:
 - a merged stale worktree can also contain small local-only skill/doc tweaks under `.agents/skills/**`
-- if the worktree is otherwise stale and removable, stash those edits from inside that worktree first, then remove the worktree
-- this avoids preserving the whole stale worktree just for a tiny local procedural note
+- if the worktree is otherwise stale and removable, transplant those edits into a fresh preserve worktree/branch first, then remove the stale worktree
+- this avoids preserving the whole stale worktree just for a tiny local procedural note while still keeping the edits reviewable in git history
 
 Disposable scratch-file variant:
 - active or still-kept worktrees can accumulate untracked helper files such as `.tmp_pr_body.md` or `.tmp_pr_body_<name>.md`
@@ -240,12 +240,12 @@ Important counter-case:
 - do **not** delete the worktree just because the branch currently equals `origin/main` if the worktree itself is dirty
 - a clone-of-main helper worktree can accumulate real unpublished local edits and then cease to be redundant, even if its branch started as an exact alias of `origin/main`
 - in that situation, preserve the worktree and treat it as active local work until the dirt is explicitly resolved or discarded
-- after stashing or otherwise changing root-local cleanup residue, re-check the helper worktree again; its branch head or classification may no longer match the earlier snapshot
+- after preserving or otherwise changing root-local cleanup residue, re-check the helper worktree again; its branch head or classification may no longer match the earlier snapshot
 
 Worktree-local variant:
 - a merged stale worktree can also contain small local-only skill/doc tweaks under `.agents/skills/**`
-- if the worktree is otherwise stale and removable, stash those edits from inside that worktree first, then remove the worktree
-- this avoids preserving the whole stale worktree just for a tiny local procedural note
+- if the worktree is otherwise stale and removable, transplant those edits into a fresh preserve worktree/branch first, then remove the stale worktree
+- this avoids preserving the whole stale worktree just for a tiny local procedural note while still keeping the edits reviewable in git history
 
 ## Temporary PR-body files inside stale worktrees
 
@@ -340,9 +340,9 @@ When workspace cleanup includes bringing root `main` to `origin/main`, verify th
 Helpful sequence:
 - `git status --short --branch`
 - if root is clean, run `git pull --ff-only origin main`
-- if root contains local-only helper or skill work, stash just that scoped path before the fast-forward
+- if root contains local-only helper or skill work, preserve the full dirty set onto a fresh latest-`origin/main` worktree/branch before the fast-forward
 
-This is especially useful when the root dirt came from untracked repo-local agent skill files. Preserve them with a narrowly-scoped stash instead of leaving `main` behind remote.
+This is especially useful when the root dirt came from untracked repo-local agent skill files. Preserve them in a reviewable worktree/branch instead of leaving `main` behind remote or hiding them in a stash.
 
 ## Practical execution lesson: repeated cleanup passes can reveal new sibling helper worktrees
 

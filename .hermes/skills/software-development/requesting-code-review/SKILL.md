@@ -70,7 +70,7 @@ git diff --cached | grep "^+" | grep -E "execute\(f\"|\.format\(.*SELECT|\.forma
 ## Step 3 — Baseline tests and linting
 
 Detect the project language and run the appropriate tools. Capture the failure
-count BEFORE your changes as **baseline_failures** (stash changes, run, pop).
+count BEFORE your changes as **baseline_failures** from an isolated clean context (for example a fresh worktree or a clean branch state), not by defaulting to stash/pop in the active checkout.
 Only NEW failures introduced by your changes block the commit.
 
 **Test frameworks** (auto-detect by project files):
@@ -222,7 +222,7 @@ After the fix agent completes, re-run Steps 1-6 (full verification cycle).
 - Passed: proceed to Step 8
 - Failed and attempts < 2: repeat Step 7
 - Failed after 2 attempts: escalate to user with the remaining issues and
-  suggest `git stash` or `git reset` to undo
+  suggest preserving the current state on a branch/worktree or using targeted `git restore` / `git reset` only if they explicitly want to discard it
 
 ## Step 8 — Commit
 

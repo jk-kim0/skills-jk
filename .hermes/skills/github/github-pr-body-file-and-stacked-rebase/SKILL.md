@@ -61,7 +61,7 @@ If the branch is clean:
 git rebase origin/main
 ```
 
-## 2b. If the working tree is dirty, stash first and reapply after rebase
+## 2b. If the working tree is dirty, preserve it in an isolated worktree before rebase
 
 A common practical case:
 - the branch has uncommitted tracked changes
@@ -69,24 +69,21 @@ A common practical case:
 - you need the current local work moved onto the latest `main` without discarding it
 
 Do not try to `checkout main` or start a rebase with a dirty tree.
-Instead:
+Instead preserve the current dirty state in an isolated worktree/branch, then rebase from that clean context:
 
 ```bash
 git status --short --branch
-git stash push -u -m '<branch> pre-rebase'
-git rebase origin/main
+git fetch origin --prune
+git worktree add .worktrees/<flat-name> -b <branch-name>-rebase origin/main
+# copy or apply the intended local diff into that worktree, then rebase/continue there if needed
 ```
 
-Then reapply the local work:
-
-```bash
-git stash pop
-```
+Then continue the rebase from the isolated worktree instead of reapplying a stash into the original dirty checkout.
 
 Important observations from real use:
 - `git rebase origin/main` may report `skipped previously applied commit ...` when the branch commit already exists in `main`; this is often correct and not itself an error
-- after such a skip, `HEAD` can end up exactly at `origin/main`, and the real remaining work is only in the reapplied stash
-- if `git stash pop` hits conflicts, Git keeps the stash entry instead of dropping it; keep it until resolution is verified
+- after such a skip, `HEAD` can end up exactly at `origin/main`; verify whether the remaining intended local work still needs to be transplanted from the preserved worktree
+- if the transplanted local patch conflicts, resolve it in the isolated worktree and verify the resulting diff before touching the original checkout
 
 Useful checks before deciding whether a skipped commit is safe:
 
@@ -286,9 +283,9 @@ Then replace the body with a body file describing:
 - Do not forget to force-push after a rewritten history rebase.
 - Do not leave the PR body describing old stacked/base changes after rebasing onto `main`.
 - If you are rebasing a different open PR branch while your current checkout has unrelated local changes, do not perform the rebase in the dirty working tree. Create a temporary isolated worktree from the remote PR branch, rebase there, and force-push from that isolated worktree.
-- When `stash pop` conflicts on markdown memory/config files, merge by preserving both durable additions unless one clearly supersedes the other.
+- When preserved local markdown memory/config changes conflict during the transplant onto the rebased branch, merge by preserving both durable additions unless one clearly supersedes the other.
 - For `rename/delete` conflicts after upstream skill restructuring, decide explicitly whether your local intent was “delete this content” or “edit the moved file”; do not accept Git's default blindly.
-- If `stash pop` reported conflicts, do not drop the stash until `git status` shows no unmerged paths and the resulting diff matches your intended local work.
+- If the preserved local patch reported conflicts during re-application, do not discard the preserved source until `git status` shows no unmerged paths and the resulting diff matches your intended local work.
 - When the top of a stack is a CI/path-scope PR and lower stacked PRs moved or renamed tests/files, rebasing the CI PR onto the new stack tip is not enough by itself. Reconcile both sources of truth for scope classification in the same update:
   - the GitHub workflow `paths-filter` globs
   - the repo-local matcher/assertion logic (for example `scripts/ci/test-groups.mjs` plus `assert-test-groups.mjs`)
@@ -333,11 +330,11 @@ Useful rule of thumb:
 ## Minimal checklist
 
 - verify PR base/head
-- if working tree is dirty, `git stash push -u` first
+- if working tree is dirty, preserve it in an isolated worktree/branch first
 - rebase onto `origin/main`
 - inspect conflicts
 - skip only duplicate already-merged stacked commits
-- `git stash pop` and resolve any post-rebase conflicts
+- re-apply the preserved local patch and resolve any post-rebase conflicts
 - verify `HEAD`, `origin/main`, and `merge-base` alignment
 - force-push updated history
 - refresh PR body with `--body-file`

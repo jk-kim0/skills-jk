@@ -139,7 +139,7 @@ Use a flat worktree directory name, not one derived mechanically from a branch n
 Example:
 
 ```bash
-git worktree add .worktrees/blog-mdx-ja-all -b feat/blog-mdx-ja-all main
+git worktree add .worktrees/blog-mdx-ja-all -b feat/blog-mdx-ja-all origin/main
 ```
 
 Then verify it is a real linked worktree:
