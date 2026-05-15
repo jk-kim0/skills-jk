@@ -1,6 +1,6 @@
 ---
 name: codebase-inspection
-description: Inspect and analyze codebases using pygount for LOC counting, language breakdown, and code-vs-comment ratios. Use when asked to check lines of code, repo size, language composition, or codebase stats.
+description: Inspect and analyze codebases using lightweight file/content search and pygount for LOC counting, language breakdown, and code-vs-comment ratios. Use when asked to find repo documents/files, check lines of code, repo size, language composition, or codebase stats.
 version: 1.0.0
 author: Hermes Agent
 license: MIT
@@ -14,10 +14,11 @@ prerequisites:
 
 # Codebase Inspection with pygount
 
-Analyze repositories for lines of code, language breakdown, file counts, and code-vs-comment ratios using `pygount`.
+Analyze repositories for targeted documents/files, lines of code, language breakdown, file counts, and code-vs-comment ratios. Prefer the lightest inspection that answers the user’s actual question; use `pygount` only for repo metrics.
 
 ## When to Use
 
+- User asks to find a document or file in a repo, especially under a specific directory
 - User asks for LOC (lines of code) count
 - User wants a language breakdown of a repo
 - User asks about codebase size or composition
@@ -38,6 +39,34 @@ pip install --break-system-packages pygount 2>/dev/null || pip install pygount
 ```
 
 If the `pygount` shell command is missing but the Python package is installed, use the module entrypoint below instead. On some environments, `python3 -m pygount` does not work because the package has no `__main__`; `python3 -m pygount.command` is the reliable fallback.
+
+## 0. Lightweight Document/File Lookup
+
+When the user asks to “find the goal doc under docs” or similar, do not stop at filename matching. Use a two-pass lookup:
+
+1. Search filenames in the requested subtree for the literal clue and common variants.
+2. If filename search is empty or ambiguous, search Markdown headings and nearby content for the same clue.
+3. Report concise results with exact path and line numbers. If no filename matches, say that explicitly and distinguish it from content/heading matches.
+
+Example shape:
+
+```bash
+# filename clue
+find docs -iname '*goal*' -type f
+
+# heading/content clue
+rg -n --glob '*.md' '^(#+ .*\b[Gg]oals?\b)|\b[Gg]oals?\b' docs
+```
+
+For user-facing replies, prefer a short answer like:
+
+```text
+docs/plans/example.md
+- line 5: ## Goal
+- line 7: <one-line summary>
+
+파일명에 goal이 들어간 문서는 없습니다.
+```
 
 ## 1. Basic Summary (Most Common)
 
@@ -131,4 +160,4 @@ Special pseudo-languages:
 3. **JSON files show low code counts** — pygount may count JSON lines conservatively. For accurate JSON line counts, use `wc -l` directly.
 4. **Large monorepos** — for very large repos, consider using `--suffix` to target specific languages rather than scanning everything.
 5. **Stop quickly if the scan is slower than expected** — if a repo-wide scan on a docs/content-heavy repo does not return promptly, interrupt it and switch to a narrower inspection. Do not keep waiting on a long-running analysis when a lighter method would answer the user’s actual question.
-6. **Docs/content repos can be misleadingly expensive** — repositories with large `var/`, cached exports, generated snapshots, or content mirrors may look simple but still be expensive to scan. Narrow the target path or skip LOC analysis unless the user explicitly wants codebase metrics.
+7. **Do not equate filename misses with document misses** — when a user asks for a “goal doc” or similarly named document, a filename-only search may return nothing while the real target has a `## Goal` heading. Follow filename search with heading/content search before reporting no result.

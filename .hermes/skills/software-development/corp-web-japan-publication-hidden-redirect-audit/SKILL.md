@@ -42,6 +42,27 @@ Order matters:
 
 ## Audit workflow
 
+### 0. Classify legacy in-body QueryPie resource links before changing them
+
+When the task is to replace `https://www.querypie.com/ja/**` links inside publication/article/whitepaper/blog MDX bodies:
+
+1. Search the touched MDX files for the exact legacy URLs first.
+2. Extract the legacy resource family, numeric id, slug, and optional hash fragment.
+3. Check the current local content corpus before deciding the replacement:
+   - whitepapers: `src/content/whitepapers/<id>-*.mdx` and frontmatter `slug`
+   - blog: `src/content/blog/<id>-*.mdx` and frontmatter `slug`
+   - news/events/demo/use-cases: corresponding `src/content/<family>/` roots
+4. If a local canonical record exists, replace the external URL with the local canonical path and preserve any hash fragment exactly.
+   - Example: `https://www.querypie.com/ja/resources/discover/white-paper/8/secure-login-token-management#脅威の種類` -> `/whitepapers/8/secure-login-token-management#脅威の種類`
+5. If no local canonical record exists, do **not** invent a local path. Classify the item first as one of:
+   - needs full local migration
+   - needs hidden shadow record with `redirectUrl`
+   - needs route-level legacy redirect only
+   - should remain external because there is no local replacement yet
+6. After editing, search the touched files for the old `www.querypie.com/ja` resource namespace and confirm zero residue for the requested URLs.
+
+Useful example details from a successful link-replacement pass are in `references/legacy-inbody-resource-link-replacement.md`.
+
 ### 1. Inspect record-loader support
 
 Read the relevant `src/lib/publications/*-publication-records.ts` file and confirm:

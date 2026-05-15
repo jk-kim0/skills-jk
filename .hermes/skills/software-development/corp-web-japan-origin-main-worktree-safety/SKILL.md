@@ -198,6 +198,8 @@ For a fresh branch with no new commits yet, these should all match.
 6. Preserve latest merged content exactly unless the user asked to change it.
 - Titles and branding labels are especially easy to regress.
 - If a recent PR finalized labels/titles, keep them untouched while adding new metadata fields.
+- In live-parity or migration-goal follow-up work, do not automatically treat live/corp-web-contents wording as authoritative over latest-main product-copy decisions. If the user says a PR is reverting an intentional latest-main title, hero lead, or metadata description change, update the governing goal/plan/skill doc to mark that wording as an intentional parity exception rather than changing the route back.
+- For bilingual goal documents, mirror the exception in both language sections so future agents reading either half avoid the same revert.
 
 6. For metadata / SEO work, add a failing test first.
 - Prefer a small repository-level regression test that checks file contents or metadata patterns.
