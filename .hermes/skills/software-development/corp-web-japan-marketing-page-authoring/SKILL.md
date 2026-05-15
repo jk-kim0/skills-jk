@@ -189,6 +189,25 @@ Recommended assertions after the move:
 
 Do not leave old tests asserting that page-level intro strings still live inside the form/component file after the authoring split.
 
+## Follow-up PRs for already-merged static preview pages
+
+When the user asks to perform route-local refactoring “for” an already-merged PR:
+- first check the referenced PR state with `gh pr view <number>`
+- if it is merged, do not revive or push to the old PR branch
+- start a fresh worktree from the latest `origin/main`, inspect the merged PR's file list, and create a new refactor PR scoped to the merged surfaces
+- use the merged PR only as the source inventory for target routes/assets/tests
+
+For static preview routes that were initially added with data-driven section renderers, a good follow-up route-local refactor is:
+- move visible copy, section headings, card titles/descriptions, CTA labels, and image composition into each route `page.tsx` as direct JSX
+- convert the shared section file from prop/data renderers into UI-only primitives such as `*Section`, `*Heading`, `*LeadGroup`, `*Card`, `*CardTitle`, `*CardDescription`, `*Grid`, `*Image`, and CTA primitives
+- keep route-level arrays only when they are the clearer authoring surface for large homogeneous catalogs; controller/static marketing pages should usually avoid top-level blobs like `const heroDescription`, `const keyFeatures`, and `const capabilityImages`
+- update narrow source tests to assert both sides of the contract: route files no longer define the removed data blobs and shared section modules no longer contain hardcoded marketing copy or `.map()`-based data renderers
+
+Practical pattern from ACP static preview route follow-up:
+- PR #506 added ACP static preview pages under `/t/platforms/acp/**` with page-local data arrays and shared `src/components/sections/acp/static-page.tsx` renderers
+- the route-local follow-up rebuilt the four controller pages so copy/cards/gallery/CTA are authored directly in `page.tsx`, while `static-page.tsx` exports UI primitives only
+- the integrations route already had a large homogeneous catalog and route-owned hero/category/product data, so the follow-up only aligned its shared CTA usage instead of forcing every catalog item into JSX
+
 ### Important source-reader pitfall
 
 In corp-web-japan, some test helpers prefer externalized sources first, for example:

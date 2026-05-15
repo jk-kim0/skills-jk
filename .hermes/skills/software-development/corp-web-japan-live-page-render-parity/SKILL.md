@@ -19,6 +19,7 @@ Use this when the user says a local/preview corp-web-japan page should *look the
 For page-parity work, code inspection alone is not enough.
 
 Reference notes:
+- `references/source-backed-widget-parity.md` — source-backed widget parity workflow: screenshot diff as hotspot detection, DOM/computed-style proof, and upstream component/CSS contract checks before accepting Tailwind rebuilds.
 - `references/about-us-parity-pitfalls.md` — concrete `/about-us` pitfalls for CTA-width interpretation and mixed-width team-card measurement.
 - `references/pr-preview-stage-render-audit-pattern.md` — reusable pattern for auditing a PR Preview Deployment against `stage.querypie.ai` across affected routes using Playwright geometry, screenshot pixel diffs, and wrapper padding/gutter root-cause analysis.
 - `references/certifications-mobile-gutter-audit.md` — concrete `/certifications` narrow-mobile gutter/card-width audit showing how `px-[30px]` behaves at 300/320/360/390px and when to prefer a card-gallery gutter preset.
@@ -36,10 +37,12 @@ Important findings from real usage:
 - Vision summaries can misread sparse/long pages and sometimes describe empty areas incorrectly.
 - The most reliable method is to combine:
   1. actual browser navigation to both URLs,
-  2. screenshots,
+  2. screenshots / pixel-diff artifacts as hotspot detection,
   3. DOM geometry from `getBoundingClientRect()`,
-  4. measured image sizes/positions,
-  5. local preview verification on the exact branch/worktree.
+  4. computed styles from `getComputedStyle()`,
+  5. measured image sizes/positions,
+  6. source/component/CSS contract inspection when the reference implementation exists in `../corp-web-app`,
+  7. local preview verification on the exact branch/worktree.
 - For PR follow-up visual fixes, the exact Vercel preview deployment URL can be a more trustworthy final reference than local dev, because the preview may render spacing rhythm differently enough for users to notice.
 - In particular, heading-spacing parity can fail if you optimize only against local dev measurements; always re-open the exact preview URL the user is looking at before concluding the spacing is fixed.
 - `next start` / local preview can serve stale output if you forget to rebuild or restart after changes.
@@ -78,12 +81,14 @@ Capture:
 - screenshots
 - DOM geometry for key sections
 
-### 2. Use screenshots, but do not trust vision alone
-Use `browser_vision()` to get a quick section-order/layout summary, but treat it as provisional.
+### 2. Use screenshots, but do not trust vision or screenshot diff alone
+Use `browser_vision()` and screenshot/pixel diff artifacts to get a quick section-order/layout/hotspot summary, but treat them as provisional.
 
 Important lesson:
+- Screenshot diff is effective for detecting visible drift, but it is not proof of root cause by itself.
 - On long pages with lots of whitespace, vision can misread the page as "mostly empty" even when the DOM contains the intended sections.
-- When vision and DOM disagree, trust the DOM + browser console measurements.
+- When vision/screenshot and DOM disagree, trust the DOM + browser console measurements.
+- For source-backed widget pages, after a screenshot hotspot is found, continue to DOM geometry, computed styles, and upstream component/CSS contract inspection before deciding the fix.
 
 ### 3. Measure real geometry in the browser console
 For parity work, always extract measured positions/sizes for the exact body elements you care about.
@@ -222,6 +227,8 @@ A page can have all the same headings and paragraphs yet still differ due to:
 - source-backed widget/application-contract pages being manually reimplemented with local Tailwind primitives instead of preserving the upstream component/CSS contract
 
 When upstream source exists for a widget page, inspect and preserve the source component chain first. Do not treat the source as merely a visual reference to approximate with new primitives unless a direct-port strategy has been explicitly rejected.
+
+For source-backed widget pages, text snapshots and route-local authorship also do not prove the upstream widget contract was preserved. If the reference implementation exists in `../corp-web-app`, inspect the upstream component chain and CSS modules before accepting a local Tailwind approximation. See `references/source-backed-widget-parity.md`.
 
 Important concrete lesson from `/t/solutions/aip/usage-based-llm` preview migration:
 - a migrated page can look superficially correct in snapshots because all headings, paragraphs, and images are present in the right order

@@ -94,6 +94,19 @@ git rev-parse origin/main
 
 If they do not match, stop and inspect the branch ancestry before proceeding.
 
+Important interpretation rule for later review/debugging:
+- distinguish `local main was updated` from `the current root checkout was switched back to main`
+- a repository can have an up-to-date `main` ref while the root workspace is still checked out to some feature branch
+- when validating whether a PR branch was correctly based/rebased onto latest main, compare the PR head against the base tip that existed at PR creation/update time, not against a newer `origin/main` that may already include that PR merge
+- especially for merged PRs, `current origin/main` can be ahead by exactly the merge commit that absorbed the PR; that does **not** mean the PR branch failed to rebase onto latest main before merge
+- practical checks:
+  ```bash
+  gh pr view <number> --json headRefName,headRefOid,baseRefName,mergeCommit
+  git merge-base <pre-merge-base-tip> <pr-head-sha>
+  git rev-list --left-right --count <pre-merge-base-tip>...<pr-head-sha>
+  ```
+- use this wording discipline in reports too: say `root checkout was not restored to main yet` rather than incorrectly saying `main was not updated`
+
 Branch naming conventions:
 - `feat/description` — new features
 - `fix/description` — bug fixes

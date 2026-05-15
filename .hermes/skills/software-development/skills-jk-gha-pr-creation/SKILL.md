@@ -58,6 +58,10 @@ Trigger this skill when:
    - If you need a branch-specific lookup, use `gh pr list --head <branch>` or `gh pr view <branch>`.
    - Do not use `gh pr view --head <branch>`; that flag is not supported by `gh pr view` and fails with `unknown flag: --head`.
    - Do not rely on `gh run list --branch <branch>` to prove the PR-creation workflow ran; that branch filter may show nothing for this workflow even when PR creation succeeded.
+   - After the final push/update, verify the actual remote branch ref directly before trusting PR metadata:
+     - `git rev-parse HEAD`
+     - `git ls-remote origin refs/heads/<branch>`
+   - Treat the remote ref match as the source of truth for whether the branch tip really reached GitHub. `gh pr view` / `gh pr status` can lag briefly after push or workflow-driven PR creation.
    - Report the PR number and URL
 
 ## If a PR already exists
