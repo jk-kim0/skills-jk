@@ -175,7 +175,9 @@ find .worktrees/<topic> -maxdepth 2 | sed -n '1,30p'
 Important extra lesson:
 - do not trust the `git worktree add` success message by itself
 - in practice, a worktree creation can appear to succeed yet leave no usable directory at the requested path
-- explicitly verify that the target directory now exists before any `read_file`, `patch`, or follow-up shell command
+- explicitly verify that the target directory now exists before any `read_file`, `patch`, generated asset write, or follow-up shell command
+- tool cwd can drift between commands (for example into the repo `.worktrees/` directory), so do not rely on implicit relative workdirs after worktree creation; use absolute worktree paths for both `workdir` and file paths until the PR is pushed
+- if a follow-up command reports `cd: <worktree>: No such file or directory`, stop immediately and re-run `pwd`, `git rev-parse --show-toplevel`, `git worktree list --porcelain`, and `find <repo-root> -maxdepth 2 -type d -name '<flat-topic>'` before editing; do not create files from the drifted cwd
 - when scripting the target path, avoid accidentally passing a literal shell variable segment or branch path with slashes into the directory name; prefer a short flat `.worktrees/<topic>` path and verify the final path with `pwd` / `realpath` / `rev-parse --show-toplevel`
 - if the directory is missing or the checkout landed under an unintended nested path, remove that bad worktree, prune if needed, and recreate it under `.worktrees/<flat-topic>`
 
@@ -198,8 +200,6 @@ For a fresh branch with no new commits yet, these should all match.
 6. Preserve latest merged content exactly unless the user asked to change it.
 - Titles and branding labels are especially easy to regress.
 - If a recent PR finalized labels/titles, keep them untouched while adding new metadata fields.
-- In live-parity or migration-goal follow-up work, do not automatically treat live/corp-web-contents wording as authoritative over latest-main product-copy decisions. If the user says a PR is reverting an intentional latest-main title, hero lead, or metadata description change, update the governing goal/plan/skill doc to mark that wording as an intentional parity exception rather than changing the route back.
-- For bilingual goal documents, mirror the exception in both language sections so future agents reading either half avoid the same revert.
 
 6. For metadata / SEO work, add a failing test first.
 - Prefer a small repository-level regression test that checks file contents or metadata patterns.

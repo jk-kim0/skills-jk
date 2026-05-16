@@ -364,6 +364,13 @@ Then summarize:
   - keep local cleanup and remote PR lifecycle as separate facts; deleting a local branch/worktree does not close the PR
 - Practical stale case: if a once-open local branch's remote head disappears after fetch, `gh pr list --state all --head <branch>` now shows `MERGED`, and `git diff develop..branch` (or the repo default branch equivalent) is empty, remove both the linked worktree and local branch as merged residue.
 - Practical preservation case: if a no-open-PR candidate later reappears under a different branch/worktree name with a small real diff vs latest `origin/main` and its synthetic squash rebases cleanly, reclassify it as a `meaningful unpublished branch` instead of deleting it from the earlier stale verdict.
+- Additional repeated-cleanup case from active PR repos: between follow-up `workspace 정리` turns, the remaining local line can change class entirely.
+  - A previously preserved non-PR dirty worktree can later become the head branch of a newly opened PR; once that happens, stop treating it as a stale candidate and preserve it as the active PR line.
+  - At the same time, other local worktrees that were formerly open-PR or recently created docs/fix branches can flip to `upstream gone + clean + PR merged` and become safe stale residue.
+  - Another late-appearing stale form is a clean branch-backed worktree whose branch has no PR and points at exactly the same SHA as `main` and `origin/main`; treat that as a no-op alias and delete it.
+  - Therefore, on each repeated repo-local cleanup turn, do not continue from the old classification table. Re-run a full fresh pass and keep pruning until the live state reaches the minimum safe set for that moment.
+  - Useful end-state label:
+    - `root main + currently open PR worktrees only`
 - Additional practical case from `skills-jk` cleanup: unattached `backup/*` branches should not be preserved just because they were once created to save local root edits.
   - Signal pattern:
     - no attached worktree
