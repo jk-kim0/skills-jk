@@ -11,7 +11,8 @@ Google Search Console API 클라이언트
     gsc query <site_url> --by-device       # 디바이스별 조회
     gsc sitemaps <site_url>                # 사이트맵 목록
     gsc inspect <site_url> <page_url>      # URL 인덱싱 상태 검사
-    gsc validate-index-issues-all-browser  # 관리 중인 사이트별 Page indexing validation 재시작
+    gsc validate-index-issues-all          # 저장된 frontend session으로 전체 사이트 validation 재시작
+    gsc validate-index-issues-all-browser  # 열린 Chrome 탭으로 전체 사이트 validation 재시작
 
 설정:
     1. Google Cloud Console에서 OAuth 2.0 클라이언트 ID 생성
@@ -351,6 +352,28 @@ def validate_index_issues_via_browser(args) -> int:
 
 
 
+def build_validate_index_issues_frontend_cmd(args, site_url: str) -> list[str]:
+    """저장된 GSC frontend session으로 실행하는 direct helper 명령을 구성합니다."""
+    helper = Path(__file__).with_name('gsc-frontend-indexing')
+    cmd = [str(helper), '--site', site_url, '--index-issues']
+    if getattr(args, 'submit', False):
+        cmd.append('--submit')
+    if getattr(args, 'session_file', None):
+        cmd.extend(['--session-file', args.session_file])
+    if getattr(args, 'only_status', None) is not None:
+        cmd.extend(['--only-status', args.only_status])
+    if getattr(args, 'include_started', False):
+        cmd.append('--include-started')
+    issue_limit = getattr(args, 'issue_limit', None)
+    if issue_limit is None:
+        issue_limit = getattr(args, 'limit', None)
+    if issue_limit is not None:
+        cmd.extend(['--limit', str(issue_limit)])
+    if getattr(args, 'delay_ms', None) is not None:
+        cmd.extend(['--delay-ms', str(args.delay_ms)])
+    return cmd
+
+
 def build_validate_index_issues_browser_cmd(args, site_url: str) -> list[str]:
     """단일 사이트 Page indexing validation helper 명령을 구성합니다."""
     helper = Path(__file__).with_name('gsc-browser-indexing')
@@ -397,7 +420,7 @@ def select_validation_sites(site_entries: list[dict], include_domain_properties:
     return selected, skipped
 
 
-def validate_all_index_issues_via_browser(args) -> int:
+def validate_all_index_issues(args, browser: bool = False) -> int:
     """관리 중인 GSC 사이트를 조회하고 각 사이트별 Page indexing validation을 실행합니다."""
     sites = get_site_entries()
     selected, skipped = select_validation_sites(
@@ -407,7 +430,9 @@ def validate_all_index_issues_via_browser(args) -> int:
         limit_sites=args.limit_sites,
     )
 
+    mode = 'browser-cdp' if browser else 'frontend-session'
     print("GSC Page indexing issue validation 전체 사이트 처리")
+    print(f"  mode: {mode}")
     print(f"  submit: {args.submit}")
     print(f"  only_status: {args.only_status}")
     print(f"  include_started: {args.include_started}")
@@ -430,7 +455,7 @@ def validate_all_index_issues_via_browser(args) -> int:
         print(f"[{idx}/{len(selected)}] {site_url}")
         print(f"{'=' * 80}")
         sys.stdout.flush()
-        cmd = build_validate_index_issues_browser_cmd(args, site_url)
+        cmd = build_validate_index_issues_browser_cmd(args, site_url) if browser else build_validate_index_issues_frontend_cmd(args, site_url)
         completed = subprocess.run(cmd)
         results.append({'siteUrl': site_url, 'returncode': completed.returncode})
         if idx < len(selected) and args.site_delay_ms:
@@ -754,6 +779,8 @@ def main():
   gsc request-indexing-info                   # 일반 URL 색인 요청 API 지원 여부 설명
   gsc request-indexing-browser --probe        # 열린 Chrome/GSC 세션 확인
   gsc request-indexing-browser https://example.com/ --url https://example.com/page --submit
+  gsc frontend-session export                 # 열린 Chrome GSC 탭에서 frontend session 저장
+  gsc validate-index-issues-all --submit      # 저장된 session으로 직접 frontend 호출
   gsc validate-index-issues-browser https://example.com/ --submit
   gsc validate-index-issues-all-browser --submit
   gsc inspect https://example.com/ /page      # URL 인덱싱 검사
@@ -786,6 +813,16 @@ def main():
     # request-indexing-info 명령어
     subparsers.add_parser('request-indexing-info', help='일반 URL 색인 요청 API 지원 여부 설명')
 
+    # frontend-session 명령어
+    frontend_session_parser = subparsers.add_parser(
+        'frontend-session',
+        help='GSC frontend 직접 호출용 세션 관리',
+    )
+    frontend_session_subparsers = frontend_session_parser.add_subparsers(dest='frontend_session_command')
+    frontend_export_parser = frontend_session_subparsers.add_parser('export', help='열린 Chrome GSC 탭에서 쿠키/WIZ 토큰 저장')
+    frontend_export_parser.add_argument('--session-file', help='저장할 frontend session 파일 경로')
+    frontend_export_parser.add_argument('--port', type=int, help='Chrome remote debugging 포트')
+
     # request-indexing-browser 명령어
     browser_index_parser = subparsers.add_parser(
         'request-indexing-browser',
@@ -812,6 +849,26 @@ def main():
     validation_parser.add_argument('--limit', type=int, help='처리할 최대 이슈 수')
     validation_parser.add_argument('--delay-ms', type=int, help='이슈 사이 지연 시간(ms)')
     validation_parser.add_argument('--port', type=int, help='Chrome remote debugging 포트')
+
+    # validate-index-issues-all 명령어
+    validation_all_frontend_parser = subparsers.add_parser(
+        'validate-index-issues-all',
+        help='저장된 GSC frontend session으로 사이트별 Page indexing 이슈 현황 조회/Start New Validation 실행',
+    )
+    validation_all_frontend_parser.add_argument('--submit', action='store_true', help='실제 START NEW VALIDATION 요청')
+    validation_all_frontend_parser.add_argument('--site', action='append', help='특정 사이트 URL만 처리 (여러 번 지정 가능)')
+    validation_all_frontend_parser.add_argument('--session-file', help='GSC frontend session 파일 경로')
+    validation_all_frontend_parser.add_argument(
+        '--include-domain-properties',
+        action='store_true',
+        help='sc-domain 속성까지 포함 (기본: URL-prefix 속성만)',
+    )
+    validation_all_frontend_parser.add_argument('--only-status', default='Failed', help='처리할 Validation 상태 (기본: Failed, all로 전체)')
+    validation_all_frontend_parser.add_argument('--include-started', action='store_true', help='Started 상태 이슈도 후보에 포함')
+    validation_all_frontend_parser.add_argument('--limit-sites', type=int, help='처리할 최대 사이트 수')
+    validation_all_frontend_parser.add_argument('--issue-limit', type=int, help='사이트별 처리할 최대 이슈 수')
+    validation_all_frontend_parser.add_argument('--delay-ms', type=int, help='사이트 내부 이슈 사이 지연 시간(ms)')
+    validation_all_frontend_parser.add_argument('--site-delay-ms', type=int, default=3000, help='사이트 사이 지연 시간(ms, 기본: 3000)')
 
     # validate-index-issues-all-browser 명령어
     validation_all_parser = subparsers.add_parser(
@@ -856,7 +913,17 @@ def main():
 
     args = parser.parse_args()
 
-    if args.command == 'sites':
+    if args.command == 'frontend-session':
+        if args.frontend_session_command == 'export':
+            helper = Path(__file__).with_name('gsc-frontend-indexing')
+            cmd = [str(helper), '--export-session']
+            if args.session_file:
+                cmd.extend(['--session-file', args.session_file])
+            if args.port is not None:
+                cmd.extend(['--port', str(args.port)])
+            sys.exit(subprocess.call(cmd))
+        parser.error('frontend-session requires a subcommand')
+    elif args.command == 'sites':
         list_sites()
     elif args.command == 'sitemaps':
         list_sitemaps(args.site_url)
@@ -872,8 +939,10 @@ def main():
         sys.exit(request_indexing_via_browser(args))
     elif args.command == 'validate-index-issues-browser':
         sys.exit(validate_index_issues_via_browser(args))
+    elif args.command == 'validate-index-issues-all':
+        sys.exit(validate_all_index_issues(args, browser=False))
     elif args.command == 'validate-index-issues-all-browser':
-        sys.exit(validate_all_index_issues_via_browser(args))
+        sys.exit(validate_all_index_issues(args, browser=True))
     elif args.command == 'inspect':
         inspect_url(args.site_url, args.page_url)
     elif args.command == 'pages':
