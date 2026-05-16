@@ -1,6 +1,6 @@
 ---
 name: search-console-noindex-investigation
-description: Investigate Google Search Console indexing exclusions such as "Excluded by 'noindex' tag" by verifying the exact drilldown issue, checking live HTML/headers/sitemaps, and mapping the result back to source metadata.
+description: Investigate Google Search Console indexing exclusions and indexing-refresh workflows by verifying the exact GSC issue/API capability, checking live HTML/headers/sitemaps, mapping results back to source metadata, and using sitemap refresh rather than unsupported bulk Request Indexing APIs.
 ---
 
 # Search Console noindex investigation
@@ -8,13 +8,45 @@ description: Investigate Google Search Console indexing exclusions such as "Excl
 Use this when:
 - the user shares a Search Console drilldown URL
 - Search Console reports `Excluded by 'noindex' tag`
+- the user asks whether Search Console indexing requests can be updated through API/CLI
+- the user asks to refresh indexing for managed websites or documents
 - you need to distinguish a real deployed noindex signal from a misleading dashboard interpretation
+
+References:
+- `references/gsc-indexing-api-and-sitemap-refresh.md` — API capability limits, sitemap refresh workflow, and OAuth scope pitfalls.
 
 ## Goal
 
-Prove the root cause with live evidence, not just Search Console wording.
+Prove the root cause with live evidence, not just Search Console wording. When the task is an indexing-refresh request, first prove what Google exposes through public APIs, then use the safest supported automation path.
 
-## Workflow
+## GSC API / CLI indexing-refresh workflow
+
+When the user asks to “request indexing”, “update indexing requests”, or bulk-refresh managed website documents:
+
+1. Verify API capability before promising the action.
+   - General Search Console UI `Request indexing` for ordinary URLs is not exposed as a public bulk API.
+   - URL Inspection API is inspect/read-only for status, not a submit endpoint.
+   - Indexing API is limited/recommended for special short-lived content types such as `JobPosting` and `BroadcastEvent` in `VideoObject`; do not use it as a generic docs/marketing recrawl mechanism.
+
+2. Use sitemap refresh as the supported automation path for ordinary pages.
+   - List managed Search Console properties.
+   - List registered sitemaps for URL-prefix properties.
+   - Re-submit registered sitemaps with `sitemaps.submit`.
+   - Treat `sc-domain:*` properties as potentially overlapping with URL-prefix properties; skip by default unless the user explicitly wants domain properties included.
+
+3. Preflight OAuth scopes before submitting.
+   - `sitemaps.list` can work with `https://www.googleapis.com/auth/webmasters.readonly`.
+   - `sitemaps.submit` requires `https://www.googleapis.com/auth/webmasters`.
+   - If an existing token was granted readonly only, code changes that request broader scopes will not upgrade it automatically. Back up/remove the token and re-auth, but ask before moving/deleting an existing working token.
+
+4. CLI UX expectations.
+   - Provide an explicit explanation command or message for unsupported general Request Indexing API.
+   - Add/write commands such as `submit-sitemap` and `refresh-sitemaps` when maintaining a repo-local GSC CLI.
+   - Fail fast with a clear scope error rather than attempting many sitemap submissions that all return 403.
+
+See `references/gsc-indexing-api-and-sitemap-refresh.md` for condensed session notes and exact pitfalls.
+
+## Noindex investigation workflow
 
 1. Open the exact Search Console drilldown URL in a new browser tab.
    - Do not rely on an already-open Search Console tab; it may be showing a different issue/property state.
