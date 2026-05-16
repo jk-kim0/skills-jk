@@ -145,6 +145,24 @@ Preferred shape:
 
 Use this pattern especially after a reviewer notes duplication between a docs guide and a skill. Make the docs page complete, then reduce the skill to a durable trigger/reference layer.
 
+## Repo-Local Skills Need Agent Guidance Entry Points
+
+When a repository contains checked-in skills under a non-Hermes runtime path such as `.agents/skills/<name>/SKILL.md`, do not assume the current agent runtime will auto-discover or `skill_view` them.
+
+If the user reports that repo-local skills are not being referenced, or you discover `.agents/skills/` without an `AGENTS.md`/equivalent repository guidance file:
+
+1. Inspect a sibling or source repository's `AGENTS.md` if the user names one.
+2. Add or update the target repo's `AGENTS.md` to define:
+   - `.agents/skills/` as the canonical repo-local skill root
+   - `.agents/skills/README.md` as the local skill index
+   - explicit trigger rules mapping task classes to skill files
+   - a fallback instruction to read `.agents/skills/<name>/SKILL.md` directly when native skill loading cannot see repo-local skills
+3. Keep the guidance concise and class-level; do not paste entire skill procedures into `AGENTS.md`.
+4. Put this guidance change in a separate branch/PR before continuing feature work when the user asks for it or when it is a prerequisite to correct agent behavior.
+5. Check `.gitignore`: some repositories ignore `AGENTS.md`. If the repo intentionally needs tracked agent guidance, stage it with `git add -f AGENTS.md` and mention that in the PR summary.
+
+Common pitfall: merely committing `.agents/skills/**` is not enough. Future agents need a tracked entry point that tells them to discover and read those repo-local skills.
+
 ## Skill Library Maintenance Shape
 
 When updating the skill library after a session, prefer class-level umbrella skills over one-session-one-skill entries.

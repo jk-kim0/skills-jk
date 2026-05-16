@@ -393,6 +393,34 @@ If the user later asks to replace environment detection after the initial PR is 
 - copy the exact `is-production.ts` implementation from `corp-web-app`
 - push back to the same PR branch rather than opening a new PR
 
+## Porting the Preview Toggle pattern to corp-web-app
+
+Use this when the user asks to implement the same corp-web-japan Preview Toggle behavior in `corp-web-app`.
+
+Key differences from corp-web-japan:
+- `corp-web-app` already has `src/utils/env/is-production.ts`; reuse it instead of adding `src/lib/is-production.ts`.
+- Layout data for header/footer is loaded in `src/app/layout.tsx` via `FileQuerySingleton`, not hardcoded in header/footer components.
+- The shared `Link` component automatically locale-prefixes internal links in `src/utils/client/use-updated-href.hook.ts`, so preview URLs must be generated as `/t/<locale>/...` and then excluded from locale-prefix rewriting.
+- Current implemented preview routes are locale-scoped: `src/app/t/[locale]/blog`, `whitepapers`, `events`, and `demo/use-cases`. Do not point navigation at preview paths that do not exist on current `origin/main`.
+
+Recommended corp-web-app implementation shape:
+1. Add `src/lib/preview-navigation.ts` with the same cookie/state API (`PREVIEW_NAVIGATION_COOKIE`, `getPreviewNavigationState`, POST payload semantics), but map public paths to `/t/${locale}...`.
+2. Include only verified route mappings, for example:
+   - `/blog` and `/resources/discover/blog` -> `/t/<locale>/blog`
+   - `/whitepapers` and `/resources/discover/white-paper` -> `/t/<locale>/whitepapers`
+   - `/events`, `/webinars`, and `/resources/discover/webinars` -> `/t/<locale>/events`
+   - `/demo/use-cases` and `/features/demo/use-cases` -> `/t/<locale>/demo/use-cases`
+3. In `src/app/layout.tsx`, read `cookies()`, compute `previewModeEnabled`, and transform the fetched `headerData` / `footerData` before passing them to `Header`, `Main`, and `Footer`.
+4. Make the transformer recursive enough to cover `href`, nested `items`, header `button`, `relatedArticle`, and CTA `pageSpecific` entries; otherwise dropdown buttons or related links can remain canonical while ordinary links switch.
+5. Add `src/app/api/preview-navigation/route.ts` to write the `querypie-preview-navigation` cookie, forcing `off` in production.
+6. Add a client `PreviewModeToggle` component under the header UI folder and render it from `header.component.tsx` when `showPreviewModeToggle` is true.
+7. In `src/utils/client/use-updated-href.hook.ts`, treat `path === '/t' || path.startsWith('/t/')` as already preview-scoped so `/t/ja/blog` is not rewritten to `/ja/t/ja/blog`.
+
+Verification notes from the corp-web-app port:
+- Targeted test worked: `npm run test:run -- src/lib/__tests__/preview-navigation.test.ts`.
+- Changed-file formatting check worked with `npx prettier --check <changed files>`.
+- Full `npx tsc --noEmit --pretty false` can fail on existing baseline test typing issues unrelated to this feature (for example duplicate `name` props in form tests, mocked `Headers` casts in get-base-url tests, and missing `vi` namespace in remote-file tests). If it fails, grep the tsc log for touched paths before treating it as a regression.
+
 ## Done criteria
 
 - `t("/path")` is used at explicit selected call sites

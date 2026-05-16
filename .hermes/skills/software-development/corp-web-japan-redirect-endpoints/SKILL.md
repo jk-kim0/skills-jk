@@ -234,6 +234,7 @@ After implementing, verify that the discovered expected set exactly matches the 
 
 ## Important pitfalls
 
+- For product/platform redirect fixes, check the exact path currently linked by local navigation before assuming an older legacy namespace already covers it. In corp-web-japan, header/footer product links can point to plural `/platforms/aip` and `/platforms/acp`, which are distinct from existing `/services/*` redirects and older `/platform/ai/*` or `/platform/security/*` legacy redirects. Add exact `src/app/platforms/<product>/route.ts` handlers when those plural paths are the actual broken public URLs, and verify their `querypie.com/ja/solutions/<product>` destinations return 200 OK.
 - Do not silently change unrelated existing pages into redirects. Confirm with the user first if an existing `page.tsx` would need to be replaced.
 - If you are confused about the exact request paths or destination URLs, ask the user before continuing.
 - When the user provides a redirect rule table, interpret `Request Link` as the URI path on this website and `Target Link` as the redirect destination. Do not treat both columns as external destinations.

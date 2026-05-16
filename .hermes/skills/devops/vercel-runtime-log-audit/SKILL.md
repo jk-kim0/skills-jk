@@ -572,6 +572,11 @@ When publishing a wiki snapshot from runtime logs:
 - record the repo wiki target separately from the log source
 - if relevant, include the current product repo `origin/main` SHA as context, but do not pretend the findings came from code inspection alone
 - describe the page as an operational snapshot, not a source-of-truth metrics system
+- if an existing page was written as a current-day partial report, recompute it after the calendar day is complete and explicitly change the effective range from "current-day logs" to "completed calendar-day window"
+- when adding a new dated report to a GitHub wiki, update `_Sidebar.md` in the same commit so the page is discoverable from the wiki navigation
+- for status-specific day reports, run explicit integer checks for `307`, `404`, `500`, `502`, `503`, and `504`, plus `--level error` filtered client-side for 5xx; do not rely on the broad top-set to reveal isolated earlier-day 500s
+- after collecting log-derived counts, run a small manual live recheck for representative 404/307 paths and document it in a separate section; this can reveal that an earlier-window 404 is no longer current live behavior after a later deployment
+- keep multiline runtime messages one-line in markdown tables/lists where possible, so a stack frame or wrapped error does not break wiki list formatting
 
 ## Pitfalls
 

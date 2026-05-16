@@ -62,6 +62,10 @@ process(action="kill", session_id="<id>")
 
 Codex CLI config is commonly at `~/.codex/config.toml`. For Codex CLI 0.130.0 model/service-tier details and a known-good gpt-5.5 config, see `references/codex-cli-0.130-model-and-service-tier.md`.
 
+For Codex CLI 0.130.0 skill discovery paths and how to expose external local skill trees such as `~/workspace/skills-jk/skills` and Hermes `.hermes/skills`, see `references/codex-cli-0.130-skill-discovery.md`. Key point: Codex discovers `$HOME/.agents/skills` and follows symlinked directories there; do not invent unsupported `skills.paths` config keys.
+
+For making Codex reference Hermes Agent durable memory, see `references/codex-cli-0.130-hermes-memory-mirror.md`. Key point: Codex memory reads from `$CODEX_HOME/memories`, rejects symlinks, and should use a generated mirror of Hermes `USER.md`/`MEMORY.md` with `features.memories=true`, `memories.use_memories=true`, and `memories.generate_memories=false`.
+
 If Codex fails with:
 
 ```

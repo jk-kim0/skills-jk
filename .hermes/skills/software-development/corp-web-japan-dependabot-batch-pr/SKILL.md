@@ -12,6 +12,8 @@ license: MIT
 
 This skill captures the successful approach for fixing many open Dependabot alerts in `corp-web-japan` with one reviewable PR.
 
+For the generalized npm/Dependabot batch workflow across repositories, use `npm-dependabot-security-batch-pr`. This repo-specific skill should keep only corp-web-japan deltas and historical notes.
+
 ## Key findings
 
 - The GitHub security page can show far more alerts than local `npm audit` because GitHub counts alerts across both the root application and `scripts/deploy`.

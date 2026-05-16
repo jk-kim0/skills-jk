@@ -68,6 +68,38 @@ docs/plans/example.md
 파일명에 goal이 들어간 문서는 없습니다.
 ```
 
+## 0A. Historical Content Route / URI Lookup
+
+When asked which URI path an old content page or PR-migrated page had in a sibling content repo, do not stop at the current filesystem. Content trees are often deleted or moved. Use git history and the consuming app's routing rules together:
+
+1. Confirm the current repo and sibling repo roots:
+   ```bash
+   pwd
+   git rev-parse --show-toplevel
+   git -C ../content-repo rev-parse --show-toplevel
+   ```
+2. Identify the PR branch when the question references a PR:
+   ```bash
+   gh pr view <number> --json number,title,headRefName,baseRefName,state,url
+   git fetch origin pull/<number>/head:refs/remotes/origin/pr/<number>
+   git diff --name-only origin/main...origin/pr/<number> | rg '<slug-or-page-name>'
+   ```
+3. Search all historical paths in the content repo before reading files:
+   ```bash
+   git -C ../content-repo log --all --name-only --pretty=format: |
+     sed '/^$/d' | sort -u | rg '<slug-or-id>'
+   ```
+4. If current files are gone, inspect the parent of the deleting commit or a known historical commit:
+   ```bash
+   git -C ../content-repo log --all --oneline -- <path>
+   git -C ../content-repo ls-tree -r --name-only <commit>^ -- <path>
+   git -C ../content-repo show <commit>^:<path>/<locale>/meta.json
+   ```
+5. Derive the public URI from the source path and verify against the app's locale-routing contract. For corp-web-app-style dynamic routing, a source path like `pages/why-querypie/{en,ko,ja}/content.mdx` maps to `/why-querypie`, `/ko/why-querypie`, and `/ja/why-querypie` because the locale segment is stripped from the content path and non-English locales are prefixed in the public URI.
+6. Cross-check any existing inventory/tests in the consuming app, especially route-local migration tests that assert canonical URLs.
+
+Report concise evidence: historical source path, derived URI(s), and whether the files exist on current main or only in git history.
+
 ## 1. Basic Summary (Most Common)
 
 Get a full language breakdown with file counts, code lines, and comment lines:

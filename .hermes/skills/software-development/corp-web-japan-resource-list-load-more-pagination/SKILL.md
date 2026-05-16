@@ -7,6 +7,10 @@ description: Add opt-in load-more pagination to corp-web-japan resource list pag
 
 Use this when a corp-web-japan list page should switch from rendering the full list at once to a bottom-of-list "Load more" pattern.
 
+Scope guard:
+- If the user asks only for a plan, audit, or migration document, do not create the helper/component files in this skill. Instead, document these exact requirements as implementation directives: chunk size 12, `?until=<oldest-visible-id>`, `router.replace(..., { scroll: false })`, URL-derived initial count, and remount-key restoration.
+- If a plan has an "open decision" about URL state, resolve it in the document as a directive when the user says to match the reference implementation.
+
 Latest practical repo note:
 - older iterations used a shared `ResourceListPage` wrapper
 - current main-line implementation can be more direct and route-local: public `/blog` and `/whitepapers` now wire `ResourceListLoadMore` directly inside each route's `ResourceListContentSection`

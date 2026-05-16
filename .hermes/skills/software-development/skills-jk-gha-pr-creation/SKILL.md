@@ -74,14 +74,20 @@ Instead:
 ## Pitfalls
 
 - Follow the active repository/global GitHub CLI safety policy when invoking `gh`. In this environment that means using `env -u GITHUB_TOKEN gh ...` rather than raw `gh ...`.
-- In `skills-jk`, do not create PRs with direct local `gh pr create` when the intent is to open a normal review PR. The repository-standard path is the `create-pr.yml` workflow so the PR is created by `github-actions[bot]`, not by the local human GitHub identity.
-- Practical user-specific rule: if you accidentally created the PR directly and it shows the user's account as author, treat that as incorrect for this repo. Create a bot-authored replacement PR via the workflow instead of pretending the existing PR is acceptable.
-- Safe repair pattern for that mistake:
-  1. verify the already-pushed branch tip/commit to preserve
-  2. create and push a replacement branch name if needed (for example `<branch>-bot`) pointing at the same commit
-  3. dispatch `.github/workflows/create-pr.yml` with the same title/body against that replacement branch
-  4. verify the new PR author is `app/github-actions` or another bot identity via `gh pr view --json author`
-  5. do not close the mistaken human-authored PR unless the user explicitly asks; report both PRs and let the user decide the cleanup action
+- In `skills-jk`, direct local `gh pr create` is the wrong default path for normal review PRs. Use `.github/workflows/create-pr.yml` so the PR is authored by `github-actions[bot]` rather than by the local human GitHub identity.
+- If you accidentally opened the PR directly and it shows the user's account as author, treat that as a mistake to repair rather than as an acceptable equivalent.
+- Safe repair pattern:
+  1. preserve the intended branch tip and PR body
+  2. create and push a replacement branch if needed (for example `<branch>-bot`)
+  3. dispatch `.github/workflows/create-pr.yml` for that branch
+  4. verify the new PR author via `gh pr view --json author`
+  5. do not close the mistaken human-authored PR unless the user explicitly asks
+- Important follow-up case: the mistaken human-authored PR can merge before the bot replacement is fully cleaned up.
+  - In that situation, do not leave the bot replacement PR on the stale pre-merge commit graph.
+  - Re-check latest `origin/main`, the mistaken PR state, and the current requested file scope.
+  - Rebuild the bot branch from latest `origin/main`, copy only the still-surviving requested payload, then force-push the bot branch.
+  - If a requested file such as `.hermes/config.yaml` is already identical to latest `origin/main`, omit it from the rebuilt bot PR instead of preserving an obsolete wider diff.
+  - Verify the rebuilt payload with `git diff --name-status origin/main...<bot-branch> -- <scoped-paths>` after the force-push.
 - Do not pass complex markdown directly to `gh pr create --body` in this repo unless there is a strong reason
 - `create-pr.yml` targets `main` as the base branch
 - The workflow appends a GitHub Actions bot footer to the body

@@ -26,12 +26,33 @@ Use this skill when the user asks to update the repo footer to match the live pu
    - Check footer text, layout, and computed sizing in the browser
    - If the site has locale-specific variants, inspect `/en`, `/ko`, and `/ja`
    - For mobile layout bugs, emulate the reported device width first
+   - If the task is specifically to stop remote/footer-file loading and use repo-defined footer data, browser inspection is optional; prioritize locating the remote layout-data call and proving the upstream footer file variants first.
 
 2. Compare against repo sources
    - `src/components/layout/Footer.tsx` or repo-specific footer component path
    - footer CSS/module file
    - shared navigation/legal/footer constants
    - any locale copy helpers used by the shell/footer
+   - root/app layout or shell code that calls remote layout data, e.g. `fileQuery.getLayoutData<FooterType>(FileType.FOOTER, locale)`
+
+2a. When replacing a remote footer JSON source with repo-local data
+   - Search the sibling content source such as `../corp-web-contents/layout/*/footer.json` and enumerate every footer JSON file before editing.
+   - Verify whether the files represent one footer data type/schema across locales, not merely that filenames match. A quick deterministic check is to parse each JSON, compare top-level keys, menu labels/counts, and a recursive shape hash that records object keys and primitive types.
+   - Treat locale-specific values and array lengths (for example different social-link counts) as content differences, not separate footer types, when the schema/top-level structure is the same.
+   - Copy the locale JSON into a route/component-owned local data directory in the app repo (for example `src/components/layout/footer/data/{en,ja,ko}.json`) and add a small typed selector such as `footer-data.ts` returning `FooterType` by `Locale`.
+   - Update the app shell/root layout to remove only the footer remote fetch while leaving unrelated remote layout data (header, cookie banner, etc.) intact.
+   - Keep existing preview-navigation transformation around footer menus if the repo uses preview route rewriting.
+   - Add a focused regression test that loads every supported locale from the local selector and asserts the footer shape remains one schema. Also assert a couple of locale-specific values so the test proves the local data is being read.
+
+2b. When a follow-up asks to remove JSON and use route/component-local TSX modules
+   - If the preceding footer-local-data PR is already merged, do not revive its old branch. Start a fresh branch/worktree from latest `origin/main`, after fast-forwarding the root `main` checkout when it is clean and behind.
+   - Move the footer data from JSON into typed locale modules near the layout surface, e.g. `src/components/layout/footer.en.tsx`, `footer.ja.tsx`, and `footer.ko.tsx`.
+   - Export each data object with `satisfies FooterType` so TypeScript verifies the shape without needing `as FooterType` casts in the selector.
+   - Update `src/components/layout/footer/footer-data.ts` to import those modules (from `../footer.en`, etc.) and keep the `Record<Locale, FooterType>` selector/fallback shape unchanged.
+   - Remove the obsolete `src/components/layout/footer/data/*.json` files and grep for leftover `footer/data` or locale JSON imports.
+   - Reuse the existing selector regression test; it should continue to assert one schema across locales and representative locale-specific values.
+   - Format the new TSX modules before commit; converting JSON mechanically often leaves quoted keys until Prettier runs.
+   - Targeted verification is enough unless the user asks for broad local validation: `vitest run src/components/layout/footer/__tests__/footer-data.test.ts`.
 
 3. For mobile right-side blank space or horizontal scrolling, identify the true overflow source before editing
    - Measure `document.documentElement.scrollWidth` vs viewport width
@@ -51,12 +72,14 @@ Use this skill when the user asks to update the repo footer to match the live pu
 
 5. Add or update a regression test
    - Add a focused footer test that checks the updated year/copy/address/legal label when copy changed
+   - For repo-local JSON selector work, test the selector directly with targeted Vitest; assert one schema across locales and at least one locale-specific label/link per non-default locale.
    - If the work is layout-only, at least keep the diff narrowly scoped to the footer component/CSS and verify the exact rendered behavior in the browser
 
 6. Verify
-   - `npm run typecheck`
+   - Respect the user's repo-specific preference about local verification. If they prefer not to spend time on broad local builds, run targeted tests/format checks first and rely on CI for full build/lint unless explicitly asked otherwise.
+   - `npm run typecheck` when broad local verification is appropriate
    - targeted footer tests
-   - `npm run build`
+   - `npm run build` when broad local verification is appropriate
    - for mobile layout fixes, verify in-browser at the reported device width that document `scrollWidth` no longer exceeds the viewport
 
 7. Ship via PR
