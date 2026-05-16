@@ -62,26 +62,9 @@ Those may be valid product/content follow-ups, but they are not migration blocke
 4. diff the old recorded SHA in the wiki page against latest `origin/main` when possible
 5. inspect latest-main route files directly with `git show FETCH_HEAD:path`
 6. inspect latest-main content counts / route existence
-7. decide whether latest-main changes actually alter migration-completeness conclusions
-8. if conclusions changed, rewrite the affected sections so the narrative matches the new state
-9. if conclusions did not change, do a baseline-only refresh: update the recorded snapshot time, SHA, and every duplicated timestamp reference in the page, but keep the migration-status conclusions intact
-10. commit/push in the separate `.wiki.git` repo
-
-### Baseline-only refresh rule
-
-A large share of later `origin/main` changes are CI, refactor, or implementation-detail changes that do not materially change the migration-completeness judgment.
-
-In that case:
-- do not invent new blockers or cleanup items just because main moved
-- do not rewrite the status dashboard unnecessarily
-- do update every repeated timestamp/string that claims the page is based on a particular latest-main moment
-
-At minimum re-check and update consistently:
-- baseline snapshot line
-- baseline SHA line
-- summary lead timestamp
-- dashboard header timestamp
-- any final interpretation / conclusion section that restates the audit timestamp
+7. rewrite the wiki page so conclusions reflect the new state
+8. update all timestamp references consistently, not just the baseline header
+9. commit/push in the separate `.wiki.git` repo
 
 ## Specific corp-web-japan heuristics
 
