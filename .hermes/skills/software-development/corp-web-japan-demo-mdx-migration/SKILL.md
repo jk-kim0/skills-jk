@@ -29,13 +29,20 @@ Supported pattern families proven in practice:
 
 ### use-cases
 - source: `../corp-web-contents/pages/features/demo/use-cases/<id>/<slug>/ja/content.mdx`
-- preview list: `/t/use-cases`
+- preview list: historical `/t/use-cases`; current public list route may be `/demo/use-cases`
 - canonical detail: `/use-cases/:id/:slug`
 - id redirect: `/use-cases/:id`
 - content root: `src/content/use-cases/*.mdx`
 - assets: `public/use-cases/<id>/thumbnail.png`
 - category key: `use-case`
 - href prefix: `/use-cases`
+
+Rationale / path-contract pitfall:
+- Do **not** assume use-cases should live under `src/content/demo/use-cases` just because the list page is under `/demo/use-cases` or the upstream source path contains `pages/features/demo/use-cases`.
+- In `corp-web-japan`, use-cases are modeled as an independent standard publication family whose canonical detail route is `/use-cases/:id/:slug`; the `/demo/use-cases` page is the list/navigation surface only.
+- Therefore route-aligned local paths are `src/content/use-cases/*.mdx` and `public/use-cases/<id>/...`, while AIP/ACP demos use `src/content/demo/{aip,acp}` because their detail routes are `/demo/{aip,acp}/:id/:slug`.
+- Historical provenance: PR #187 introduced use-cases directly as `src/content/use-cases` + `/use-cases/:id/:slug`; PR #253 later rolled the list surface to `/demo/use-cases` without moving the content root or detail route.
+- If asked to explain or change this structure, distinguish list-route namespace from canonical detail/content namespace before proposing file moves.
 
 Cross-repo parity caution:
 - The complete use-case corpus source is `../corp-web-contents/pages/features/demo/use-cases`, not `page-archives/customers/customer-success-cases`.

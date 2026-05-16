@@ -405,7 +405,11 @@ cd /tmp && unzip -o ci-logs.zip -d ci-logs && cat ci-logs/*.txt
 
 ### Step 2: Fix and Push
 
-After identifying the issue, use file tools (`patch`, `write_file`) to fix it:
+After identifying the issue, use file tools (`patch`, `write_file`) to fix the code.
+
+Smoke/typecheck pitfall:
+- If the failed CI job is a smoke command that chains lint + typecheck + test grouping, reproduce that full smoke command locally after the narrow fix, not only the targeted regression test.
+- TypeScript failures around formatting helpers often indicate a source/display contract mismatch, especially optional metadata (`string | undefined`) being passed into a formatter that expects `string`. Preserve `undefined` for missing optional fields rather than formatting an empty or missing value unless the product contract explicitly says otherwise.
 
 ```bash
 git add <fixed_files>

@@ -456,3 +456,6 @@ Load these when they also apply:
 
 Overlap note:
 - this skill and `safe-git-worktree-branch-cleanup` now share a large amount of repo-local cleanup guidance; if they keep growing, future consolidation may be worth considering, with this skill remaining the squash/rebase-heavy adjudication path
+
+Additional reference:
+- `references/root-main-local-patch-to-existing-open-pr.md` — when dirty root `main` changes should be transplanted onto an already-open PR branch, then root `main` restored and fast-forwarded.
