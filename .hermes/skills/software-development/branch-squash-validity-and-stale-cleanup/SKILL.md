@@ -419,6 +419,22 @@ Then summarize:
     4. only after the patch is safely preserved, restore/remove the original alias worktree and delete the alias branch
   - Useful summary label:
     - `stale alias branch promoted via fresh latest-main branch carrying the real dirty patch`
+- Additional repeated-cleanup case from `skills-jk`: a local-only preserve branch can look broad or stale because it still carries historical deletions from older lines, while its latest-main-portable payload is actually much smaller.
+  - Signal pattern:
+    - no open PR
+    - the preserved branch diff vs `origin/main` includes old deletions or unrelated historical files from previously merged helper lines
+    - synthetic squash vs latest `origin/main` collapses to a smaller surviving payload
+    - disposable rebase of that squash onto latest `origin/main` is clean
+  - Recommended handling:
+    1. do not open a PR directly from the old preserve branch just because it is ahead and rebases
+    2. inspect the squash diff, not only the raw branch diff, to identify the surviving latest-main payload
+    3. create a fresh latest-main branch/worktree and transplant only the surviving files there
+    4. commit/push/open the PR from that fresh branch
+    5. after the fresh branch is safely reviewable, delete the superseded preserve branch/worktree
+  - Useful summary labels:
+    - `preserve branch history broad, surviving latest-main payload narrow`
+    - `latest-main transplant dropped stale historical deletions`
+  - A useful next-step pairing is to patch the PR-creation workflow skill too, because the fresh latest-main transplant often changes how many PRs should be opened and whether an existing skill-followup PR branch should be updated instead of creating another docs PR.
 
 ## Good trigger phrases
 
@@ -437,3 +453,6 @@ This skill should be loaded when the user asks things like:
 Load these when they also apply:
 - `safe-git-worktree-branch-cleanup` for broader cleanup heuristics and reporting structure
 - `workspace-stale-git-cleanup` only when the scope is truly many repositories under one workspace root
+
+Overlap note:
+- this skill and `safe-git-worktree-branch-cleanup` now share a large amount of repo-local cleanup guidance; if they keep growing, future consolidation may be worth considering, with this skill remaining the squash/rebase-heavy adjudication path

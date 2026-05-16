@@ -13,11 +13,35 @@ Use this when:
 - you need to distinguish a real deployed noindex signal from a misleading dashboard interpretation
 
 References:
-- `references/gsc-indexing-api-and-sitemap-refresh.md` — API capability limits, sitemap refresh workflow, and OAuth scope pitfalls.
+- `references/gsc-indexing-api-and-sitemap-refresh.md` — API capability limits, sitemap refresh workflow, issue-level validation restart workflow, and OAuth/browser-session pitfalls.
 
 ## Goal
 
-Prove the root cause with live evidence, not just Search Console wording. When the task is an indexing-refresh request, first prove what Google exposes through public APIs, then use the safest supported automation path.
+Prove the root cause with live evidence, not just Search Console wording. When the task is an indexing-refresh request, first clarify whether the user wants URL-level Request indexing or issue-level validation restart. For this user, do not default to URL-by-URL bulk Request indexing for docs/sites; prefer the Page indexing issue table workflow when they refer to “Why pages aren’t indexed” or validation pages.
+
+## GSC issue-level validation workflow
+
+When the user points to `https://search.google.com/search-console/index?...`, mentions the “Why pages aren’t indexed” table, or asks to update indexing by issue/status:
+
+1. Treat this as issue-level validation, not URL-level bulk submission.
+   - Open the exact Page indexing property URL.
+   - Read the “Why pages aren’t indexed” table rows: Reason, Source, Validation, Pages.
+   - Select candidates by validation state, usually `Failed` first; do not re-trigger `Started` unless explicitly requested.
+
+2. For each candidate issue row, use the row’s `item_key` validation flow.
+   - Clicking the row opens `/index/drilldown?...&item_key=<key>`.
+   - “SEE DETAILS” or direct navigation opens `/index/validation?...&item_key=<key>`.
+   - If `START NEW VALIDATION` is present, click it and verify the issue changes to `Validation started` / table state `Started`.
+   - If the start button is absent, report it as non-actionable for the current state rather than falling back to URL-level Request indexing.
+
+3. Browser automation pitfalls.
+   - GSC is a SPA; after navigation, wait for the `Validation details` heading and either `START NEW VALIDATION` or a terminal/started validation state, not just any text containing “Validation”.
+   - If using Chrome DevTools Protocol, multiple old Search Console tabs can be open. Prefer a fresh tab or activate/bring the selected target to front; otherwise a background/stale tab may show only partial “Examples” content and hide the start button.
+   - `wait_for` text can time out even when the page updates; take a fresh snapshot before concluding failure.
+
+4. Verification.
+   - Return to the Page indexing table and confirm every intended issue row is `Started`, `Passed`, or otherwise intentionally skipped.
+   - Report issue reasons and page counts, not a huge URL list.
 
 ## GSC API / CLI indexing-refresh workflow
 
