@@ -11,6 +11,7 @@ Google Search Console API 클라이언트
     gsc query <site_url> --by-device       # 디바이스별 조회
     gsc sitemaps <site_url>                # 사이트맵 목록
     gsc inspect <site_url> <page_url>      # URL 인덱싱 상태 검사
+    gsc validate-index-issues-all-browser  # 관리 중인 사이트별 Page indexing validation 재시작
 
 설정:
     1. Google Cloud Console에서 OAuth 2.0 클라이언트 ID 생성
@@ -349,6 +350,107 @@ def validate_index_issues_via_browser(args) -> int:
     return subprocess.call(cmd)
 
 
+
+def build_validate_index_issues_browser_cmd(args, site_url: str) -> list[str]:
+    """단일 사이트 Page indexing validation helper 명령을 구성합니다."""
+    helper = Path(__file__).with_name('gsc-browser-indexing')
+    cmd = [str(helper), '--site', site_url, '--index-issues']
+    if getattr(args, 'submit', False):
+        cmd.append('--submit')
+    if getattr(args, 'only_status', None) is not None:
+        cmd.extend(['--only-status', args.only_status])
+    if getattr(args, 'include_started', False):
+        cmd.append('--include-started')
+    issue_limit = getattr(args, 'issue_limit', None)
+    if issue_limit is None:
+        issue_limit = getattr(args, 'limit', None)
+    if issue_limit is not None:
+        cmd.extend(['--limit', str(issue_limit)])
+    if getattr(args, 'delay_ms', None) is not None:
+        cmd.extend(['--delay-ms', str(args.delay_ms)])
+    if getattr(args, 'port', None) is not None:
+        cmd.extend(['--port', str(args.port)])
+    return cmd
+
+
+def select_validation_sites(site_entries: list[dict], include_domain_properties: bool = False,
+                            only_sites: list[str] | None = None,
+                            limit_sites: int | None = None) -> tuple[list[str], list[tuple[str, str]]]:
+    """GSC siteEntry 목록에서 validation 대상 property URL을 고릅니다."""
+    only = set(only_sites or [])
+    selected: list[str] = []
+    skipped: list[tuple[str, str]] = []
+
+    for entry in site_entries:
+        site_url = entry.get('siteUrl', '')
+        if not site_url:
+            continue
+        if only and site_url not in only:
+            continue
+        if site_url.startswith('sc-domain:') and not include_domain_properties:
+            skipped.append((site_url, 'domain property skipped by default'))
+            continue
+        selected.append(site_url)
+        if limit_sites is not None and len(selected) >= limit_sites:
+            break
+
+    return selected, skipped
+
+
+def validate_all_index_issues_via_browser(args) -> int:
+    """관리 중인 GSC 사이트를 조회하고 각 사이트별 Page indexing validation을 실행합니다."""
+    sites = get_site_entries()
+    selected, skipped = select_validation_sites(
+        sites,
+        include_domain_properties=args.include_domain_properties,
+        only_sites=args.site or None,
+        limit_sites=args.limit_sites,
+    )
+
+    print("GSC Page indexing issue validation 전체 사이트 처리")
+    print(f"  submit: {args.submit}")
+    print(f"  only_status: {args.only_status}")
+    print(f"  include_started: {args.include_started}")
+    print(f"  discovered_sites: {len(sites)}")
+    print(f"  selected_sites: {len(selected)}")
+    if skipped:
+        print(f"  skipped_sites: {len(skipped)}")
+        for site_url, reason in skipped:
+            print(f"    SKIP {site_url}: {reason}")
+    print()
+    sys.stdout.flush()
+
+    if not selected:
+        print("처리 대상 사이트가 없습니다.")
+        return 0
+
+    results: list[dict] = []
+    for idx, site_url in enumerate(selected, 1):
+        print(f"\n{'=' * 80}")
+        print(f"[{idx}/{len(selected)}] {site_url}")
+        print(f"{'=' * 80}")
+        sys.stdout.flush()
+        cmd = build_validate_index_issues_browser_cmd(args, site_url)
+        completed = subprocess.run(cmd)
+        results.append({'siteUrl': site_url, 'returncode': completed.returncode})
+        if idx < len(selected) and args.site_delay_ms:
+            import time
+            time.sleep(args.site_delay_ms / 1000)
+
+    ok_count = sum(1 for result in results if result['returncode'] == 0)
+    fail_count = len(results) - ok_count
+    print(f"\n{'=' * 80}")
+    print("요약")
+    print(f"  대상 사이트: {len(results)}")
+    print(f"  성공: {ok_count}")
+    print(f"  실패: {fail_count}")
+    for result in results:
+        status = 'OK' if result['returncode'] == 0 else f"FAIL({result['returncode']})"
+        print(f"  {status} {result['siteUrl']}")
+
+    return 0 if fail_count == 0 else 1
+
+
 def inspect_url(site_url: str, page_url: str):
     """URL 인덱싱 상태를 검사합니다."""
     creds = get_credentials()
@@ -653,6 +755,7 @@ def main():
   gsc request-indexing-browser --probe        # 열린 Chrome/GSC 세션 확인
   gsc request-indexing-browser https://example.com/ --url https://example.com/page --submit
   gsc validate-index-issues-browser https://example.com/ --submit
+  gsc validate-index-issues-all-browser --submit
   gsc inspect https://example.com/ /page      # URL 인덱싱 검사
   gsc pages https://example.com/              # 페이지별 성능
 """
@@ -710,6 +813,26 @@ def main():
     validation_parser.add_argument('--delay-ms', type=int, help='이슈 사이 지연 시간(ms)')
     validation_parser.add_argument('--port', type=int, help='Chrome remote debugging 포트')
 
+    # validate-index-issues-all-browser 명령어
+    validation_all_parser = subparsers.add_parser(
+        'validate-index-issues-all-browser',
+        help='관리 중인 GSC 사이트별 Page indexing 이슈 현황 조회/Start New Validation 실행',
+    )
+    validation_all_parser.add_argument('--submit', action='store_true', help='실제 START NEW VALIDATION 클릭')
+    validation_all_parser.add_argument('--site', action='append', help='특정 사이트 URL만 처리 (여러 번 지정 가능)')
+    validation_all_parser.add_argument(
+        '--include-domain-properties',
+        action='store_true',
+        help='sc-domain 속성까지 포함 (기본: URL-prefix 속성만)',
+    )
+    validation_all_parser.add_argument('--only-status', default='Failed', help='처리할 Validation 상태 (기본: Failed, all로 전체)')
+    validation_all_parser.add_argument('--include-started', action='store_true', help='Started 상태 이슈도 후보에 포함')
+    validation_all_parser.add_argument('--limit-sites', type=int, help='처리할 최대 사이트 수')
+    validation_all_parser.add_argument('--issue-limit', type=int, help='사이트별 처리할 최대 이슈 수')
+    validation_all_parser.add_argument('--delay-ms', type=int, help='사이트 내부 이슈 사이 지연 시간(ms)')
+    validation_all_parser.add_argument('--site-delay-ms', type=int, default=3000, help='사이트 사이 지연 시간(ms, 기본: 3000)')
+    validation_all_parser.add_argument('--port', type=int, help='Chrome remote debugging 포트')
+
     # inspect 명령어
     inspect_parser = subparsers.add_parser('inspect', help='URL 인덱싱 상태 검사')
     inspect_parser.add_argument('site_url', help='사이트 URL (예: https://example.com/)')
@@ -749,6 +872,8 @@ def main():
         sys.exit(request_indexing_via_browser(args))
     elif args.command == 'validate-index-issues-browser':
         sys.exit(validate_index_issues_via_browser(args))
+    elif args.command == 'validate-index-issues-all-browser':
+        sys.exit(validate_all_index_issues_via_browser(args))
     elif args.command == 'inspect':
         inspect_url(args.site_url, args.page_url)
     elif args.command == 'pages':
