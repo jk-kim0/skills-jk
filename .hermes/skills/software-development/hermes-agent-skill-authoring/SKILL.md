@@ -167,6 +167,11 @@ Common pitfall: merely committing `.agents/skills/**` is not enough. Future agen
 
 When updating the skill library after a session, prefer class-level umbrella skills over one-session-one-skill entries.
 
+Be active by default:
+- Treat "review the conversation and update the skill library" as an instruction to find and encode at least one reusable lesson when the session had any non-trivial workflow, correction, or repeated pattern.
+- Do not default to `Nothing to save.` just because the task ended successfully; first look for a small governing-skill patch, pitfall, or concise `references/` note.
+- User workflow/style corrections belong in the governing `SKILL.md`, not only in memory.
+
 Default update order:
 1. Patch a skill that was actually loaded or used in the session if it governs the same task class.
 2. If no loaded skill fits, patch an existing umbrella skill after checking `skills_list` / `skill_view`.

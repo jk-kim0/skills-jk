@@ -148,6 +148,69 @@ PY
 
 Expected tutorials shape: 69 files under category subdirectories only (`dac` 10, `general` 2, `kac` 3, `sac` 8; EN/KO/JA 23 each), no root-level `src/content/tutorials/*.mdx`, numeric frontmatter IDs only, and no missing assets.
 
+### Whitepapers
+
+Canonical source roots:
+
+```text
+../corp-web-contents/pages/white-paper/<id>/<slug>/<locale>/content.mdx
+../corp-web-japan/src/content/whitepapers/*.mdx   # policy/reference overlay for Japan-only gated records
+```
+
+Target root:
+
+```text
+src/content/whitepapers/<id>-<slug>.<locale>.mdx
+public/whitepapers/<id>/...
+```
+
+Routes:
+
+```text
+/t/<locale>/whitepapers
+/t/<locale>/whitepapers/:id/:slug
+/<locale>/whitepapers
+/<locale>/whitepapers/:id/:slug
+```
+
+Critical gating-policy pitfall:
+- Do not blindly preserve or add `gated: true` across the whole migrated whitepaper corpus. For corp-web-app whitepaper migration follow-up, use corp-web-japan as the gating-policy reference and apply gating only to the equivalent whitepaper IDs that are gated there.
+- As of the session that updated this skill, corp-web-japan had `gated: true` only for whitepaper IDs `24` and `30`. Re-check the current corp-web-japan tree before editing, then align corp-web-app to the current set.
+- When removing gating from older migrated whitepapers, removing the frontmatter line is not enough if the MDX body still contains legacy `<ArticleGatingForm>` wrappers; those wrappers can still render a form. Remove the wrapper tags while preserving the wrapped body content.
+- Newer gated whitepapers use the `gated: true` + `<GatingCut />` contract, not the legacy whole-body `<ArticleGatingForm>` wrapper. Update repository validation to check the active contract (`gated` records have `<GatingCut />`, ungated records have neither `<GatingCut />` nor `<ArticleGatingForm>` remnants).
+
+Useful gating audit:
+
+```bash
+python3 - <<'PY'
+from pathlib import Path
+import re
+for repo in ['../corp-web-japan', '.']:
+    root=Path(repo)/'src/content/whitepapers'
+    gated=[]; cuts=[]; inline=[]
+    for p in sorted(root.glob('*.mdx')):
+        text=p.read_text(encoding='utf-8')
+        m=re.match(r'^---\n([\s\S]*?)\n---\n', text)
+        if not m:
+            continue
+        fm=m.group(1)
+        id_=(re.search(r'^id:\s*["\']?([^"\'\n]+)', fm, re.M) or [None,p.name.split('-',1)[0]])[1]
+        gv=(re.search(r'^gated:\s*(true|false)\s*$', fm, re.M) or [None,None])[1]
+        if gv == 'true': gated.append((id_, p.name))
+        if '<GatingCut' in text: cuts.append((id_, p.name, gv))
+        if '<ArticleGatingForm' in text or '</ArticleGatingForm>' in text: inline.append((id_, p.name, gv))
+    print(repo, 'gated=', gated, 'gatingCut=', cuts, 'articleForm=', inline)
+PY
+```
+
+Verification after changing whitepaper gating:
+
+```bash
+npm run test -- src/lib/repo-content/__tests__/whitepaper-migration.test.ts
+```
+
+Do not rely on stale repo-local skill examples that mention `tests/whitepaper-*.test.mjs` unless those files actually exist; in current corp-web-app snapshots, whitepaper migration coverage lives under `src/lib/repo-content/__tests__/whitepaper-migration.test.ts` and Vitest's include pattern is `src/**/__tests__/**/*.{test,spec}.{js,ts,tsx}`.
+
 ### Demo use cases
 
 Canonical source root:
@@ -192,6 +255,8 @@ Critical pitfall:
 - Tests must therefore assert IDs 1-29 and locale counts EN=29, JA=29, KO=6.
 
 See `references/demo-use-cases-source-parity.md` for the session-derived verification details and commands.
+
+See `references/manuals-source-provenance.md` for manuals source priority, proven corp-web-contents mappings, thumbnail provenance, and verification commands.
 
 See `references/tutorials-category-subcollection-pr-followup.md` for the corrected tutorials category subcollection shape, manuals-skill preservation pitfall, and rebase conflict note.
 
