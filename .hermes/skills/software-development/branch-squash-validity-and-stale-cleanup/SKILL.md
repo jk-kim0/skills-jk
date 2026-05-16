@@ -171,6 +171,11 @@ Typical signals:
 Good summary label:
 - `valid branch: squash patch rebases cleanly onto latest main`
 
+If the user asks to turn this result into a PR:
+- re-check `gh pr list --head <branch> --state all` after validation and before creating anything; a previously local-only branch may already have been pushed or opened as a PR by another same-session action
+- if an open PR already exists, update that PR body/title with the validation evidence instead of creating or dispatching a duplicate PR
+- if no PR exists, push the branch and use the repository's preferred PR creation mechanism
+
 ### 2. Stale branch history + meaningful current local patch
 
 Typical signals:

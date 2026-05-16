@@ -34,8 +34,11 @@ Trigger this skill when:
    - Check remote tracking with `git status -sb`
 
 2. Confirm whether a PR already exists for the branch.
-   - Use `gh pr status`
-   - If a PR already exists, edit that PR instead of creating a new one
+   - Use `gh pr status` for the current checkout, but do not rely on it alone when the branch is in another worktree.
+   - Always run a branch-specific lookup before dispatching the create workflow:
+     - `env -u GITHUB_TOKEN gh pr list --head <branch> --state all --json number,state,title,url,author,headRefName,headRefOid`
+   - If an open PR already exists, edit that PR body/title instead of dispatching `create-pr.yml` again.
+   - If a PR already exists and the workflow is dispatched anyway, it can fail while the existing PR remains valid; verify the existing PR before treating the failure as task failure.
 
 3. Prepare the PR body in a file first.
    - Write the full markdown body to a temporary file
@@ -85,7 +88,8 @@ Instead:
 - Do not pass complex markdown directly to `gh pr create --body` in this repo unless there is a strong reason
 - `create-pr.yml` targets `main` as the base branch
 - The workflow appends a GitHub Actions bot footer to the body
-- If the branch has an existing open PR, the workflow may fail or create duplicate intent; check first
+- If the branch has an existing open PR, the workflow may fail or create duplicate intent; check first with `gh pr list --head <branch> --state all`, not only `gh pr status` from the current checkout. This matters when the target branch is checked out in a different worktree or another actor already opened the bot PR.
+- If you accidentally dispatch `create-pr.yml` for a branch that already has an open PR and the run fails, do not create a replacement branch automatically. First verify the existing PR object and remote branch ref; often the correct action is only to update the existing PR body to reflect the latest validation.
 - After dispatching the PR-creation workflow, verify completion with `gh run watch` and then confirm the resulting PR with `gh pr view` or `gh pr status`
 - `gh pr checks` may legitimately report no checks for the new PR branch; if so, also inspect `gh run list --branch <branch>` before concluding that no CI ran
 - `gh pr view --json mergeStateStatus,statusCheckRollup` can show `mergeStateStatus: BLOCKED` while `statusCheckRollup` is empty for a freshly created docs/skill/config PR. Do not treat that string alone as a failing check or unresolved conflict. Verify the remote branch ref, inspect whether any checks are actually attached, and report the exact empty-check state rather than inventing a CI failure.
@@ -342,6 +346,7 @@ Observed in `skills-jk`:
 - direct local `gh pr create --body` caused shell quoting issues with markdown/backticks
 - `.github/workflows/create-pr.yml` already exists and is the repo-preferred PR creation path
 - repeated local-workspace sweeps can keep teaching new nuances to the same skill; update the existing open skill-followup PR branch when possible instead of fragmenting that learning across many tiny parallel docs PRs
+- if a named requested subset such as `.hermes/config.yaml`, `.hermes/memories/MEMORY.md`, and `.hermes/memories/USER.md` collapses to no diff on latest `origin/main`, do not manufacture a PR for that subset; if broader local Hermes skill/reference changes still survive, put only that surviving payload in a separate fresh latest-main PR and report the split explicitly. See `references/local-sweep-requested-subset-collapse.md`.
 - if you do update that existing PR branch, still verify the branch head SHA on the remote after push because PR metadata can lag briefly
 
 ## Completion checklist

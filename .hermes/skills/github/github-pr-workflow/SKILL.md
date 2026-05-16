@@ -558,7 +558,7 @@ gh pr view <branch-name> --json number,title,url,headRefName,baseRefName,state
 
 1. In Hermes terminal environments, split `git` workflow steps into smaller commands when the runner misclassifies a long chained command as a watch/server process.
    - A combined command such as `git fetch && git rebase && git add && git commit ...` can be rejected before execution with a false long-lived-process warning.
-   - For portable touched-file scans, do not rely on GNU-only `xargs -a`; macOS/BSD `xargs` rejects `-a`. Use a shell loop over a file list instead, for example `while IFS= read -r f; do git grep ... -- "$f"; done < /tmp/files.txt`, and make sure a failed helper invocation does not get misreported as a successful scan.
+   - For portable touched-file scans, do not rely on GNU-only `xargs -a`; macOS/BSD `xargs` rejects `-a`. Use a shell loop over a file list instead, for example `while IFS= read -r f; do git grep ... -- "$f"; done < /tmp/files.txt`, and ensure a failed helper invocation is not misreported as a successful scan.
    - Safer pattern:
      ```bash
      git fetch origin main --quiet
@@ -611,6 +611,8 @@ gh pr view <branch-name> --json number,title,url,headRefName,baseRefName,state
    - This is especially useful when updating multiple stacked branches quickly and one branch appears to vanish or lose its expected base.
    - If you flatten a formerly stacked PR directly onto `main`, immediately rewrite the PR title/body so they no longer claim an old parent branch or parent PR. A common stale-state bug is: the code/base are already `main`-based, but the PR body still says `base branch: <old-parent-branch>` or `parent PR: #...`, which misleads reviewers.
    - When a stacked parent PR is squash-merged and its branch is deleted, the child PR may automatically retarget to `main` while its head still contains the parent's original, now-unmerged-by-SHA commit. Symptom: `gh pr view <child> --json baseRefName,commits` shows `baseRefName=main` and both the parent original commit plus the child commit. Fix by rebasing the child with `git rebase --onto origin/main <original-parent-commit-sha> <child-branch>`, then force-push and update the PR body to remove stacked-parent language. Verify with `git rev-list --oneline origin/main..HEAD` and `gh pr view <child> --json commits,files,baseRefName` before reporting success.
+  - When processing several open PRs in number order, re-check each PR's current `state`, `mergedAt`, and `headRefName` immediately before acting on it. A PR that appeared in the initial open list can merge while an earlier PR is being repaired; skip it if it is now `MERGED`/`CLOSED` and do not push to its old branch or recreate the deleted remote ref.
+  - After repairing each PR in a numbered pass, verify the actual remote branch SHA (`git ls-remote origin refs/heads/<branch>`) and the PR `headRefOid` before moving on. Fresh `statusCheckRollup` can be empty or pending right after a force-push; confirm attached runs with `gh run list --branch <branch>` if needed.
    - Important recovery pattern for existing open PRs: GitHub can still show an open PR with `headRefName` / prior `headRefOid` metadata even when the actual remote head branch ref is gone. Practical symptom set:
      ```bash
      gh pr view <pr-number> --json headRefName,headRefOid,url
@@ -742,6 +744,7 @@ gh pr view <branch-name> --json number,title,url,headRefName,baseRefName,state
      - use raw filesystem reads / editor buffers / scripts for full-file rewrites
      - after any file rewrite sourced from tool output, run a verification grep or regex check for accidental `^\s*\d+\|` line starts before committing
    - Verification pitfall in skill-heavy repos: broad scans over all `.hermes/skills/**` can false-positive on legitimate examples or reference separators, such as code blocks intentionally showing `1|first line` or long `=======` section dividers. For PR safety scans, restrict checks to the touched files and use narrow conflict-marker regexes such as `^(<<<<<<<|>>>>>>>)( |$)` and `^=======$` instead of treating every line containing equals signs as a merge conflict.
+   - After updating a repo-managed skill via `skill_manage`, check whether it changed a tracked skill file in the current repo. If so, do not leave the root checkout dirty; fold the skill change into the existing relevant docs/skill PR when one is open, or create a fresh PR according to the repo's normal workflow.
    - This matters especially in docs-only PR follow-up work, where a mistaken rewrite can silently replace the whole file with line-number-prefixed content.
 
 9. Markdown links to GitHub paths containing `[` or `]` need extra escaping.
