@@ -330,6 +330,25 @@ def request_indexing_via_browser(args) -> int:
     return subprocess.call(cmd)
 
 
+def validate_index_issues_via_browser(args) -> int:
+    """열린 Chrome/GSC 브라우저 세션으로 Page indexing 이슈별 Start New Validation을 실행합니다."""
+    helper = Path(__file__).with_name('gsc-browser-indexing')
+    cmd = [str(helper), '--site', args.site_url, '--index-issues']
+    if args.submit:
+        cmd.append('--submit')
+    if args.only_status is not None:
+        cmd.extend(['--only-status', args.only_status])
+    if args.include_started:
+        cmd.append('--include-started')
+    if args.limit is not None:
+        cmd.extend(['--limit', str(args.limit)])
+    if args.delay_ms is not None:
+        cmd.extend(['--delay-ms', str(args.delay_ms)])
+    if args.port is not None:
+        cmd.extend(['--port', str(args.port)])
+    return subprocess.call(cmd)
+
+
 def inspect_url(site_url: str, page_url: str):
     """URL 인덱싱 상태를 검사합니다."""
     creds = get_credentials()
@@ -633,6 +652,7 @@ def main():
   gsc request-indexing-info                   # 일반 URL 색인 요청 API 지원 여부 설명
   gsc request-indexing-browser --probe        # 열린 Chrome/GSC 세션 확인
   gsc request-indexing-browser https://example.com/ --url https://example.com/page --submit
+  gsc validate-index-issues-browser https://example.com/ --submit
   gsc inspect https://example.com/ /page      # URL 인덱싱 검사
   gsc pages https://example.com/              # 페이지별 성능
 """
@@ -677,6 +697,19 @@ def main():
     browser_index_parser.add_argument('--delay-ms', type=int, help='URL 사이 지연 시간(ms)')
     browser_index_parser.add_argument('--port', type=int, help='Chrome remote debugging 포트')
 
+    # validate-index-issues-browser 명령어
+    validation_parser = subparsers.add_parser(
+        'validate-index-issues-browser',
+        help='열린 Chrome/GSC 세션으로 Page indexing 이슈별 Start New Validation 실행',
+    )
+    validation_parser.add_argument('site_url', help='사이트 URL')
+    validation_parser.add_argument('--submit', action='store_true', help='실제 START NEW VALIDATION 클릭')
+    validation_parser.add_argument('--only-status', default='Failed', help='처리할 Validation 상태 (기본: Failed, all로 전체)')
+    validation_parser.add_argument('--include-started', action='store_true', help='Started 상태 이슈도 후보에 포함')
+    validation_parser.add_argument('--limit', type=int, help='처리할 최대 이슈 수')
+    validation_parser.add_argument('--delay-ms', type=int, help='이슈 사이 지연 시간(ms)')
+    validation_parser.add_argument('--port', type=int, help='Chrome remote debugging 포트')
+
     # inspect 명령어
     inspect_parser = subparsers.add_parser('inspect', help='URL 인덱싱 상태 검사')
     inspect_parser.add_argument('site_url', help='사이트 URL (예: https://example.com/)')
@@ -714,6 +747,8 @@ def main():
         if not args.probe and not args.site_url:
             parser.error('request-indexing-browser requires site_url unless --probe is used')
         sys.exit(request_indexing_via_browser(args))
+    elif args.command == 'validate-index-issues-browser':
+        sys.exit(validate_index_issues_via_browser(args))
     elif args.command == 'inspect':
         inspect_url(args.site_url, args.page_url)
     elif args.command == 'pages':
