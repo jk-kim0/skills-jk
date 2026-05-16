@@ -1,90 +1,85 @@
-# querypie-docs Dependabot batch PR notes (2026-05)
+# querypie-docs Dependabot batch notes (2026-05)
 
-Context: `querypie/querypie-docs` Dependabot security page had many npm alerts across three manifests:
+Use as a concrete reference for npm Dependabot cleanup in `querypie/querypie-docs`-style repos with several independent npm manifests.
+
+## Alert shape
+
+Open Dependabot alerts were spread across:
 
 - root `package-lock.json`
+  - `next` advisories requiring `16.2.6` or newer
+  - `mermaid` requiring `11.15.0`
+  - many transitive advisories: `fast-uri`, `fast-xml-builder`, `fast-xml-parser`, `@xmldom/xmldom`, `dompurify`, `uuid`, `vite`, `picomatch`, `brace-expansion`, `yaml`, `flatted`, `lodash-es`, `postcss`
 - `scripts/deploy/package-lock.json`
+  - `hono`, `@hono/node-server`, `fast-uri`, `ip-address`, `express-rate-limit`, `path-to-regexp`
 - `scripts/website-analysis/package-lock.json`
+  - `basic-ftp`, `ip-address`
 
-## Useful alert inventory command
+## Successful update pattern
+
+Root:
+
+- updated direct Next packages:
+  - `next@16.2.6`
+  - `@next/third-parties@16.2.6`
+  - `eslint-config-next@16.2.6`
+- did not keep `mermaid` as a new direct dependency after the initial lockfile update; instead used a root override so `@theguild/remark-mermaid` resolves to patched `mermaid@11.15.0`.
+- expanded targeted `overrides` for vulnerable transitive packages.
+- important scoped overrides used nested forms for dependency families where major ranges differ:
+  - `minimatch@3` -> `brace-expansion@^1.1.13`
+  - `minimatch@5`/`minimatch@9` -> `brace-expansion@^2.0.3`
+  - `minimatch@10` -> `brace-expansion@^5.0.5`
+  - `micromatch` -> `picomatch@^2.3.2`
+  - `tinyglobby`, `vite`, `vitest` -> `picomatch@^4.0.4`
+  - `next`, `styled-components`, `vite` -> `postcss@^8.5.10`
+  - `nextra`, `vite` -> `yaml@^2.8.3`
+  - `oas-*`/`swagger2openapi` -> `yaml@^1.10.3`
+
+`scripts/deploy`:
+
+- updated `@vercel/sdk` to the latest available at the time (`1.21.5`) and `dotenv` to latest.
+- added overrides for the vulnerable transitive set:
+  - `hono@^4.12.18`
+  - `@hono/node-server@^1.19.13`
+  - `fast-uri@^3.1.2`
+  - `ip-address@^10.1.1`
+  - `express-rate-limit@^8.2.2`
+  - `path-to-regexp@^8.4.0`
+
+`scripts/website-analysis`:
+
+- attempted newest `puppeteer`, but local Node `v22.10.0` produced engine warnings because `puppeteer@25` requires `>=22.12.0`.
+- reverted direct `puppeteer` range to the existing `^24.37.5` family and used transitive overrides instead:
+  - `basic-ftp@^5.3.1`
+  - `ip-address@^10.1.1`
+
+## Verification
+
+Run audits for every affected manifest:
 
 ```bash
-gh api -H 'Accept: application/vnd.github+json' \
-  /repos/querypie/querypie-docs/dependabot/alerts --paginate \
-  --jq '.[] | select(.state=="open") | {number,package:.dependency.package.name,ecosystem:.dependency.package.ecosystem,manifest:.dependency.manifest_path,severity:.security_advisory.severity,summary:.security_advisory.summary,vulnerable:.security_vulnerability.vulnerable_version_range,patched:.security_vulnerability.first_patched_version.identifier}'
+npm audit --json > /tmp/querypie-docs-root-audit.json
+npm --prefix scripts/deploy audit --json > /tmp/querypie-docs-deploy-audit.json
+npm --prefix scripts/website-analysis audit --json > /tmp/querypie-docs-analysis-audit.json
 ```
 
-## Root manifest pattern
+Expected result after the update was zero vulnerabilities in all three audit summaries.
 
-Direct updates:
-
-- `next`, `@next/third-parties`, `eslint-config-next` -> `16.2.6`
-
-Targeted overrides were needed for transitive advisories including:
-
-- `@xmldom/xmldom`
-- `dompurify`
-- `fast-uri`
-- `fast-xml-builder`
-- `fast-xml-parser`
-- `flatted`
-- `mermaid`
-- `uuid`
-- `brace-expansion` under multiple `minimatch` majors
-- `picomatch` under `micromatch`, `tinyglobby`, `vite`, `vitest`
-- `postcss` under `next`, `styled-components`, `vite`
-- `yaml` under `nextra`, `vite`, and old OpenAPI packages
-
-Important: do not add `mermaid` as a new direct dependency just to satisfy a transitive alert if `@theguild/remark-mermaid` already owns it. Prefer an override so the app dependency surface stays narrow.
-
-## scripts/deploy pattern
-
-`@vercel/sdk` update alone may not clear advisories. Add targeted overrides for patched transitive packages if still vulnerable:
-
-- `hono`
-- `@hono/node-server`
-- `fast-uri`
-- `ip-address`
-- `express-rate-limit`
-- `path-to-regexp`
-
-Verify with:
+Spot-check overridden trees with smaller `npm ls` groups rather than one huge command. In this Hermes environment, a long `npm ls pkg1 pkg2 ...` command can be misclassified by the tool guard as a long-lived server/watch process. Split checks, for example:
 
 ```bash
-npm --prefix scripts/deploy audit --json
+npm ls @xmldom/xmldom fast-xml-builder fast-xml-parser --package-lock-only
+npm ls dompurify mermaid uuid --package-lock-only
+npm ls brace-expansion --package-lock-only
+npm ls picomatch --package-lock-only
+npm ls postcss --package-lock-only
+npm ls yaml --package-lock-only
 npm --prefix scripts/deploy ls hono @hono/node-server fast-uri --package-lock-only
 npm --prefix scripts/deploy ls ip-address express-rate-limit path-to-regexp --package-lock-only
-```
-
-## scripts/website-analysis pattern
-
-Avoid blindly bumping Puppeteer to the latest major if it introduces a stricter local Node engine than the repo/environment currently uses. In this case latest `puppeteer@25` warned for local Node `v22.10.0`; keeping the existing `^24.x` line and adding transitive overrides cleared audit without the engine warning:
-
-- `basic-ftp`
-- `ip-address`
-
-Verify with:
-
-```bash
-npm --prefix scripts/website-analysis audit --json
 npm --prefix scripts/website-analysis ls basic-ftp ip-address puppeteer --package-lock-only
 ```
 
-## Hermes CLI pitfall
+## PR/cleanup notes
 
-A combined command like:
-
-```bash
-npm ls @xmldom/xmldom brace-expansion dompurify fast-uri fast-xml-builder fast-xml-parser flatted mermaid picomatch postcss uuid vite yaml --package-lock-only
-```
-
-can be rejected by Hermes as a suspected long-lived watch/server process. Split it into shorter family checks or inspect the lockfile with Node instead.
-
-## PR completion standard used
-
-- Fresh branch from latest `origin/main`
-- Commit package manifest/lockfile changes only
-- Push branch and create PR
-- Verify local HEAD equals remote branch HEAD with `git ls-remote`
-- Verify `gh pr view` shows checks attached to the pushed head SHA
-- Do not wait passively for CI unless the user asks
+- Dependabot alert counts in GitHub remain default-branch-based until merge and reprocessing.
+- If the PR merges quickly and the remote branch is deleted, a later repo-local workspace cleanup should verify `gh pr view <number>` and `git fetch --prune`, then remove the clean merged worktree and local branch residue.

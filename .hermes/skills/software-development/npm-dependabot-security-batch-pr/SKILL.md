@@ -179,4 +179,5 @@ Safer verification patterns:
 ## References
 
 - `references/corp-web-app-2026-05-dependabot.md` — session notes from a corp-web-app batch PR that required direct GitHub alert inventory, root plus `scripts/deploy` audits, targeted postcss/undici overrides, and cleanup after an over-broad brace-expansion override created invalid lockfile entries.
+- `references/querypie-docs-2026-05-dependabot.md` — session notes from a querypie-docs batch PR covering root + `scripts/deploy` + `scripts/website-analysis`, Next 16.2.6, Mermaid 11.15.0 via override, Puppeteer engine-warning avoidance, and split `npm ls` verification to avoid Hermes tool-guard false positives.
 - `references/querypie-docs-2026-05-dependabot.md` — querypie-docs batch PR notes covering root plus `scripts/deploy` plus `scripts/website-analysis`, targeted overrides, and the `npm ls` tool-guard workaround.
