@@ -1,0 +1,317 @@
+#!/usr/bin/env node
+/*
+ * Experimental Google Search Console frontend request-indexing helper.
+ *
+ * This intentionally runs the internal GSC fetches inside an already logged-in
+ * Chrome Search Console tab via the Chrome DevTools Protocol. It does not copy
+ * Google cookies to disk or print session tokens.
+ */
+
+const DEFAULT_PORT = 9222;
+const RECAPTCHA_SITE_KEY = '6LeKMsIjAAAAAGP5PskdMId0tLXc7dL3LiO07Avf';
+
+function usage() {
+  console.log(`Usage:
+  gsc-browser-indexing --site <site_url> --url <page_url> [--submit]
+  gsc-browser-indexing --site <site_url> --file <urls.txt> [--submit] [--limit N]
+  gsc-browser-indexing --probe
+
+Options:
+  --site URL        GSC property URL, e.g. https://docs.querypie.com/
+  --url URL         Single URL to inspect/request
+  --file PATH       Newline-delimited URL list
+  --submit          Actually submit Request indexing after live validation
+                    Without this flag, the command performs live validation only
+  --limit N         Max URLs from --file
+  --delay-ms N      Delay between URLs (default: 15000)
+  --port N          Chrome remote debugging port (default: 9222)
+  --target URL      Existing GSC tab URL hint (default: search-console)
+  --probe           Verify a debuggable, logged-in GSC tab is reachable
+
+Notes:
+  - Chrome must be running with --remote-debugging-port=9222.
+  - A Search Console tab must already be logged in.
+  - This uses undocumented frontend RPCs and can break if Google changes GSC.
+`);
+}
+
+function parseArgs(argv) {
+  const args = { port: DEFAULT_PORT, delayMs: 15000, submit: false, probe: false, target: 'search-console' };
+  for (let i = 2; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === '--help' || a === '-h') args.help = true;
+    else if (a === '--submit') args.submit = true;
+    else if (a === '--probe') args.probe = true;
+    else if (a === '--site') args.site = argv[++i];
+    else if (a === '--url') args.url = argv[++i];
+    else if (a === '--file') args.file = argv[++i];
+    else if (a === '--limit') args.limit = Number(argv[++i]);
+    else if (a === '--delay-ms') args.delayMs = Number(argv[++i]);
+    else if (a === '--port') args.port = Number(argv[++i]);
+    else if (a === '--target') args.target = argv[++i];
+    else throw new Error(`Unknown argument: ${a}`);
+  }
+  return args;
+}
+
+async function readUrls(args) {
+  if (args.url) return [args.url];
+  if (!args.file) return [];
+  const fs = await import('node:fs/promises');
+  const content = await fs.readFile(args.file, 'utf8');
+  let urls = content.split(/\r?\n/).map((line) => line.trim()).filter((line) => line && !line.startsWith('#'));
+  if (Number.isFinite(args.limit)) urls = urls.slice(0, args.limit);
+  return urls;
+}
+
+async function getBrowserWebSocketUrl(port) {
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/json/version`);
+    if (res.ok) {
+      const version = await res.json();
+      if (version.webSocketDebuggerUrl) return version.webSocketDebuggerUrl;
+    }
+  } catch {
+    // Fall through to DevToolsActivePort.
+  }
+
+  const fs = await import('node:fs/promises');
+  const os = await import('node:os');
+  const path = await import('node:path');
+  const activePortPath = path.join(os.homedir(), 'Library/Application Support/Google/Chrome/DevToolsActivePort');
+  const [activePort, browserPath] = (await fs.readFile(activePortPath, 'utf8')).trim().split(/\r?\n/);
+  return `ws://127.0.0.1:${activePort || port}${browserPath}`;
+}
+
+function selectSearchConsoleTarget(targets, hint) {
+  const infos = targets.targetInfos || targets;
+  const page = infos.find((t) => t.type === 'page' && t.url && t.url.includes('search.google.com/search-console') && t.url.includes(hint))
+    || infos.find((t) => t.type === 'page' && t.url && t.url.includes('search.google.com/search-console'));
+  if (!page) {
+    throw new Error('No open Search Console tab found in debuggable Chrome. Open https://search.google.com/search-console first.');
+  }
+  return page;
+}
+
+class CdpClient {
+  constructor(wsUrl) {
+    this.wsUrl = wsUrl;
+    this.nextId = 1;
+    this.pending = new Map();
+  }
+
+  async connect() {
+    this.ws = new WebSocket(this.wsUrl);
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('Timed out connecting to Chrome DevTools WebSocket')), 10000);
+      this.ws.addEventListener('open', () => { clearTimeout(timer); resolve(); }, { once: true });
+      this.ws.addEventListener('error', (event) => { clearTimeout(timer); reject(new Error(`WebSocket error: ${event.message || 'unknown'}`)); }, { once: true });
+    });
+    this.ws.addEventListener('message', (event) => {
+      let msg;
+      try { msg = JSON.parse(event.data); } catch { return; }
+      if (msg.id && this.pending.has(msg.id)) {
+        const { resolve, reject } = this.pending.get(msg.id);
+        this.pending.delete(msg.id);
+        if (msg.error) reject(new Error(JSON.stringify(msg.error)));
+        else resolve(msg.result);
+      }
+    });
+  }
+
+  send(method, params = {}, sessionId = undefined) {
+    const id = this.nextId++;
+    const message = { id, method, params };
+    if (sessionId) message.sessionId = sessionId;
+    const payload = JSON.stringify(message);
+    return new Promise((resolve, reject) => {
+      this.pending.set(id, { resolve, reject });
+      this.ws.send(payload);
+    });
+  }
+
+  async evaluate(fn, arg, sessionId = undefined) {
+    const expression = `(${fn})(${JSON.stringify(arg)})`;
+    const result = await this.send('Runtime.evaluate', {
+      expression,
+      awaitPromise: true,
+      returnByValue: true,
+      timeout: 180000,
+    }, sessionId);
+    if (result.exceptionDetails) {
+      throw new Error(result.exceptionDetails.text || JSON.stringify(result.exceptionDetails));
+    }
+    return result.result ? result.result.value : undefined;
+  }
+
+  close() {
+    if (this.ws) this.ws.close();
+  }
+}
+
+function pageFunction(input) {
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  function parseRpcResponse(text, rpcid) {
+    for (const rawLine of text.split('\n')) {
+      const line = rawLine.trim();
+      if (!line.startsWith('[[')) continue;
+      let rows;
+      try { rows = JSON.parse(line); } catch { continue; }
+      for (const row of rows) {
+        if (Array.isArray(row) && row[0] === 'wrb.fr' && row[1] === rpcid) {
+          return row[2] ? JSON.parse(row[2]) : null;
+        }
+      }
+    }
+    throw new Error(`RPC ${rpcid} response was not found`);
+  }
+
+  function rpcUrl(rpcid) {
+    const data = window.WIZ_global_data || {};
+    const params = new URLSearchParams({
+      rpcids: rpcid,
+      'source-path': '/search-console/inspect',
+      'f.sid': data.FdrFJe,
+      bl: data.cfb2h,
+      hl: 'en',
+      'soc-app': '1',
+      'soc-platform': '1',
+      'soc-device': '1',
+      _reqid: String(Math.floor(Math.random() * 900000) + 100000),
+      rt: 'c',
+    });
+    return `/_/SearchConsoleAggReportUi/data/batchexecute?${params.toString()}`;
+  }
+
+  async function rpc(rpcid, args) {
+    const data = window.WIZ_global_data || {};
+    if (!data.SNlM0e || !data.FdrFJe || !data.cfb2h) {
+      throw new Error('Missing GSC WIZ global tokens. Reload a logged-in Search Console tab and retry.');
+    }
+    const body = new URLSearchParams();
+    body.set('f.req', JSON.stringify([[[rpcid, JSON.stringify(args), null, 'generic']]]));
+    body.set('at', data.SNlM0e);
+    const res = await fetch(rpcUrl(rpcid), {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
+        'x-same-domain': '1',
+      },
+      body: body.toString() + '&',
+    });
+    const text = await res.text();
+    if (!res.ok) throw new Error(`RPC ${rpcid} HTTP ${res.status}: ${text.slice(0, 300)}`);
+    return parseRpcResponse(text, rpcid);
+  }
+
+  async function recaptchaToken() {
+    if (!window.grecaptcha) {
+      throw new Error('grecaptcha is not loaded in the current GSC tab. Open URL Inspection and click Request indexing once, or reload the page and retry.');
+    }
+    if (typeof window.grecaptcha.execute !== 'function') {
+      throw new Error('grecaptcha.execute is unavailable in the current GSC tab.');
+    }
+    if (typeof window.grecaptcha.ready === 'function') {
+      await new Promise((resolve) => window.grecaptcha.ready(resolve));
+    }
+    try {
+      return await window.grecaptcha.execute(100000);
+    } catch (firstError) {
+      return await window.grecaptcha.execute(input.recaptchaSiteKey, { action: 'submit' });
+    }
+  }
+
+  async function requestOne(siteUrl, pageUrl, submit) {
+    const liveStart = await rpc('RVtklb', [pageUrl, null, 4, 1, siteUrl]);
+    const liveJobId = liveStart && liveStart[0];
+    if (!liveJobId) throw new Error(`Could not start live inspection for ${pageUrl}`);
+
+    let poll = null;
+    for (let attempt = 1; attempt <= input.pollAttempts; attempt++) {
+      poll = await rpc('MrNfbc', [liveJobId, pageUrl]);
+      if (poll && poll[1] === 2) break;
+      await sleep(input.pollDelayMs);
+    }
+    if (!poll || poll[1] !== 2) {
+      throw new Error(`Live inspection did not complete for ${pageUrl}`);
+    }
+
+    const validation = await rpc('HZPzjb', [liveJobId, pageUrl]);
+    const canRequest = Array.isArray(validation) && Array.isArray(validation[0]) && validation[0][0] === 1;
+    if (!canRequest) {
+      return { url: pageUrl, liveJobId, submitted: false, canRequest: false, validation };
+    }
+
+    if (!submit) {
+      return { url: pageUrl, liveJobId, submitted: false, canRequest: true, validation };
+    }
+
+    const token = await recaptchaToken();
+    if (!token) throw new Error('Empty reCAPTCHA token');
+    const submitResult = await rpc('Fj3Owf', [liveJobId, token, null, pageUrl]);
+    return { url: pageUrl, liveJobId, submitted: true, canRequest: true, result: submitResult };
+  }
+
+  return requestOne(input.siteUrl, input.pageUrl, input.submit);
+}
+
+async function main() {
+  const args = parseArgs(process.argv);
+  if (args.help) { usage(); return; }
+
+  const wsUrl = await getBrowserWebSocketUrl(args.port);
+  const client = new CdpClient(wsUrl);
+  await client.connect();
+  let sessionId;
+  let target;
+  try {
+    const targets = await client.send('Target.getTargets');
+    target = selectSearchConsoleTarget(targets, args.target);
+    const attached = await client.send('Target.attachToTarget', { targetId: target.targetId, flatten: true });
+    sessionId = attached.sessionId;
+    if (!sessionId) throw new Error('Could not attach to Search Console target.');
+
+    if (args.probe) {
+      const probe = await client.evaluate(() => ({
+        href: location.href,
+        title: document.title,
+        hasGscTokens: Boolean(window.WIZ_global_data && WIZ_global_data.SNlM0e && WIZ_global_data.FdrFJe && WIZ_global_data.cfb2h),
+        hasRecaptcha: typeof window.grecaptcha === 'object',
+      }), {}, sessionId);
+      console.log(JSON.stringify({ target: { id: target.targetId, url: target.url, title: target.title }, probe }, null, 2));
+      return;
+    }
+
+    if (!args.site) throw new Error('--site is required');
+    const urls = await readUrls(args);
+    if (!urls.length) throw new Error('--url or --file is required');
+
+    for (const [idx, pageUrl] of urls.entries()) {
+      const prefix = `[${idx + 1}/${urls.length}] ${pageUrl}`;
+      try {
+        const result = await client.evaluate(pageFunction, {
+          siteUrl: args.site,
+          pageUrl,
+          submit: args.submit,
+          pollAttempts: 30,
+          pollDelayMs: 3000,
+          recaptchaSiteKey: RECAPTCHA_SITE_KEY,
+        }, sessionId);
+        console.log(`${prefix} OK ${args.submit ? 'submitted' : 'validated'}`);
+        console.log(JSON.stringify(result));
+      } catch (error) {
+        console.log(`${prefix} FAIL ${error.message}`);
+      }
+      if (idx < urls.length - 1) await new Promise((resolve) => setTimeout(resolve, args.delayMs));
+    }
+  } finally {
+    client.close();
+  }
+}
+
+main().catch((error) => {
+  console.error(`ERROR: ${error.message}`);
+  process.exit(1);
+});

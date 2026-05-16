@@ -23,6 +23,7 @@ import argparse
 import json
 import os
 import pickle
+import subprocess
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -304,6 +305,29 @@ def explain_request_indexing_api() -> None:
     print("URL Inspection API는 상태 조회만 지원하고, Search Console API는 사이트맵 제출/조회와 성능 조회를 지원합니다.")
     print("Indexing API의 URL_UPDATED 알림은 Google 문서상 JobPosting/BroadcastEvent 등 제한된 콘텐츠에만 권장/지원됩니다.")
     print("따라서 일반 문서/마케팅 페이지 전체 갱신은 사이트맵 재제출(refresh-sitemaps)로 처리하는 것이 안전한 자동화 경로입니다.")
+
+
+def request_indexing_via_browser(args) -> int:
+    """열린 Chrome/GSC 브라우저 세션을 사용해 프론트엔드 색인 요청 helper를 실행합니다."""
+    helper = Path(__file__).with_name('gsc-browser-indexing')
+    cmd = [str(helper), '--site', args.site_url]
+    if args.url:
+        cmd.extend(['--url', args.url])
+    if args.file:
+        cmd.extend(['--file', args.file])
+    if args.submit:
+        cmd.append('--submit')
+    if args.limit is not None:
+        cmd.extend(['--limit', str(args.limit)])
+    if args.delay_ms is not None:
+        cmd.extend(['--delay-ms', str(args.delay_ms)])
+    if args.port is not None:
+        cmd.extend(['--port', str(args.port)])
+    if args.probe:
+        cmd = [str(helper), '--probe']
+        if args.port is not None:
+            cmd.extend(['--port', str(args.port)])
+    return subprocess.call(cmd)
 
 
 def inspect_url(site_url: str, page_url: str):
@@ -607,6 +631,8 @@ def main():
   gsc submit-sitemap https://example.com/ https://example.com/sitemap.xml
   gsc refresh-sitemaps                        # 관리 중인 URL-prefix 속성의 등록 사이트맵 재제출
   gsc request-indexing-info                   # 일반 URL 색인 요청 API 지원 여부 설명
+  gsc request-indexing-browser --probe        # 열린 Chrome/GSC 세션 확인
+  gsc request-indexing-browser https://example.com/ --url https://example.com/page --submit
   gsc inspect https://example.com/ /page      # URL 인덱싱 검사
   gsc pages https://example.com/              # 페이지별 성능
 """
@@ -636,6 +662,20 @@ def main():
 
     # request-indexing-info 명령어
     subparsers.add_parser('request-indexing-info', help='일반 URL 색인 요청 API 지원 여부 설명')
+
+    # request-indexing-browser 명령어
+    browser_index_parser = subparsers.add_parser(
+        'request-indexing-browser',
+        help='열린 Chrome/GSC 브라우저 세션으로 프론트엔드 색인 요청 실행',
+    )
+    browser_index_parser.add_argument('site_url', nargs='?', help='사이트 URL')
+    browser_index_parser.add_argument('--url', help='단일 요청 URL')
+    browser_index_parser.add_argument('--file', help='요청 URL 목록 파일')
+    browser_index_parser.add_argument('--submit', action='store_true', help='실제 Request indexing 제출')
+    browser_index_parser.add_argument('--probe', action='store_true', help='브라우저 세션 연결만 확인')
+    browser_index_parser.add_argument('--limit', type=int, help='파일 입력에서 처리할 최대 URL 수')
+    browser_index_parser.add_argument('--delay-ms', type=int, help='URL 사이 지연 시간(ms)')
+    browser_index_parser.add_argument('--port', type=int, help='Chrome remote debugging 포트')
 
     # inspect 명령어
     inspect_parser = subparsers.add_parser('inspect', help='URL 인덱싱 상태 검사')
@@ -670,6 +710,10 @@ def main():
         refresh_sitemaps(args.site_urls or None, args.include_domain_properties)
     elif args.command == 'request-indexing-info':
         explain_request_indexing_api()
+    elif args.command == 'request-indexing-browser':
+        if not args.probe and not args.site_url:
+            parser.error('request-indexing-browser requires site_url unless --probe is used')
+        sys.exit(request_indexing_via_browser(args))
     elif args.command == 'inspect':
         inspect_url(args.site_url, args.page_url)
     elif args.command == 'pages':
