@@ -14,6 +14,7 @@ Use this when:
 
 References:
 - `references/gsc-indexing-api-and-sitemap-refresh.md` — API capability limits, sitemap refresh workflow, issue-level validation restart workflow, and OAuth/browser-session pitfalls.
+- `references/gsc-all-site-validation-cli.md` — pattern for a CLI that discovers all managed GSC properties and runs Page indexing issue validation across them safely.
 
 ## Goal
 
@@ -58,12 +59,19 @@ When the user asks to “request indexing”, “update indexing requests”, or
    - Re-submit registered sitemaps with `sitemaps.submit`.
    - Treat `sc-domain:*` properties as potentially overlapping with URL-prefix properties; skip by default unless the user explicitly wants domain properties included.
 
-3. Preflight OAuth scopes before submitting.
+3. For Page indexing issue validation across all managed sites, prefer an all-site wrapper around the browser validation helper rather than a hard-coded site list.
+   - Discover properties with `sites().list()` / the local `gsc sites` implementation.
+   - Default to URL-prefix properties; make `sc-domain:*` opt-in with a flag.
+   - Keep the wrapper dry-run by default and require `--submit` for actual `START NEW VALIDATION` clicks.
+   - Add smoke-test controls such as `--site`, `--limit-sites`, and `--issue-limit` before running the full account.
+   - See `references/gsc-all-site-validation-cli.md` for the reusable CLI shape and verification recipe.
+
+4. Preflight OAuth scopes before submitting.
    - `sitemaps.list` can work with `https://www.googleapis.com/auth/webmasters.readonly`.
    - `sitemaps.submit` requires `https://www.googleapis.com/auth/webmasters`.
    - If an existing token was granted readonly only, code changes that request broader scopes will not upgrade it automatically. Back up/remove the token and re-auth, but ask before moving/deleting an existing working token.
 
-4. CLI UX expectations.
+5. CLI UX expectations.
    - Provide an explicit explanation command or message for unsupported general Request Indexing API.
    - Add/write commands such as `submit-sitemap` and `refresh-sitemaps` when maintaining a repo-local GSC CLI.
    - Fail fast with a clear scope error rather than attempting many sitemap submissions that all return 403.
