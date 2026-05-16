@@ -246,6 +246,9 @@ When the user asks to create a PR from the current local workspace state rather 
     - expect the surviving payload to shrink again, sometimes to only a few files, because the earlier follow-up PR may already have absorbed most of the root-local changes
     - however, do not assume the surviving payload only shrinks monotonically: new tracked root edits can also appear between repeated user requests while `origin/main` advances, so the next surviving diff may be a different small set than the previous PR payload
     - practical rule: on each repeated request, rebuild the candidate list from the current dirty root checkout first, then transplant into a brand-new latest-main worktree and trust only the post-copy collapsed diff there
+    - if the user's named scoped files such as `.hermes/config.yaml`, `.hermes/memories/MEMORY.md`, and `.hermes/memories/USER.md` collapse to no diff, do not claim a scoped PR was created; explicitly say the scoped files were identical to latest main, then separately PR any other surviving local skill/reference changes if the user also asked for local-change PR creation
+    - when the fresh latest-main transplant contains both additions and deletion hunks, inspect representative diffs before committing; exclude stale revert/deletion hunks that would undo guidance already present on latest `origin/main`, and keep only the residual meaningful updates
+    - after the PR branch is pushed and the remote head is verified, restore those same dirty root paths, fast-forward root `main`, and then delete any now-merged stale worktrees/branches from earlier follow-up PRs
     - report the final PR scope from the fresh worktree diff against latest `origin/main`, not from the stale root candidate list
   - Additional open-PR separation rule from repeated local sweeps:
     - the previous follow-up PR may still be OPEN while the dirty root checkout has accumulated further tracked changes on top of it
