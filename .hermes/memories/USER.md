@@ -124,7 +124,7 @@ The user requires repo work to start from latest main by default, expects local 
 §
 Across repos, prefer repo-root `.worktrees/`; avoid changing main checkouts unless explicitly requested.
 §
-User cares strongly about code structure and file paths, including tests: place test files on paths mirroring the source file paths they cover.
+User cares strongly about exact code/test file paths: mirror tests to source paths, and render `__tests__` underscores unambiguously.
 §
 For corp-web-japan contact-us rollout, keep `/t/contact-us` as the feature-flag public form route until final validation/testing is complete; only at the very end should the existing `/contact-us` public entry be switched with a minimal route change. The approved structure is: use `/contact-us/submit` as the submit endpoint, keep app route code thin, and place backend implementation in reusable shared locations such as `src/lib` or `src/components` rather than route-local heavy logic.
 §
