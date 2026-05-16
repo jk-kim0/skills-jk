@@ -20,7 +20,15 @@ Session pattern: after PR 671 added archived route-local pages, add a separate P
 
 ## UI pattern
 
-Match the existing `/internal` page style when the user asks for that comparison: keep it simple, e.g. a heading plus a bullet list of links. Avoid over-designing the page.
+Do **not** implement the archived index as an unstyled plain `<main><ul><li><Link>` just because `/internal` looks like a simple heading/list page. `/internal` is rendered through the dynamic MDX pipeline, so it receives MDX list/link styling, a 1200px center section, and the default `DownloadBottom` CTA. A route-local archived index does not receive those automatically.
+
+Use a route-local section/card-list pattern by default:
+
+- rely on the root layout's `<Main>` wrapper; do not render a nested `<main>` inside `archived-index-page.tsx`;
+- make the section `width: 100%` with `max-width: var(--content-max-width)` and `var(--layout-padding)` horizontal padding;
+- style links explicitly as obvious cards or clearly underlined links, because global CSS resets `a { color: inherit; text-decoration: none; }` and `ul { list-style: none; }`;
+- include route/path text when useful for review-oriented archived pages;
+- add `DownloadBottom` explicitly if parity with `/internal` page composition is requested or expected.
 
 Manual registry is acceptable and often preferable for a small archived section:
 
@@ -55,6 +63,8 @@ Add a targeted route test that verifies:
 
 - heading renders;
 - each listed page link points to the correct locale-specific archived path;
+- the route-local component does not emit its own nested `<main>` when it is already rendered inside the root layout's `Main` wrapper;
+- any expected bottom CTA link renders when `DownloadBottom` is part of the chosen composition;
 - metadata has `robots: 'noindex, nofollow'`;
 - canonical URLs match default and localized routes.
 

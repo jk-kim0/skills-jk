@@ -53,6 +53,12 @@ If the referenced PR is already merged or closed, do not revive its branch; star
    - Use `--force-with-lease` for rewritten PR follow-up branches.
    - Verify remote head with `git ls-remote origin refs/heads/<branch>` and report CI status without long passive waits.
 
+## Locale dynamic route relocation
+
+When consolidating explicit locale directories such as `src/app/en/**`, `src/app/ko/**`, and `src/app/ja/**` into a dynamic `src/app/[locale]/**` route, preserve the unprefixed default public route as a thin EN wrapper unless the user explicitly asks to change public URL policy. Move the real authored pages to `page.en.tsx`, `page.ko.tsx`, and `page.ja.tsx` under the `[locale]` route and add a thin locale dispatcher at `page.tsx`.
+
+Important pitfall: do not leave the old explicit locale route files in place if the goal is a real relocation. In Next.js App Router, explicit static segments can continue to handle `/en/...`, `/ko/...`, and `/ja/...` instead of the new `[locale]` route. See `references/locale-dynamic-route-relocation.md` for the contact-us review pattern and verification notes.
+
 ## Migration README requirement
 
 When a static page migration may need future corrections, add a colocated `README.md` next to `page.en.tsx` / `page.ko.tsx` / `page.ja.tsx`.
@@ -73,6 +79,7 @@ See `references/become-a-partner-archived-route-readme.md` for a concrete patter
 
 ## Pitfalls
 
+- Lightweight index/list pages still need explicit route-local styling. In corp-web-app, the root layout already wraps children in `src/components/layout/main`; adding another `<main>` inside a route-local index can become a flex child that shrinks to content width. Also, global CSS resets plain `a` and `ul` styles, so plain links/lists can look like unclickable text unless styled. See `references/archived-index-route.md`.
 - Do not infer that all similarly named assets are page-specific. Verify whether assets are shared by unrelated form/layout flows before moving them.
 - Do not silently normalize a user-specified route spelling. If the user asks for `/archived/become-a-parter`, preserve that spelling unless they correct it.
 - Do not leave old imports, canonical URLs, or OG image URLs pointing at the pre-migration route or asset path.

@@ -89,6 +89,19 @@ Typical examples:
 
 ## Specific parity findings worth reusing
 
+### Plain route-local index vs MDX-rendered internal list
+
+When comparing an internal/demo index route against another simple-looking index page, do not assume both pages share the same renderer just because both show a heading plus links. In corp-web-app, a dynamic MDX route may receive MDX list components, section wrappers, and default bottom CTA injection from `dynamic-page.tsx`, while a route-local TSX page with plain `<ul>/<li>/<Link>` receives only global CSS resets.
+
+Investigation pattern:
+- Inspect the actual DOM chain and computed styles for a representative list item on both pages.
+- Check for nested landmarks such as an inner `<main>` under the root layout `<Main>`; flex parents with `align-items: center` can make the child shrink to content width unless `width: 100%` is set.
+- Check global resets for `a { color: inherit; text-decoration: none; }` and `ul { list-style: none; }`; plain route-local lists may lose link affordance and bullets unless they use explicit classes/components.
+- If the reference page has a CTA below the list, verify whether it is authored by the page or injected by a dynamic/MDX layout path.
+- Also audit the explicit list registry against actual available routes; visual confusion can hide missing index entries.
+
+See `references/corp-web-app-archived-vs-internal-index.md` for a concrete stage investigation.
+
 ### Sticky sidebar
 
 When a list page has:

@@ -93,6 +93,9 @@ Do not start dev servers for this task. Prefer pushing and letting CI validate t
 
 - Do not create local edits in the main checkout. Use a linked worktree under `.worktrees/`.
 - Do not blindly copy a sibling repo's test groups; first list the current repo's tests and source directories.
+- After rebasing a CI-splitting PR over newer main, rerun `node scripts/ci/assert-test-groups.mjs` before pushing. Newly merged tests can appear outside the original grouping set and make `Validate Lint` fail even when ESLint is clean.
+- Locale-prefixed verification routes are easy to miss: match both `src/__tests__/app/t/*-verification-route.test.tsx` and `src/__tests__/app/[locale]/t/*-verification-route.test.tsx`, and keep the corresponding paths-filter entries aligned.
+- Route-local page and Next config route tests under `src/__tests__/app/*route*.test.tsx` or `src/__tests__/next-config-*-route.test.ts` usually belong in the routing group unless they exercise a narrower owned subsystem.
 - Do not let the final required check skip completely on docs-only PRs if branch protection expects a result. Use an always-running aggregate job.
 - Do not feed Playwright/E2E spec files to Vitest; keep them in a separate concern.
 - Do not remove existing branch-protection check names without confirming repository settings.
