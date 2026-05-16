@@ -187,7 +187,6 @@ When the user asks to create a PR from the current local workspace state rather 
    - In `skills-jk`, append-only markdown files such as `.hermes/memories/*.md` and skill `SKILL.md` files often conflict when both latest `main` and the local work added new bullets near the end.
    - Do not blindly choose one side; read the conflict block and keep both sides' new entries unless they are true duplicates.
    - Preserve existing separators like `§` in memory files.
-   - At minimum run a targeted search like `rg -n '^(<<<<<<<|=======|>>>>>>>)' <files...>`.
    - Do not rely only on `git status`; a file can be marked resolved while still containing conflict text.
    - For config files such as `.yaml`, also run a lightweight parse check (for example `python -c 'import yaml, pathlib; yaml.safe_load(pathlib.Path(...).read_text())'`).
    - When resolving against latest `main`, prefer the actual `origin/main` file content as the source of truth instead of guessing which side of the conflict to keep.
@@ -378,7 +377,9 @@ PR을 푸시한 뒤에야 런타임 untracked 파일(`kanban.db`, `test.db`, 로
 Observed in `skills-jk`:
 - direct local `gh pr create --body` caused shell quoting issues with markdown/backticks
 - `.github/workflows/create-pr.yml` already exists and is the repo-preferred PR creation path
+- repeated local-workspace sweeps can keep teaching new nuances to the same skill; update the existing open skill-followup PR branch when possible instead of fragmenting that learning across many tiny parallel docs PRs
 - if a named requested subset such as `.hermes/config.yaml`, `.hermes/memories/MEMORY.md`, and `.hermes/memories/USER.md` collapses to no diff on latest `origin/main`, do not manufacture a PR for that subset; if broader local Hermes skill/reference changes still survive, put only that surviving payload in a separate fresh latest-main PR and report the split explicitly. See `references/local-sweep-requested-subset-collapse.md`.
+- if a repeated cleanup request arrives after the requested config/memory subset is already absorbed but new skill-library residue remains, split the report and create a narrow PR only for the surviving skill-library diff. See `references/repeated-cleanup-after-followup-pr.md`.
 - if a prior follow-up PR is already squash-merged and the agent is still inside its stale worktree, verify absorption with two-dot/tree diff plus scoped blob equality before deleting it; do not trust ancestry or triple-dot diff alone. See `references/squash-merged-pr-worktree-cleanup.md`.
 - if you do update that existing PR branch, still verify the branch head SHA on the remote after push because PR metadata can lag briefly
 

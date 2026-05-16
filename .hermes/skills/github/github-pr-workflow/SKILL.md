@@ -149,14 +149,45 @@ Types: `feat`, `fix`, `refactor`, `docs`, `test`, `ci`, `chore`, `perf`
 git push -u origin HEAD
 ```
 
-### Create the PR
+### Create the PR and Immediately Provide the URL to the User
 
-**With gh:**
+**Critical step: After creating a PR, immediately show the user the exact GitHub PR URL, regardless of whether they explicitly asked for it or not. Do not wait for the user to request the URL.**
 
 ```bash
 gh pr create \
   --title "feat: add JWT-based user authentication" \
   --body-file /tmp/pr-body.md
+```
+
+**Capture and surface the PR URL:**
+
+```bash
+# After successful creation, output the PR URL explicitly
+gh pr view $(git branch --show-current) --json url --jq '.url'
+```
+
+Alternatively, if the `gh pr create` output includes the URL, capture it and present it to the user. If you fall back to curl, the response JSON contains `html_url` — extract and show it.
+
+**With git + curl:**
+
+```bash
+BRANCH=$(git branch --show-current)
+
+# Create PR via API
+RESPONSE=$(curl -s -X POST \
+  -H "Authorization: token $GITHUB_TOKEN" \
+  -H "Accept: application/vnd.github.v3+json" \
+  https://api.github.com/repos/$OWNER/$REPO/pulls \
+  -d "{
+    \"title\": \"feat: add JWT-based user authentication\",
+    \"body\": \"## Summary\nAdds login and register API endpoints.\n\nCloses #42\",
+    \"head\": \"$BRANCH\",
+    \"base\": \"main\"
+  }")
+
+# Extract and display the URL
+PR_URL=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['html_url'])")
+echo "Pull Request created: $PR_URL"
 ```
 
 Prepare `/tmp/pr-body.md` first (recommended whenever the PR body contains backticks, shell metacharacters, or multiple paragraphs):

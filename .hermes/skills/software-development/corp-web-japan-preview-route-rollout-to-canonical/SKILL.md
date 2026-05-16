@@ -275,16 +275,45 @@ Typical pattern:
 - update the still-preview parent/list page links that point at the child page. For example, when `/t/platforms/aip/mcp-gateway` becomes `/platforms/aip/mcp-gateway`, keep `/t/platforms/aip` itself as preview if it is not being published, but change that card's `href` to the newly published child route.
 - treat finite static product/detail pages such as `/platforms/aip/usage-based-llm` and `/platforms/aip/mcp-gateway` as public indexability/list-route entries in `tests/publication-detail-indexability.test.mjs` if the existing test classifies them under `publicIndexableListRoutes` rather than MDX dynamic detail routes
 
+For service landing pages that replace a public `route.ts` redirect (e.g. `/services/fde` replacing an upstream redirect), also clean up:
+- `tests/redirect-endpoints.test.mjs`: remove the corresponding redirect rule object from `expectedRedirectRules`, decrement the total count assertion, and add rollout assertions such as:
+  ```js
+  test("/t/services/fde preview entrypoint has been removed after public rollout", () => {
+    assert.equal(existsSync(new URL("../src/app/t/services/fde/page.tsx", import.meta.url)), false);
+  });
+  test("/services/fde is now a local public page and replaces the old redirect", () => {
+    assert.equal(existsSync(new URL("../src/app/services/fde/page.tsx", import.meta.url)), true);
+    assert.equal(existsSync(new URL("../src/app/services/fde/route.ts", import.meta.url)), false);
+  });
+  ```
+- `tests/services-preview-routes.test.mjs`: remove the rolled-out preview page from `previewPages` and its corresponding redirect route from `redirectRoutes`
+- `tests/preview-navigation-path-helper.test.mjs`: do **not** remove or change; the `t()` helper itself continues to work unchanged even after a specific route is rolled out
+
 Verification checklist for this pattern:
 - source test confirms the canonical `src/app/platforms/.../page.tsx` exists and the old `src/app/t/platforms/.../page.tsx` is absent
 - `publication-detail-indexability.test.mjs` or the relevant SEO/indexability test includes the new public route and no longer lists the old preview route as non-indexable
 - `services-preview-routes.test.mjs` or equivalent removed-preview-route contract includes the deleted `/t/*` file path
+- `redirect-endpoints.test.mjs` no longer asserts the old public redirect and instead asserts the new canonical page file exists while the old `route.ts` does not
 - negative grep for the old `/t/<path>` should only return tests that assert absence, not rendered links or docs that still describe it as current
 - preview deployment smoke: canonical URL returns 200, old `/t/*` URL returns 404, and legacy redirect URL resolves to the canonical local route
 
 ## Test relocation and shard-assignment pitfall
 
 If a route-source test mirrors the old preview path under `tests/src/app/t/...` and you promote the page to a canonical non-`/t` path, do not only rename the source route file.
+
+### Preserve the old test's assertion content
+
+When moving the test file, keep the existing assertion content and adapt it for the public route — do not delete the old assertions and write a thin replacement from scratch.
+
+Adaptation checklist:
+- `canonical: "/t/..."` → `canonical: "/..."` (remove `/t` prefix)
+- `robots: { index: false, follow: false }` → `robots: { index: true, follow: true }`
+- Add assertions that the old `route.ts` redirect is gone: `sourceExists("src/app/<route>/route.ts") === false`
+- Add assertions that the old `/t/*` preview route is gone: `sourceExists("src/app/t/<route>/page.tsx") === false`
+- Keep all existing section/layout primitive contract assertions (hero spacing, feature bands, CTA, image paths, asset existence, etc.)
+- If the only differences are metadata route and robots flags, amend the existing test in place rather than rewriting it
+
+This ensures the public route test is just as comprehensive as the preview test it replaces.
 
 Also update all of the following in the same PR:
 - move the mirrored source-based test file to the canonical path under `tests/src/app/...`
