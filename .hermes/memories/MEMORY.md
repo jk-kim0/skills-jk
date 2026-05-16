@@ -100,6 +100,8 @@ In corp-web-v2 Solutions static-page work, the user wants file/directory structu
 §
 In corp-web-v2 route-policy work, the user wants the webinars family to use top-level `/webinars` for the public list route as well, not `/demo/webinars`; align code and the Public-Content-URL-Naming-Convention wiki in the same batch.
 §
+In corp-web-app MDX migration, tutorials and manuals are distinct; tutorials from `page-archives/learn/tutorials/**` use `src/content/tutorials/<category>/<id>-<slug>.{locale}.mdx` and `public/tutorials/<category>/<id>/...`, not manuals or flat `dac-1` paths.
+§
 In corp-web-v2 Public-Content-URL-Naming-Convention updates, treat src/app/[locale]/features/demo/page.tsx and src/app/[locale]/features/documentation/page.tsx as legacy-only paths; do not count them as migration targets or implementation results.
 §
 In corp-web-v2 blog/white-paper MDX, the canonical upstream slug from corp-web-contents is now stored explicitly as frontmatter `slug` in each `src/content/mdx/blog/<id>/<locale>.mdx` and `src/content/mdx/white-papers/<id>/<locale>.mdx`, while the directory name remains the numeric content ID.
@@ -114,7 +116,11 @@ The corp-web-japan GitHub wiki repository is locally cloned at ../corp-web-japan
 §
 In corp-web-japan, the `/events` route currently exists as a functional page shell before content is ready; it is not part of the current public launch scope.
 §
+The active Hermes runtime uses HERMES_HOME=~/workspace/skills-jk/.hermes in this setup; treat that as the primary home for session state, logs, and agent-local artifacts unless evidence shows a different profile/home.
+§
 Hermes session files for this setup are stored under ~/workspace/skills-jk/.hermes/sessions, and direct file inspection there can reveal recent Telegram sessions beyond what session_search returns.
+§
+User asked to roll back git-installed Hermes from unstable main HEAD to a recent stable release; local Hermes repo was checked out at tag v2026.4.16 and the gateway was restarted.
 §
 For searching all historical file paths in a git repo and filtering by substring, the user uses the one-liner: git log --all --name-only --pretty=format: | sed '/^$/d' | sort -u | grep '<substring>'.
 §
@@ -138,7 +144,7 @@ In corp-web-japan, when a refactor workflow is likely to be repeated across sess
 §
 In corp-web-japan static-page route-local authoring, docs/code-location-conventions.md can be outdated; the user's desired target pattern is current src/app/page.tsx on latest main, src/app/solutions/ai-dashi/page.tsx is only partially refactored toward that goal, and src/app/solutions/ai-crew/page.tsx is the archetypal pre-refactor anti-pattern.
 §
-In corp-web-japan, route-local means `src/app/**/page.tsx` owns copy/order/composition while UI/styling components live under `src/components/sections/**` unless excepted. `InternalDemo*` is okay only for strictly internal-demo-local UI; reusable/component-candidate symbols need production-ready neutral names.
+In corp-web-japan static-page authoring, src/app/**/page.tsx should contain the copy text and the calls/composition that use components, while src/components/sections/** should define the components used by page.tsx and hold the style/UI/UX implementation details such as classes, JavaScript, and styling behavior.
 §
 In corp-web-japan main as of 2026-05-03, local `next build --webpack` fails on an existing baseline CSS Modules error in `src/components/layout/site-header.module.css`: `:root` selector is not pure. This is independent of the use-cases MDX migration branch.
 §
@@ -148,31 +154,33 @@ In corp-web-japan static-page route-local authoring, the user does not consider 
 §
 In corp-web-japan latest main, the shared gradient CTA button component is `src/components/ui/brand-gradient-cta-button.tsx` exporting `BrandGradientCtaButton`; if the user refers to a shared 'Brant/Brand gradient CTA button', this is the component to use.
 §
-For corp-web-japan/corp-web-app planning: transfer patterns/features not Japanese copy; first migrate guides/skills with manifest; work by endpoint/MDX collection; use page.{locale}.tsx + thin page.tsx; stage behind /t/* then release; preserve/verify IDs; for corp-web-app content-unification, keep corp-web-japan collection names (whitepapers, events, use-cases, demo/aip, demo/acp) and flat MDX files `src/content/blog/<id>-<slug>.{locale}.mdx`, not nested `<id>-<slug>/content.{locale}.mdx`.
+In corp-web-japan, for resource/documentation migration work, the user does not want glossary, introduction-deck, and manuals grouped under a single generic `documentation` type. Treat them as distinct content types like blog/whitepaper/event. If shared logic is needed, prefer a common `resource` abstraction layer (e.g. TypeScript abstract base class + concrete per-type implementations) rather than one merged `documentation-publications.ts` style loader.
 §
 In corp-web-japan resource preview/publication work, the user explicitly does not want the source content directory name `documentation` used for these families either; avoid paths like `src/content/documentation/**` and prefer route/resource-aligned roots such as `src/content/resources/<family>`.
 §
 In corp-web-japan section-scoped static-page refactors, preserve the original rendered section order. If extracting a later section (e.g. use-cases) would move it ahead of an earlier section still trapped in a shared shell (e.g. platform), refactor the earlier section first or split the shared shell before extracting the later one.
 §
-In corp-web-japan CTA primitive refactors, the user prefers `SimpleCtaSection` over generic `CtaSection`, keeps child names like `CtaContent`/`CtaCopy`/`CtaTitle`/`CtaDescription`/`CtaActions`, and interprets `AipFreeTrialCtaSection` as “try AIP free” product intent, not “CTA used only on AIP pages.”
+In corp-web-japan CTA primitive refactors, the user prefers the section wrapper to be named `SimpleCtaSection` rather than the more generic `CtaSection`, while keeping child primitive names like `CtaContent`, `CtaCopy`, `CtaTitle`, `CtaDescription`, and `CtaActions` unchanged.
 §
 In corp-web-japan preview-site parity work, the user wants the preview website to keep a standard 16px root rem setup; when matching a live site that uses a 15px root, adjust component token sizes/spacing for visual parity rather than changing the preview site's root font-size.
 §
 In corp-web-japan preview page imports from querypie.com/ja or /en, source pages may use html root 15px while corp-web-japan should keep root 16px; do not blindly copy computed px values—recover rem/token intent first and convert for the 16px-root preview environment. Repo-local skill: `.agents/skills/preview-root-rem-parity/SKILL.md`.
 §
-In corp-web-japan preview resource publication work, the user prefers family-separated MDX content roots such as `src/content/introduction-deck/*.mdx`, `src/content/glossary/*.mdx`, and `src/content/manuals/*.mdx` rather than a flattened shared `src/content/docs/*.mdx` layout.
+In corp-web-japan MDX/resource docs, the user prefers family-separated content roots and collection inventories covering endpoints, src/content roots, public asset roots, loader sources, frontmatter support, and legal pages separately.
 §
 In corp-web-japan preview resource publication work, the user is concerned about slug-as-id patterns like `glossary/glossary` and leans toward stable numeric content IDs/files (e.g. `src/content/glossary/1.mdx` with `id: "1"` and separate canonical `slug`) for `/t/introduction-deck`, `/t/glossary`, and `/t/manuals` detail routes.
 §
 In corp-web-japan PR follow-up work, gh pr view can briefly lag after push; verify the actual remote branch tip with `git ls-remote origin refs/heads/<pr-branch>` before assuming the PR head failed to update.
 §
-In corp-web-japan typography/layout unification work, the user prefers site-wide consistency over route-local parity exceptions and does not want inconsistent padding/margin/spacing assumed to be intentional or appropriate. When the user names a baseline page for unification, apply that baseline literally across spacing, typography, and width without leaving page-specific exceptions.
+In corp-web-japan typography work, the user prefers site-wide consistency over route-local parity exceptions: do not keep `/t/about-us` as a special text-color or body-typography exception; align it to shared site defaults instead. Current documented defaults are route-level `main` `text-slate-950`, ordinary descriptive/body copy `text-slate-600`, and for marketing/company body copy the preferred default is `15px/28px` (`text-[15px] leading-7`) unless a different shared pattern is explicitly required.
 §
 In corp-web-japan demo list-route rollout work, canonical list paths should stay under the demo namespace: use-cases `/demo/use-cases`, AIP `/demo/aip`, ACP `/demo/acp`. Do not invent `/demo-acp` or lift use-cases to `/use-cases` unless the user explicitly changes the route policy.
 §
 In corp-web-japan, .github/workflows/ci.yml and deploy-preview.yml both support workflow_dispatch. If a PR branch push updates head SHA but GitHub does not attach new synchronize runs, manual dispatch on the PR branch can still validate the current head.
 §
 In corp-web-japan manuals work, the real replacement target for legacy /api-docs.html is https://docs.querypie.com/ja/api-reference.
+§
+On this machine, exiftool is installed and available in PATH.
 §
 In corp-web-japan, Vercel WAF custom rules are now managed as a repo-committed source of truth under ops/vercel-firewall/, with a project-specific JSON payload plus README, and applied project-scoped via full PUT to /v1/security/firewall/config for corp-web-japan.
 §
@@ -198,7 +206,7 @@ In corp-web-japan publication-helper planning, the user wants the current low-le
 §
 In corp-web-japan legal preview work, route-local self-contained placement under src/app/t/<route>/ can be preferable to broad src/content/legal-preview + src/lib/legal-preview indirection; for versioned privacy-policy previews, the user expects `src/app/t/privacy-policy/[slug]/page.tsx` to own page composition while `src/app/t/privacy-policy/page.tsx` may remain a thin latest-version wrapper that derives the last document date.
 §
-In corp-web-japan legal MDX work: standalone legal pages like terms-of-service prefer route-local MDX colocation (page.tsx + content.mdx). Effective dates should come from ../corp-web-contents source/history; if no explicit source date exists, use the source file's first-add git date.
+In corp-web-japan, for standalone static/legal preview pages like terms-of-service, the user prefers route-local MDX colocation: keep page.tsx and content.mdx in the same route directory (e.g. src/app/t/terms-of-service/) rather than placing the MDX under src/content.
 §
 In the repo-local Hermes setup at ~/workspace/skills-jk/.hermes/config.yaml, mcp_servers.chrome-devtools is configured with npx chrome-devtools-mcp@latest and Hermes reports it enabled via `hermes mcp list`.
 §
@@ -208,7 +216,7 @@ In corp-web-japan publication UX, the user expects introduction-deck gated downl
 §
 In corp-web-japan mobile resource/demo sidebar UX, after comparing alternatives the user chose the bottom-sheet/drawer navigation pattern over the block-list/grid pattern as the preferred final direction.
 §
-In corp-web-japan preview-page parity work, when the user asks to fix multiple remaining pages together (e.g. issue 454 /t/services or /t/platforms pages), they expect each page handled in its own fresh worktree, branch, and separate PR.
+In corp-web-japan service preview parity work, when the user asks to fix multiple `/t/services/*` pages together (such as ACP and FDE), they want each page handled in its own fresh worktree and its own separate PR, not bundled into one combined PR.
 §
 The user wants the repeated repo-local stale-branch/worktree audit workflow encoded as a reusable skills-jk skill: classify non-open-PR branches by synthetic squash of current local state vs latest origin/main, test disposable rebase onto latest main, preserve meaningful local patches, and delete only clearly stale branches/worktrees.
 §
@@ -218,7 +226,7 @@ In the repo-local Hermes config at ~/workspace/skills-jk/.hermes/config.yaml, ch
 §
 In corp-web-japan, the user wants remaining legacy `/posts/` route/code/content remnants removed entirely rather than preserved for event compatibility.
 §
-In corp-web-japan taxonomy: AIP/ACP use preview `/t/platforms/{aip,acp}` and final `/platforms/{aip,acp}`; AIP child pages use `/platforms/aip/{slug}` except no FDE child; FDE stays `/t/services/fde` -> `/services/fde`. Use `Aip*`, not `AipService*`, for AIP page/section primitives. `/t/*` removal is final-release only.
+In corp-web-japan path taxonomy work, the user wants the temporary `t-` prefix kept only in app route paths; do not use `t-` in component or test family names. Use neutral family names like `aip`, `acp`, and `fde` instead of `t-services-aip`, `t-services-acp`, or `t-services-fde`.
 §
 In corp-web-japan path taxonomy naming, the user wants a single canonical family name chosen on general convention rather than current code habit; use `home` instead of `top-page` for the homepage component/test family.
 §
@@ -229,9 +237,3 @@ In corp-web-japan, default text content width is 1200px unless a side-by-side im
 In corp-web-japan test structure work, the user wants only genuinely reusable infra helpers kept in shared test helper locations; page-specific or page-family-specific helpers should be colocated near the relevant mirrored test paths instead of centralized under tests/helpers.
 §
 corp-web-japan main requires `Detect changed scope`, but ci.yml pull_request ignores docs/README/AGENTS/public md/skills md changes, so docs-only PRs can miss the required check.
-§
-In this environment, read_file output includes display-only line-number prefixes like `1|`; do not treat that formatted output as raw file contents when rewriting files, or repeated saves can duplicate those prefixes into documents.
-§
-corp-web-japan AIP integrations filters use semantic keyword keys (e.g. `workflow-automation`), not numeric IDs; for issue 454, do not keep live numeric query/filter parity as remaining scope—PR #490 was closed as wrong-scope.
-§
-In corp-web-japan AIP parity, live hero YouTube is square/no-shadow and poster-first using `public/aip/aip-video-thumb-jp.png`; immediate iframe or rounded/shadowed video chrome is a defect.

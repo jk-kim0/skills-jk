@@ -12,11 +12,13 @@ User wants PR status checked before commit/push on repo work to avoid continuing
 §
 For repo work, the user wants brief progress updates, immediate execution once the requested change is clear, and no long passive waits. Give a short status/estimate first, avoid proposal-only pauses, and if commands run long or estimates are exceeded, stop and report status promptly instead of waiting silently.
 §
-User prioritizes rendered website consistency over nominal component reuse, expects critical re-evaluation of visual claims, and wants shared design-policy issues distinguished from page-specific defects.
+User prioritizes actual website appearance over technical implementation details when evaluating stakeholder-facing UI changes.
 §
 User says there is no policy that the Japanese site's default font must be Pretendard JP; do not treat that as a constraint.
 §
 User prefers low-context communication: respond explicitly to each instruction/question, treat questions as questions, suggestions as suggestions, and instructions as instructions; do not reinterpret a question as a command.
+§
+User prefers polite speech and does not want banmal.
 §
 User expects Git tasks to be completed through commit and push, and considers them complete only when reviewable via PR or web URL.
 §
@@ -26,7 +28,7 @@ For confluence-mdx reverse-sync work, the user prefers two separate PRs in seque
 §
 For querypie-docs reverse-sync discussions, the user values checking whether design concepts are actually reflected in current implementation and whether terminology is used consistently across code and docs.
 §
-User prefers not to discuss speculative designs for unimplemented features; focus on current implementation unless they explicitly ask for future design.
+User prefers current-implementation focus over speculative design; when they ask for a plan/planning document, keep the PR documentation-only and do not implement code, migrate data, rename assets, or update tests unless explicitly asked.
 §
 User wants repo work to start from the latest main branch, use a git worktree rather than the main workspace checkout by default, verify the actual current directory / cwd instead of assuming a fixed `~/workspace`, and rebase PR branches onto the latest main again before push/PR update.
 §
@@ -44,7 +46,7 @@ In corp-web-v2 asset migration work, the user prefers non-image assets like anim
 §
 User does not want local or CI reruns to be left waiting for long periods; avoid long passive waits when checking verification after repo changes.
 §
-For repo work, the user expects changes to be committed, pushed, reflected in the PR without being asked again; existing PR body rewrites should be grounded in the current diff/files/check status and remove stale claims.
+For repo work, the user expects changes to be committed, pushed, and reflected in the PR without being asked again.
 §
 In corp-web-v2, the user wants repeated local npm install in fresh worktrees avoided when possible because it causes significant delay.
 §
@@ -76,7 +78,7 @@ In corp-web-v2 static-page work, the user prefers each page's content to stay co
 §
 The user is open to challenging existing corp-web-v2 repository conventions and does not consider the current overall structure inherently authoritative when evaluating better file placement.
 §
-For static marketing pages, the user wants page.tsx to show the real marketing copy inline between semantic UX components. Avoid giant content-object props into section components; prefer slot-like APIs with copy passed directly in markup.
+For corp-web-app/corp-web-japan route-local authoring, user wants visible JSX copy/links/composition; JSON-like registries or JSON-to-TS object moves do not satisfy it, including footer/header layout chrome.
 §
 In corp-web-v2 follow-up work, the user does not want a new PR or reviewer requests created unless they explicitly ask for that PR/review action for the current scoped task; do not infer PR/reviewer permission from earlier broader requests.
 §
@@ -102,7 +104,7 @@ User does not need local build testing or local dev servers for corp-web-japan c
 §
 When asking to rewrite repository wiki documentation, the user wants it based on the latest main branch implementation rather than an in-progress feature branch.
 §
-For corp-web-japan issue/link-audit docs, user prefers markdown [path](url) links, Korean translation columns for Japanese labels, and Korean translations after Japanese text. For Japanese web copy, user values comparing wording alternatives and tone differences before final selection.
+When documenting corp-web-japan issues or link audit tables, the user prefers all links written in markdown [path](url) format, wants a Korean translation column next to Japanese labels, and when showing Japanese text to the user expects a Korean translation in parentheses immediately after it.
 §
 PRs should only be closed after explicit user approval. Unless the user explicitly instructs 'close the PR', do not close it.
 §
@@ -120,7 +122,7 @@ For corp-web-v2 documentation sidebar requests, preserve the exact ordered struc
 §
 The user requires repo work to start from latest main by default, expects local `main` to be explicitly fast-forward updated when review is said to be based on current main, and wants PR branches rebased onto latest main before push/PR update.
 §
-TABOO: never edit `main`; if violated, report, move diff to a non-main worktree/branch, then restore root workspace clean.
+Across repos, prefer repo-root `.worktrees/`; avoid changing main checkouts unless explicitly requested.
 §
 User cares strongly about code structure and file paths, including tests: place test files on paths mirroring the source file paths they cover.
 §
@@ -180,9 +182,9 @@ In corp-web-japan copy/content follow-up work, if the user asks to correct a mis
 §
 In corp-web-japan publication/routing audits, the user wants review focus on actual missing redirects and wrong redirect targets on the latest origin/main baseline, not on 'shrink/removal candidates.' Evidence should be prioritized from latest main code, route implementation, and stage/live behavior.
 §
-In corp-web-app, English canonical public routes use `/en` prefix (e.g. `/en/blog`). In corp-web-japan/corp-web-app, promoted `/t/*` routes are removed; no compatibility paths or redirects unless requested.
+In corp-web-japan, when preview /t/* routes are promoted or replaced, the user does not want the /t/* endpoints kept at all and does not want redirect compatibility left behind, unless they explicitly ask for a specific /t/* path to remain. Default policy: remove /t/* route files entirely, not redirect them.
 §
-For visual/layout bugs, the user expects direct verification against exact live/Preview URLs before claiming a fix, strongly prefers one-pass thorough fixes over iterative trial-and-error, and may request explicit validation commits pushed to the existing PR so they can inspect visual tradeoffs in Preview.
+For visual/layout bugs, the user expects direct verification against the exact provided live page and Preview Deployment URL before claiming a fix, and strongly prefers one-pass thorough fixes over iterative trial-and-error that makes them re-test repeatedly.
 §
 For querypie.com/ja page migrations in corp-web-japan, the user wants the existing page copied as-is without invented preview explanation text, rewritten title/description copy, or new CTA sections unless explicitly requested.
 §
@@ -190,4 +192,4 @@ If browser interaction is needed while another agent is using the browser, the u
 §
 For corp-web-japan and similar repo work, any reusable migration/workflow skill should be provided as a repo-local skill under .agents/skills/, not only as a built-in/global skill.
 §
-For GitHub living issues, user expects remaining-work items to be concrete and explainable, with explicit scope boundaries: what changes, what stays unchanged, and why it matters.
+For corp-web-app MDX migration reviews, user expects frontmatter relationship fields such as relatedIds, accepted identifier formats, and collection/family identifier contracts to be audited explicitly, not just content counts/routes/assets.
