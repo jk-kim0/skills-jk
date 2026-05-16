@@ -15,6 +15,7 @@ Use this when:
 References:
 - `references/gsc-indexing-api-and-sitemap-refresh.md` — API capability limits, sitemap refresh workflow, issue-level validation restart workflow, and OAuth/browser-session pitfalls.
 - `references/gsc-all-site-validation-cli.md` — pattern for a CLI that discovers all managed GSC properties and runs Page indexing issue validation across them safely.
+- `references/gsc-frontend-session-cli.md` — pattern for replacing repeated Chrome/CDP control with a one-time cookie/WIZ-token export and direct frontend HTTP calls.
 
 ## Goal
 
@@ -59,12 +60,13 @@ When the user asks to “request indexing”, “update indexing requests”, or
    - Re-submit registered sitemaps with `sitemaps.submit`.
    - Treat `sc-domain:*` properties as potentially overlapping with URL-prefix properties; skip by default unless the user explicitly wants domain properties included.
 
-3. For Page indexing issue validation across all managed sites, prefer an all-site wrapper around the browser validation helper rather than a hard-coded site list.
+3. For Page indexing issue validation across all managed sites, prefer an all-site wrapper rather than a hard-coded site list.
    - Discover properties with `sites().list()` / the local `gsc sites` implementation.
    - Default to URL-prefix properties; make `sc-domain:*` opt-in with a flag.
-   - Keep the wrapper dry-run by default and require `--submit` for actual `START NEW VALIDATION` clicks.
+   - Keep the wrapper dry-run by default and require `--submit` for actual validation-start actions.
    - Add smoke-test controls such as `--site`, `--limit-sites`, and `--issue-limit` before running the full account.
-   - See `references/gsc-all-site-validation-cli.md` for the reusable CLI shape and verification recipe.
+   - If repeated browser/CDP control makes the CLI impractical, split the implementation into a one-time `frontend-session export` step plus direct frontend HTTP calls that reuse saved cookies/WIZ tokens. Keep the browser helper as an explicit fallback, not the default automation path.
+   - See `references/gsc-all-site-validation-cli.md` and `references/gsc-frontend-session-cli.md` for reusable CLI shapes and verification recipes.
 
 4. Preflight OAuth scopes before submitting.
    - `sitemaps.list` can work with `https://www.googleapis.com/auth/webmasters.readonly`.

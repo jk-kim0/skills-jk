@@ -661,7 +661,6 @@ gh pr view <branch-name> --json number,title,url,headRefName,baseRefName,state
    - If the same CI error disappears on the parent but persists on children, suspect that the children were not rebased onto the updated parent yet.
 
 5. Existing PR follow-up hygiene.
-5. Existing PR follow-up hygiene.
    - When resolving rebase conflicts on an existing UI/content PR, treat removals from merged PRs as first-class intent, not as disposable conflict noise. Before accepting the open-PR side of a conflict, list deleted/removed JSX, imports, helper components, visible copy, and tests from the merged PR and verify they do not get resurrected. This is especially important for UI header controls, metadata lines, descriptions/leads under headings, selectors, and route-local layout details that the user explicitly asked to remove.
    - After conflict resolution, run a negative grep for exact removed strings/components and add or preserve tests that assert absence. Example checks: `grep -R "<RemovedComponent\|removed visible copy" <touched-files> || true`, plus source tests using `assert.doesNotMatch(...)`. Do this before amending/force-pushing so review feedback like “I already told you to delete this” is not repeated across pushes.
    - When reconciling UI placement conflicts, preserve both content presence and relative position. If a selector/button was intentionally moved next to an H1, tests should pin the structure/order, not merely assert the component still exists somewhere in the file.
@@ -740,6 +739,7 @@ gh pr view <branch-name> --json number,title,url,headRefName,baseRefName,state
      - use raw filesystem reads / editor buffers / scripts for full-file rewrites
      - after any file rewrite sourced from tool output, run a verification grep or regex check for accidental `^\s*\d+\|` line starts before committing
    - Verification pitfall in skill-heavy repos: broad scans over all `.hermes/skills/**` can false-positive on legitimate examples or reference separators, such as code blocks intentionally showing `1|first line` or long `=======` section dividers. For PR safety scans, restrict checks to the touched files and use narrow conflict-marker regexes such as `^(<<<<<<<|>>>>>>>)( |$)` and `^=======$` instead of treating every line containing equals signs as a merge conflict.
+   - After updating a repo-managed skill via `skill_manage`, check whether it changed a tracked skill file in the current repo. If so, do not leave the root checkout dirty; fold the skill change into the existing relevant docs/skill PR when one is open, or create a fresh PR according to the repo's normal workflow.
    - This matters especially in docs-only PR follow-up work, where a mistaken rewrite can silently replace the whole file with line-number-prefixed content.
 
 9. Markdown links to GitHub paths containing `[` or `]` need extra escaping.

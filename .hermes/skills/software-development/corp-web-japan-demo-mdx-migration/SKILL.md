@@ -29,18 +29,20 @@ Supported pattern families proven in practice:
 
 ### use-cases
 - source: `../corp-web-contents/pages/features/demo/use-cases/<id>/<slug>/ja/content.mdx`
-- current public list: `/demo/use-cases`
-- canonical detail: `/use-cases/:id/:slug`
-- id redirect: `/use-cases/:id`
+- public list: `/demo/use-cases`
+- canonical detail: `/demo/use-cases/:id/:slug`
+- id redirect: `/demo/use-cases/:id`
 - content root: `src/content/demo/use-cases/*.mdx`
 - assets: `public/demo/use-cases/<id>/thumbnail.png`
 - category key / MDX collection identifier: `demo/use-cases`
-- href prefix: `/use-cases`
+- href prefix: `/demo/use-cases`
 
-Post-migration realignment note:
-- Use cases intentionally now share the `demo/` content and asset namespace with AIP/ACP demo families, but their public detail route remains `/use-cases/:id/:slug` rather than `/demo/use-cases/:id/:slug`.
-- When changing paths or identifiers, do not do a blind `/use-cases/` -> `/demo/use-cases/` replacement across route hrefs. Update MDX `heroImageSrc` and public asset paths to `/demo/use-cases/<id>/thumbnail.png`, but keep detail links and `getPublicationHref` output on `/use-cases`.
-- In JavaScript regex-literal tests, escape the slash inside the new identifier: use `/"demo\/use-cases"/`, not `/"demo/use-cases"/`.
+Rationale / path-contract pitfall:
+- Treat use-cases as part of the demo namespace consistently: list route, detail route, ID-only redirect route, content root, asset root, and publication category should all align to `demo/use-cases`.
+- Do **not** preserve or reintroduce `/use-cases/:id/:slug` when normalizing use-case content roots. PR #547 follow-up corrected that split-brain state by moving detail routes to `/demo/use-cases/:id/:slug` and ID redirects to `/demo/use-cases/:id`.
+- When auditing a PR that moves only `src/content/demo/use-cases` / `public/demo/use-cases` but leaves `get-publication-href.ts`, `src/app/use-cases/**`, docs, or tests on `/use-cases`, treat it as incomplete.
+- Update page-authored links such as AI Crew use-case cards and all source-based route tests to the same canonical detail prefix.
+- See `references/use-cases-demo-namespace-rollout.md` for the focused review/update checklist from the PR #547 follow-up.
 
 Cross-repo parity caution:
 - The complete use-case corpus source is `../corp-web-contents/pages/features/demo/use-cases`, not `page-archives/customers/customer-success-cases`.
@@ -156,7 +158,7 @@ If imported MDX uses unsupported components, add the smallest presentational imp
 A reusable corpus-specific finding from the local demo/publication migrations:
 - when a migrated MDX entry presents a `<Youtube ... />` embed directly in the article body, the detail-page hero image can become visually redundant with the embedded video
 - this has been confirmed for:
-  - `/use-cases/:id/:slug`
+  - `/demo/use-cases/:id/:slug`
   - `/demo/aip/:id/:slug`
   - `/demo/acp/:id/:slug`
 - in those cases, add `hideHeroImageOnDetail: true` to the MDX frontmatter
@@ -176,14 +178,12 @@ Use these first:
 Good tests should verify:
 - expected IDs exist locally
 - `heroImageSrc` uses the new route-aligned thumbnail path
-- the referenced thumbnail file exists under the expected public asset root
 - legacy asset paths are gone from migrated MDX
 - legacy `/features/demo/<family>/...` references are gone from migrated MDX
 - preview page is noindex and uses the correct list function
 - canonical detail page loads by `id` and redirects mismatched slugs
 - id-only route redirects correctly
 - `PublicationCategory` and href prefix include the new family category
-- category identifiers that contain `/` are escaped correctly in regex-literal source tests, e.g. `/"demo\/use-cases"/`
 - any newly required MDX components are present
 
 ## Worktree safety note

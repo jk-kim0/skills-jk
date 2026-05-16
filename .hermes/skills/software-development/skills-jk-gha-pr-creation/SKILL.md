@@ -214,7 +214,6 @@ When the user asks to create a PR from the current local workspace state rather 
     - In that case, do not force all root-changed files into the PR just to mirror the dirty root list.
     - Instead, report the branch diff that actually remains unique on top of latest `main`, and explain briefly that the other root-local changes were already absorbed upstream.
   - Practical no-op-collapse pattern from repeated `skills-jk` sweeps:
-  - Practical no-op-collapse pattern from repeated `skills-jk` sweeps:
     - it is acceptable to copy a broader candidate set from the dirty root checkout into the fresh latest-main worktree first, especially when many `.hermes/skills/**` and memory files look plausibly relevant
     - immediately after copying, inspect the fresh worktree's real status:
       - `git -C <worktree> status --short --branch`
@@ -222,16 +221,8 @@ When the user asks to create a PR from the current local workspace state rather 
       - `git -C <worktree> ls-files --others --exclude-standard | sort`
     - expect many copied files to disappear from the worktree diff as no-ops because latest `origin/main` already contains them
     - stage and commit only the files that still appear as modified/untracked in the fresh worktree after that collapse
-    - do not try to re-add already-absorbed files by hand just because they were part of the root candidate list
-    - important pitfall: before the first commit in that fresh worktree, do not use only `git -C <worktree> diff --name-only origin/main...HEAD` to decide whether any payload survived
-      - that triple-dot `origin/main...HEAD` comparison only reflects committed branch history and can stay empty while the fresh worktree still has real uncommitted transplanted changes
-      - for the pre-commit collapse check, trust working-tree signals first: `git status --short`, `git diff --name-only`, and `git ls-files --others --exclude-standard`
       - use `origin/main...HEAD` as the authoritative payload view only after the surviving changes have been committed
 
-      - that triple-dot `origin/main...HEAD` comparison only reflects committed branch history and can stay empty while the fresh worktree still has real uncommitted transplanted changes
-      - for the pre-commit collapse check, trust working-tree signals first: `git status --short`, `git diff --name-only`, and `git ls-files --others --exclude-standard`
-      - use `origin/main...HEAD` as the authoritative payload view only after the surviving changes have been committed
-  - Additional sequential-follow-up lesson from repeated same-day `skills-jk` sweeps:
     - a freshly created follow-up PR can merge quickly, have its remote branch auto-deleted, and be incorporated into `origin/main` before the user asks again
     - meanwhile the dirty root checkout may still show a much larger old candidate set because it is sitting on a stale merged branch with additional untouched local edits
     - the root checkout may even still be parked on that old merged branch rather than on `main`; treat that as stale control-state, not as the branch that should receive the new PR work
@@ -312,7 +303,9 @@ When the user asks to create a PR from the current local workspace state rather 
       - report the final PR payload from the fresh worktree diff, and separately report the preserved local-only branch/worktree that still holds the broader non-requested line
       - after copying root changes into a fresh PR branch and pushing them, it is safe to restore the same paths in the root checkout so root `main` can be fast-forwarded; make the preservation evidence explicit by verifying the pushed branch head with `git ls-remote origin refs/heads/<branch>` before restoring root
       - after PR creation and final reporting, re-check whether root `main` unexpectedly picked up new tracked residue; if so, preserve it onto a fresh local-only branch/worktree or the active follow-up PR branch instead of leaving `main` dirty
-      - if the final root re-check finds a new tracked skill change created during the current workflow, do not leave root `main` dirty; if it matches the just-created skill follow-up PR scope, copy it into that PR worktree, commit/push, update the PR body if needed, then restore root
+      - do this re-check as a loop, not a single pass: restoring the first preserved path set can reveal additional tracked/untracked repo-managed skill/reference changes that were not obvious in the earlier status snapshot
+      - if a post-restore root re-check finds another repo-managed Hermes skill/memory/reference change and it matches the just-created follow-up PR scope, copy it into that PR worktree, commit/push, update the PR body if needed, verify the remote head again, then restore root and re-check before pulling main
+      - if the newly revealed change is outside the current PR scope, preserve it separately before restoring root; never force `git pull` while root `main` still has meaningful `.hermes/` dirt
     - do not imply that the preserve branch has a GitHub URL unless you actually pushed it; in many cases the correct final state is either `narrow bot PR + local-only preserve branch` or `requested subset omitted + separate PR(s) for other meaningful local work`
   - After the create-pr workflow finishes, verify the resulting PR object and the payload separately:
     - PR object lookup: `env -u GITHUB_TOKEN gh pr list --head <branch> --state all --json number,state,url,title,headRefName,baseRefName`
