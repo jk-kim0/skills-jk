@@ -285,6 +285,14 @@ When the user asks to create a PR from the current local workspace state rather 
       3. the newly created PR contains only the surviving diff that still remains unique on top of latest `origin/main`
     - include the new PR number/URL, branch name, commit hash, and the final payload file list from the fresh worktree diff
     - do not describe the whole stale root candidate set as if it were the PR payload
+  - Squash-merged PR cleanup nuance:
+    - a merged PR head commit may not be an ancestor of latest `origin/main` after squash merge, even when GitHub shows the PR as `MERGED` and the merge commit contains the same final tree
+    - do not use `merge-base --is-ancestor <pr-head> origin/main` or `git diff origin/main...<pr-head>` alone to decide whether a merged PR worktree still contains unmerged payload; triple-dot diff can misleadingly show the whole PR because the original head SHA was not merged by ancestry
+    - for stale merged PR worktree cleanup, verify tree/content absorption with two-dot/tree comparison and scoped blob checks instead:
+      - `git diff --name-status origin/main <pr-head>` should be empty when the final tree is fully absorbed
+      - for user-named scoped files, compare blobs directly: `git rev-parse origin/main:<path>` vs `git rev-parse <pr-head>:<path>`
+      - then fast-forward/reset root `main`, remove the merged worktree, and delete the local stale branch whose remote ref is gone
+    - if the current cwd is inside the stale merged PR worktree, run cleanup commands with `git -C <root>` / `workdir=<root>` so deleting the current worktree does not leave the agent operating inside a removed directory
   - Additional user-scoped-payload rule from `skills-jk` root cleanup + PR work:
     - sometimes the user asks for two things together:
       1. update root `main`
@@ -370,7 +378,8 @@ PR을 푸시한 뒤에야 런타임 untracked 파일(`kanban.db`, `test.db`, 로
 Observed in `skills-jk`:
 - direct local `gh pr create --body` caused shell quoting issues with markdown/backticks
 - `.github/workflows/create-pr.yml` already exists and is the repo-preferred PR creation path
-- repeated local-workspace sweeps can keep teaching new nuances to the same skill; update the existing open skill-followup PR branch when possible instead of fragmenting that learning across many tiny parallel docs PRs
+- if a named requested subset such as `.hermes/config.yaml`, `.hermes/memories/MEMORY.md`, and `.hermes/memories/USER.md` collapses to no diff on latest `origin/main`, do not manufacture a PR for that subset; if broader local Hermes skill/reference changes still survive, put only that surviving payload in a separate fresh latest-main PR and report the split explicitly. See `references/local-sweep-requested-subset-collapse.md`.
+- if a prior follow-up PR is already squash-merged and the agent is still inside its stale worktree, verify absorption with two-dot/tree diff plus scoped blob equality before deleting it; do not trust ancestry or triple-dot diff alone. See `references/squash-merged-pr-worktree-cleanup.md`.
 - if you do update that existing PR branch, still verify the branch head SHA on the remote after push because PR metadata can lag briefly
 
 ## Completion checklist
