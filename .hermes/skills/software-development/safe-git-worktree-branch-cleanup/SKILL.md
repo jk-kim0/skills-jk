@@ -1591,10 +1591,13 @@ A common repo-local cleanup snapshot is:
 Recommended handling:
 1. inspect each non-open-PR worktree for real dirt first
 2. classify `merged PR + clean worktree + upstream gone` as safe stale residue
-3. remove those clean merged worktrees in one batch
-4. delete the corresponding local branches immediately after the worktrees are gone
-5. only then fast-forward root `main` to `origin/main`
-6. re-check that any remaining non-main worktree is either:
+3. if those stale merged worktrees still show diffs for files the user just requested for a new PR, do not trust that stale worktree view yet; first fast-forward root `main` (after preserving unrelated root dirt) and re-check the requested files against fresh latest `origin/main`
+4. if the requested-file diff disappears on fresh latest main and survives only inside merged stale worktrees, treat it as historical residue rather than as current PR payload
+5. remove those clean merged worktrees in one batch
+6. delete the corresponding local branches immediately after the worktrees are gone
+7. only then fast-forward root `main` to `origin/main` when needed
+8. after any PR creation or cleanup batch, take one more live root snapshot; if root `main` unexpectedly picked up new tracked residue during the operation, preserve that residue onto a fresh local-only branch/worktree and restore root clean instead of declaring cleanup complete with a dirty `main`
+9. re-check that any remaining non-main worktree is either:
    - an open PR head branch, or
    - a dirty local line that still needs preservation
 

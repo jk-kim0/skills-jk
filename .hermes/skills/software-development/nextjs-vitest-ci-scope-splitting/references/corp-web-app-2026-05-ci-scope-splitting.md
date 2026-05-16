@@ -43,7 +43,7 @@ Added groups:
 - `shell`: layout/provider/header tests
 - `utilities`: remaining utility tests
 
-The grouping assertion result at implementation time:
+The grouping assertion result at initial implementation time:
 
 ```json
 {
@@ -58,6 +58,30 @@ The grouping assertion result at implementation time:
   }
 }
 ```
+
+Follow-up after rebasing over newer main: PR #675 failed `Validate Lint` even though ESLint passed, because `assert-test-groups.mjs` found 17 newly merged/unmatched tests. The missing patterns were:
+
+- locale-prefixed publication verification routes: `src/__tests__/app/[locale]/t/*-verification-route.test.tsx`
+- route-local page tests: `src/__tests__/app/*route*.test.tsx`
+- Next config route tests: `src/__tests__/next-config-*-route.test.ts`
+
+The fixed grouping assertion result was:
+
+```json
+{
+  "total": 65,
+  "perGroupCounts": {
+    "publications": 24,
+    "forms": 10,
+    "routing": 9,
+    "marketingWidgets": 11,
+    "shell": 4,
+    "utilities": 7
+  }
+}
+```
+
+When updating an open CI-splitting PR, always rerun the grouping assertion after rebase and keep `test-groups.mjs` and `.github/workflows/ci.yml` paths-filter patterns in sync.
 
 ## Important implementation choices
 

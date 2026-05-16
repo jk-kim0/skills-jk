@@ -74,14 +74,20 @@ Instead:
 ## Pitfalls
 
 - Follow the active repository/global GitHub CLI safety policy when invoking `gh`. In this environment that means using `env -u GITHUB_TOKEN gh ...` rather than raw `gh ...`.
-- In `skills-jk`, do not create PRs with direct local `gh pr create` when the intent is to open a normal review PR. The repository-standard path is the `create-pr.yml` workflow so the PR is created by `github-actions[bot]`, not by the local human GitHub identity.
-- Practical user-specific rule: if you accidentally created the PR directly and it shows the user's account as author, treat that as incorrect for this repo. Create a bot-authored replacement PR via the workflow instead of pretending the existing PR is acceptable.
-- Safe repair pattern for that mistake:
-  1. verify the already-pushed branch tip/commit to preserve
-  2. create and push a replacement branch name if needed (for example `<branch>-bot`) pointing at the same commit
-  3. dispatch `.github/workflows/create-pr.yml` with the same title/body against that replacement branch
-  4. verify the new PR author is `app/github-actions` or another bot identity via `gh pr view --json author`
-  5. do not close the mistaken human-authored PR unless the user explicitly asks; report both PRs and let the user decide the cleanup action
+- In `skills-jk`, direct local `gh pr create` is the wrong default path for normal review PRs. Use `.github/workflows/create-pr.yml` so the PR is authored by `github-actions[bot]` rather than by the local human GitHub identity.
+- If you accidentally opened the PR directly and it shows the user's account as author, treat that as a mistake to repair rather than as an acceptable equivalent.
+- Safe repair pattern:
+  1. preserve the intended branch tip and PR body
+  2. create and push a replacement branch if needed (for example `<branch>-bot`)
+  3. dispatch `.github/workflows/create-pr.yml` for that branch
+  4. verify the new PR author via `gh pr view --json author`
+  5. do not close the mistaken human-authored PR unless the user explicitly asks
+- Important follow-up case: the mistaken human-authored PR can merge before the bot replacement is fully cleaned up.
+  - In that situation, do not leave the bot replacement PR on the stale pre-merge commit graph.
+  - Re-check latest `origin/main`, the mistaken PR state, and the current requested file scope.
+  - Rebuild the bot branch from latest `origin/main`, copy only the still-surviving requested payload, then force-push the bot branch.
+  - If a requested file such as `.hermes/config.yaml` is already identical to latest `origin/main`, omit it from the rebuilt bot PR instead of preserving an obsolete wider diff.
+  - Verify the rebuilt payload with `git diff --name-status origin/main...<bot-branch> -- <scoped-paths>` after the force-push.
 - Do not pass complex markdown directly to `gh pr create --body` in this repo unless there is a strong reason
 - `create-pr.yml` targets `main` as the base branch
 - The workflow appends a GitHub Actions bot footer to the body
@@ -298,12 +304,14 @@ When the user asks to create a PR from the current local workspace state rather 
       6. create the narrow PR branch/worktree containing only the requested surviving payload
     - important nuance:
       - a requested file can collapse to a no-op on latest `origin/main` while sibling requested files still produce a real diff
+      - after refreshing root `main`, old merged worktrees/branches can still show historical diffs for the requested files (for example `MEMORY.md` / `USER.md`) even though root latest-main no longer has any surviving payload
+      - treat those stale merged worktree diffs as historical residue, not as the source for a new targeted PR
+      - before creating the targeted PR, verify the requested files against fresh latest `origin/main` from the root or a brand-new latest-main worktree; if the requested file set is empty there, do not manufacture a new PR
       - report the final PR payload from the fresh worktree diff, and separately report the preserved local-only branch/worktree that still holds the broader non-requested line
+      - after creating a bot PR and taking the final live snapshot, re-check whether root `main` unexpectedly became dirty again; if new tracked residue appeared during the PR-creation/reporting phase, do not leave it on `main`
+      - instead, capture that new residue onto a fresh local-only preserve branch/worktree and restore root `main` back to clean before finishing the task
     - do not imply that the preserve branch has a GitHub URL unless you actually pushed it; in many cases the correct final state is `narrow bot PR + local-only preserve branch`
-  - After the create-pr workflow finishes, verify the resulting PR object and the payload separately:
-    - PR object lookup: `env -u GITHUB_TOKEN gh pr list --head <branch> --state all --json number,state,url,title,headRefName,baseRefName`
-    - payload lookup: `git -C <worktree> diff --name-only origin/main...HEAD | sort`
-   - Prefer the payload list above as the final source of truth for "what this PR contains".
+
      - Do not summarize the PR scope from the dirty root checkout alone.
      - Do not assume every locally changed file belongs in the final PR just because it was part of the user's current root workspace.
    - This catches two common failure modes in repeated local-workspace sweeps:

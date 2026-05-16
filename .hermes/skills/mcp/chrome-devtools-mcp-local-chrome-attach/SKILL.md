@@ -11,6 +11,9 @@ metadata:
 
 # Local Chrome attach via chrome-devtools-mcp
 
+Reference files:
+- `references/browser-websocket-fallback.md` — how to attach via the `DevToolsActivePort` browser WebSocket when `/json/list` and `/json/version` return 404.
+
 Use this when:
 - the user wants Hermes to control or inspect their already-open local Chrome session
 - `chrome-devtools-mcp` is configured in Hermes MCP
@@ -44,10 +47,20 @@ lsof -nP -iTCP:9222 -sTCP:LISTEN
 ps -axo pid,etime,command | grep 'Google Chrome' | grep -- '--remote-debugging-port' | grep -v grep
 ```
 
-4. DevTools HTTP endpoint responds
+4. DevTools HTTP endpoint responds when available
 ```bash
 curl -fsS http://127.0.0.1:9222/json/version
 ```
+
+If checks 1-3 pass but `/json/version` or `/json/list` returns 404, do **not** conclude remote debugging is unusable. Some Chrome sessions expose only the browser WebSocket path through `DevToolsActivePort`, e.g.:
+
+```bash
+cat "$HOME/Library/Application Support/Google/Chrome/DevToolsActivePort"
+# 9222
+# /devtools/browser/<uuid>
+```
+
+In that case a low-level CDP client should connect to `ws://127.0.0.1:9222/devtools/browser/<uuid>` and use browser-level `Target.getTargets` + `Target.attachToTarget` to attach to the desired page. The MCP tool may still list/control pages even when the HTTP JSON discovery endpoints return 404.
 
 If these are missing, Hermes cannot attach, even if Chrome is visibly running and even if a browser-side extension is installed.
 
@@ -126,8 +139,9 @@ hermes mcp list
 - `lsof` on `9222`
 - Chrome process args for `--remote-debugging-port`
 - `curl http://127.0.0.1:9222/json/version`
+- if `/json/version` or `/json/list` returns 404, inspect `DevToolsActivePort` and try the browser WebSocket path directly instead of stopping at HTTP discovery failure
 
-4. If all four checks fail, stop debugging MCP internals and fix the Chrome launch method first
+4. If all four attachability signals fail, stop debugging MCP internals and fix the Chrome launch method first
 
 ## Practical lesson
 
