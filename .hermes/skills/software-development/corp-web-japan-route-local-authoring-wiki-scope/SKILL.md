@@ -178,6 +178,25 @@ When rewriting `Route-Local-Authoring*`, always re-audit latest `origin/main` in
   - Remove legal/cookie public rollout from the remaining priority list once these are public local pages.
   - Focus remaining Route-Local Authoring priorities on platform/service public taxonomy, AIP/ACP preview-to-public rollout, ACP integrations route decision, and pricing/key-values scope decisions.
 
+### 2026-05-16 baseline (`9833fda3c1b4a0624b06b9b0bfa3633260d34e61`)
+
+- MDX collection inventory docs were added, but they do **not** expand the scope of `Route-Local-Authoring*`:
+  - Mention `docs/mdx-collection-inventory.md` and `docs/mdx-collection-inventory.ko.md` only as adjacent references.
+  - Keep publication/content families excluded from the route-local non-MDX backlog.
+- Public redirect aliases changed for platform landing pages:
+  - `src/app/platforms/aip/route.ts` exists and redirects upstream to the AIP solution page.
+  - `src/app/platforms/acp/route.ts` exists and redirects upstream to the ACP solution page.
+  - When documenting current public aliases for preview `/t/platforms/aip` and `/t/platforms/acp`, include `/platforms/aip` and `/platforms/acp` alongside older `/services/*` and `/platform/ai/*` aliases where present.
+- Plans/pricing preview split changed:
+  - Latest main has `src/app/t/plans/aip/page.tsx` and `src/app/t/plans/acp/page.tsx`.
+  - `src/app/t/plans/page.tsx` defaults to the AIP view and redirects legacy `?aip` / `?acp` query usage to the corresponding child preview route.
+  - Do not describe plans as one undifferentiated `/t/plans` preview only; inventory and priority lists should include `/t/plans/aip` and `/t/plans/acp`.
+  - `src/app/pricing/calculator/page.tsx` still only calls `notFound()`, so it remains **not** a public pricing implementation.
+- Route exclusion correction:
+  - For use-case publications, use canonical `/demo/use-cases/:id/:slug` in the excluded MDX/publication scope, not stale `/use-cases/:id/:slug` wording.
+- Practical verification detail:
+  - Some local environments do not have `python` as a command alias. If using a quick script to verify wiki file contents, prefer `python3` or plain shell checks before commit/push.
+
 ## Recommended verification queries
 
 Before finalizing the wiki page, explicitly inspect these latest-main files when relevant:

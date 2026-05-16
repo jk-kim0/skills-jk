@@ -128,6 +128,15 @@ git commit -m "feat: add specific feature"
 ```
 ````
 
+## Scope Boundary
+
+When the user asks for a plan, planning document, migration plan, audit plan, or checklist, treat the deliverable as the plan itself unless they explicitly ask for implementation.
+
+- Do not create implementation files, helper modules, data migrations, asset renames, or production code just because the plan identifies them as future work.
+- It is acceptable to inspect code, run read-only/browser verification, and update the planning document.
+- If the user resolves an open decision during planning, rewrite the plan so the resolved choice appears as a concrete directive in the relevant step/checklist, rather than leaving a separate “decision needed” section.
+- If implementation accidentally starts and the user corrects the scope, revert/remove the out-of-scope implementation artifacts and continue with documentation only.
+
 ## Writing Process
 
 ### Step 1: Understand Requirements

@@ -104,6 +104,23 @@ git cherry origin/main <branch> || true
 
 ## Synthetic squash method
 
+Important staged-vs-unstaged pitfall:
+- do not rely on `git diff` alone when judging whether a branch-backed worktree still has a meaningful current local patch
+- a worktree can appear to have "no diff" if all remaining local edits are already staged in the index
+- practical symptom:
+  - `git status --short --branch` shows `M  <file>` entries
+  - `git diff --stat` is empty
+  - but `git diff --cached --stat` shows the real surviving patch
+- required check order for dirty worktrees:
+  ```bash
+  git -C <worktree> status --short --branch
+  git -C <worktree> diff --stat || true
+  git -C <worktree> diff --cached --stat || true
+  git -C <worktree> diff --name-status || true
+  git -C <worktree> diff --cached --name-status || true
+  ```
+- classify the current local patch from the union of unstaged + staged changes, not from unstaged changes alone
+
 ### Case A: branch-backed clean worktree or no attached worktree
 
 Use branch tree directly:
@@ -364,13 +381,6 @@ Then summarize:
   - keep local cleanup and remote PR lifecycle as separate facts; deleting a local branch/worktree does not close the PR
 - Practical stale case: if a once-open local branch's remote head disappears after fetch, `gh pr list --state all --head <branch>` now shows `MERGED`, and `git diff develop..branch` (or the repo default branch equivalent) is empty, remove both the linked worktree and local branch as merged residue.
 - Practical preservation case: if a no-open-PR candidate later reappears under a different branch/worktree name with a small real diff vs latest `origin/main` and its synthetic squash rebases cleanly, reclassify it as a `meaningful unpublished branch` instead of deleting it from the earlier stale verdict.
-- Additional repeated-cleanup case from active PR repos: between follow-up `workspace 정리` turns, the remaining local line can change class entirely.
-  - A previously preserved non-PR dirty worktree can later become the head branch of a newly opened PR; once that happens, stop treating it as a stale candidate and preserve it as the active PR line.
-  - At the same time, other local worktrees that were formerly open-PR or recently created docs/fix branches can flip to `upstream gone + clean + PR merged` and become safe stale residue.
-  - Another late-appearing stale form is a clean branch-backed worktree whose branch has no PR and points at exactly the same SHA as `main` and `origin/main`; treat that as a no-op alias and delete it.
-  - Therefore, on each repeated repo-local cleanup turn, do not continue from the old classification table. Re-run a full fresh pass and keep pruning until the live state reaches the minimum safe set for that moment.
-  - Useful end-state label:
-    - `root main + currently open PR worktrees only`
 - Additional practical case from `skills-jk` cleanup: unattached `backup/*` branches should not be preserved just because they were once created to save local root edits.
   - Signal pattern:
     - no attached worktree
@@ -404,6 +414,31 @@ Then summarize:
     - this latest-main transplant is not a publishing step; it is an adjudication tool for deciding whether a stale dirty branch still contains value
     - it is especially useful when the user's real question is not "can this old branch rebase cleanly?" but "does the current local idea still mean anything on today's main?"
 - Practical rebase case: when rebasing a docs/content branch onto a newer base that renamed a directory, Git may stop with `CONFLICT (file location)` for files that were originally added under the old path. If there is no textual conflict and the resolution is simply to keep the files under the new renamed directory, stage those files at the new path and continue the rebase instead of aborting.
+
+- Additional practical case from repeated `skills-jk` cleanup: a branch can be merged/stale in history while its attached worktree still holds a small staged-only residual patch.
+  - Signal pattern:
+    - the branch's earlier PR is already `MERGED`
+    - `git status --short --branch` in the attached worktree shows only a few `M  <file>` entries
+    - `git diff --stat` is empty but `git diff --cached --stat` is non-empty
+    - copying those few files onto a fresh latest-`origin/main` spike worktree leaves a narrow residual diff that still makes sense
+  - Recommended handling:
+    1. do not preserve the old merged branch/worktree line as-is
+    2. create a fresh latest-main spike worktree and copy only the surviving current patched files into it
+    3. if the residual diff remains coherent on latest main, promote that spike into a normal reviewable branch and PR
+    4. after the new branch/PR exists, delete the stale old branch/worktree line
+  - Useful summary labels:
+    - `merged stale branch, staged residual patch still meaningful`
+    - `meaningful residual patch promoted from latest-main spike`
+- Practical stale case from repeated `skills-jk` cleanup: a local branch can look large and still rebase cleanly only because its commits are already absorbed upstream.
+  - Signal pattern:
+    - no open PR
+    - an earlier PR for the same branch is already `MERGED`
+    - `git cherry origin/main <branch>` shows only `- <commit>` entries
+    - a disposable rebase onto `origin/main` reports `warning: skipped previously applied commit ...` and finishes clean
+  - Interpretation:
+    - this is absorbed stale residue, not a meaningful surviving local line
+  - Handling:
+    - delete the local branch/worktree after verifying any still-meaningful current patch has already been extracted elsewhere
 
 ## Good trigger phrases
 

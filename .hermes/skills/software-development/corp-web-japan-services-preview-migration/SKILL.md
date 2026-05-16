@@ -325,6 +325,22 @@ Implementation guidance:
 
 Reference: `references/aip-integrations-category-query-compat.md` captures the observed live behavior and the recommended test guard.
 
+### `/t/platforms/acp/integrations`
+
+Use the AIP integrations page as the model for ACP integration filters: semantic keyword category keys are the canonical local contract, not numeric IDs or generated `category-N` placeholders.
+
+Important implementation rule:
+- category constants should use meaning-bearing keys such as `data-sources`, `cloud-containers`, `identity-providers`, `sql-bi-tools`, `notifications`, `siem-soar`, `monitoring`, and `secret-stores`
+- product `categoryKeys` must reference those same semantic keys
+- do not keep or reintroduce `legacyCategoryMap` for ACP numeric/category-N values unless the user explicitly requests live numeric URL compatibility for ACP
+- `readCurrentCategory` should match the AIP pattern: accept `all` or one of the declared category keys, otherwise fall back to `all`
+- route links should emit `/t/platforms/acp/integrations?category=${category.key}` so reviewable URLs carry semantic intent
+
+Regression-test guidance:
+- update `tests/src/app/t/platforms/acp/static-routes.test.mjs` or the nearest mirrored ACP route test to assert representative semantic keys are present
+- add negative assertions for `legacyCategoryMap` and `/category-\d/` so generated placeholder keys do not return in future bulk edits
+- keep the scope narrow: this refactor should not change ACP public redirects, route rollout behavior, page copy, CTA, or asset paths
+
 ### `/t/services/acp`
 
 Do not assume ACP is a simple four-card static page.

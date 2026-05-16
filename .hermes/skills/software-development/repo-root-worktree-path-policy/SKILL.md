@@ -51,6 +51,8 @@ Choose the worktree base from the real review intent, not only from whether a PR
 
 - New independent work with no unmerged dependency -> create the worktree from `origin/main` on a fresh branch.
 - Follow-up fixes to an existing open PR -> create a fresh worktree on that existing PR branch and update the same PR.
+  - If that branch is already checked out by another worktree, create the fresh worktree from a fetched PR ref in detached HEAD instead of creating a new branch/PR: `git fetch origin pull/<pr>/head:refs/remotes/origin/pr/<pr> --force && git worktree add .worktrees/<flat-name> origin/pr/<pr>`.
+  - After committing/rebasing in the detached worktree, push back to the existing PR branch explicitly with a lease: `git ls-remote origin refs/heads/<branch>` then `git push --force-with-lease=refs/heads/<branch>:<old-sha> origin HEAD:refs/heads/<branch>`.
 - New work that should use an existing open PR as the baseline, but should land in its own later PR -> create a fresh worktree from the open PR head branch, create a new child branch there, and open a stacked PR whose base is the parent PR branch.
 
 Representative stacked-PR pattern:

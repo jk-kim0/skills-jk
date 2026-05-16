@@ -37,6 +37,25 @@ Supported pattern families proven in practice:
 - category key: `use-case`
 - href prefix: `/use-cases`
 
+Cross-repo parity caution:
+- The complete use-case corpus source is `../corp-web-contents/pages/features/demo/use-cases`, not `page-archives/customers/customer-success-cases`.
+- The customer-success archive overlaps only IDs 1-5 and is insufficient for a full use-case migration.
+- For corp-web-app parity work, source coverage observed from this root was EN=29, JA=29, KO=6 (IDs 1-6), total 64 MDX records; tests should assert IDs 1-29 and locale-specific counts.
+
+Important source-root pitfall:
+- `../corp-web-contents/page-archives/customers/customer-success-cases/**` is only the 1-5 customer-success subset.
+- Full use-case parity must use `../corp-web-contents/pages/features/demo/use-cases/**` as the source root.
+- Current source coverage observed for that root: 29 EN records, 29 JA records, and 6 KO records (IDs 1-6 only for KO), 64 MDX records total.
+- Tests for a full migration should assert IDs 1-29 and locale-specific coverage, not a fixed 5-record customer-success subset.
+- See `references/use-cases-source-root-parity.md` for the detailed audit pattern and commands.
+
+Important corpus boundary:
+- The full use-cases corpus is `../corp-web-contents/pages/features/demo/use-cases/**`, not `../corp-web-contents/page-archives/customers/customer-success-cases/**`.
+- As observed in May 2026, the full source has 29 JA records and 29 EN records; KO exists only for a subset (1-6).
+- IDs 1-5 are customer-success-style records and also exist under the `page-archives/customers/customer-success-cases/**` archive, but that archive is only a 5-record subset and must not be used as the source root for full use-case parity.
+- When validating a use-cases migration, assert expected IDs 1-29 or source-derived per-locale counts; do not write tests that merely assert 5 records unless the task is explicitly scoped to the customer-success subset.
+- Session-specific investigation notes: `references/use-cases-corpus-boundary.md`.
+
 ### AIP demos
 - source: `../corp-web-contents/pages/features/demo/aip-features/<id>/<slug>/ja/content.mdx`
 - preview list: `/t/demo/aip`

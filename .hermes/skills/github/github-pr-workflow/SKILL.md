@@ -379,35 +379,6 @@ gh run list --branch $(git branch --show-current) --limit 5
 gh run view <RUN_ID> --log-failed
 ```
 
-If `gh run view --log-failed` says logs are unavailable because the overall workflow is still in progress, but the target job already shows `status=completed`, use the job API and direct log download instead of waiting or guessing:
-
-```bash
-# Inspect the failed job steps first; often the named check failed before the check command ran.
-gh api repos/<owner>/<repo>/actions/jobs/<JOB_ID> \
-  --jq '{status,conclusion,steps:[.steps[] | {name,status,conclusion,number,started_at,completed_at}]}'
-
-# Download raw job logs directly when run-level logs are still gated.
-curl -L \
-  -H "Authorization: Bearer $(gh auth token)" \
-  -H 'Accept: application/vnd.github+json' \
-  https://api.github.com/repos/<owner>/<repo>/actions/jobs/<JOB_ID>/logs \
-  -o /tmp/job-<JOB_ID>.log
-```
-
-For CI failures in an install step such as `npm ci --silent`, do not assume the later named check (lint/test/build) is the failing command. Reproduce both the PR head and GitHub merge ref in clean temporary checkouts before changing code:
-
-```bash
-git clone --depth 1 --branch <pr-head-branch> git@github.com:<owner>/<repo>.git /tmp/<repo>-head-repro
-npm -C /tmp/<repo>-head-repro ci --silent
-
-git clone --depth 1 git@github.com:<owner>/<repo>.git /tmp/<repo>-merge-repro
-git -C /tmp/<repo>-merge-repro fetch origin pull/<PR_NUMBER>/merge:pr-<PR_NUMBER>-merge --depth 1
-git -C /tmp/<repo>-merge-repro checkout pr-<PR_NUMBER>-merge
-npm -C /tmp/<repo>-merge-repro ci --silent
-```
-
-If both clean reproductions pass and no review/comment requests exist, treat the install failure as transient, rerun only the failed jobs (`gh run rerun <RUN_ID> --failed`), then verify fresh successful checks attach to the same head SHA.
-
 **With git + curl:**
 
 ```bash
@@ -636,25 +607,17 @@ gh pr view <branch-name> --json number,title,url,headRefName,baseRefName,state
    - When a stacked parent PR is squash-merged and its branch is deleted, the child PR may automatically retarget to `main` while its head still contains the parent's original, now-unmerged-by-SHA commit. Symptom: `gh pr view <child> --json baseRefName,commits` shows `baseRefName=main` and both the parent original commit plus the child commit. Fix by rebasing the child with `git rebase --onto origin/main <original-parent-commit-sha> <child-branch>`, then force-push and update the PR body to remove stacked-parent language. Verify with `git rev-list --oneline origin/main..HEAD` and `gh pr view <child> --json commits,files,baseRefName` before reporting success.
    - Important recovery pattern for existing open PRs: GitHub can still show an open PR with `headRefName` / prior `headRefOid` metadata even when the actual remote head branch ref is gone. Practical symptom set:
      ```bash
-     gh pr view <pr-number> --json state,headRefName,headRefOid,url,mergeCommit
+     gh pr view <pr-number> --json headRefName,headRefOid,url
      git ls-remote origin refs/heads/<head-branch>
      ```
      where `gh pr view` returns a branch name/SHA but `git ls-remote` returns nothing.
-   - First branch on PR state:
-     - Before any follow-up commit/push to an existing PR branch, verify the PR is still open:
-       ```bash
-       gh pr view <branch-or-pr> --json state,headRefName,headRefOid,url
-       git ls-remote origin refs/heads/<head-branch>
-       ```
-     - If `state=OPEN`, do not trust local `origin/<branch>` refs or GitHub mergeability badges. Recreate the missing remote branch explicitly from the intended local worktree/branch:
-       ```bash
-       git -C <worktree> rev-parse HEAD
-       git -C <worktree> push --force origin HEAD:refs/heads/<head-branch>
-       git ls-remote origin refs/heads/<head-branch>
-       ```
-     - If `state=MERGED` or `CLOSED`, do **not** recreate the old PR head branch. Rebase/cherry-pick the remaining intended delta onto a new latest-`origin/main` follow-up branch, open a new PR, and delete any old head branch you accidentally recreated.
-   - If you discover only after pushing that the PR was already `MERGED`/`CLOSED`, treat the push as stale-branch recreation rather than a PR update: create a fresh worktree from latest `origin/main`, apply/cherry-pick only the intended delta, open a new PR, then delete the accidentally recreated old remote branch. See `references/merged-pr-branch-recreation-recovery.md` for a compact command recipe.
-   - GitHub may print a generic `Create a pull request for '<branch>'` message during a remote-head recovery push. For an OPEN PR, that does not mean a new PR was created; verify the existing PR's `headRefOid` again after the push. For a MERGED PR, treat that message as a warning that you likely recreated a stale branch and should move the delta to a new follow-up PR instead.
+   - In that state, do not trust local `origin/<branch>` refs or GitHub mergeability badges. Recreate the missing remote branch explicitly from the intended local worktree/branch:
+     ```bash
+     git -C <worktree> rev-parse HEAD
+     git -C <worktree> push --force origin HEAD:refs/heads/<head-branch>
+     git ls-remote origin refs/heads/<head-branch>
+     ```
+   - GitHub may print a generic `Create a pull request for '<branch>'` message during this recovery push even though the PR already exists. That does not mean a new PR was created; verify the existing PR's `headRefOid` again after the push.
    - After a successful rebase/squash update, `mergeStateStatus` can remain `BEHIND`, `UNKNOWN`, or even stale `DIRTY` briefly. Before doing another rewrite, verify the real ancestry first:
      ```bash
      git fetch origin --prune
@@ -701,6 +664,7 @@ gh pr view <branch-name> --json number,title,url,headRefName,baseRefName,state
    - When the user asks to "fix the PR" / "PR 고쳐줘" after several incremental follow-up commits, do not stop at fixing the immediate failing check.
    - For iterative link/content cleanup PRs where the user keeps providing more pages or links, keep updating the same open PR branch and refresh the PR body/test plan after each batch. When changing link constants or route targets, search for existing source-inspection tests that still assert the old target; CI failures can come from stale contract tests outside the latest touched files, such as route-family `cta-links.test.mjs` files. If the stale test is the failure, update it to the new local/canonical route, rerun the failed test plus directly affected route tests, rebase onto latest `origin/main`, push with `--force-with-lease` if the rebase rewrites commits, and verify fresh workflow runs attach to the rewritten head SHA.
    - When the user points to an existing PR and asks to rename a term/component family, update that same PR branch rather than creating a new PR. Keep the diff narrow, but rename all project-facing occurrences in the touched route/component/test family: imports, JSX tags, exported function names, default export names, related structure tests, and route-family module filenames that still carry the obsolete term. Before pushing, run a targeted grep for the old term/path and the narrow route-family test so tests do not keep asserting stale wording.
+   - If the existing PR head branch is already checked out in another worktree, keep the fresh-worktree isolation by creating a temporary local follow-up branch from `origin/<pr-head>`, then push `HEAD` explicitly back to `refs/heads/<pr-head>` with `--force-with-lease`. Do not create a second PR and do not leave the temporary branch as the PR branch. See `existing-pr-followup-worktree/references/pr-branch-already-checked-out.md` for the detailed recipe.
   - Default to a full branch-hygiene pass unless the user narrows scope:
     - inspect review comments, CI failures, and `mergeStateStatus`
     - if checks are green but `mergeStateStatus=DIRTY`, diagnose it as a latest-main conflict/rebase task rather than a test-failure task
@@ -772,44 +736,7 @@ gh pr view <branch-name> --json number,title,url,headRefName,baseRefName,state
      - after any file rewrite sourced from tool output, run a verification grep or regex check for accidental `^\s*\d+\|` line starts before committing
    - This matters especially in docs-only PR follow-up work, where a mistaken rewrite can silently replace the whole file with line-number-prefixed content.
 
-9. Docs-only PR hygiene.
-
-9. Docs-only PR hygiene.
-
-   - For documentation-only PRs, do not spend time on full local builds/tests unless the user explicitly requests it. Prefer fast document-oriented checks, then rely on attached CI.
-   - When the user asks to audit or update "repo docs" for a path/convention, search the checked-out repository documentation from the latest intended base, and also search the separate `.wiki` clone when the project uses GitHub wiki as a living documentation source. Report exact target mentions separately from broader/legacy URL mentions so old public routes or upstream source paths are not mistaken for positive implementation guidance.
-   - If the audit finds no positive guidance but ambiguity remains likely, it is acceptable to add a small negative/constraining docs rule (for example, "do not introduce <path> as a new convention") in the canonical guidance doc plus the concise agent guide, rather than only reporting zero matches.
-   - Minimum useful local checks before commit/push:
-     ```bash
-     git diff --check
-     python3 - <<'PY'
-     import re
-     from pathlib import Path
-     for p in [Path('README.md'), *Path('docs').glob('*.md')]:
-         if not p.exists():
-             continue
-         bad = [i for i, line in enumerate(p.read_text().splitlines(), 1) if re.match(r'^\\s*\\d+\\|', line)]
-         if bad:
-             raise SystemExit(f'{p}: possible copied line-number prefixes at {bad[:5]}')
-     PY
-     ```
-   - When deleting obsolete docs or test suites, also remove their discoverability surface in the same PR: README document indexes, package scripts, lockfile package entries when dependencies are no longer used, and companion docs that point at the removed files. Run a negative grep for removed filenames, script names, and route/spec names before committing.
-   - For repos with a separate `tests/` package, distinguish a Playwright browser-based snapshot collector from an `@playwright/test` E2E runner. If invalid E2E specs are removed but snapshot collection still uses the `playwright` library, remove only `@playwright/test`, spec config/scripts, and broken specs; keep the browser dependency and collection tools.
-   - Conversely, when the user asks to remove browser-rendered `expected/` snapshot comparison tests/tools while keeping real E2E, delete the whole snapshot workflow surface, not just the README sentence: `tests/expected/**`, collector/comparator source such as `tests/main/**`, wrapper scripts such as `fetch-and-compare.sh` / `update-expected.sh`, snapshot-only tsconfig/build scripts, expected-file `.gitattributes` rules, package scripts, lockfile dependencies, and all docs/index mentions. Preserve `tests/e2e/**`, `@playwright/test`, and Playwright config/scripts, then run the remaining E2E command against the intended host to prove the runner still works.
-   - If adding a new planning/reference document, also add it to the repository's existing README/document index when one exists so reviewers can discover it.
-   - Before bundling untracked docs or guidance files found in a root checkout, verify their provenance: check the current branch, `git log --diff-filter=A -- <path>` if tracked elsewhere, sibling/open PR branches, and whether the user actually requested that artifact. Do not assume an untracked planning file was produced by the current task or current agent. If it belongs to another branch/agent, leave it out of the PR or preserve it on its own branch instead of widening the PR scope.
-   - When fixing an open docs PR after accidentally bundling another branch's file, rebase onto latest `origin/main` first, compare `git diff --name-only origin/main...HEAD`, and if that file is already on main, restore it from `origin/main` rather than deleting it in the PR. Then squash/rewrite the PR branch so the final diff contains only the intended files.
-   - In the PR body, explicitly say it is docs-only and that local build/tests were skipped; still verify that GitHub checks attach to the pushed head SHA.
-     - newly authored in this session
-     - pre-existing/untracked content that was included
-     - content copied from another branch/worktree
-     - follow-up edits made by the current agent
-   - If adding a new planning/reference document, also add it to the repository's existing README/document index when one exists so reviewers can discover it.
-   - Before bundling untracked docs or guidance files found in a root checkout, verify their provenance: check the current branch, `git log --diff-filter=A -- <path>` if tracked elsewhere, sibling/open PR branches, and whether the user actually requested that artifact. Do not assume an untracked planning file was produced by the current task or current agent. If it belongs to another branch/agent, leave it out of the PR or preserve it on its own branch instead of widening the PR scope.
-   - When fixing an open docs PR after accidentally bundling another branch's file, rebase onto latest `origin/main` first, compare `git diff --name-only origin/main...HEAD`, and if that file is already on main, restore it from `origin/main` rather than deleting it in the PR. Then squash/rewrite the PR branch so the final diff contains only the intended files.
-   - In the PR body, explicitly say it is docs-only and that local build/tests were skipped; still verify that GitHub checks attach to the pushed head SHA.
-
-10. Markdown links to GitHub paths containing `[` or `]` need extra escaping.
+9. Markdown links to GitHub paths containing `[` or `]` need extra escaping.
 
    - Paths like `src/app/blog/[id]/[slug]/page.tsx` are not safe to paste raw into ordinary Markdown links.
    - Two things must happen:

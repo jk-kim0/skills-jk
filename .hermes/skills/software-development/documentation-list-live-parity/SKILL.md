@@ -21,6 +21,15 @@ Typical examples:
    - Use browser inspection and computed styles.
    - Measure exact values with `browser_console(expression=...)`.
 
+2. Separate content/route migration from user-facing list UX migration.
+   - A route that proves MDX/publication records load (for example a heading, developer verification sentence, and plain `<ul>`) is only a verification stub.
+   - For a migrated resource/blog list to be visually complete, also check hero copy, category sidebar/drawer, card grid, thumbnails, badges, dates, responsive behavior, and load-more/progressive state.
+   - When documenting gaps, call this out explicitly as an experience-migration gap, not a small styling mismatch.
+
+3. If the user asks for a parity/migration document in Korean or requests the work in Korean, write the report body, headings, tables, and checklist items in Korean by default.
+   - Keep implementation identifiers such as URLs, routes, file paths, component names, code fields, and established technical terms in English.
+   - Do not leave broad English report headings like `Executive summary`, `Current state`, `Recommended implementation plan`, or `Bottom line` in an otherwise Korean document.
+
 2. For sticky sidebars, choose the sticky target carefully.
    - If the layout needs a mobile horizontal-scroll wrapper, do **not** assume the innermost nav should be sticky.
    - A safer pattern is often:
