@@ -162,6 +162,15 @@ Useful PR body structure:
 
 ## Important findings to preserve
 
+### Source-date vs display-date contract
+
+When refactoring publication/resource loaders or doing broad MDX maintenance, preserve the repo's date split:
+- MDX frontmatter source dates are ISO `YYYY-MM-DD` (`date`, `eventDate`, and legal `effectiveDate`).
+- Publication/resource web UI formats ISO dates as Japanese display strings such as `2024年11月22日` via `formatJapaneseDateFromIsoDate`.
+- Legal pages are the visible-body exception: effective-date labels remain ISO, e.g. `**Effective from 2025-07-17**`.
+
+For session-specific details and a loader/test checklist, see `references/date-source-display-contract.md`.
+
 - `records.ts` / `get-post.ts` path shortening is only sane after moving to category-local directories such as `src/lib/publications/demo/acp/records.ts`; do not attempt filename-only shortening in the current flat layout
 - architecture tests are effective for this refactor style because they let you prove the intended code shape directly before and after extraction
 - keeping file paths and exported function names stable in phase 1 dramatically reduces route/test churn and keeps the PR reviewable

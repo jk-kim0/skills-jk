@@ -52,6 +52,8 @@ Keep existing required check names where possible. If the repo already requires 
 - Every in-scope test file must map to exactly one group.
 - The grouping assertion should fail on both unassigned and overlapping tests.
 - Prefer path-based regexes that mirror source ownership, not fragile filename-only matching.
+- Avoid PR-by-PR enumerations inside `scripts/ci/test-groups.mjs`. If every route-local PR must append a new test filename to a shared alternation, the file becomes a recurring merge-conflict hotspot. Use class-level regexes instead, for example `src/__tests__/app/[a-z0-9-]+-route(?:-local)?.test.tsx` for route tests and `src/__tests__/app/(?:.+/)?redirect.test.tsx?` for redirect tests.
+- For locale or placeholder route variants, match the route shape generically instead of enumerating locales. Example: contact-us form page tests can match `src/__tests__/app/(?:[^/]+/)?company/contact-us/page(?:.[a-z]{2})?.test.tsx`, covering `company`, `en|ja|ko`, and `[locale]` layouts without future edits.
 - Keep end-to-end tests out of Vitest grouping unless they are actually run by Vitest.
 - If E2E files live under `tests/e2e/**`, mark them as CI/build-impacting or separate workflow-impacting files, but do not feed them to `vitest run`.
 - When a test is about routing, middleware, locale redirect, or preview navigation, place it in a routing/SEO-style group rather than the content group it happens to mention.

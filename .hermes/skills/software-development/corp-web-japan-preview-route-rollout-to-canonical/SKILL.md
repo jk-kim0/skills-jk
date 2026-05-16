@@ -256,6 +256,29 @@ Practical example:
 - only `/about-us` and `/certifications` still need route promotion from `/t/*`
 - the correct PR still stays combined, but code promotion is limited to those two pages while tests/docs are updated to reflect that `news` and `contact-us` were already released
 
+## Service/detail-page rollout lesson learned
+
+When publishing an individual service/detail preview page such as `/t/platforms/aip/usage-based-llm`, treat the work as a route promotion plus endpoint-contract cleanup, not just a file move.
+
+Typical pattern:
+- move `src/app/t/platforms/<family>/<slug>/page.tsx` to `src/app/platforms/<family>/<slug>/page.tsx`
+- change metadata from preview to public:
+  - `alternates.canonical` loses `/t`
+  - `robots` changes from `{ index: false, follow: false }` to `{ index: true, follow: true }`
+- add the new static public route to `src/app/sitemap.ts`
+- remove the old `/t/*` page entirely unless the user explicitly requests a compatibility route
+- update parent preview/list cards that should now link to the published page, even if the parent page itself remains under `/t`
+- if an older legacy route like `src/app/platform/ai/aip/<slug>/route.ts` still redirects to `www.querypie.com/ja/...`, retarget it to the new local canonical route instead of leaving the external redirect behind
+- if repo docs/audits track outstanding external QueryPie redirects, update the row/count for this now-local route so the audit remains truthful
+- update redirect tests to expect the local destination; if the redirect handler now needs `request.url` to build an internal URL, assert that shape through the existing redirect-endpoint test
+
+Verification checklist for this pattern:
+- source test confirms the canonical `src/app/platforms/.../page.tsx` exists and the old `src/app/t/platforms/.../page.tsx` is absent
+- `publication-detail-indexability.test.mjs` or the relevant SEO/indexability test includes the new public route and no longer lists the old preview route as non-indexable
+- `services-preview-routes.test.mjs` or equivalent removed-preview-route contract includes the deleted `/t/*` file path
+- negative grep for the old `/t/<path>` should only return tests that assert absence, not rendered links or docs that still describe it as current
+- preview deployment smoke: canonical URL returns 200, old `/t/*` URL returns 404, and legacy redirect URL resolves to the canonical local route
+
 ## Test relocation and shard-assignment pitfall
 
 If a route-source test mirrors the old preview path under `tests/src/app/t/...` and you promote the page to a canonical non-`/t` path, do not only rename the source route file.
