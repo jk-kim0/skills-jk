@@ -193,7 +193,7 @@ When rewriting `Route-Local-Authoring*`, always re-audit latest `origin/main` in
   - Do not describe plans as one undifferentiated `/t/plans` preview only; inventory and priority lists should include `/t/plans/aip` and `/t/plans/acp`.
   - `src/app/pricing/calculator/page.tsx` still only calls `notFound()`, so it remains **not** a public pricing implementation.
 - Route exclusion correction:
-  - For use-case publications, use canonical `/demo/use-cases/:id/:slug` in the excluded MDX/publication scope, not stale `/use-cases/:id/:slug` wording.
+  - For use-case publications, use canonical `/use-cases` and `/use-cases/:id/:slug` in the excluded MDX/publication scope. Treat `/demo/use-cases*` as legacy redirect wording unless latest main changes the route policy again.
 - Practical verification detail:
   - Some local environments do not have `python` as a command alias. If using a quick script to verify wiki file contents, prefer `python3` or plain shell checks before commit/push.
 

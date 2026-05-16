@@ -545,10 +545,9 @@ terminal(command="tmux new-session -d -s resumed 'hermes --resume 20260225_14305
 1. `hermes doctor` — check config and dependencies
 2. `hermes login` — re-authenticate OAuth providers
 3. Check `.env` has the right API key
-4. **Custom provider aliases are not active models by themselves**: an entry under `providers.<name>` only registers an endpoint alias. Hermes still displays and uses `model.provider` + `model.default` for the active session. To make a registered custom endpoint active, set/use the provider as `custom:<name>` and set `model.default` to an actual model ID exposed by the endpoint (check `GET <base_url>/models` when unsure). In-session switch example: `/model <model-id> --provider custom:<name>`.
-5. **Custom provider API key field**: in the newer `providers:` schema, use `api_key` or `key_env`; a hand-written `key` field may be ignored by Hermes normalization.
+4. If a custom/provider-specific model is "configured but not applied", verify the top-level `model:` block, not just the provider registration. A `providers.<name>` entry only registers a backend; active selection requires `model.provider` / `model.default` to point at it at process start. Also check whether the intended config exists only on a PR/worktree branch and whether the current session/gateway started before the config change. See `references/model-config-not-applied-diagnosis.md` for the exact evidence-gathering sequence.
+5. **Copilot 403**: `gh auth login` tokens do NOT work for Copilot API. You must use the Copilot-specific OAuth device code flow via `hermes model` → GitHub Copilot.
 6. **Config changes vs running sessions**: changing `config.yaml` affects future launches; existing CLI/gateway sessions may still show the model they started with until `/model` is used or the session/gateway is restarted.
-7. **Copilot 403**: `gh auth login` tokens do NOT work for Copilot API. You must use the Copilot-specific OAuth device code flow via `hermes model` → GitHub Copilot.
 
 ### Changes not taking effect
 - **Tools/skills:** `/reset` starts a new session with updated toolset
