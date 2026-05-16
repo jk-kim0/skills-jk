@@ -59,7 +59,8 @@ Keep existing required check names where possible. If the repo already requires 
 - When a test is about routing, middleware, locale redirect, or preview navigation, place it in a routing/SEO-style group rather than the content group it happens to mention.
 - When `npm run test:run` passes but `npm run test:ci` fails, inspect the smoke stage first. In repos with `assert-test-groups.mjs`, the root cause may be classification metadata rather than a failing test assertion.
 - If the failure is `Unassigned test files: <path>`, update only the appropriate matcher in `scripts/ci/test-groups.mjs`, then run `node scripts/ci/assert-test-groups.mjs` and the affected group script (for example `npm run test:routing`) before the full CI script.
-- For route-local static/marketing page tests named like `*-route-local.test.tsx`, compare similar existing entries such as `solution-sac-route-local` and classify them in the routing group unless they are clearly publication/content-loader tests.
+- For existing route-local static/marketing page tests named like `*-route-local.test.tsx`, compare similar existing entries such as `solution-sac-route-local` and classify them in the routing group unless they are clearly publication/content-loader tests.
+- If the repository adopts mirrored App Router test paths, prefer matching `src/__tests__/app/**/page.test.tsx` in the routing group instead of preserving a flat `*-route-local.test.tsx` convention. Keep exclusions for page tests that belong to another group, such as contact-us form routes or marketing-widget plan routes.
 
 ## Change filter rules
 

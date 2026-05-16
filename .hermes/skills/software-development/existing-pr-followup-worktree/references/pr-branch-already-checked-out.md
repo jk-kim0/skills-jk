@@ -47,6 +47,26 @@ git ls-remote origin refs/heads/<pr-head>
 gh pr view <number> --json headRefName,headRefOid,mergeStateStatus,statusCheckRollup,url
 ```
 
+7. For asset-directory follow-ups on an existing PR, add these extra checks before and after push:
+
+```bash
+# NUL-safe moves protect Korean/Japanese filenames, spaces, and symbols such as +.
+find public/<old-dir> -maxdepth 1 -type f -name '*.svg' -print0 \
+  | xargs -0 -I{} mv "{}" public/<new-route-dir>/
+
+# Verify all code URL/path references moved, except intentional provenance docs.
+git grep -n 'public/<old-dir>/\|/<old-dir>/' -- . || true
+
+# Verify the new asset count and old directory removal.
+find public/<new-route-dir> -maxdepth 1 -type f -name '*.svg' | wc -l
+test ! -e public/<old-dir>
+
+# Review as renames, not just delete/add noise.
+git diff --stat --find-renames=80 origin/main..HEAD
+```
+
+Also refresh the PR body after the push so the Summary/Test Plan mentions the final asset location and the actual targeted verification commands. Do not leave stale text such as “CI not checked” if a targeted test or `git diff --check` was run.
+
 Pitfalls:
 - Do not open a second PR just because the exact PR branch is already checked out somewhere else.
 - Do not push the temporary `*-followup` branch as the review branch.

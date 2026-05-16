@@ -423,17 +423,19 @@ Then summarize:
   - Signal pattern:
     - no open PR
     - the preserved branch diff vs `origin/main` includes old deletions or unrelated historical files from previously merged helper lines
-    - synthetic squash vs latest `origin/main` collapses to a smaller surviving payload
-    - disposable rebase of that squash onto latest `origin/main` is clean
+    - a synthetic squash can rebase cleanly but still show misleading extra paths in `origin/main...<squash>` when the squash parent is an older merge-base; for example, files already present on latest `origin/main` may appear because they were absent from the old parent
+    - the cleaner signal is the residual diff after transplanting candidate files onto a fresh latest-`origin/main` worktree and checking working-tree status/diff there
   - Recommended handling:
-    1. do not open a PR directly from the old preserve branch just because it is ahead and rebases
-    2. inspect the squash diff, not only the raw branch diff, to identify the surviving latest-main payload
-    3. create a fresh latest-main branch/worktree and transplant only the surviving files there
-    4. commit/push/open the PR from that fresh branch
-    5. after the fresh branch is safely reviewable, delete the superseded preserve branch/worktree
+    1. do not open a PR directly from the old preserve branch just because it is ahead and the synthetic squash rebases
+    2. inspect both the branch's direct `origin/main..branch` diff and a fresh latest-main transplant; treat misleading synthetic-squash paths that are already on latest main as historical base artifacts
+    3. create a fresh latest-main branch/worktree and transplant only the surviving meaningful files there
+    4. remove stale deletion hunks from the transplant when latest `origin/main` already contains the preferred current text
+    5. commit/push/open the PR from that fresh branch
+    6. after the fresh branch is safely reviewable, delete the superseded preserve branch/worktree
   - Useful summary labels:
     - `preserve branch history broad, surviving latest-main payload narrow`
     - `latest-main transplant dropped stale historical deletions`
+    - `synthetic squash rebased cleanly but included old-base artifacts`
   - A useful next-step pairing is to patch the PR-creation workflow skill too, because the fresh latest-main transplant often changes how many PRs should be opened and whether an existing skill-followup PR branch should be updated instead of creating another docs PR.
 
 ## Good trigger phrases

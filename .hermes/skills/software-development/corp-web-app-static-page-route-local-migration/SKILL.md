@@ -46,6 +46,9 @@ If the referenced PR is already merged or closed, do not revive its branch; star
    - Do not accidentally move shared form/UI assets such as `public/partners/form/*` unless explicitly requested.
 5. Update metadata and tests.
    - Update canonical URLs, Open Graph/Twitter image URLs, and alternate locale URLs to match the final public route.
+   - Place `src/app/**/page.tsx` route tests under `src/__tests__/app/**/page.test.tsx`, mirroring the route path instead of colocating tests inside the App Router tree.
+   - Avoid flat route-test names such as `src/__tests__/app/company-bounty-route-local.test.tsx`; they hide the source route and encourage inconsistent placement.
+   - If one flat test covers multiple page entrypoints, split it by route when possible. Example: split a bounty-program test into `src/__tests__/app/archived/bounty-program/page.test.tsx` and `src/__tests__/app/archived/bounty-program/terms-of-use/page.test.tsx`.
    - Update/import tests to target the route-local files after relocation.
    - Prefer targeted Vitest checks for the changed route.
 6. Rebase and push.
@@ -83,6 +86,7 @@ See `references/become-a-partner-archived-route-readme.md` for a concrete patter
 - Do not infer that all similarly named assets are page-specific. Verify whether assets are shared by unrelated form/layout flows before moving them.
 - Do not silently normalize a user-specified route spelling. If the user asks for `/archived/become-a-parter`, preserve that spelling unless they correct it.
 - Do not leave old imports, canonical URLs, or OG image URLs pointing at the pre-migration route or asset path.
+- Do not add new flat `src/__tests__/app/*-route-local.test.tsx` files for static App Router pages. Mirror the route path under `src/__tests__/app/**/page.test.tsx`; if the CI grouping script only matches the old flat pattern, update `scripts/ci/test-groups.mjs` in the same PR.
 - Do not use `python` blindly on macOS; this user's environment may only have `python3`.
 - When a PR branch is already checked out in another worktree, a detached fresh worktree at `origin/<branch>` is acceptable for follow-up work; push `HEAD:<branch>` with force-with-lease after rebase.
 
