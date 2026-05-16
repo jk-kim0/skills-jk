@@ -29,20 +29,18 @@ Supported pattern families proven in practice:
 
 ### use-cases
 - source: `../corp-web-contents/pages/features/demo/use-cases/<id>/<slug>/ja/content.mdx`
-- preview list: historical `/t/use-cases`; current public list route may be `/demo/use-cases`
+- current public list: `/demo/use-cases`
 - canonical detail: `/use-cases/:id/:slug`
 - id redirect: `/use-cases/:id`
-- content root: `src/content/use-cases/*.mdx`
-- assets: `public/use-cases/<id>/thumbnail.png`
-- category key: `use-case`
+- content root: `src/content/demo/use-cases/*.mdx`
+- assets: `public/demo/use-cases/<id>/thumbnail.png`
+- category key / MDX collection identifier: `demo/use-cases`
 - href prefix: `/use-cases`
 
-Rationale / path-contract pitfall:
-- Do **not** assume use-cases should live under `src/content/demo/use-cases` just because the list page is under `/demo/use-cases` or the upstream source path contains `pages/features/demo/use-cases`.
-- In `corp-web-japan`, use-cases are modeled as an independent standard publication family whose canonical detail route is `/use-cases/:id/:slug`; the `/demo/use-cases` page is the list/navigation surface only.
-- Therefore route-aligned local paths are `src/content/use-cases/*.mdx` and `public/use-cases/<id>/...`, while AIP/ACP demos use `src/content/demo/{aip,acp}` because their detail routes are `/demo/{aip,acp}/:id/:slug`.
-- Historical provenance: PR #187 introduced use-cases directly as `src/content/use-cases` + `/use-cases/:id/:slug`; PR #253 later rolled the list surface to `/demo/use-cases` without moving the content root or detail route.
-- If asked to explain or change this structure, distinguish list-route namespace from canonical detail/content namespace before proposing file moves.
+Post-migration realignment note:
+- Use cases intentionally now share the `demo/` content and asset namespace with AIP/ACP demo families, but their public detail route remains `/use-cases/:id/:slug` rather than `/demo/use-cases/:id/:slug`.
+- When changing paths or identifiers, do not do a blind `/use-cases/` -> `/demo/use-cases/` replacement across route hrefs. Update MDX `heroImageSrc` and public asset paths to `/demo/use-cases/<id>/thumbnail.png`, but keep detail links and `getPublicationHref` output on `/use-cases`.
+- In JavaScript regex-literal tests, escape the slash inside the new identifier: use `/"demo\/use-cases"/`, not `/"demo/use-cases"/`.
 
 Cross-repo parity caution:
 - The complete use-case corpus source is `../corp-web-contents/pages/features/demo/use-cases`, not `page-archives/customers/customer-success-cases`.
@@ -178,12 +176,14 @@ Use these first:
 Good tests should verify:
 - expected IDs exist locally
 - `heroImageSrc` uses the new route-aligned thumbnail path
+- the referenced thumbnail file exists under the expected public asset root
 - legacy asset paths are gone from migrated MDX
 - legacy `/features/demo/<family>/...` references are gone from migrated MDX
 - preview page is noindex and uses the correct list function
 - canonical detail page loads by `id` and redirects mismatched slugs
 - id-only route redirects correctly
 - `PublicationCategory` and href prefix include the new family category
+- category identifiers that contain `/` are escaped correctly in regex-literal source tests, e.g. `/"demo\/use-cases"/`
 - any newly required MDX components are present
 
 ## Worktree safety note
