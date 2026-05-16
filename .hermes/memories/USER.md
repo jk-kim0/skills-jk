@@ -162,7 +162,7 @@ In corp-web-japan route-local authoring, the user prefers section/card subtitles
 §
 For corp-web-japan static marketing copy, the user prefers semantic emphasis in route-local JSX via `<strong>...</strong>` rather than presentation-heavy inline `<span className=...>` markup; visual highlight styling should live in the wrapper/section component.
 §
-When the user gives a clear implementation instruction, do not reply with 'if you want' / proposal-only follow-ups or hand the choice back; execute the full requested comparison/fix end-to-end without making the user restate scope.
+User expects clear implementation instructions to be executed, but for sensitive infrastructure setup such as GitHub self-hosted runners, they want step-by-step guided execution and no proceeding ahead of explicit guidance.
 §
 User does not use /rollback and prefers Hermes checkpoints disabled unless explicitly needed.
 §

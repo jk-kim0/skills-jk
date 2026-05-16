@@ -34,11 +34,8 @@ Trigger this skill when:
    - Check remote tracking with `git status -sb`
 
 2. Confirm whether a PR already exists for the branch.
-   - Use `gh pr status` for the current checkout, but do not rely on it alone when the branch is in another worktree.
-   - Always run a branch-specific lookup before dispatching the create workflow:
-     - `env -u GITHUB_TOKEN gh pr list --head <branch> --state all --json number,state,title,url,author,headRefName,headRefOid`
-   - If an open PR already exists, edit that PR body/title instead of dispatching `create-pr.yml` again.
-   - If a PR already exists and the workflow is dispatched anyway, it can fail while the existing PR remains valid; verify the existing PR before treating the failure as task failure.
+   - Use `gh pr status`
+   - If a PR already exists, edit that PR instead of creating a new one
 
 3. Prepare the PR body in a file first.
    - Write the full markdown body to a temporary file
@@ -88,8 +85,7 @@ Instead:
 - Do not pass complex markdown directly to `gh pr create --body` in this repo unless there is a strong reason
 - `create-pr.yml` targets `main` as the base branch
 - The workflow appends a GitHub Actions bot footer to the body
-- If the branch has an existing open PR, the workflow may fail or create duplicate intent; check first with `gh pr list --head <branch> --state all`, not only `gh pr status` from the current checkout. This matters when the target branch is checked out in a different worktree or another actor already opened the bot PR.
-- If you accidentally dispatch `create-pr.yml` for a branch that already has an open PR and the run fails, do not create a replacement branch automatically. First verify the existing PR object and remote branch ref; often the correct action is only to update the existing PR body to reflect the latest validation.
+- If the branch has an existing open PR, the workflow may fail or create duplicate intent; check first
 - After dispatching the PR-creation workflow, verify completion with `gh run watch` and then confirm the resulting PR with `gh pr view` or `gh pr status`
 - `gh pr checks` may legitimately report no checks for the new PR branch; if so, also inspect `gh run list --branch <branch>` before concluding that no CI ran
 - `gh pr view --json mergeStateStatus,statusCheckRollup` can show `mergeStateStatus: BLOCKED` while `statusCheckRollup` is empty for a freshly created docs/skill/config PR. Do not treat that string alone as a failing check or unresolved conflict. Verify the remote branch ref, inspect whether any checks are actually attached, and report the exact empty-check state rather than inventing a CI failure.
@@ -99,6 +95,10 @@ Instead:
 - Do not treat a tracked repo config file as disposable just because it reflects local Hermes runtime behavior. In particular, `.hermes/config.yaml` is repo-managed and if it changed intentionally, it should be reviewed via git: either include it in the current PR when scope matches, or split it into its own dedicated PR when mixing it into a skill/memory PR would muddy scope.
 - Conversely, do not over-exclude tracked `.hermes/` changes just because they look local. Durable repo-managed updates such as `.hermes/memories/MEMORY.md`, bundled skill content under `.hermes/skills/**`, derived `.hermes/skills/.bundled_manifest`, and intentional `.hermes/config.yaml` updates can all be legitimate PR payload when the user asks to turn the current local Hermes workspace sweep into a reviewable PR.
 - Important user-specific default for `skills-jk`: when the user asks to make a PR from the current local workspace state, treat all tracked repo changes as PR candidates by default, and also treat meaningful untracked skill/reference/script files as PR candidates by default. Split them into separate PRs only for review-scope clarity; do not silently drop tracked files just because they are "local-looking". The normal exclusions are only clearly runtime-only residue such as `.hermes/skills/.curator_state`, `.hermes/skills/.usage.json`, and `.hermes/skills/.usage.json.lock`, unless the user explicitly asks to include those too.
+- **workflow_dispatch body 인코딩 — `gh workflow run` 한계**: `gh workflow run .github/workflows/create-pr.yml`의 `--raw-field body="$(cat body.md)"` 접근법은 실제로 잘 작동하지만, 매우 긴 본문이나 YAML 문자열(`:`, `"`, `
+`)이 포함되면 GHA 입력 파싱에서 불완전하게 전달될 수 있음. 그럼에도 불구하고 `create-pr.yml` 단순 문자열 입력 방식은 대부분의 한국어/영어 PR 본문에서 문제없이 동작함이 확인됨. 본문이 매우 길거나 특수 문자가 많을 때만 임시 파일 + `body-file` 패턴을 고려할 것.
+- **workflow_dispatch 인라인 body**: multiline markdown PR 설명을 `gh workflow run -f body="한 줄... 두 줄..."`처럼 여러 줄 문자열 인자로 직접 전달해도 `gh` CLI가 파싱하여 정상 전달됨이 확인됨. `
+` 리터럴 포함, `"` 이스케이프 없이도 `create-pr.yml` 워크플로에서 예상대로 개행되어 표시됨. 이는 다중 줄 입력 시 body 파일을 먼저 작성하는 boilerplate를 줄이는 실용적 통로.
 
 ## Local workspace sweep workflow
 
@@ -340,13 +340,37 @@ Why:
 - avoids scattering many sibling worktree directories across `~/workspace`
 - still preserves the existing flat-name rule: keep the directory name short and flat even if the branch name contains slashes
 
+### Worktree에서 원본 checkout 파일 복사 시 경로 주의사항
+
+worktree를 생성한 뒤, 원본 dirty main checkout의 unstaged 변경 파일을 worktree로 복사할 때 흔히 실패하는 패턴:
+
+- **상대경로 함정**: `cd .worktrees/<name>` 후 `cp some/file .worktrees/<name>/...`를 시도하면, 현재 디렉토리가 이미 `.worktrees/<name>`이므로 `.worktrees/` 하위가 존재하지 않는 것으로 보이며 실패함.
+- **올바른 접근**:
+  - 항상 `pwd`로 현재 위치를 먼저 확인
+  - 원본 checkout의 파일을 worktree로 복사할 때는 **절대 경로** 사용
+  - 예: `cp ~/workspace/skills-jk/.hermes/config.yaml ~/workspace/skills-jk/.worktrees/<name>/.hermes/config.yaml`
+  - 또는 원본 checkout 디렉토리로 명시적으로 돌아간 뒤 절대 경로로 복사
+- **검증**: worktree 내부에서 `git status --short`로 복사된 파일이 tracked/untracked 상태로 잡히는지 확인한 뒤 커밋
+
+## PR 생성 후 발견된 untracked 파일 처리
+
+PR을 푸시한 뒤에야 런타임 untracked 파일(`kanban.db`, `test.db`, 로컬 캐시 등)이 `.gitignore`에 누락되었음을 발견할 수 있음. 이때:
+
+- 새 커밋을 추가하지 말고 기존 커밋에 **amend**하는 것이 선호됨 (특히 단일 커밋 PR인 경우)
+- 패턴:
+  1. worktree에서 `.hermes/.gitignore` 또는 루트 `.gitignore`에 해당 파일 추가
+  2. `git add .gitignore`
+  3. `git commit --amend --no-edit`
+  4. `git push --force-with-lease origin <branch>`
+- 이미 PR이 열려 있어도 force-with-lease로 안전하게 갱신 가능
+- 단일 커밋이 아닌 경우에는 별도 fixup 커밋 추가
+
 ## Evidence from use
 
 Observed in `skills-jk`:
 - direct local `gh pr create --body` caused shell quoting issues with markdown/backticks
 - `.github/workflows/create-pr.yml` already exists and is the repo-preferred PR creation path
 - repeated local-workspace sweeps can keep teaching new nuances to the same skill; update the existing open skill-followup PR branch when possible instead of fragmenting that learning across many tiny parallel docs PRs
-- if a named requested subset such as `.hermes/config.yaml`, `.hermes/memories/MEMORY.md`, and `.hermes/memories/USER.md` collapses to no diff on latest `origin/main`, do not manufacture a PR for that subset; if broader local Hermes skill/reference changes still survive, put only that surviving payload in a separate fresh latest-main PR and report the split explicitly. See `references/local-sweep-requested-subset-collapse.md`.
 - if you do update that existing PR branch, still verify the branch head SHA on the remote after push because PR metadata can lag briefly
 
 ## Completion checklist

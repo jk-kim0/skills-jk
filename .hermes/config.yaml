@@ -1,11 +1,9 @@
 model:
-  provider: openai-codex
-  default: gpt-5.5
-  base_url: https://chatgpt.com/backend-api/codex
-  context_length: 272000
+  provider: querypie-kimi
+  default: kimi-k2.6
 providers:
   querypie-kimi:
-    base_url: http://10.11.0.51:8011/v1
+    base_url: https://internal-llm.querypie.io/v1
     key: querypie
 fallback_providers: []
 credential_pool_strategies:

@@ -170,7 +170,8 @@ When updating the skill library after a session, prefer class-level umbrella ski
 Be active by default:
 - Treat "review the conversation and update the skill library" as an instruction to find and encode at least one reusable lesson when the session had any non-trivial workflow, correction, or repeated pattern.
 - Do not default to `Nothing to save.` just because the task ended successfully; first look for a small governing-skill patch, pitfall, or concise `references/` note.
-- User workflow/style corrections belong in the governing `SKILL.md`, not only in memory.
+- User workflow/style corrections belong in the governing `SKILL.md`, not only in memory, so future sessions start with the corrected workflow.
+- If a skill was loaded or consulted during the session and the new lesson fits it, update that currently-loaded skill first instead of creating a narrow session-specific skill.
 
 Default update order:
 1. Patch a skill that was actually loaded or used in the session if it governs the same task class.

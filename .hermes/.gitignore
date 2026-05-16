@@ -100,3 +100,5 @@ pastes/
 # Platform adapter runtime state directory.
 # Contents: per-platform local messaging state and caches.
 platforms/
+# SQLite kanban database - runtime transient state
+kanban.db

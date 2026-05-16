@@ -116,11 +116,7 @@ The corp-web-japan GitHub wiki repository is locally cloned at ../corp-web-japan
 §
 In corp-web-japan, the `/events` route currently exists as a functional page shell before content is ready; it is not part of the current public launch scope.
 §
-The active Hermes runtime uses HERMES_HOME=~/workspace/skills-jk/.hermes in this setup; treat that as the primary home for session state, logs, and agent-local artifacts unless evidence shows a different profile/home.
-§
 Hermes session files for this setup are stored under ~/workspace/skills-jk/.hermes/sessions, and direct file inspection there can reveal recent Telegram sessions beyond what session_search returns.
-§
-User asked to roll back git-installed Hermes from unstable main HEAD to a recent stable release; local Hermes repo was checked out at tag v2026.4.16 and the gateway was restarted.
 §
 For searching all historical file paths in a git repo and filtering by substring, the user uses the one-liner: git log --all --name-only --pretty=format: | sed '/^$/d' | sort -u | grep '<substring>'.
 §
@@ -180,8 +176,6 @@ In corp-web-japan, .github/workflows/ci.yml and deploy-preview.yml both support 
 §
 In corp-web-japan manuals work, the real replacement target for legacy /api-docs.html is https://docs.querypie.com/ja/api-reference.
 §
-On this machine, exiftool is installed and available in PATH.
-§
 In corp-web-japan, Vercel WAF custom rules are now managed as a repo-committed source of truth under ops/vercel-firewall/, with a project-specific JSON payload plus README, and applied project-scoped via full PUT to /v1/security/firewall/config for corp-web-japan.
 §
 In corp-web-japan news rollout, direct redirects/opening to external media pages for local news items are intentionally avoided because external media links often break; local /news detail rendering is preferred over direct external card navigation.
@@ -237,3 +231,5 @@ In corp-web-japan, default text content width is 1200px unless a side-by-side im
 In corp-web-japan test structure work, the user wants only genuinely reusable infra helpers kept in shared test helper locations; page-specific or page-family-specific helpers should be colocated near the relevant mirrored test paths instead of centralized under tests/helpers.
 §
 corp-web-japan main requires `Detect changed scope`, but ci.yml pull_request ignores docs/README/AGENTS/public md/skills md changes, so docs-only PRs can miss the required check.
+§
+Mac Studio LLM1 is `qp-test@10.11.1.11` (`Mac-Studio-LLM1.local`). Existing runner dirs: `/Users/qp-test/actions-runner` chequer-io native launchd, `/Users/qp-test/Workspace/github-runner` chequer-io Docker ARM64. QueryPie runners are installed at `/Users/qp-test/Workspace/github-runners-for-querypie-org`: 6 Linux ARM64 Compose runners, group `mac-studio-llm1-linux-arm64`, all `purpose:ci`, runners 1-3 also `purpose:build`.
