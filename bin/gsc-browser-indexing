@@ -103,7 +103,7 @@ class CdpClient {
   async connect() {
     this.ws = new WebSocket(this.wsUrl);
     await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('Timed out connecting to Chrome DevTools WebSocket')), 10000);
+      const timer = setTimeout(() => reject(new Error('Timed out connecting to Chrome DevTools WebSocket')), 30000);
       this.ws.addEventListener('open', () => { clearTimeout(timer); resolve(); }, { once: true });
       this.ws.addEventListener('error', (event) => { clearTimeout(timer); reject(new Error(`WebSocket error: ${event.message || 'unknown'}`)); }, { once: true });
     });
