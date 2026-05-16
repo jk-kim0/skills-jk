@@ -303,8 +303,11 @@ When the user asks to create a PR from the current local workspace state rather 
       - treat those stale merged-worktree diffs as historical residue, not as the source for a new targeted PR
       - before creating the targeted PR, verify the requested files from the root or a brand-new latest-main worktree; if the requested subset is empty there, do not manufacture a PR for that subset
       - if the user also asked more broadly to inspect the remaining local changes and create PRs, do not stop at `requested subset is empty`; separately classify the other meaningful local work and promote it into one or more fresh latest-main PRs
+      - in `skills-jk`, when the user says `MEMORY.md` / `USER.md`, check the repo-managed paths `.hermes/memories/MEMORY.md` and `.hermes/memories/USER.md` first; also note if top-level `MEMORY.md` / `USER.md` do not exist so the path interpretation is explicit
+      - verify requested scoped files against latest main with direct content equality, not just `git diff` from a stale root checkout; a useful check is `cmp -s <path> <(git show origin/main:<path>)` after `git fetch --prune`
       - report explicitly that the requested subset produced no PR while other local changes did produce separate PRs
       - report the final PR payload from the fresh worktree diff, and separately report the preserved local-only branch/worktree that still holds the broader non-requested line
+      - after copying root changes into a fresh PR branch and pushing them, it is safe to restore the same paths in the root checkout so root `main` can be fast-forwarded; make the preservation evidence explicit by verifying the pushed branch head with `git ls-remote origin refs/heads/<branch>` before restoring root
       - after PR creation and final reporting, re-check whether root `main` unexpectedly picked up new tracked residue; if so, preserve it onto a fresh local-only branch/worktree or the active follow-up PR branch instead of leaving `main` dirty
     - do not imply that the preserve branch has a GitHub URL unless you actually pushed it; in many cases the correct final state is either `narrow bot PR + local-only preserve branch` or `requested subset omitted + separate PR(s) for other meaningful local work`
   - After the create-pr workflow finishes, verify the resulting PR object and the payload separately:
