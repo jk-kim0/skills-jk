@@ -19,6 +19,7 @@ Use this skill when a Next.js repository has a monolithic GitHub Actions validat
 - The current CI runs broad `npm run build`, `npm run lint`, or `npm run test:run` for every PR.
 - The user asks to split CI by code scope, reduce CI runtime, or copy a similar setup from another repo.
 - A repo already has grouped tests and needs workflow/path filters maintained.
+- A newly added or moved Vitest file makes `assert-test-groups.mjs`, `test:smoke`, `test:ci`, or the CI "Detect changed scope"/test grouping stage fail with an unassigned or overlapping test file.
 
 ## Core approach
 
@@ -54,6 +55,9 @@ Keep existing required check names where possible. If the repo already requires 
 - Keep end-to-end tests out of Vitest grouping unless they are actually run by Vitest.
 - If E2E files live under `tests/e2e/**`, mark them as CI/build-impacting or separate workflow-impacting files, but do not feed them to `vitest run`.
 - When a test is about routing, middleware, locale redirect, or preview navigation, place it in a routing/SEO-style group rather than the content group it happens to mention.
+- When `npm run test:run` passes but `npm run test:ci` fails, inspect the smoke stage first. In repos with `assert-test-groups.mjs`, the root cause may be classification metadata rather than a failing test assertion.
+- If the failure is `Unassigned test files: <path>`, update only the appropriate matcher in `scripts/ci/test-groups.mjs`, then run `node scripts/ci/assert-test-groups.mjs` and the affected group script (for example `npm run test:routing`) before the full CI script.
+- For route-local static/marketing page tests named like `*-route-local.test.tsx`, compare similar existing entries such as `solution-sac-route-local` and classify them in the routing group unless they are clearly publication/content-loader tests.
 
 ## Change filter rules
 
@@ -81,6 +85,22 @@ PY
 git diff --check
 ```
 
+If the repository defines grouped npm scripts, also run the affected group script and then the aggregate script that CI uses:
+
+```bash
+npm run test:<affected-group>
+npm run test:ci
+```
+
+If a fresh worktree has no `node_modules` but the root checkout has a compatible install and the user wants to avoid repeated installs, a temporary worktree-local symlink can be used for verification:
+
+```bash
+ln -s ../../node_modules node_modules
+npm run test:ci
+```
+
+Do not commit the symlink. Confirm with `git status --short` before staging.
+
 If `actionlint` is available, also run:
 
 ```bash
@@ -93,6 +113,8 @@ Do not start dev servers for this task. Prefer pushing and letting CI validate t
 
 - Do not create local edits in the main checkout. Use a linked worktree under `.worktrees/`.
 - Do not blindly copy a sibling repo's test groups; first list the current repo's tests and source directories.
+- Do not treat `npm run test:run` success as proof that grouped CI is healthy. `test:ci` may still fail earlier in the smoke/grouping assertion stage when a new test file is unassigned.
+- Do not fix an `Unassigned test files` failure by widening a regex too broadly. Add the narrowest path/name that reflects the file's ownership, and verify the file maps to exactly one group.
 - After rebasing a CI-splitting PR over newer main, rerun `node scripts/ci/assert-test-groups.mjs` before pushing. Newly merged tests can appear outside the original grouping set and make `Validate Lint` fail even when ESLint is clean.
 - Locale-prefixed verification routes are easy to miss: match both `src/__tests__/app/t/*-verification-route.test.tsx` and `src/__tests__/app/[locale]/t/*-verification-route.test.tsx`, and keep the corresponding paths-filter entries aligned.
 - Route-local page and Next config route tests under `src/__tests__/app/*route*.test.tsx` or `src/__tests__/next-config-*-route.test.ts` usually belong in the routing group unless they exercise a narrower owned subsystem.

@@ -88,6 +88,7 @@ Instead:
 - If the branch has an existing open PR, the workflow may fail or create duplicate intent; check first
 - After dispatching the PR-creation workflow, verify completion with `gh run watch` and then confirm the resulting PR with `gh pr view` or `gh pr status`
 - `gh pr checks` may legitimately report no checks for the new PR branch; if so, also inspect `gh run list --branch <branch>` before concluding that no CI ran
+- When a later session already taught this skill a new nuance and the current session confirms it again, prefer patching the existing open skill-followup PR branch that already carries related skill edits rather than opening yet another parallel docs PR for the same umbrella topic.
 - When the local workspace contains mixed changes, inspect `git status --short`, `git diff --stat`, and representative diffs before staging. In `skills-jk`, it is common to have meaningful tracked changes under `.hermes/` mixed with local-only artifacts such as `.claude/worktrees/`, scratch files like `test.txt`, and usage trackers such as `.hermes/skills/.curator_state`, `.hermes/skills/.usage.json`, and `.hermes/skills/.usage.json.lock`; exclude those temporary artifacts from the PR unless the user explicitly asks to include them.
 - Do not treat a tracked repo config file as disposable just because it reflects local Hermes runtime behavior. In particular, `.hermes/config.yaml` is repo-managed and if it changed intentionally, it should be reviewed via git: either include it in the current PR when scope matches, or split it into its own dedicated PR when mixing it into a skill/memory PR would muddy scope.
 - Conversely, do not over-exclude tracked `.hermes/` changes just because they look local. Durable repo-managed updates such as `.hermes/memories/MEMORY.md`, bundled skill content under `.hermes/skills/**`, derived `.hermes/skills/.bundled_manifest`, and intentional `.hermes/config.yaml` updates can all be legitimate PR payload when the user asks to turn the current local Hermes workspace sweep into a reviewable PR.
@@ -298,18 +299,20 @@ When the user asks to create a PR from the current local workspace state rather 
       6. create the narrow PR branch/worktree containing only the requested surviving payload
     - important nuance:
       - a requested file can collapse to a no-op on latest `origin/main` while sibling requested files still produce a real diff
-      - after refreshing root `main`, old merged worktrees/branches can still show historical diffs for the requested files (for example `MEMORY.md` / `USER.md`) even though root latest-main no longer has any surviving payload
-      - treat those stale merged worktree diffs as historical residue, not as the source for a new targeted PR
-      - before creating the targeted PR, verify the requested files against fresh latest `origin/main` from the root or a brand-new latest-main worktree; if the requested file set is empty there, do not manufacture a new PR
-      - if the user also asked more broadly to "파악하여 PR 작성" for the remaining local changes, do not stop at `requested subset is empty`
-        - after proving the requested subset has no surviving payload, separately classify the remaining meaningful local work
-        - promote that remaining work onto one or more fresh latest-main branches/PRs as separate review scopes
-        - report explicitly that the requested subset produced no PR while other local changes did produce PRs
+      - after refreshing root `main`, old merged worktrees/branches can still show historical diffs for the requested files even though fresh latest-main no longer has any surviving payload
+      - treat those stale merged-worktree diffs as historical residue, not as the source for a new targeted PR
+      - before creating the targeted PR, verify the requested files from the root or a brand-new latest-main worktree; if the requested subset is empty there, do not manufacture a PR for that subset
+      - if the user also asked more broadly to inspect the remaining local changes and create PRs, do not stop at `requested subset is empty`; separately classify the other meaningful local work and promote it into one or more fresh latest-main PRs
+      - report explicitly that the requested subset produced no PR while other local changes did produce separate PRs
       - report the final PR payload from the fresh worktree diff, and separately report the preserved local-only branch/worktree that still holds the broader non-requested line
-      - after creating a bot PR and taking the final live snapshot, re-check whether root `main` unexpectedly became dirty again; if new tracked residue appeared during the PR-creation/reporting phase, do not leave it on `main`
-      - instead, capture that new residue onto a fresh local-only preserve branch/worktree and restore root `main` back to clean before finishing the task
+      - after PR creation and final reporting, re-check whether root `main` unexpectedly picked up new tracked residue; if so, preserve it onto a fresh local-only branch/worktree or the active follow-up PR branch instead of leaving `main` dirty
     - do not imply that the preserve branch has a GitHub URL unless you actually pushed it; in many cases the correct final state is either `narrow bot PR + local-only preserve branch` or `requested subset omitted + separate PR(s) for other meaningful local work`
-
+  - After the create-pr workflow finishes, verify the resulting PR object and the payload separately:
+    - PR object lookup: `env -u GITHUB_TOKEN gh pr list --head <branch> --state all --json number,state,url,title,headRefName,baseRefName`
+    - payload lookup: `git -C <worktree> diff --name-only origin/main...HEAD | sort`
+   - Prefer the payload list above as the final source of truth for "what this PR contains".
+     - Do not summarize the PR scope from the dirty root checkout alone.
+     - Do not assume every locally changed file belongs in the final PR just because it was part of the user's current root workspace.
    - This catches two common failure modes in repeated local-workspace sweeps:
      1. a tracked skill/memory file was accidentally omitted from the fresh PR worktree
      2. a file looked "missing from the PR" but in reality latest `main` had already absorbed it, so no new diff remained to review
@@ -336,6 +339,8 @@ Why:
 Observed in `skills-jk`:
 - direct local `gh pr create --body` caused shell quoting issues with markdown/backticks
 - `.github/workflows/create-pr.yml` already exists and is the repo-preferred PR creation path
+- repeated local-workspace sweeps can keep teaching new nuances to the same skill; update the existing open skill-followup PR branch when possible instead of fragmenting that learning across many tiny parallel docs PRs
+- if you do update that existing PR branch, still verify the branch head SHA on the remote after push because PR metadata can lag briefly
 
 ## Completion checklist
 

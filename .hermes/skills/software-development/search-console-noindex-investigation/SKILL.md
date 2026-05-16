@@ -1,6 +1,6 @@
 ---
 name: search-console-noindex-investigation
-description: Investigate Google Search Console indexing exclusions such as "Excluded by 'noindex' tag" by verifying the exact drilldown issue, checking live HTML/headers/sitemaps, and mapping the result back to source metadata.
+description: Investigate Google Search Console indexing exclusions and indexing-refresh workflows by verifying the exact GSC issue/API capability, checking live HTML/headers/sitemaps, mapping results back to source metadata, and using sitemap refresh rather than unsupported bulk Request Indexing APIs.
 ---
 
 # Search Console noindex investigation
@@ -8,13 +8,69 @@ description: Investigate Google Search Console indexing exclusions such as "Excl
 Use this when:
 - the user shares a Search Console drilldown URL
 - Search Console reports `Excluded by 'noindex' tag`
+- the user asks whether Search Console indexing requests can be updated through API/CLI
+- the user asks to refresh indexing for managed websites or documents
 - you need to distinguish a real deployed noindex signal from a misleading dashboard interpretation
+
+References:
+- `references/gsc-indexing-api-and-sitemap-refresh.md` — API capability limits, sitemap refresh workflow, issue-level validation restart workflow, and OAuth/browser-session pitfalls.
 
 ## Goal
 
-Prove the root cause with live evidence, not just Search Console wording.
+Prove the root cause with live evidence, not just Search Console wording. When the task is an indexing-refresh request, first clarify whether the user wants URL-level Request indexing or issue-level validation restart. For this user, do not default to URL-by-URL bulk Request indexing for docs/sites; prefer the Page indexing issue table workflow when they refer to “Why pages aren’t indexed” or validation pages.
 
-## Workflow
+## GSC issue-level validation workflow
+
+When the user points to `https://search.google.com/search-console/index?...`, mentions the “Why pages aren’t indexed” table, or asks to update indexing by issue/status:
+
+1. Treat this as issue-level validation, not URL-level bulk submission.
+   - Open the exact Page indexing property URL.
+   - Read the “Why pages aren’t indexed” table rows: Reason, Source, Validation, Pages.
+   - Select candidates by validation state, usually `Failed` first; do not re-trigger `Started` unless explicitly requested.
+
+2. For each candidate issue row, use the row’s `item_key` validation flow.
+   - Clicking the row opens `/index/drilldown?...&item_key=<key>`.
+   - “SEE DETAILS” or direct navigation opens `/index/validation?...&item_key=<key>`.
+   - If `START NEW VALIDATION` is present, click it and verify the issue changes to `Validation started` / table state `Started`.
+   - If the start button is absent, report it as non-actionable for the current state rather than falling back to URL-level Request indexing.
+
+3. Browser automation pitfalls.
+   - GSC is a SPA; after navigation, wait for the `Validation details` heading and either `START NEW VALIDATION` or a terminal/started validation state, not just any text containing “Validation”.
+   - If using Chrome DevTools Protocol, multiple old Search Console tabs can be open. Prefer a fresh tab or activate/bring the selected target to front; otherwise a background/stale tab may show only partial “Examples” content and hide the start button.
+   - `wait_for` text can time out even when the page updates; take a fresh snapshot before concluding failure.
+
+4. Verification.
+   - Return to the Page indexing table and confirm every intended issue row is `Started`, `Passed`, or otherwise intentionally skipped.
+   - Report issue reasons and page counts, not a huge URL list.
+
+## GSC API / CLI indexing-refresh workflow
+
+When the user asks to “request indexing”, “update indexing requests”, or bulk-refresh managed website documents:
+
+1. Verify API capability before promising the action.
+   - General Search Console UI `Request indexing` for ordinary URLs is not exposed as a public bulk API.
+   - URL Inspection API is inspect/read-only for status, not a submit endpoint.
+   - Indexing API is limited/recommended for special short-lived content types such as `JobPosting` and `BroadcastEvent` in `VideoObject`; do not use it as a generic docs/marketing recrawl mechanism.
+
+2. Use sitemap refresh as the supported automation path for ordinary pages.
+   - List managed Search Console properties.
+   - List registered sitemaps for URL-prefix properties.
+   - Re-submit registered sitemaps with `sitemaps.submit`.
+   - Treat `sc-domain:*` properties as potentially overlapping with URL-prefix properties; skip by default unless the user explicitly wants domain properties included.
+
+3. Preflight OAuth scopes before submitting.
+   - `sitemaps.list` can work with `https://www.googleapis.com/auth/webmasters.readonly`.
+   - `sitemaps.submit` requires `https://www.googleapis.com/auth/webmasters`.
+   - If an existing token was granted readonly only, code changes that request broader scopes will not upgrade it automatically. Back up/remove the token and re-auth, but ask before moving/deleting an existing working token.
+
+4. CLI UX expectations.
+   - Provide an explicit explanation command or message for unsupported general Request Indexing API.
+   - Add/write commands such as `submit-sitemap` and `refresh-sitemaps` when maintaining a repo-local GSC CLI.
+   - Fail fast with a clear scope error rather than attempting many sitemap submissions that all return 403.
+
+See `references/gsc-indexing-api-and-sitemap-refresh.md` for condensed session notes and exact pitfalls.
+
+## Noindex investigation workflow
 
 1. Open the exact Search Console drilldown URL in a new browser tab.
    - Do not rely on an already-open Search Console tab; it may be showing a different issue/property state.
