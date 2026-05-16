@@ -83,6 +83,22 @@ Example:
 - keep `BrandGradientCtaButton` where it is if it is already a shared UI primitive used by unrelated surfaces
 - only extract/rename the layout shell around it
 
+## Variant and background options
+
+When a generic CTA section is reused across alternating-background marketing pages, allow small semantic visual variants instead of creating a page-specific duplicate.
+
+Recommended pattern:
+- keep the current visual default unchanged for existing callsites
+- add a narrow prop such as `background?: "muted" | "white"` on the section primitive
+- map variants through a local class map rather than letting callsites pass arbitrary background classes
+- thread the same prop through shared preset wrappers such as `AipFreeTrialCtaSection`
+- apply the variant only at the callsite that needs contextual separation, for example when the previous section already uses the same muted background
+
+Example outcome:
+- `SimpleCtaSection` defaults to `background="muted"` with `bg-[#F6F8FA]`
+- `AipFreeTrialCtaSection` accepts `background` and passes it through
+- a page ending with a muted feature band can render `<AipFreeTrialCtaSection background="white" />` so the CTA is visually separated without changing all other CTA usages
+
 ## Testing pattern
 
 Prefer a structure-oriented test instead of only relying on runtime screenshots.

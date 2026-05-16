@@ -269,6 +269,12 @@ Important distinction from the stacked-PR guidance above:
 
 A recurring safe pattern in this repo is a staged CI / workflow / infra change where the user wants the plan implemented step by step as separate PRs, but later steps build directly on earlier ones.
 
+Small shared-primitive follow-up pattern:
+- If an open PR introduces a shared primitive/API (for example a `SimpleCtaSection` prop) and the user asks to apply that new primitive to another page as a separate PR, create the page-specific branch from the open primitive PR branch, not from `main` and not by adding the page change to the primitive PR.
+- Open the page-specific PR with `--base <parent-branch>` and describe it as stacked on the parent PR in the body.
+- If the parent PR already merged, fast-forward latest `main` and create the page-specific PR directly from `origin/main` instead.
+- Verify the page-specific route test plus the parent primitive contract test so the child PR is reviewed with its dependency present.
+
 Use a stacked PR chain when all of the following are true:
 - the user explicitly wants separate PRs by stage
 - stage N+1 depends on files introduced or reorganized in stage N

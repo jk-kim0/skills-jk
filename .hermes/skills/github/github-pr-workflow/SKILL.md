@@ -80,6 +80,7 @@ Important safety rule:
 - Do NOT create a new PR branch from a previously used feature/fix branch, even if that branch's PR was already merged.
 - If the previous PR was squash-merged or otherwise rewritten on GitHub, the old local commit SHA may not exist on `main`, so GitHub can show that old commit again in the new PR even though the content was already merged.
 - Always branch from `origin/main` (or the PR base branch) for new independent work.
+- When the user asks to "follow up on PR <number>", first verify that PR's current state with `gh pr view <number> --json state,mergedAt,headRefName,headRefOid,baseRefName`. If the PR is `OPEN`, update its branch; if it is `MERGED` or `CLOSED`, treat the PR number as context only, fast-forward local `main`, create a fresh latest-main branch/worktree, and open a separate follow-up PR rather than resurrecting the old head branch.
 
 Recommended verification before committing:
 
@@ -557,6 +558,7 @@ gh pr view <branch-name> --json number,title,url,headRefName,baseRefName,state
 
 1. In Hermes terminal environments, split `git` workflow steps into smaller commands when the runner misclassifies a long chained command as a watch/server process.
    - A combined command such as `git fetch && git rebase && git add && git commit ...` can be rejected before execution with a false long-lived-process warning.
+   - For portable touched-file scans, do not rely on GNU-only `xargs -a`; macOS/BSD `xargs` rejects `-a`. Use a shell loop over a file list instead, for example `while IFS= read -r f; do git grep ... -- "$f"; done < /tmp/files.txt`, and make sure a failed helper invocation does not get misreported as a successful scan.
    - Safer pattern:
      ```bash
      git fetch origin main --quiet
@@ -661,6 +663,7 @@ gh pr view <branch-name> --json number,title,url,headRefName,baseRefName,state
    - If the same CI error disappears on the parent but persists on children, suspect that the children were not rebased onto the updated parent yet.
 
 5. Existing PR follow-up hygiene.
+5. Existing PR follow-up hygiene.
    - When resolving rebase conflicts on an existing UI/content PR, treat removals from merged PRs as first-class intent, not as disposable conflict noise. Before accepting the open-PR side of a conflict, list deleted/removed JSX, imports, helper components, visible copy, and tests from the merged PR and verify they do not get resurrected. This is especially important for UI header controls, metadata lines, descriptions/leads under headings, selectors, and route-local layout details that the user explicitly asked to remove.
    - After conflict resolution, run a negative grep for exact removed strings/components and add or preserve tests that assert absence. Example checks: `grep -R "<RemovedComponent\|removed visible copy" <touched-files> || true`, plus source tests using `assert.doesNotMatch(...)`. Do this before amending/force-pushing so review feedback like “I already told you to delete this” is not repeated across pushes.
    - When reconciling UI placement conflicts, preserve both content presence and relative position. If a selector/button was intentionally moved next to an H1, tests should pin the structure/order, not merely assert the component still exists somewhere in the file.
@@ -739,7 +742,6 @@ gh pr view <branch-name> --json number,title,url,headRefName,baseRefName,state
      - use raw filesystem reads / editor buffers / scripts for full-file rewrites
      - after any file rewrite sourced from tool output, run a verification grep or regex check for accidental `^\s*\d+\|` line starts before committing
    - Verification pitfall in skill-heavy repos: broad scans over all `.hermes/skills/**` can false-positive on legitimate examples or reference separators, such as code blocks intentionally showing `1|first line` or long `=======` section dividers. For PR safety scans, restrict checks to the touched files and use narrow conflict-marker regexes such as `^(<<<<<<<|>>>>>>>)( |$)` and `^=======$` instead of treating every line containing equals signs as a merge conflict.
-   - After updating a repo-managed skill via `skill_manage`, check whether it changed a tracked skill file in the current repo. If so, do not leave the root checkout dirty; fold the skill change into the existing relevant docs/skill PR when one is open, or create a fresh PR according to the repo's normal workflow.
    - This matters especially in docs-only PR follow-up work, where a mistaken rewrite can silently replace the whole file with line-number-prefixed content.
 
 9. Markdown links to GitHub paths containing `[` or `]` need extra escaping.

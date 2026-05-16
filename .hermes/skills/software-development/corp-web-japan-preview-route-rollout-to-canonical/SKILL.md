@@ -270,7 +270,10 @@ Typical pattern:
 - update parent preview/list cards that should now link to the published page, even if the parent page itself remains under `/t`
 - if an older legacy route like `src/app/platform/ai/aip/<slug>/route.ts` still redirects to `www.querypie.com/ja/...`, retarget it to the new local canonical route instead of leaving the external redirect behind
 - if repo docs/audits track outstanding external QueryPie redirects, update the row/count for this now-local route so the audit remains truthful
+  - concrete current example: `docs/querypie-owned-link-audit.md` has an "Expected current result: only the N route files below" count plus one table row per remaining external redirect; when publishing a detail page, remove its external row and decrement the count in the same PR
 - update redirect tests to expect the local destination; if the redirect handler now needs `request.url` to build an internal URL, assert that shape through the existing redirect-endpoint test
+- update the still-preview parent/list page links that point at the child page. For example, when `/t/platforms/aip/mcp-gateway` becomes `/platforms/aip/mcp-gateway`, keep `/t/platforms/aip` itself as preview if it is not being published, but change that card's `href` to the newly published child route.
+- treat finite static product/detail pages such as `/platforms/aip/usage-based-llm` and `/platforms/aip/mcp-gateway` as public indexability/list-route entries in `tests/publication-detail-indexability.test.mjs` if the existing test classifies them under `publicIndexableListRoutes` rather than MDX dynamic detail routes
 
 Verification checklist for this pattern:
 - source test confirms the canonical `src/app/platforms/.../page.tsx` exists and the old `src/app/t/platforms/.../page.tsx` is absent

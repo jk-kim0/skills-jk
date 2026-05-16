@@ -16,6 +16,8 @@ Use this when the user says a local/preview corp-web-japan page should *look the
 
 ## High-signal parity details to check
 
+See also `references/sibling-page-parity.md` for cases where the reference is another already-good local/published sibling page rather than upstream live QueryPie.
+
 Do not stop at section geometry, table/card widths, and screenshots. Also compare small rendered UI semantics that users notice immediately:
 - CTA suffix icons/glyphs: distinguish external-link arrows like `↗` from chevrons like `>` or SVG `ButtonArrowIcon` shapes.
 - Icon source and shape: if the reference uses an SVG component, inspect its `viewBox` and `path`, not only `innerText`.

@@ -156,6 +156,12 @@ Canonical source root:
 ../corp-web-contents/pages/features/demo/use-cases/<id>/<slug>/<locale>/content.mdx
 ```
 
+Customer-success duplication pitfall:
+- The first five demo use-case records also appear in `../corp-web-contents/page-archives/customers/customer-success-cases/<id>/<slug>/<locale>/content.mdx`.
+- corp-web-japan migrated those records into `src/content/use-cases/*.mdx`, not a separate `customer-success-cases` collection.
+- In corp-web-app, if `src/content/demo/use-cases/1-5-*` already exists, a PR adding `src/content/customer-success-cases/1-5-*` is likely duplicate data migration unless an explicit product requirement calls for a separate customer-success collection/route family.
+- See `references/customer-success-cases-use-cases-duplication.md` for the slug list and verification commands.
+
 Target root:
 
 ```text

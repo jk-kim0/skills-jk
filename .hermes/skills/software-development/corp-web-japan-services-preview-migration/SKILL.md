@@ -298,7 +298,16 @@ A reliable parity shortcut:
 - if that solution preview already matches the same live source well, reuse its route-local copy and section-primitive structure rather than maintaining a second placeholder layout
 - keep the service preview route's own canonical path and route-aligned asset root (`public/services/fde/*`), but do not hesitate to mirror the proven hero / alternating feature-band / CTA structure
 
+Hero layout follow-up rule from PR #551:
+- when the user points to PR #542, #544, or #548 as reference for FDE title/lead layout, compare the exact stage/live hero geometry before changing spacing
+- PR #542/#544 established the AIP detail-page hero lead pattern: `max-w-[1000px]`, title-to-lead gap about `20px`, lead-to-visual gap about `80px`
+- PR #548 additionally pinned the heading shell pattern: `PlatformPageShell`, `PlatformContentSection` with `pb-[120px] pt-[134px] lg:pt-[144px]`, and hero title `mx-auto max-w-[800px]`
+- for `/t/services/fde`, if title size and vertical gaps already match live, avoid broad spacing churn; usually the narrow fix is `ServiceFdeHeroLead max-w-[1000px]` plus `ServiceFdeHeroTitle mx-auto max-w-[800px]`
+- update `tests/src/app/t/services/fde/page.test.mjs` to pin the title/lead width contracts
+- see `references/fde-hero-render-parity.md` for measured stage/live evidence and PR reference mapping
+
 When the user asks to merge `/t/solutions/aip/fde-services` and `/t/services/fde` into one page:
+- session detail: see `references/fde-hero-lead-width-parity.md`
 - treat `/t/services/fde` as the final preview endpoint unless the user explicitly says otherwise
 - prefer the implementation whose route, canonical metadata, component path, and asset root already match the final endpoint (`src/app/t/services/fde/page.tsx`, `src/components/sections/fde/service-page.tsx`, `public/services/fde/*`)
 - verify duplicate assets by checksum before deleting the old route-aligned copies; identical hashes make the old `public/solutions/aip/fde-services/*` assets safe to remove
