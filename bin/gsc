@@ -38,10 +38,13 @@ except ImportError:
     print("  pip install google-auth google-auth-oauthlib google-api-python-client requests")
     sys.exit(1)
 
+WEBMASTERS_READONLY_SCOPE = 'https://www.googleapis.com/auth/webmasters.readonly'
+WEBMASTERS_WRITE_SCOPE = 'https://www.googleapis.com/auth/webmasters'
+
 # API 스코프 (URL Inspection API 포함)
 SCOPES = [
-    'https://www.googleapis.com/auth/webmasters.readonly',
-    'https://www.googleapis.com/auth/webmasters',
+    WEBMASTERS_READONLY_SCOPE,
+    WEBMASTERS_WRITE_SCOPE,
 ]
 
 # 인증 파일 경로
@@ -96,6 +99,26 @@ def get_credentials():
         pickle.dump(creds, token)
 
     return creds
+
+
+def credential_scopes(creds) -> set[str]:
+    """토큰에 실제 부여된 OAuth scope 목록을 반환합니다."""
+    scopes = set(getattr(creds, 'granted_scopes', None) or [])
+    scopes.update(getattr(creds, 'scopes', None) or [])
+    return scopes
+
+
+def credential_has_write_scope(creds) -> bool:
+    """사이트맵 제출에 필요한 Search Console 쓰기 scope가 있는지 확인합니다."""
+    return WEBMASTERS_WRITE_SCOPE in credential_scopes(creds)
+
+
+def print_write_scope_error() -> None:
+    print("오류: 현재 GSC OAuth 토큰에 사이트맵 제출 쓰기 권한이 없습니다.")
+    print(f"필요 scope: {WEBMASTERS_WRITE_SCOPE}")
+    print("현재 토큰을 백업/삭제한 뒤 재인증해야 합니다:")
+    print(f"  mv {TOKEN_FILE} {TOKEN_FILE}.readonly-backup")
+    print("  gsc sites")
 
 
 def get_service():
@@ -193,7 +216,11 @@ def list_sitemaps(site_url: str):
 def submit_sitemap(site_url: str, sitemap_url: str, service=None) -> bool:
     """Search Console API로 사이트맵을 제출/재제출합니다."""
     if service is None:
-        service = get_service()
+        creds = get_credentials()
+        if not credential_has_write_scope(creds):
+            print_write_scope_error()
+            return False
+        service = build('searchconsole', 'v1', credentials=creds)
     try:
         service.sitemaps().submit(siteUrl=site_url, feedpath=sitemap_url).execute()
     except Exception as e:
@@ -211,7 +238,11 @@ def refresh_sitemaps(site_urls: list[str] | None = None,
     공개 API로 제공하지 않습니다. 이 명령은 API로 가능한 대체 작업인
     등록 사이트맵 재제출을 수행합니다.
     """
-    service = get_service()
+    creds = get_credentials()
+    if not credential_has_write_scope(creds):
+        print_write_scope_error()
+        return
+    service = build('searchconsole', 'v1', credentials=creds)
     if site_urls:
         sites = [{'siteUrl': url, 'permissionLevel': ''} for url in site_urls]
     else:
