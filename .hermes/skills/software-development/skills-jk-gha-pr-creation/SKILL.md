@@ -290,6 +290,22 @@ When the user asks to create a PR from the current local workspace state rather 
       3. the newly created PR contains only the surviving diff that still remains unique on top of latest `origin/main`
     - include the new PR number/URL, branch name, commit hash, and the final payload file list from the fresh worktree diff
     - do not describe the whole stale root candidate set as if it were the PR payload
+  - Additional user-scoped-payload rule from `skills-jk` root cleanup + PR work:
+    - sometimes the user asks for two things together:
+      1. update root `main`
+      2. make a PR only for a very specific tracked subset such as `.hermes/config.yaml`, `.hermes/memories/MEMORY.md`, and `.hermes/memories/USER.md`
+    - in that case, do not widen the PR just because the dirty root checkout also contains many other tracked skill/reference edits
+    - safe pattern:
+      1. enumerate the full dirty root tracked/untracked set
+      2. split it into `requested PR payload` vs `other meaningful local tracked work`
+      3. preserve the broader non-requested tracked work onto a clearly named local-only branch/worktree first (for example `preserve/...`), preferably based on latest `origin/main`
+      4. restore those non-requested paths from the root checkout so root `main` can be refreshed cleanly
+      5. fast-forward root `main` to latest `origin/main`
+      6. create the narrow PR branch/worktree containing only the requested surviving payload
+    - important nuance:
+      - a requested file can collapse to a no-op on latest `origin/main` while sibling requested files still produce a real diff
+      - report the final PR payload from the fresh worktree diff, and separately report the preserved local-only branch/worktree that still holds the broader non-requested line
+    - do not imply that the preserve branch has a GitHub URL unless you actually pushed it; in many cases the correct final state is `narrow bot PR + local-only preserve branch`
   - After the create-pr workflow finishes, verify the resulting PR object and the payload separately:
     - PR object lookup: `env -u GITHUB_TOKEN gh pr list --head <branch> --state all --json number,state,url,title,headRefName,baseRefName`
     - payload lookup: `git -C <worktree> diff --name-only origin/main...HEAD | sort`
