@@ -370,6 +370,8 @@ Be especially careful with `.hermes/`-style directories:
 - they are often safe to ignore for stale classification, but confirm they are untracked local runtime artifacts before deleting
 - if you are not confident they are disposable, preserve the worktree and report it
 - if `.hermes/` is the only remaining dirt and the associated remote branch/PR is already merged, treat the worktree as stale and remove it with `git worktree remove --force ...` if needed
+- in repo-local Hermes setups, runtime files can be recreated by the very commands used for verification or PR inspection; for example `.hermes/kanban.db` may reappear after earlier cleanup
+- therefore, after any final `gh`, skill, or Hermes-related verification command, run one last targeted cleanup of clearly runtime-only files such as `.hermes/kanban.db`, then re-run `git status --short --branch` before declaring the root checkout clean
 
 Do not delete dirty worktrees automatically if the remaining changes are real project files.
 

@@ -127,6 +127,75 @@ export async function getPost(id: string) {
 }
 ```
 
+## Legacy published-path redirects
+
+When a public detail family is moved from an older prefix to a new canonical prefix, prefer explicit App Router `route.ts` redirects over rewrites.
+
+Use redirects when:
+- the old URI was externally published or indexed
+- the new URI is intended to be the canonical user-facing URL
+- navigation/sitemap/canonical metadata now point at the new prefix
+
+Avoid rewrites for this migration class because they keep the old URL in the browser while rendering canonical content, creating a split between the visible address and canonical route.
+
+Recommended pattern:
+1. Keep the canonical pages under the new prefix, for example `src/app/use-cases/page.tsx` and `src/app/use-cases/[id]/[slug]/page.tsx`.
+2. Add legacy `route.ts` handlers under the old prefix:
+   - `src/app/<old-prefix>/route.ts` -> redirects to `/<new-prefix>`
+   - `src/app/<old-prefix>/[id]/route.ts` -> resolves by `id` and redirects to `/<new-prefix>/<id>/<canonicalSlug>`
+   - `src/app/<old-prefix>/[id]/[slug]/route.ts` -> resolves by `id` and redirects to `/<new-prefix>/<id>/<canonicalSlug>`
+3. Preserve `request.nextUrl.search` on every redirect target.
+4. Return 404 for unknown ids instead of guessing a destination.
+5. Use a permanent redirect status such as `308` when the move is intentional and stable; use `307` only for temporary compatibility or when repo convention requires it.
+6. Add source-level tests that assert the legacy route files exist, call the id-based record lookup, preserve query strings, and use the expected redirect status.
+
+Example legacy list route:
+
+```ts
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+
+export function GET(request: NextRequest) {
+  const destination = new URL("/use-cases", request.url);
+  destination.search = request.nextUrl.search;
+
+  return NextResponse.redirect(destination, 308);
+}
+
+export const HEAD = GET;
+```
+
+Example legacy detail route:
+
+```ts
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { getUseCasePublicationHref, getUseCasePublicationRecord } from "@/lib/publications/use-cases/get-post";
+
+type LegacyUseCaseSlugRouteContext = {
+  params: Promise<{
+    id: string;
+    slug: string;
+  }>;
+};
+
+export async function GET(request: NextRequest, { params }: LegacyUseCaseSlugRouteContext) {
+  const { id } = await params;
+  const record = getUseCasePublicationRecord(id);
+
+  if (!record) {
+    return new NextResponse(null, { status: 404 });
+  }
+
+  const destination = new URL(getUseCasePublicationHref(id, record.slug), request.url);
+  destination.search = request.nextUrl.search;
+
+  return NextResponse.redirect(destination, 308);
+}
+
+export const HEAD = GET;
+```
+
 ## Static params
 
 If the canonical route is statically generated, keep `generateStaticParams()` on `[id]/[slug]` returning `{ id, slug }` pairs.

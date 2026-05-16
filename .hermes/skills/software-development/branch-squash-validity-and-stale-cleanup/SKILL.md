@@ -353,6 +353,7 @@ Then summarize:
 - A merged branch can still contain historically meaningful work, but if there is no surviving local dirty patch and the PR is merged, that is usually stale residue and should be deleted.
 - A dirty detached worktree can still be meaningful even when its related branch history is stale; preserve the patch, not the stale lineage.
 - Root `main` often carries meaningful local skill/doc edits during cleanup. Preserve them intentionally rather than force-cleaning `main` blindly.
+- After preserving/restoring root-local skill/doc edits, re-check root status in a loop until it is clean. Restoring one path set can reveal another repo-managed `.hermes/` skill/memory/reference diff that was hidden by earlier local state. If the newly revealed change fits an existing open skill/docs PR, fold it into that PR branch, push, verify the remote head, restore root again, and repeat before declaring cleanup complete.
 - Open PR helper aliases and detached clones should be reduced aggressively when they are clean duplicates.
 - In fast-moving repos, an open PR can merge while cleanup/rebase work is still in progress. Re-fetch and re-check PR state immediately before acting on any previously-open local branch.
 - A no-open-PR branch that looked like a no-op alias earlier in the session can stop being stale before deletion if another session or actor rewrites the attached worktree/branch in place. Re-run the live branch/worktree snapshot right before deletion, not just the PR snapshot.

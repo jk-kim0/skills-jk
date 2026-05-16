@@ -91,8 +91,25 @@ This class of task is usually:
 - one missed edge case
 - one extra test
 - one small reviewability improvement
+- a small reconciliation after a sibling PR merged and changed the current contract
 
 Do not silently widen it into a broad new batch just because you are already creating a new PR.
+
+## Sibling-PR contract reconciliation
+
+When the follow-up is prompted by comparing two already-merged PRs, inspect the latest `origin/main` state created by both merges before changing code. Do not reason from the older PR diff alone.
+
+Recommended checks:
+
+```bash
+gh pr view <old-pr> --json state,mergeCommit,files,title,url
+gh pr view <sibling-pr> --json state,mergeCommit,files,title,url
+git fetch origin --prune
+git ls-tree -r --name-only origin/main -- <candidate-paths>
+git grep -n '<old-path>\|<new-path>' origin/main -- <relevant-src-dirs>
+```
+
+For shared asset follow-ups, distinguish page-specific route-aligned assets from shared asset corpora. If a sibling merged PR still uses the same logo/icon files from a shared root, prefer consolidating the shared root and deleting duplicate route-local copies rather than forcing every consumer into the first PR's route-local asset path. Example: company/customer logo SVGs used by both archived customers and archived customer-success pages belong in `public/company-icon/*`, while page-specific thumbnails can remain under a route/family-specific asset directory.
 
 ## Practical example from this session
 
