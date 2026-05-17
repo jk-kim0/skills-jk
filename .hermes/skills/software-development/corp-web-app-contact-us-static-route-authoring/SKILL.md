@@ -288,7 +288,29 @@ npm run build
 
 ## Important experiential findings
 
-### A. Do not start a dev server unless explicitly requested
+### A. Distinguish public-route implementation from `/t` verification-route duplication
+When reviewing a contact-us PR that adds files under `src/app/[locale]/t/company/contact-us/`, first check whether the public route-local implementation already exists under `src/app/[locale]/company/contact-us/` and `src/app/company/contact-us/route.ts`.
+
+Useful review commands:
+
+```bash
+git ls-tree -r --name-only origin/main -- 'src/app/[locale]/company/contact-us' 'src/app/company/contact-us'
+for f in page.tsx page.en.tsx page.ko.tsx page.ja.tsx contact-us-page-section.component.tsx contact-us-page-section.module.css; do
+  diff -q \
+    <(git show origin/main:src/app/[locale]/company/contact-us/$f) \
+    <(git show HEAD:src/app/[locale]/t/company/contact-us/$f) \
+    && echo "same $f" || echo "diff $f"
+done
+```
+
+If these files are byte-identical, treat the PR as a preview/verification route duplication, not as a new route-local implementation. Important: the user's goal is route-local authoring itself; `/t` verification routes are only an intermediate safety checkpoint, never the desired final deliverable. In that case:
+- do not recommend reimplementing contact-us again;
+- do not frame `/t` endpoint creation as the goal or as sufficient completion;
+- if the public route-local implementation already exists, prefer cancelling the duplicate `/t` endpoint and applying only real route-local refactors to the public route;
+- verify public route, GNB, sitemap, redirect, and catch-all behavior were intentionally left unchanged;
+- consider only optional follow-ups such as documenting when temporary `/t` routes should be removed or whether metadata should later become more route-local.
+
+### B. Do not start a dev server unless explicitly requested
 The user explicitly wants no dev-server-based verification unless they ask for it.
 Prefer:
 - targeted tests

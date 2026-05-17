@@ -44,9 +44,7 @@ Keep shared UI primitives in:
 
 Examples of acceptable primitives:
 
-- `PlansPageSection`
 - `PricingRoot`
-- `PricingHeader`
 - `ProductTabs`
 - `ProductTab`
 - `PlanRoot`
@@ -54,6 +52,23 @@ Examples of acceptable primitives:
 - `CompareTable`
 - `CompareTableRow`
 - `CompareTableTextCell`
+
+Follow-up lesson from PR #563:
+
+When the user asks `/t/plans/aip` and `/t/plans/acp` to match the company info family (`/certifications`, `/news`) for page layout, H1, and lead description:
+
+- use the shared company primitives directly in each product route:
+  - `CompanyPageSection`
+  - `CompanyPageIntro`
+  - `CompanyPageTitle`
+  - `CompanyPageLead`
+- remove plans-only hero wrappers if they become unused:
+  - `PlansPageSection`
+  - `PricingHeader`
+  - `PlansHeroTitle`
+  - `PlansHeroDescription`
+- remove route-level header padding such as `pt-[72px]` after switching to `CompanyPageSection`, because the company primitive owns the top spacing used by `/certifications` and `/news`
+- keep the product-specific pricing cards and comparison table directly authored in each product route; the shared company intro primitive only replaces the page-level intro UI, not the route-local pricing/table authorship
 
 ## Test guidance
 

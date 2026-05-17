@@ -221,6 +221,51 @@ Why this matters:
 - reviewers can inspect the exact snapshot discussed in the document
 - "example path" and "generic naming contract" stay clearly separated
 
+### 6.2 When importing guidance from a sibling repository, adapt examples against current target repo reality
+
+Use this when the user asks to move or i18n documentation from another repository, such as importing `corp-web-japan` guidance into `corp-web-app`.
+
+Process:
+1. Fetch/read the source documents and record the source repository commit SHA, not just `main` as a moving label.
+2. Inspect the target repository for current equivalent examples before writing: route files, content roots, component paths, loaders, assets, README/docs indexes, and import manifests.
+3. Replace source-repo examples only when a real target-repo equivalent exists.
+4. If no appropriate target example exists, explicitly mark that section `TODO` and keep the source example/reference as conceptual context rather than inventing parity.
+5. Update any import/manifest document so an item moved from `exclude` to `adapt` is not listed in both sections.
+6. Update the repository README/docs index when adding new top-level guidance files or i18n companions.
+
+Targeted verification for this class:
+```bash
+git diff --check
+python3 - <<'PY'
+import pathlib, re, urllib.parse, sys
+root=pathlib.Path('.').resolve()
+files=[pathlib.Path(p) for p in sys.argv[1:]]
+issues=[]
+for f in files:
+    text=f.read_text()
+    for i,line in enumerate(text.splitlines(),1):
+        if re.match(r'^(<<<<<<<|=======|>>>>>>>)', line):
+            issues.append((str(f), f'conflict marker line {i}'))
+        if re.match(r'\s*\d+\|', line):
+            issues.append((str(f), f'line prefix line {i}'))
+    for m in re.finditer(r'\[[^\]]+\]\((\.\.?/[^)]+)\)', text):
+        url=m.group(1).split('#',1)[0]
+        target=(f.parent/urllib.parse.unquote(url)).resolve()
+        if str(target).startswith(str(root)) and not target.exists():
+            issues.append((str(f), f'missing link {url} -> {target.relative_to(root)}'))
+if issues:
+    print('\n'.join(map(str, issues)))
+    sys.exit(1)
+print('targeted markdown sanity OK')
+PY README.md docs/<changed-doc>.md
+```
+
+Pitfalls:
+- Do not cite a nonexistent i18n companion just because it would be symmetrical; first verify the file exists.
+- Markdown links to Next.js route segment paths need percent-encoded brackets in URLs, for example `%5Blocale%5D`, `%5Bid%5D`, and `%5Bslug%5D`.
+- Keep generic patterns as code spans; link only real examples.
+- For docs-only PRs, still verify actual PR checks after creation; some repos attach docs-only workflow runs.
+
 ### 7. Verify the doc update itself
 
 Before finishing:

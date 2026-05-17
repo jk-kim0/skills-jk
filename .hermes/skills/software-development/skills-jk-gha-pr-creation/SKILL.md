@@ -381,6 +381,7 @@ Observed in `skills-jk`:
 - if a named requested subset such as `.hermes/config.yaml`, `.hermes/memories/MEMORY.md`, and `.hermes/memories/USER.md` collapses to no diff on latest `origin/main`, do not manufacture a PR for that subset; if broader local Hermes skill/reference changes still survive, put only that surviving payload in a separate fresh latest-main PR and report the split explicitly. See `references/local-sweep-requested-subset-collapse.md`.
 - if a repeated cleanup request arrives after the requested config/memory subset is already absorbed but new skill-library residue remains, split the report and create a narrow PR only for the surviving skill-library diff. See `references/repeated-cleanup-after-followup-pr.md`.
 - if a prior follow-up PR is already squash-merged and the agent is still inside its stale worktree, verify absorption with two-dot/tree diff plus scoped blob equality before deleting it; do not trust ancestry or triple-dot diff alone. See `references/squash-merged-pr-worktree-cleanup.md`.
+- rebase conflict resolution via `sed` can silently discard the HEAD side when naively stripping markers (`/<<<<<<< HEAD/,/=======/d`). Both sides often contain independently valid additions in `skills-jk` append-only files. Always re-read after any automated strip, or prefer manual resolution. See `references/sed-conflict-strip-pitfall.md`.
 - if you do update that existing PR branch, still verify the branch head SHA on the remote after push because PR metadata can lag briefly
 
 ## Completion checklist

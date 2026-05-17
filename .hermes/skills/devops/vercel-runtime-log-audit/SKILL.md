@@ -587,3 +587,4 @@ When publishing a wiki snapshot from runtime logs:
 - Mixing up product repo context with Vercel operational evidence
 - Starting with a broad `--limit 1000` full-log export for a single project when a `--limit 50` existence check plus direct 404/500/5xx queries would answer the question faster
 - Letting Vercel log collection run too long without a timeout; use bounded subprocess timeouts and change strategy immediately if a broad query exceeds the expected quick-run budget
+- Trusting `--level error` entries as purely 5xx without client-side `responseStatusCode` filtering; some error-level rows may report `200` or other non-5xx statuses, so always filter by `responseStatusCode` starting with `5` when counting 5xx entries
