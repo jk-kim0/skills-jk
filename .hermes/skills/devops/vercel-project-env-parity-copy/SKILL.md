@@ -232,6 +232,8 @@ Then test a runtime path that previously failed due to missing env. Example: if 
 - `vercel env pull` requires a linked local directory; use a temp directory and `vercel link --yes --project ...`.
 - `vercel pull` / `vercel env pull` do not support a `--project` flag in this workflow. Link first, then pull.
 - Running `vercel env ls` or other CLI env commands from an unlinked repo/worktree can fail with “Your codebase isn’t linked to a project on Vercel.” Prefer API reads or a temp linked directory.
+- Before concluding `VERCEL_TOKEN` or `VERCEL_TEAM_ID` is absent, verify which shell is executing the tool command. On macOS/user setups where credentials are exported from `~/.zshrc`, Hermes terminal commands may run under a non-interactive shell that does not load them. Use `zsh -ic '...'` or explicitly source the profile, then re-run the read-only API probe. Report this as a shell-loading issue, not as missing Vercel credentials.
+- When checking whether a token is present, print only boolean/length signals such as `${VERCEL_TOKEN:+set}` or `${#VERCEL_TOKEN}`; never print token contents.
 - `vercel env pull` downloads built-in Vercel vars too. Do not recreate those in the target project.
 - Sensitive vars cannot be read through the env API; if you skip the pull step, you cannot clone them.
 - A custom environment like `staging` may not appear via normal preview pulls unless you specify the matching branch.

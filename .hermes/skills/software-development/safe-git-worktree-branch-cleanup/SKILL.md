@@ -20,8 +20,10 @@ Use when the user asks to:
 
 This workflow is for repositories that may have many old worktrees, detached review trees, and branches whose upstream refs were pruned.
 
-Related skill:
 - `branch-squash-validity-and-stale-cleanup` — use when the user explicitly wants each local branch judged by a synthetic squash of current local state versus latest `origin/main`, with a disposable rebase-onto-latest-main test before deciding whether to preserve or delete it.
+
+References:
+- `references/promote-portable-backup-patch.md` — detailed pattern for repeated cleanup where an old backup branch has a huge stale raw diff but a small portable synthetic-squash payload that should be promoted to a fresh branch/PR before deleting the old worktree.
 
 ## Goals
 
@@ -1529,6 +1531,20 @@ git worktree add --detach "$wt" <backup-branch>
 git -C "$wt" rebase origin/main
 # if conflicting, inspect `git -C "$wt" status --short --branch` and abort
 ```
+
+Important backup-branch diff pitfall:
+- a backup branch that tracks `origin/main` but is far behind can make `git diff origin/main..<backup-branch>` look enormous, especially in repositories where generated/bundled skill libraries or other broad artifacts changed on `main`
+- do not delete the branch solely because that direct two-dot diff shows huge stale deletions or churn
+- first build the synthetic squash commit from the backup branch tree using the branch merge-base as parent, then inspect `git diff --stat origin/main...$squash` and run the disposable rebase test
+- if the synthetic squash reduces to a small focused diff and rebases cleanly onto latest `origin/main`, classify it as portable unpublished local work and preserve it, even if the raw branch-vs-main diff is huge
+- useful label: `old backup baseline with small portable net patch`
+
+Repeated-cleanup escalation for a portable backup branch:
+- if a repeated `workspace 정리` request arrives after you already reported such a backup as preserved, treat that as permission to make the workspace cleaner without losing the work
+- promote only the synthetic-squash net patch to a fresh latest-`origin/main` branch/worktree, preferably opening a PR if this repo's completion rules expect PRs
+- if applying the generated patch directly onto latest `origin/main` fails because the newest main context drifted, do not abandon the preservation: create the new branch/worktree at the synthetic squash commit itself, then `git rebase origin/main`; the same rebase test that proved portability should carry it forward
+- after the fresh branch/PR remote head is verified, remove the old backup worktree and delete the old backup branch, then reset/fast-forward root `main` to `origin/main`
+- final report should distinguish: old backup removed, portable payload preserved on the new branch/PR, root main now clean
 
 Interpretation:
 - if the backup branch is already contained in a more official kept branch (for example an open-PR branch or an intentionally kept follow-up branch), it is usually redundant and can be deleted
