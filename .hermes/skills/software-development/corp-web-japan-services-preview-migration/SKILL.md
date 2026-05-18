@@ -384,6 +384,12 @@ These heuristics are specific enough to save significant rediscovery time on fut
 
 When the user asks which `../corp-web-contents` web pages still need to be imported as static pages, classify page families before implementing. Do not treat every `pages/**/ja/content.mdx` file as a static page target.
 
+Hero/background parity follow-up:
+- when a user reports a persistent ACP child-page hero background mismatch, first verify the exact live URL and the matching `corp-web-contents` source before changing CSS again
+- inspect background layers on the hero container, parent shell, pseudo-elements, gradients, masks, and overlays; screenshots alone are not enough
+- if the issue is shared across `/platforms/acp/*`, fix the shared ACP primitive/background contract and cover all affected child pages in one PR
+- see `references/acp-hero-background-parity.md` for the detailed checklist and failure pattern
+
 For ACP, the recurring static child-page set is:
 - `solutions/acp/database-access-controller` -> preview `/t/platforms/acp/database-access-controller`
 - `solutions/acp/system-access-controller` -> preview `/t/platforms/acp/system-access-controller`

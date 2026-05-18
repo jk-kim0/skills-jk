@@ -619,8 +619,9 @@ gh pr view <branch-name> --json number,title,url,headRefName,baseRefName,state
      gh pr comment 123 --body-file /tmp/pr-comment.md
      ```
 
-4. After rebases or force-pushes, verify remote branch refs directly before trusting PR metadata.
+   - After rebases or force-pushes, verify remote branch refs directly before trusting PR metadata.
    - This applies both to stacked PR chains and to ordinary follow-up updates on an existing open PR.
+   - If an open PR branch is stale and its diff against latest `origin/main` is polluted by many unrelated files, prefer a clean-replacement workflow over committing on top of the stale branch: create a temporary worktree from `origin/main`, apply only the intended scoped changes, run targeted checks, commit once, record the old remote tip with `git ls-remote`, force-with-lease push `HEAD` back to the same PR branch, then verify `gh pr view <pr> --json files` contains only the expected files.
    - `gh pr view` can lag, and GitHub can briefly show stale commit lists, an outdated `headRefOid`, or an outdated branch/base relationship even when the push already succeeded.
    - CLI compatibility pitfall: not all `gh` versions support `gh pr view --head <branch>`. A safer cross-version pattern is to pass the branch name as the positional PR selector:
      ```bash
@@ -801,3 +802,32 @@ gh pr view <branch-name> --json number,title,url,headRefName,baseRefName,state
      ```
    - Prefer commit-pinned blob/tree URLs when the doc is meant to preserve a stable historical example.
    - After editing Markdown with bracketed route paths, inspect the rendered or raw final file once before commit to ensure the link label and URL were both encoded correctly.
+
+11. Docs-refresh PRs against latest main need source-of-truth validation, not only prose edits.
+
+   - When the user asks to update repository docs against current `main`/`origin/main`, start from a fresh latest-main worktree, record the exact base SHA, and re-run any scan/count commands that the docs claim as their baseline.
+   - For audit docs, update all dependent count tables together: scanned files, occurrences, distinct URLs/hosts, host breakdowns, and code-vs-content counts. Do not update only the obvious changed row.
+   - For route/status docs, verify current source paths and public route files exist on latest main before repeating old guidance. If a preview `/t/*` route has been promoted/removed, update active guidance to the canonical public route while preserving historical commit-pinned examples only when they are explicitly before/after evidence.
+   - Before committing docs with many links, run a lightweight Markdown validation pass:
+     ```bash
+     python3 - <<'PY'
+     import pathlib, re, subprocess, urllib.parse
+     errors = []
+     for p in sorted(pathlib.Path('docs').rglob('*.md')):
+         text = p.read_text()
+         for label, url in re.findall(r'\[([^\]]+)\]\(([^)]+)\)', text):
+             if url.startswith(('http://', 'https://', '#', 'mailto:')):
+                 continue
+             target = urllib.parse.unquote(url.split('#', 1)[0])
+             if target and not (p.parent / target).resolve().exists():
+                 errors.append(f'{p}: missing relative link {url}')
+         for commit, path in re.findall(r'https://github\.com/<owner>/<repo>/(?:blob|tree)/([0-9a-f]{7,40})/([^\s)]+)', text):
+             path = urllib.parse.unquote(path)
+             if subprocess.call(['git', 'cat-file', '-e', f'{commit}:{path}'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL):
+                 errors.append(f'{p}: missing commit-pinned path {commit}:{path}')
+     print('\n'.join(errors))
+     raise SystemExit(1 if errors else 0)
+     PY
+     ```
+     Replace `<owner>/<repo>` with the current GitHub repository before running.
+   - If docs mention issues, preserve the user's no-auto-close preference: use neutral references like `#521` / `Related issues`, not `Closes #521`, unless the user explicitly asked to close the issue on merge.

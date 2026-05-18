@@ -53,6 +53,7 @@ If the referenced PR is already merged or closed, do not revive its branch; star
    - Prefer targeted Vitest checks for the changed route.
 6. Rebase and push.
    - Before updating the PR branch, rebase onto latest `origin/main` when the PR branch is behind.
+   - If the PR branch is so stale that `origin/main...HEAD` shows broad unrelated files, do not keep building on that branch. Create a clean temporary worktree from latest `origin/main`, copy or reconstruct only the intended route-local changes, run the targeted checks there, commit once, and force-with-lease that clean commit back to the same open PR branch. Verify the PR file list no longer contains unrelated stale files.
    - Use `--force-with-lease` for rewritten PR follow-up branches.
    - Verify remote head with `git ls-remote origin refs/heads/<branch>` and report CI status without long passive waits.
 
@@ -111,6 +112,9 @@ See `references/become-a-partner-archived-route-readme.md` for a concrete patter
 - Do not infer that all similarly named assets are page-specific. Verify whether assets are shared by unrelated form/layout flows before moving them.
 - Do not silently normalize a user-specified route spelling. If the user asks for `/archived/become-a-parter`, preserve that spelling unless they correct it.
 - Do not leave old imports, canonical URLs, or OG image URLs pointing at the pre-migration route or asset path.
+- Do not add `/<locale>/t/*` verification endpoints automatically when the page already exists as a public static route and the user asks to review/refactor it under route-local authoring. In that case, keep or introduce the real public route shape and refactor the existing page into route-local files instead. For plans/pricing pages specifically, prefer product-specific public routes such as `/plans/aip` and `/plans/acp` with locale-prefixed counterparts, and preserve known legacy query-string entry points such as `/plans?acp` with redirects.
+- When the user says to reference the corp-web-japan plans implementation, treat the directory shape as part of the requirement: use explicit static route directories like `src/app/plans/aip/page.tsx`, `src/app/plans/acp/page.tsx`, `src/app/[locale]/plans/aip/page.tsx`, and `src/app/[locale]/plans/acp/page.tsx`. Do **not** implement this as a variable route such as `src/app/plans/[product]/page.tsx` or `src/app/[locale]/plans/[product]/page.tsx`; `[product]` hides the intended explicit route-local structure and will be rejected.
+- When adding explicit plans product routes, also preserve the existing plans index entrypoints: `src/app/plans/page.tsx` and `src/app/[locale]/plans/page.tsx`. Add legacy query-string redirects at both levels so `/plans?acp`, `/plans?aip`, `/en/plans?acp`, `/ko/plans?aip`, etc. redirect to the matching explicit product route while preserving unrelated query params.
 - Do not add new flat `src/__tests__/app/*-route-local.test.tsx` files for static App Router pages. Mirror the route path under `src/__tests__/app/**/page.test.tsx`; if the CI grouping script only matches the old flat pattern, update `scripts/ci/test-groups.mjs` in the same PR.
 - Do not use `python` blindly on macOS; this user's environment may only have `python3`.
 - When a PR branch is already checked out in another worktree, a detached fresh worktree at `origin/<branch>` is acceptable for follow-up work; push `HEAD:<branch>` with force-with-lease after rebase.

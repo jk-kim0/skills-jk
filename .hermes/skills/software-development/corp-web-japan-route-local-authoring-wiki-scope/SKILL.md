@@ -153,6 +153,7 @@ When rewriting `Route-Local-Authoring*`, always re-audit latest `origin/main` in
   - In that kind of document, add a short terminology-mapping section that generalizes repo-local names like `page.tsx` and `src/components/sections/**` into broader terms such as `route-level page component`, `page composition layer`, `section component layer`, `presentational component`, `shared UI primitive`, and `screen component`.
 - Wiki rewrite shape
   - The English `Route-Local-Authoring` page should be rewritten to match the same latest-main scope as `Route-Local-Authoring-ko`, not left as an older narrow static-marketing-candidate audit.
+  - When translating or syncing `Route-Local-Authoring-ko` into `Route-Local-Authoring`, compare the heading outline of both files before committing; a prior sync missed the Korean `Route-local authoring 평가 결과` section in the English page even though most surrounding content matched.
   - Keep the document framed as a non-MDX page-authoring/public-rollout tracker, not as a generic content migration dashboard.
 
 ### 2026-05-15 baseline (`d0c32d876cfc7fd5746a2151e84b83b0ea3d45d5`)
@@ -177,6 +178,40 @@ When rewriting `Route-Local-Authoring*`, always re-audit latest `origin/main` in
 - Priority order changed:
   - Remove legal/cookie public rollout from the remaining priority list once these are public local pages.
   - Focus remaining Route-Local Authoring priorities on platform/service public taxonomy, AIP/ACP preview-to-public rollout, ACP integrations route decision, and pricing/key-values scope decisions.
+
+### 2026-05-17 baseline (`62cd9dc800df86c90eca967e8fb4fe37464394e5`)
+
+- ACP child pages and plans/pricing changed status substantially; do not leave `Route-Local-Authoring*` on the older `ec651e16...` baseline:
+  - `src/app/platforms/acp/database-access-controller/page.tsx`, `kubernetes-access-controller/page.tsx`, `system-access-controller/page.tsx`, and `web-access-controller/page.tsx` exist as public local pages.
+  - Public `/platform/security/*` routes redirect to the matching local `/platforms/acp/*` canonical routes, not upstream `querypie.com/ja`.
+  - `src/app/plans/page.tsx`, `src/app/plans/aip/page.tsx`, and `src/app/plans/acp/page.tsx` exist as public local plans pages.
+  - `src/app/pricing/route.ts` redirects `/pricing` to `/plans`; `src/app/pricing/calculator/page.tsx` remains a `notFound()` helper page, not a public calculator implementation.
+  - `src/app/sitemap.ts` includes `/plans`, `/plans/aip`, `/plans/acp`, and the four `/platforms/acp/*` child pages.
+- When updating `Website-Migration-Plan*` from this baseline, also update `Route-Local-Authoring*`; otherwise the two wiki families can contradict each other.
+- In `Route-Local-Authoring*`, remove stale classifications that say:
+  - ACP child pages are preview-only, partial, or still pending public local rollout.
+  - `/platform/security/*` routes are upstream redirect-only.
+  - plans/pricing is only `/t/plans*` preview or still needs public route strategy.
+  - ACP integrations is "High after open PR" after the cleanup PR has already merged.
+- Remaining route-local authoring priorities after this baseline should focus on `/services/aip`, `/platform/ai/aihub`, `key-values`, and sitemap/indexing follow-up for public legal pages.
+
+### 2026-05-18 baseline (`558a679ab8e22be5e07d6ee8d75e3b975e1a4235`)
+
+- AIP legacy/service aliases changed status; do not keep them as upstream blockers:
+  - `src/app/services/aip/route.ts` redirects `/services/aip` to local `/platforms/aip`.
+  - `src/app/platform/ai/aihub/route.ts` redirects `/platform/ai/aihub` to local `/platforms/aip`.
+  - `src/app/platform/ai/aip/route.ts` redirects `/platform/ai/aip` to local `/platforms/aip`.
+- Company legacy aliases changed status:
+  - `src/app/company/route.ts` redirects `/company` to local `/about-us`.
+  - `src/app/company/news/route.ts` redirects `/company/news` to local `/news`.
+  - `/ja/company/news` also redirects locally to `/news` through the localized route handler.
+- Legal sitemap/indexing wording changed:
+  - `src/app/sitemap.ts` explicitly comments that `/privacy-policy` and `/terms-of-service` are public local legal pages but intentionally noindex, so they are omitted from the sitemap.
+  - Do not list privacy/terms sitemap absence as a route-local follow-up or migration gap on this baseline.
+- Remaining route-local authoring priorities after this baseline should shrink to optional route-policy only:
+  - `key-values` exact legacy URL preservation, because the content is already covered by the value section on `/platforms/aip`.
+  - Other long-tail redirects only when real 404/wrong-target evidence appears.
+- If adding a new translation variant such as `Route-Local-Authoring-ja`, update `_Sidebar.md` in the same wiki commit under the Migration / Authoring section.
 
 ### 2026-05-16 baseline (`9833fda3c1b4a0624b06b9b0bfa3633260d34e61`)
 

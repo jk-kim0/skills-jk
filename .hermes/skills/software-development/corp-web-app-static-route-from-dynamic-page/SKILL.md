@@ -102,7 +102,7 @@ Important meaning of "route-local refactoring" for this repo/user:
 
 ### Proven structure for `/company/contact-us`
 
-Useful file layout:
+Useful file layout for a dedicated unprefixed page entry:
 
 - `src/app/company/contact-us/page.tsx`
 - `src/app/company/contact-us/contact-us-page-section.component.tsx`
@@ -110,6 +110,8 @@ Useful file layout:
 - `src/components/widget/contact-sales/contact-sales-form.component.tsx`
 - `src/components/widget/contact-sales/contact-sales-form.module.css`
 - `src/components/widget/contact-sales/contact-sales.i18n.tsx`
+
+Important newer variant: if the public English canonical should stay unprefixed but the implementation should live only under `src/app/[locale]/company/contact-us`, prefer the default-locale middleware rewrite pattern instead of adding `src/app/company/contact-us/page.tsx` or keeping `src/app/company/contact-us/route.ts`. See `references/default-locale-middleware-rewrite.md`.
 
 ### Practical refactor pattern
 
@@ -231,6 +233,27 @@ Rules:
 - Include source repository/path/commit, original URI path, new target URI path, target implementation files, metadata/frontmatter conversion notes, MDX/component mapping notes, asset source/target paths, recovery commands, and future-edit scope boundaries.
 - If this convention is newly established or changed, update the higher-level plan/docs in a separate docs PR rather than bundling plan governance changes into the feature PR unless the user explicitly asks to bundle them.
 
+## Middleware default-locale rewrite variant
+
+Use this variant when the user wants to make `src/app/<path>/page.tsx` unnecessary for an English default route while preserving an unprefixed English canonical URL.
+
+Public/runtime contract:
+- English canonical remains unprefixed, e.g. `/plans`, `/plans/aip`, `/company/contact-us`.
+- Non-English canonical remains locale-prefixed, e.g. `/ko/plans`, `/ja/plans`.
+- Middleware rewrites allowlisted English/default requests internally to `/en/<path>` so `src/app/[locale]/<path>/page.tsx` runs with `params.locale = 'en'`.
+- Middleware still redirects KO/JA users from unprefixed `/path` to `/<locale>/path`.
+- Direct `/en/<path>` may render, but English metadata should still use the unprefixed canonical unless the URL policy says otherwise.
+
+Workflow:
+1. Confirm the matching `src/app/[locale]/<path>/page.tsx` exists before deleting `src/app/<path>/page.tsx` or `src/app/<path>/route.ts`.
+2. Add the route to an explicit middleware allowlist; do not rewrite all unprefixed paths globally.
+3. Apply the rewrite before `rewriteRequest(request)` so internal `baseUrl` is still added once.
+4. Delete redundant unprefixed page/handler files only after tests cover the new middleware behavior.
+5. Update metadata and legacy query redirects so the public English target remains unprefixed and internal `baseUrl` does not leak.
+6. Update docs/inventories that still claim `src/app/<path>/page.tsx` or route-specific handlers own the route.
+
+Reference: `references/default-locale-middleware-rewrite.md`.
+
 ## Verification
 
 Additional reference:
@@ -271,10 +294,20 @@ This keeps the test focused on route-local authoring and avoids unrelated depend
 2. Do not leave the old catch-all static param entry in place.
    - The dedicated route should own that path.
 
-3. Do not start a local dev server unless the user explicitly asks.
+3. Do not start a local dev server unless the user explicitly requested it.
    - For this repo/user workflow, prefer commit/push and CI.
 
 4. In PR follow-up work, use a fresh worktree on the existing PR branch and push back to the same branch.
+
+5. Do not introduce dynamic product routes when the requested reference pattern uses explicit directories.
+   - If the user says to follow the corp-web-japan `/plans/aip` and `/plans/acp` implementation, create explicit app route directories such as `src/app/plans/aip/page.tsx`, `src/app/plans/acp/page.tsx`, `src/app/[locale]/plans/aip/page.tsx`, and `src/app/[locale]/plans/acp/page.tsx`.
+   - Do not use `src/app/plans/[product]/page.tsx` or `src/app/[locale]/plans/[product]/page.tsx` for that request, even if the implementation would be smaller.
+   - Keep legacy query compatibility such as `/plans?aip` and `/plans?acp` by redirecting from the index page while preserving unrelated query parameters.
+
+6. Do not treat `route.ts` as the default compatibility endpoint for public route-local pages.
+   - For static/semistatic marketing routes that have moved to route-local i18n authoring, the route-local contract is `page.tsx` as thin framework entry plus `page.{locale}.tsx` as authoring surfaces.
+   - A public compatibility redirect like `/company/contact-us` -> `/<locale>/company/contact-us` may still be required, but a standalone `src/app/company/contact-us/route.ts` can be an awkward leftover once the page is route-local.
+   - Prefer reviewing whether it should become a `src/app/company/contact-us/page.tsx` redirect entry, with tests updated away from direct `GET` route-handler imports, rather than preserving a route handler just because it already exists.
 
 ## Typical commit message
 

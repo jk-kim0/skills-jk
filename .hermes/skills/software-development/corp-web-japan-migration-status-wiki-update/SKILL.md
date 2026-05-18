@@ -61,6 +61,8 @@ Typical non-blockers:
 - From the migration-status perspective, `services` and `company` stay open blockers as long as their public routes are still redirect-backed and only `/t/*` local previews exist.
 - Treat `legal` as `scope decision needed` unless the user explicitly decides those pages must be fully localized and locally replaced.
 - When counting preview-only `/t/*` surfaces, include newly added preview migration pages such as `/t/cookie-preference`, but do not let their existence by itself inflate the list of migration blockers unless they correspond to still-unmigrated public site surfaces.
+- Some live `querypie.com/ja` URLs are app-level section routes rather than standalone authored pages. Example: `/ja/key-values` is the AIP value-card section and can be classified as covered when the local AIP public page already includes the same section; see `references/key-values-aip-section-classification.md`.
+- When a latest-main update changes legacy redirect endpoints from upstream `querypie.com/ja` targets to local canonical routes, treat that as a migration-readiness status change, not just a redirect cleanup. Example: if `src/app/services/aip/route.ts` and `src/app/platform/ai/aihub/route.ts` now redirect to `/platforms/aip`, update `Website-Migration-Plan-ko` to show 0 upstream public replacement blockers and move remaining concerns to indexing/long-tail compatibility follow-up.
 
 ## Recommended wording patterns
 

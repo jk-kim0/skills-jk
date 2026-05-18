@@ -279,6 +279,16 @@ Operational rule:
 - for broken-link / changed-URL monitoring, maintain an actionable allowlist of content-like path families and exclude these probe families from the redirect-review queue
 - summarize them as noise buckets instead: `config-probe`, `api-probe`, `secret-probe`, `exploit-probe`
 
+**Additional scanner noise patterns observed in corp-web-app production logs:**
+- `/.well-known/apple-app-site-association`, `/.well-known/assetlinks.json` — mobile app association probes
+- `/.well-known/traffic-advice`, `/.well-known/ucp`, `/.well-known/security.txt`, `/.well-known/related-website-set.json`, `/.well-known/passkey-endpoints`, `/.well-known/gpc.json`, `/.well-known/webauthn` — web standard discovery probes
+- `/llms.txt` — LLM discovery probe
+- `/xmlrpc.php` — WordPress exploit probe
+- `/sitemap` without `.xml` — search engine probe
+- `/blog/content/images/...` directory paths (no filename) — legacy blog platform crawler noise
+
+These should all be classified as scanner noise rather than actionable app 404s that need redirect rules.
+
 ### E.1 When the goal is to stop probe paths from appearing as runtime 404s
 
 Important practical finding:
@@ -378,6 +388,10 @@ This is often the only place where referrer and redirect-target evidence exists.
 Practical implication:
 - `referer: null` plus crawler user agents often means direct bot/unfurl fetches rather than normal in-site navigation
 - repeated `redirectTarget` values let you verify whether an allowlisted redirect is sending traffic to the intended upstream URL
+
+## Project-specific references
+
+- `references/corp-web-japan-runtime-log-patterns.md` records observed corp-web-japan runtime-log patterns such as current-day 50-row plateaus, generic company/contact-path Python probing, and route-policy candidates from May 2026 snapshots.
 
 ## Useful one-off commands
 

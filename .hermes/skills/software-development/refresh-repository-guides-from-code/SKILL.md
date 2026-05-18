@@ -265,6 +265,7 @@ Pitfalls:
 - Markdown links to Next.js route segment paths need percent-encoded brackets in URLs, for example `%5Blocale%5D`, `%5Bid%5D`, and `%5Bslug%5D`.
 - Keep generic patterns as code spans; link only real examples.
 - For docs-only PRs, still verify actual PR checks after creation; some repos attach docs-only workflow runs.
+- Do not update only the visible path in a commit-pinned GitHub link after a route/file promotion. The old commit may contain `src/app/t/...` while the current commit contains `src/app/...`; changing the path while leaving the old SHA creates a broken historical link. If the doc is meant to show a historical before/after snapshot, preserve the historical path and SHA. If the doc is meant to show a current active reference, update both the path and the SHA to a commit where that path exists, then validate with `git cat-file -e <sha>:<path>`.
 
 ### 7. Verify the doc update itself
 
@@ -273,11 +274,35 @@ Before finishing:
 - search for stale phrases you intended to remove
 - confirm every referenced file, route, and command still exists
 - confirm you did not document worktree-only or vendor-tree state as if it were repo state
+- if the refreshed docs include static scan counts, re-run the scan script from the same baseline SHA and update all related rows together, not just the row that obviously changed
+- if docs contain relative Markdown links or commit-pinned GitHub `blob/<sha>` / `tree/<sha>` links, validate that they resolve; use `scripts/validate-markdown-references.py` from this skill when available
+- when docs reference GitHub issues, avoid adding auto-closing keywords such as `Closes #...` unless the user explicitly wants that issue closed on merge
 
 Helpful commands:
 ```bash
 git diff --check
 git status --short
+python3 <skill-dir>/scripts/validate-markdown-references.py docs
+```
+
+For broad docs refreshes, add targeted stale-pattern checks based on the drift you just fixed, for example:
+```bash
+python3 - <<'PY'
+from pathlib import Path
+patterns = [
+    'Source baseline: this PR branch',
+    'src/app/t/eula',
+    'src/app/t/terms-of-service',
+    'https://stage.querypie.ai/t/platforms',
+    '`/t/plans`',
+    'Closes #',
+]
+for p in sorted(Path('docs').rglob('*.md')):
+    text = p.read_text(errors='replace')
+    hits = [pat for pat in patterns if pat in text]
+    if hits:
+        print(p, hits)
+PY
 ```
 
 ### 8. Commit and push

@@ -129,6 +129,72 @@ When asked which URI path an old content page or PR-migrated page had in a sibli
 
 Report concise evidence: historical source path, derived URI(s), and whether the files exist on current main or only in git history.
 
+## 0B. Verifying Whether a Page Is Actually a Section of Another Page
+
+When asked whether a named route/page is an independent page or a section embedded in another page, verify by content identity rather than filename or route existence alone:
+
+1. Locate the explicit route/page implementation in the current or source repo:
+   ```bash
+   rg -n "<slug>|<distinct heading>|<distinct CTA text>" src app pages docs
+   find src app pages -path '*<slug>*' -type f
+   ```
+2. Read the full route file and identify distinctive anchors: page heading, section heading, card titles, CTAs, and internal links.
+3. Search for those distinctive strings across related repos and content sources, including sibling source repos such as `corp-web-contents` and migrated app repos. Prefer 2-4 highly specific phrases over broad terms like `values`.
+4. Compare the component/section boundary:
+   - If the page route renders only one section component and the same section appears inside a broader product/solution page, classify it as a standalone URL that duplicates or extracts a section.
+   - If the broader page contains the same section plus additional hero/features/CTA content, classify the named page as section-level content, not a full replacement page.
+5. Check live/stage behavior with headers and, when useful, body string probes:
+   ```bash
+   for url in <candidate-urls>; do
+     echo "--- $url"
+     curl -sS -I "$url" | awk 'BEGIN{IGNORECASE=1} /^HTTP\// || /^location:/ {print}'
+   done
+   python3 - <<'PY'
+   import requests
+   for url in ["<url1>", "<url2>"]:
+       html = requests.get(url, timeout=20).text
+       print("---", url, "len", len(html))
+       for needle in ["<distinct heading>", "<distinct card title>"]:
+           print(needle, html.find(needle))
+   PY
+   ```
+6. Report the conclusion in two dimensions:
+   - URL/routing status: whether the route exists and returns 200/redirect/404.
+   - Content/site-architecture status: whether the content is unique, duplicated, or absorbed as a section of another page.
+
+Pitfall: do not conclude “independent page” from HTTP 200 alone. A URL can exist solely as a standalone rendering of a section that has already been absorbed into a canonical product/solution page.
+
+## 0C. Legacy Asset-Shaped 404 Triage
+
+When asked whether a 404 for an old-looking public asset path needs action, distinguish a real first-party regression from external/bot/old-cache traffic before proposing fixes:
+
+1. Confirm repo and branch first:
+   ```bash
+   pwd
+   git rev-parse --show-toplevel
+   git status --short --branch
+   ```
+2. Search the current code/content for the exact URL and basename. If no current first-party page emits it, treat the issue as a legacy asset-shaped 404 unless other evidence says otherwise:
+   ```bash
+   rg -n '/assets/images/07-blog/event-thumb-2\.png|event-thumb-2\.png|07-blog' .
+   find public src -name '*event-thumb-2*' -print
+   ```
+3. Check historical file existence and deletion/addition commits:
+   ```bash
+   git log --all --name-only --pretty=format: | sed '/^$/d' | sort -u | grep -F 'event-thumb-2.png' || true
+   git log --all --name-status -- public/assets/images/07-blog/event-thumb-2.png
+   ```
+4. If a route-aligned replacement likely exists, verify current content points there and the file exists (for example, event ID 2 now using `heroImageSrc: "/events/2/thumbnail.png"` plus `public/events/2/thumbnail.png`). Do not assume the legacy file and replacement are byte-identical; compare hashes only if compatibility restoration is being considered.
+5. Optionally verify stage/production HTTP status for the exact path, but do not turn a confirmed 404 into an action item unless a current first-party emitter exists or compatibility restoration has a documented reason.
+
+Report shape:
+- current first-party references: present/absent
+- current asset presence and route-aligned replacement, if any
+- git history: when the legacy file was added/deleted
+- conclusion: no-action vs fix current emitter vs restore compatibility asset
+
+Pitfall: do not add redirects or restore deleted legacy public assets just because runtime logs show 404s. For asset-shaped 404s, the default is no-action when the current site does not emit the exact URL. Restore a compatibility file only for a repeated/high-value external compatibility case with explicit evidence.
+
 ## 1. Basic Summary (Most Common)
 
 Get a full language breakdown with file counts, code lines, and comment lines:

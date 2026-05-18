@@ -114,6 +114,65 @@ If public canonical routes exist directly at `/resources`, `/introduction-deck`,
 ### News
 If local news detail pages are in sitemap and indexed, record that as a latest-main fact. But do not automatically turn that into a “remaining task” unless the user asks for policy review.
 
+### Latest-main audit lessons from 2026-05-17 night baseline
+
+When updating `Website-Migration-Plan*`, re-check these routes before preserving older blocker wording:
+
+- ACP child pages
+  - If latest main has `src/app/platforms/acp/{database-access-controller,kubernetes-access-controller,system-access-controller,web-access-controller}/page.tsx`, classify those ACP child pages as `migrated`, not `partial`.
+  - If `src/app/platform/security/*/route.ts` redirects to `/platforms/acp/*`, treat those legacy `/platform/security/*` paths as local compatibility redirects, not upstream replacement blockers.
+  - If those `/platforms/acp/*` routes are present in `src/app/sitemap.ts`, mention that sitemap/indexing has been aligned for the ACP child pages.
+- Plans / pricing
+  - If latest main has `src/app/plans/page.tsx`, `src/app/plans/aip/page.tsx`, and `src/app/plans/acp/page.tsx`, classify plans/pricing as `migrated`, not `preview only` or `scope decision needed`.
+  - If `src/app/pricing/route.ts` redirects to `/plans`, document `/pricing` as a local compatibility redirect.
+  - Keep `src/app/pricing/calculator/page.tsx` calling `notFound()` as a helper/non-implementation unless a real public calculator is added.
+- `/t/*` backlog
+  - Do not leave `/t/platforms/acp/*` or `/t/plans/*` in the remaining preview/local-only migration backlog after they are promoted to public routes.
+  - In the 2026-05-17 night baseline, the remaining `/t/*` migration entrypoint count became `0`.
+- Remaining blockers
+  - On that baseline, the main upstream public replacement gaps narrowed to `/services/aip` and `/platform/ai/aihub`.
+  - Keep `key-values` as a scope decision, not a migration blocker, unless latest main adds a required local/public page or the user changes the scope.
+
+## Latest-main audit lessons from 2026-05-18 baseline
+
+When updating `Website-Migration-Plan*` after commit `558a679ab8e22be5e07d6ee8d75e3b975e1a4235`, remove older blocker/follow-up wording that no longer applies:
+
+- AIP legacy/service aliases
+  - `src/app/services/aip/route.ts`, `src/app/platform/ai/aihub/route.ts`, and `src/app/platform/ai/aip/route.ts` all redirect to local `/platforms/aip`.
+  - Do not keep `/services/aip`, `/platform/ai/aihub`, or `/platform/ai/aip` as upstream public replacement blockers.
+- Company legacy aliases
+  - `src/app/company/route.ts` redirects `/company` to local `/about-us`.
+  - `src/app/company/news/route.ts` redirects `/company/news` to local `/news`.
+  - `/ja/company/news` also redirects locally to `/news`; treat this as local replacement behavior, not upstream dependency.
+- Legal sitemap/indexing
+  - `src/app/sitemap.ts` explicitly documents `/privacy-policy` and `/terms-of-service` as public local legal pages that are intentionally noindex and omitted from the sitemap.
+  - Do not leave “confirm sitemap/indexing policy” as a remaining migration follow-up for those two routes on this baseline.
+- Remaining blockers
+  - Major upstream public replacement blockers should be `0` unless a newer main reintroduces one.
+  - `key-values` should be documented as covered by the value section on `/platforms/aip`; preserving the exact `/key-values` URL is an optional long-tail route-policy decision, not a migration blocker.
+- Translation/sidebar hygiene
+  - Keep `Website-Migration-Plan`, `Website-Migration-Plan-ko`, and `Website-Migration-Plan-ja` synchronized on the same baseline SHA and conclusions.
+  - If adding or renaming a language variant, update `_Sidebar.md` in the same wiki commit.
+
+### Latest-main audit lessons from 2026-05-18 baseline
+
+When refreshing `Website-Migration-Plan*` after PRs around legacy redirects and legal sitemap policy, do not preserve older blocker/follow-up wording without checking these latest-main facts:
+
+- Legacy content redirects
+  - If `src/app/services/aip/route.ts`, `src/app/platform/ai/aihub/route.ts`, and `src/app/platform/ai/aip/route.ts` redirect to `/platforms/aip`, classify AIP legacy/service aliases as local compatibility redirects, not upstream blockers.
+  - If `src/app/company/route.ts` redirects to `/about-us` and `src/app/company/news/route.ts` redirects to `/news`, document company legacy paths as local replacement redirects.
+  - If `src/app/ja/[[...path]]/route.ts` special-cases `/ja/company/news` to `/news`, include that only as local redirect evidence; do not reclassify the whole `/ja/**` catchall as migrated.
+  - If `src/app/api-docs.html/route.ts` redirects to `https://docs.querypie.com/ja/api-reference`, treat it as the real external replacement target for that legacy API docs path.
+- Legal / sitemap policy
+  - If `src/app/sitemap.ts` explicitly comments that `/privacy-policy` and `/terms-of-service` are public local legal pages but intentionally noindex and omitted from sitemap, remove older “sitemap/indexing policy needs confirmation” follow-up language.
+  - Classify legal/policy pages as `migrated` with intentional noindex/sitemap exclusion, not as `Done / follow-up`, unless latest code changes the policy again.
+- Remaining blockers
+  - With the AIP aliases local and legal sitemap policy explicit, the major public replacement blocker count should be `0`.
+  - Keep `key-values` as `covered` by the `/platforms/aip` value-card section when latest AIP page contains the same section content; only the exact `/key-values` endpoint is an optional long-tail route-policy decision.
+- Translation sync
+  - Update `Website-Migration-Plan-ko.md`, `Website-Migration-Plan.md`, and `Website-Migration-Plan-ja.md` from the same baseline and conclusion set in one wiki commit.
+  - After editing, grep the three files for stale baseline SHAs and stale phrases such as older upstream blocker claims, “sitemap/indexing policy confirmation,” `mostly migrated`, or `scope decision needed`.
+
 ## Recommended output structure
 
 - Purpose

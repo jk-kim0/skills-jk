@@ -97,6 +97,7 @@ Typical git steps:
 - When the user wants the wiki to remain self-maintaining, rewrite `Writing guidelines` to encode concrete formatting rules such as: path-first nested bullets, which field gets the link, title source-of-truth, base URL, and which route categories are excluded.
 - If the user specifies a wiki-local formatting rule for links (for example markdown `[path](url)` in tables), apply it consistently to every actual link cell in the page instead of mixing raw URLs and markdown links.
 - GitHub wiki right-side navigation can be customized with a dedicated `_Sidebar.<extension>` page. Treat it as normal wiki content: use Markdown nested bullet lists for manual hierarchy. This supports a tree-like visual grouping of links, but it is not an auto-generated, collapsible file-tree sidebar; future pages must be added to `_Sidebar` manually.
+- When the user says a wiki page was deleted or renamed, update `_Sidebar.md` in the same commit: remove stale links to the deleted page slug/name, then search the sidebar for the old slug/name before committing.
 
 - For site-navigation audit issues that feed wiki work, if you need to recommend external reference URLs, verify them from the live site header/footer and sitemap rather than inferring from labels alone.
 

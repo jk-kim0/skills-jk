@@ -16,6 +16,7 @@ Use when the user asks to:
 - clean stale local branches
 - clean stale worktrees
 - prune local git state safely
+- `workspace 정리` across one or more specific repos
 
 This workflow is for repositories that may have many old worktrees, detached review trees, and branches whose upstream refs were pruned.
 
@@ -330,9 +331,25 @@ Check for obviously disposable artifacts such as:
 Practical rule:
 - if the only dirt is disposable untracked helper state, remove it or classify it separately and re-check `git status --porcelain`
 - common disposable residue in workspace-cleanup passes includes editor/runtime outputs such as `.idea/`, `.codegraph/`, `frontend/tests/test-results/`, and similar generated local diagnostics directories
-Practical rule:
-- if the only dirt is disposable untracked helper state, remove it or classify it separately and re-check `git status --porcelain`
-- common disposable residue in workspace-cleanup passes includes editor/runtime outputs such as `.idea/`, `.codegraph/`, `frontend/tests/test-results/`, and similar generated local diagnostics directories
+
+### Stale `.git/index.lock` after timed-out commit
+
+If a previous `git commit` or other git command timed out, Git may leave a stale `.git/index.lock` that blocks all subsequent git operations in the repo.
+
+Symptom:
+```bash
+fatal: Unable to create '/path/.git/index.lock': File exists.
+Another git process seems to be running...
+```
+
+Fix:
+1. check if a real git process is still running
+2. if none is running, remove the lock file: `rm -f /path/.git/index.lock`
+3. retry the blocked command
+
+Do not skip this step and do not use `--force` workarounds just because the lock error appeared once.
+
+If the worktree still has dirt after lock cleanup:
 - if those are the only remaining changes, treat the repo/worktree as effectively clean for stale-classification purposes, or delete just those local residue paths when the user asked for cleanup
 - if the remaining dirt is real project files (for example tracked deletions like `D postcss.config.mjs`), preserve the worktree
 
@@ -1130,7 +1147,89 @@ Preferred rule:
 
 This is safer than forcing a branch update that would overwrite a real local edit, and aligns better with users who find stash-based preservation low value compared with keeping an inspectable worktree/branch.
 
-## 7c. Repo-internal worktree directories can leave root `?? .worktrees/` noise
+## 7c. Large-scale batch worktree cleanup (100+ worktrees)
+
+In repos with extreme worktree counts, individual interactive removal is impractical. Use an automated classification script, but with these important safeguards:
+
+**Parse `git worktree list --porcelain` carefully.**
+The porcelain format uses blank-line-separated blocks, not a fixed line-per-block layout. Each block starts with `worktree <path>` and may include `HEAD <sha>`, `branch <ref>`, or `detached` on separate lines. A simple `grep "^worktree "` is not enough for classification; you must parse per-block.
+
+**Classification algorithm for bulk removal:**
+1. Fetch open PR heads: `gh pr list --state open --json headRefName,headRefOid`
+2. Parse all worktree blocks into (path, head, branch, detached) tuples
+3. Skip the root repo path entirely
+4. Skip any branch-backed worktree whose branch is an open PR head
+5. For everything else, check `git -C <path> status --short`:
+   - non-empty status → **keep** (dirty)
+   - empty status → **stale candidate**
+6. Remove stale candidates with `git worktree remove --force <path>` from the owning repo context
+
+**Post-batch cleanup:**
+After any bulk `git worktree remove`, run:
+```bash
+git -C <repo> worktree prune --expire=now --verbose
+git -C <repo> worktree prune
+```
+
+**Important failure mode:** `git worktree remove --force` may return a failure code even when the removal succeeded, especially when the filesystem directory was already partially removed by a prior operation. Do not retry blindly. Instead, verify by checking `git -C <repo> worktree list` for the next batch.
+
+**Practical example from corp-web-app cleanup:**
+- 112 worktrees detected
+- 91 stale candidates identified by the above algorithm
+- 84 successfully removed by batch script
+- 8 reported failures, but filesystem paths were already gone
+- Remaining were recovered by `git worktree prune --expire=now`
+
+## 7d. Orphan worktree refs after filesystem removal
+
+A removed worktree can leave a "ghost" entry in `git worktree list` even when the filesystem directory no longer exists. This happens when:
+- a prior `git worktree remove` was interrupted
+- a temporary worktree directory was deleted outside git
+- a `git worktree remove` partially succeeded without updating git's internal registry
+
+**Symptoms:**
+```bash
+git worktree list --porcelain
+# still shows paths that ls says do not exist
+```
+
+**Diagnosis:**
+```bash
+ls -d <reported-worktree-path> 2>/dev/null || echo "directory does not exist"
+git -C <repo> worktree list --porcelain | grep "worktree <missing-path>"
+```
+
+**Fix:**
+```bash
+git -C <repo> worktree prune --expire=now --verbose
+git -C <repo> worktree prune
+```
+
+If the orphan refs persist after prune, they are usually harmless metadata in `.git/worktrees/*` pointing at non-existent gitdirs. The prune command cleans them. After prune, re-run `git worktree list` to confirm.
+
+**Never run `rm -rf .git/worktrees/<name>` manually unless you have verified it is truly orphaned.** The `worktree prune` command is the correct and safe cleanup path.
+
+## 7e. Clean root checkout on non-default branch with tracked changes tied to an open PR
+
+When the root checkout is sitting on a non-default branch (e.g., `docs/hermes-skill-followup`) and that branch is connected to an **open PR**, the cleanup procedure is:
+
+1. Inspect root diff with `git diff --stat HEAD --`
+2. If changes are meaningful and tied to the open PR:
+   - `git add -A && git commit -m "..."
+   - `git push origin <branch>`
+3. Only after successful push, switch root to default branch:
+   ```bash
+   git checkout main
+   git pull --ff-only origin main
+   ```
+4. If `main` is not checked out anywhere, also update it directly:
+   ```bash
+   git branch -f main origin/main
+   ```
+
+Do NOT switch root to `main` before committing and pushing the open-PR branch changes. Doing so would leave uncommitted work that must be stashed or transplanted.
+
+## 7f. Repo-internal worktree directories can leave root `?? .worktrees/` noise
 
 Some repositories keep linked worktrees under a repo-internal directory such as `.worktrees/<name>`.
 This is a valid and often preferred layout; see the common `repo-root-worktree-path-policy` skill.

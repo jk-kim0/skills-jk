@@ -109,6 +109,91 @@ export async function GET(request: Request) {
 
 If the destination path is computed dynamically, compute the path string first, then wrap it with `new URL(destinationPath, request.url)` before calling `NextResponse.redirect()`.
 
+For legacy detail-path aliases where the user explicitly says not to check local file/content existence, do not import publication loaders or call record lookup helpers. Use only the route params and redirect directly to the canonical path. This applies even when the legacy source path includes old namespaces or locale prefixes, for example:
+- `/features/documentation/blog/:id/:slug -> /blog/:id/:slug`
+- `/features/documentation/white-paper/:id/:slug -> /whitepapers/:id/:slug`
+- `/ja/features/documentation/white-paper/:id/:slug -> /whitepapers/:id/:slug`
+- `/features/demo/use-cases/:id/:slug -> /use-cases/:id/:slug`
+
+Example implementation:
+
+```ts
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+
+type LegacyDetailRouteContext = {
+  params: Promise<{
+    id: string;
+    slug: string;
+  }>;
+};
+
+export async function GET(request: NextRequest, { params }: LegacyDetailRouteContext) {
+  const { id, slug } = await params;
+  const destination = new URL(`/blog/${id}/${slug}`, request.url);
+  destination.search = request.nextUrl.search;
+
+  return NextResponse.redirect(destination, 307);
+}
+
+export const HEAD = GET;
+```
+
+When adding these to the table-driven redirect test, assert the absence of content lookup helpers such as `getBlogPublicationRecord`, `getUseCasePublicationRecord`, `getWhitepaperPublicationRecord`, `getPost`, or generic `getPublication` so the direct-alias contract is pinned. Also allow both sync and async route handlers in shared redirect endpoint tests, e.g. `/export (?:async )?function GET\(/`, because dynamic App Router params commonly require `await params`.
+
+## Runtime redirect log levels
+
+When a task mentions Vercel Runtime Logs, redirect observability, or log severity for redirect handlers, add or reuse a small runtime logging helper instead of leaving ad hoc `console.log` calls in each route.
+
+Recommended policy for corp-web-japan:
+- same-origin 307 redirects, including local aliases such as `/features/documentation/blog/:id/:slug -> /blog/:id/:slug`, should log at info level with `console.info`
+- redirects to another website/origin, such as `https://www.querypie.com/**` or `https://docs.querypie.com/**`, should log at warning level with `console.warn`
+- include structured payload fields such as `requestedPath`, `redirectTarget`, `redirectScope`, `statusCode`, `host`, `referer`, and `userAgent`
+- determine same-origin by comparing `new URL(redirectTarget).origin` with `new URL(request.url).origin`; do not infer it only from whether the destination string starts with `/`
+
+Representative helper shape:
+
+```ts
+type RuntimeRedirectLogEntry = {
+  requestedPath: string;
+  redirectTarget: string | URL;
+  requestUrl?: string | URL | null;
+  statusCode?: number;
+  marker?: "[runtime-redirect]" | "[runtime-missing-redirect]";
+  host?: string | null;
+  referer?: string | null;
+  userAgent?: string | null;
+};
+
+export function logRuntimeRedirect(entry: RuntimeRedirectLogEntry) {
+  const redirectTarget = entry.redirectTarget instanceof URL ? entry.redirectTarget : new URL(entry.redirectTarget);
+  const requestUrl = entry.requestUrl ? new URL(entry.requestUrl) : null;
+  const redirectScope = requestUrl && redirectTarget.origin === requestUrl.origin ? "same-origin" : "external";
+  const log = redirectScope === "same-origin" ? console.info : console.warn;
+
+  log(entry.marker ?? "[runtime-redirect]", JSON.stringify({ ...entry, redirectTarget: redirectTarget.toString(), redirectScope, statusCode: entry.statusCode ?? 307 }));
+}
+```
+
+Use this helper in:
+- new direct legacy detail aliases created as `route.ts` files
+- catch-all missing-route redirects such as `[runtime-missing-redirect]`
+- locale catch-all redirect handlers such as `/ja/**` and `/ko/**` when they can redirect either locally or to querypie.com
+
+Keep route handler call sites concise while keeping the logged status tied to the actual response status. Define one `statusCode` constant per route handler branch and use it for both logging and the redirect response:
+
+```ts
+const statusCode = 307;
+
+logRuntimeRedirect(request, destination, statusCode);
+
+return NextResponse.redirect(destination, statusCode);
+```
+
+The helper should derive `requestedPath`, `requestUrl`, `host`, `referer`, and `userAgent` from the request. Keep `statusCode` explicit at the call site so a future 308 or other redirect status can be recorded without changing the logger internals, and so the log cannot drift from `NextResponse.redirect(..., statusCode)`. Use a separate lower-level function only for page routes such as `src/app/[...missing]/page.tsx`, where there is no `NextRequest` object and the URL must be reconstructed from `headers()`.
+
+Tests should cover both levels by importing the helper with `node --experimental-strip-types`, stubbing `console.info` and `console.warn`, and asserting that same-origin redirects produce one info log while external redirects produce one warning log. Source tests for route files should assert that direct aliases call `logRuntimeRedirect(request, destination, statusCode);` rather than repeating the full payload or hard-coding `307` separately at every call site.
+
 If the requirement is to strip a legacy prefix from all nested paths, use an optional catch-all route such as `src/app/ja/[[...path]]/route.ts` and derive the redirect target from `request.nextUrl.pathname`:
 
 ```ts
@@ -142,6 +227,36 @@ Exact-match dotted paths are also valid route directories when the public URI li
 - `src/app/api-docs.html/route.ts`
 
 Do not rename these to a normalized slug such as `/api-docs`; if the user asks for an exact-match redirect to fix a broken in-repo link, preserve the literal request path.
+
+## Runtime 307 audit follow-up pattern
+
+When a user provides a list of observed `307` responses and asks whether they should redirect to local pages, use a two-step audit before editing:
+
+1. Static code check:
+   - confirm the current repo/worktree and PR branch if applicable
+   - inspect `src/app/**/route.ts`, `src/app/[...missing]/page.tsx`, `src/lib/querypie-content-redirect.ts`, and the relevant publication/content roots
+   - classify each URI as already local, intentionally external, or missing a local alias
+2. Runtime check:
+   - use `curl -I` against both `https://querypie.ai` and `https://stage.querypie.ai` for the exact paths
+   - record the current `Location` header and keep stage/production drift separate from current-code defects
+
+For follow-up implementation on an existing open PR, reuse that PR branch in a fresh worktree, then add one route-local alias per missing path and update `tests/redirect-endpoints.test.mjs` in the same commit. If `gh pr view` briefly shows the old head SHA after push, verify the real branch tip with `git ls-remote origin refs/heads/<branch>` before assuming the PR failed to update.
+
+Common local alias mappings from the legacy QueryPie route audit:
+- `/company -> /about-us` when the user explicitly chooses about-us as the company replacement
+- `/solutions/aip/integrations -> /platforms/aip/integrations`
+- `/features/documentation/glossary-items -> /glossary`
+- `/features/documentation/aip-introduction-download -> /introduction-deck/1/querypie-aip`
+- `/features/documentation/acp-introduction-download -> /introduction-deck/2/querypie-acp`
+- `/ja/privacy-policy-en -> /privacy-policy`
+- `/features/documentation/blog/:id/:slug` and `/ja/features/documentation/blog/:id/:slug -> /blog/:id/:slug`
+- `/features/documentation/white-paper/:id/:slug` and `/ja/features/documentation/white-paper/:id/:slug -> /whitepapers/:id/:slug`
+- `/features/demo/use-cases/:id/:slug` and `/ja/features/demo/use-cases/:id/:slug -> /use-cases/:id/:slug`
+
+Locale-specific pitfall:
+- Do not add a local alias for `/ko/features/documentation/white-paper/:id/:slug` by default. In corp-web-japan, `/ko/**` is intentionally handled by `src/app/ko/[[...path]]/route.ts` and redirects to `https://www.querypie.com/ko/**`. A more specific `src/app/ko/features/.../route.ts` would override that catch-all and incorrectly localize the Korean legacy path.
+
+Do not treat `/api-docs.html` as a local-page miss by default; in this repo it may intentionally redirect to `https://docs.querypie.com/ja/api-reference`.
 
 ## Test pattern
 
