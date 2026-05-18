@@ -164,6 +164,16 @@ When the user asks to create a PR from the current local workspace state rather 
       3. root state only partially overlaps and also contains additional or divergent local changes -> create a new latest-main branch/PR for the current root state
     - In `skills-jk`, case (3) is common because the root checkout can stay dirty on an old merged branch while one or more fresh-worktree follow-up PRs are created and merged separately.
     - Do not blindly pile new local changes onto the still-open PR just because some files overlap; if the root diff is not materially the same as the open PR diff, split it into a new PR.
+  - Additional merged-preservation-branch lesson from `skills-jk`:
+    - sometimes the user's current local changes were previously preserved on a backup/follow-up branch whose PR has already been merged, while a smaller new dirty diff has since appeared again on root `main`
+    - in that case, do **not** reopen or reuse the merged branch name, and do not assume the whole preserved branch diff still belongs in a new PR
+    - instead:
+      1. create a fresh latest-`origin/main` worktree/branch under repo-root `.worktrees/`
+      2. identify the exact files intended for the new PR from the preserved backup worktree/branch
+      3. compare them against current `origin/main` so you do not re-copy files that are already merged
+      4. if root `main` has a newer dirty version of one overlapping file, override the copied backup version with the newer root version intentionally
+      5. verify the fresh worktree's final diff against `origin/main` before committing
+    - this yields a clean reviewable PR when the preservation branch was only a temporary safekeeping line, not the authoritative branch to continue from
   - Safer fallback when a clean file-copy transplant is impractical:
     - create a preserve branch/worktree that captures the full current dirty file set first
     - refresh repository refs and update local `main` to latest `origin/main`
