@@ -197,6 +197,24 @@ When rewriting `Route-Local-Authoring*`, always re-audit latest `origin/main` in
 - Practical verification detail:
   - Some local environments do not have `python` as a command alias. If using a quick script to verify wiki file contents, prefer `python3` or plain shell checks before commit/push.
 
+### 2026-05-17 baseline (`ec651e16a2ea65978023bc415645ebedbc65a479`)
+
+- ACP platform pages were published publicly:
+  - `src/app/platforms/acp/page.tsx` exists and is the current public local ACP landing page with canonical `/platforms/acp`.
+  - `src/app/platforms/acp/integrations/page.tsx` exists and is the current public local ACP integrations page with canonical `/platforms/acp/integrations`.
+  - `src/app/services/acp/route.ts` now redirects locally to `/platforms/acp`.
+  - Do not leave ACP landing or ACP integrations classified as `/t/platforms/acp` preview-only, public-redirect-only, or route-decision items.
+- AIP and FDE public status should also be re-audited against this baseline:
+  - `src/app/platforms/aip/page.tsx` and `src/app/platforms/aip/integrations/page.tsx` are public local pages; `/platform/ai/aip` redirects locally to `/platforms/aip`, while `/services/aip` may still redirect upstream.
+  - `src/app/services/fde/page.tsx` is the public local FDE page; `/platform/ai/aip/fde-services` redirects locally to `/services/fde`.
+  - Do not keep `/t/platforms/aip`, `/t/platforms/aip/integrations`, or `/t/services/fde` as current remaining public-rollout blockers if latest main still matches this baseline.
+- ACP child pages remain a separate partial state:
+  - `/t/platforms/acp/{database-access-controller,kubernetes-access-controller,system-access-controller,web-access-controller}` preview pages exist.
+  - Public `/platform/security/*` routes still redirect upstream, so these are still partial public-local-rollout candidates.
+- Sitemap changed again:
+  - `src/app/sitemap.ts` includes `/platforms/aip`, `/platforms/aip/integrations`, `/platforms/acp`, `/platforms/acp/integrations`, `/platforms/aip/usage-based-llm`, `/platforms/aip/mcp-gateway`, and `/services/fde`.
+  - Continue to record `/privacy-policy` and `/terms-of-service` as public local pages even if they are not static sitemap entries.
+
 ## Recommended verification queries
 
 Before finalizing the wiki page, explicitly inspect these latest-main files when relevant:

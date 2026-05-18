@@ -634,6 +634,39 @@ Example from issue #395:
 - The first safe follow-up was to render them on `src/app/internal/demo-sections/page.tsx` and extend the mirrored route test to pin that preservation contract.
 - The corrected follow-up keeps `src/app/internal/demo-sections/` to `page.tsx` only, moves avatar/FAQ/role-slider/showcase implementation files to `src/components/sections/internal-demo/**`, keeps FAQ items and `aiDashiConsultUrl` in `page.tsx`, and updates tests to assert both the old orphan paths and route-adjacent component files no longer exist.
 
+## Internal route rename / preservation pattern
+
+When the user asks to shorten or rename `src/app/internal/**` pages, treat the pages as intentionally preserved noindex review/verification surfaces unless the user explicitly says to delete them.
+
+Checklist for this class of change:
+1. Rename the actual App Router route segment directories, not only visible card labels.
+   - Example issue #395 mapping: `/internal/demo-sections` -> `/internal/sections`, `/internal/events-demo` -> `/internal/events`, `/internal/mdx-list-demo` -> `/internal/mdx-list`, `/internal/whitepaper-gating-demo` -> `/internal/whitepaper-gating-form`.
+   - If the user says a route is unchanged, keep the path but still consider whether the visible label should drop `Demo` for consistency (for example `Load More Demo` -> `Load More`, `Internal Video Demo` -> `Internal Video`).
+2. Update all intentional in-repo references in the same PR:
+   - internal hub card hrefs and labels (`src/app/internal/page.tsx`)
+   - preview-mode footer internal links (`src/components/layout/site-footer.tsx`) and footer source tests
+   - route metadata canonical paths and titles
+   - mirrored tests under `tests/src/app/internal/**`
+   - broad source-inspection tests such as `tests/internal-page.test.mjs`, publication indexability, resource-list structure, and whitepaper gating tests
+   - local E2E paths and package scripts under `tests-local/**` / `package.json`
+   - docs/guidance references in `README.md`, `AGENTS.md`, `docs/local-e2e.md`, audit docs, and repo-local `.agents/skills/**` if they name the old internal route
+3. For MDX-backed internal pages, update the content filename and any route-derived gating identifiers together.
+   - Example: `src/content/internal/whitepaper-gating-demo.mdx` -> `whitepaper-gating-form.mdx` requires updating `sourcePath`, `buildGatingContentKey("internal", ...)`, expected cookie names in E2E tests, and gating source tests.
+4. Run a negative grep for old route segments before committing:
+   - `demo-sections|events-demo|mdx-list-demo|whitepaper-gating-demo|/internal/(demo-sections|events-demo|mdx-list-demo|whitepaper-gating-demo)`
+   - Ignore unrelated component/test names only when they are not route paths, for example component files named `internal-events-demo-*` may be legitimate implementation vocabulary.
+5. Use narrow source-level verification first:
+   - affected internal route tests
+   - footer/internal hub tests
+   - related publication/gating tests when a gated internal route moved
+   - `node scripts/ci/assert-test-groups.mjs`
+   - `git diff --check`
+
+Pitfalls:
+- Do not preserve old `/internal/*-demo` paths as redirects by default; these are internal noindex surfaces and the user's direction was to keep the pages, not legacy route compatibility.
+- Do not over-broaden into public route or sitemap work unless the internal route rename actually affects an indexed public surface.
+- If a route-derived cookie/content key changes, update tests and local E2E expectations in the same PR or the gating flow will silently drift.
+
 ## New test file assignment safety
 
 When adding any new `tests/**/*.test.mjs` file in `corp-web-japan`, update `scripts/ci/test-groups.mjs` in the same PR unless the file already matches an existing group matcher.

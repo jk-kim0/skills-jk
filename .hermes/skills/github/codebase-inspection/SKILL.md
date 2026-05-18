@@ -68,7 +68,36 @@ docs/plans/example.md
 파일명에 goal이 들어간 문서는 없습니다.
 ```
 
-## 0A. Historical Content Route / URI Lookup
+## 0A. Page-Type Classification in Next.js App Router Repos
+
+When a user asks for a list of "static pages", "marketing pages", or similar under a route branch (e.g. `/t/*`), do **not** default to returning every `page.tsx` file in that subtree. Next.js App Router repos commonly mix several page kinds under the same prefix. Classify before listing.
+
+1. **Static marketing pages** — thin `page.tsx` files that directly compose JSX sections or import route-local locale modules. They usually have no URL params, no content loaders, and no MDX rendering pipeline. In the user's vocab they are often called "static marketing page" or just "marketing page".
+
+2. **MDX publication / resource pages** — parametric routes (`[id]/[slug]/page.tsx`) or list wrappers (`page.tsx` with a loader) that render checked-in MDX. Common families: `blog`, `whitepapers`, `news`, `events`, `demo`, `glossary`, `introduction-deck`, `tutorials`, `privacy-policy`, `manuals`.
+
+3. **CMS / dynamic pages** — routes that fetch remote CMS data, render Tiptap/HTML, or rely on a catch-all dynamic page router.
+
+4. **Archived / removed pages** — routes that exist in git history but have been deleted from the current filesystem.
+
+**Verification commands**
+
+```bash
+# 1) List current filesystem routes under a prefix
+find src/app/[locale]/t -type f -name 'page.tsx' | sort
+
+# 2) Distinguish parametric (MDX detail) vs flat (marketing or list) paths
+find src/app/[locale]/t -type f -name 'page.tsx' | grep -E '/\[id\]/|\[slug\]/|\[category\]/' | sort
+
+# 3) Check for deleted/archived routes via git history
+git log --all --name-only --pretty=format: -- src/app/\[locale\]/t/ |
+  sed '/^$/d' | sort -u |
+  grep 'page.tsx'
+```
+
+If the user's request is ambiguous ("static page" can mean "statically rendered" in Next.js jargon vs "static marketing copy page" in product terms), ask which family they mean before producing a list. If they react with "that is not what I asked for", immediately switch classification lenses instead of repeating the same directory listing.
+
+## 0B. Historical Content Route / URI Lookup
 
 When asked which URI path an old content page or PR-migrated page had in a sibling content repo, do not stop at the current filesystem. Content trees are often deleted or moved. Use git history and the consuming app's routing rules together:
 

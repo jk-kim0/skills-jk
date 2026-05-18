@@ -256,35 +256,161 @@ Practical example:
 - only `/about-us` and `/certifications` still need route promotion from `/t/*`
 - the correct PR still stays combined, but code promotion is limited to those two pages while tests/docs are updated to reflect that `news` and `contact-us` were already released
 
-## Service/detail-page rollout lesson learned
+## Service/detail-page and platform-landing rollout lesson learned
 
-When publishing an individual service/detail preview page such as `/t/platforms/aip/usage-based-llm`, treat the work as a route promotion plus endpoint-contract cleanup, not just a file move.
+When publishing an individual service/detail preview page such as `/t/platforms/aip/usage-based-llm`, or a parent platform landing page such as `/t/platforms/aip`, treat the work as a route promotion plus endpoint-contract cleanup, not just a file move.
 
 Typical pattern:
-- move `src/app/t/platforms/<family>/<slug>/page.tsx` to `src/app/platforms/<family>/<slug>/page.tsx`
+- move `src/app/t/platforms/<family>/<slug>/page.tsx` to `src/app/platforms/<family>/<slug>/page.tsx`, or for a platform landing page move `src/app/t/platforms/<family>/page.tsx` to `src/app/platforms/<family>/page.tsx`
 - change metadata from preview to public:
   - `alternates.canonical` loses `/t`
   - `robots` changes from `{ index: false, follow: false }` to `{ index: true, follow: true }`
 - add the new static public route to `src/app/sitemap.ts`
 - remove the old `/t/*` page entirely unless the user explicitly requests a compatibility route
+- if the public target currently has a `route.ts` external redirect, delete that public redirect file once the local `page.tsx` is published
+- update header/footer navigation for the published route from `t("/platforms/<family>", previewModeEnabled)` to the direct canonical href, but leave unrelated preview-switched routes alone
 - update parent preview/list cards that should now link to the published page, even if the parent page itself remains under `/t`
+- when publishing the parent platform landing page, audit every linked card/inline link inside that page; child links that already went public should stay canonical, and service links such as FDE must use the public service route (`/services/fde`), not stale preview paths such as `/t/services/fde` or older AIP subpaths like `/platform/ai/aip/fde-services`
 - if an older legacy route like `src/app/platform/ai/aip/<slug>/route.ts` still redirects to `www.querypie.com/ja/...`, retarget it to the new local canonical route instead of leaving the external redirect behind
+  - for the AIP platform landing rollout, `src/app/platform/ai/aip/route.ts` should redirect internally to `/platforms/aip`
+  - for the old AIP FDE subpath, `src/app/platform/ai/aip/fde-services/route.ts` should redirect internally to `/services/fde` after FDE is public; this avoids a broken or externally bounced FDE path from the AIP page
 - if repo docs/audits track outstanding external QueryPie redirects, update the row/count for this now-local route so the audit remains truthful
-  - concrete current example: `docs/querypie-owned-link-audit.md` has an "Expected current result: only the N route files below" count plus one table row per remaining external redirect; when publishing a detail page, remove its external row and decrement the count in the same PR
+  - concrete current example: `docs/querypie-owned-link-audit.md` has an "Expected current result: only the N route files below" count plus one table row per remaining external redirect; when publishing a route, remove any row whose redirect is now internal and update all affected summary counts/checklist counts in the same PR
 - update redirect tests to expect the local destination; if the redirect handler now needs `request.url` to build an internal URL, assert that shape through the existing redirect-endpoint test
 - update the still-preview parent/list page links that point at the child page. For example, when `/t/platforms/aip/mcp-gateway` becomes `/platforms/aip/mcp-gateway`, keep `/t/platforms/aip` itself as preview if it is not being published, but change that card's `href` to the newly published child route.
-- treat finite static product/detail pages such as `/platforms/aip/usage-based-llm` and `/platforms/aip/mcp-gateway` as public indexability/list-route entries in `tests/publication-detail-indexability.test.mjs` if the existing test classifies them under `publicIndexableListRoutes` rather than MDX dynamic detail routes
+- treat finite static product/detail pages such as `/platforms/aip`, `/platforms/aip/usage-based-llm`, and `/platforms/aip/mcp-gateway` as public indexability/list-route entries in `tests/publication-detail-indexability.test.mjs` if the existing test classifies them under `publicIndexableListRoutes` rather than MDX dynamic detail routes
+
+### ACP platform parent + integrations rollout nuance
+
+When publishing `/t/platforms/acp` and `/t/platforms/acp/integrations` together, promote only the requested two pages unless the user explicitly includes the ACP child controller pages.
+
+Correct outcome for this narrow rollout:
+- move `src/app/t/platforms/acp/page.tsx` to `src/app/platforms/acp/page.tsx`
+- move `src/app/t/platforms/acp/integrations/page.tsx` to `src/app/platforms/acp/integrations/page.tsx`
+- remove `src/app/platforms/acp/route.ts` because the canonical page now exists locally
+- remove only the two old preview entrypoints (`/t/platforms/acp` and `/t/platforms/acp/integrations`); keep sibling child-controller preview routes such as `/t/platforms/acp/database-access-controller`, `/system-access-controller`, `/kubernetes-access-controller`, and `/web-access-controller` in place until their own rollout
+- update the parent ACP page's integrations link from `/t/platforms/acp/integrations` to `/platforms/acp/integrations`
+- update ACP integrations category links/query links from `/t/platforms/acp/integrations?...` to `/platforms/acp/integrations?...`
+- retarget `src/app/services/acp/route.ts` internally to `new URL("/platforms/acp", request.url)` rather than leaving it as an external `www.querypie.com/ja/solutions/acp` redirect, but do not remove that route unless the user explicitly asks to remove the alias
+- update header/footer nav from `t("/platforms/acp", previewModeEnabled)` to direct `"/platforms/acp"`
+- add `/platforms/acp` and `/platforms/acp/integrations` to `src/app/sitemap.ts`
+- add both public pages to `tests/publication-detail-indexability.test.mjs` and remove only the parent `/t/platforms/acp/page.tsx` from the non-indexable preview list
+- move the parent mirrored test from `tests/src/app/t/platforms/acp/page.test.mjs` to `tests/src/app/platforms/acp/page.test.mjs`, fixing the helper import depth from `../../../../../helpers/...` to `../../../../helpers/...`
+- add a focused `tests/src/app/platforms/acp/integrations/page.test.mjs` for public metadata, route-local catalog/filter links, CTA, and removed preview entrypoint
+- keep `tests/src/app/t/platforms/acp/static-routes.test.mjs` for the remaining preview child-controller routes, but remove `integrations` from its preview route list and point its integrations assertions at the new public file
+- in `tests/services-preview-routes.test.mjs`, `previewPages` may become an empty array after the last top-level platform preview page is promoted; keep the removed-preview-route assertions and make redirect-route assertions accept both external `const destination = ...` style and internal `new URL(..., request.url)` style redirects
+- in `tests/redirect-endpoints.test.mjs`, remove the `/platforms/acp` external redirect row, decrement the expected redirect count, and assert the new public page exists while the old route/preview files do not
+- if `docs/querypie-owned-link-audit.md` tracks remaining `www.querypie.com/ja` redirect shims, remove the `/platforms/acp` and `/services/acp` external rows, update counts, and note that `/services/acp` now redirects internally
+
+### ACP child controller rollout nuance
+
+When the user asks to publish the pages “under `/t/platforms/acp`” after the ACP parent and integrations pages are already public, first classify current main. If `src/app/platforms/acp/page.tsx` and `src/app/platforms/acp/integrations/page.tsx` already exist and the only remaining `/t/platforms/acp/**` files are the four child controller pages, treat the task as a child-controller rollout, not as a parent rollout redo.
+
+Correct outcome for this child-controller rollout:
+- move these four route directories from `src/app/t/platforms/acp/<route>/` to `src/app/platforms/acp/<route>/`:
+  - `database-access-controller`
+  - `system-access-controller`
+  - `kubernetes-access-controller`
+  - `web-access-controller`
+- move their adjacent route README/render-audit notes with the route directories, and update stage/source paths inside those README files from `/t/platforms/acp/...` to `/platforms/acp/...`
+- change each child page metadata:
+  - `alternates.canonical` loses `/t`
+  - `robots` changes from `{ index: false, follow: false }` to `{ index: true, follow: true }`
+- remove the old `/t/platforms/acp/<route>` preview entrypoints entirely; do not leave `/t/*` compatibility redirects unless explicitly requested
+- add the four canonical child paths to `src/app/sitemap.ts`
+- retarget the matching legacy aliases under `src/app/platform/security/<route>/route.ts` from external `https://www.querypie.com/ja/solutions/acp/<route>` to same-origin internal redirects such as `new URL("/platforms/acp/database-access-controller", request.url)`; preserve `HEAD = GET`
+- keep page assets route-aligned under `public/platforms/acp/<route>/...`; do not move assets during rollout unless explicitly requested
+- update `tests/publication-detail-indexability.test.mjs` so the four child pages are public indexable list/static routes
+- move the mirrored static route test from `tests/src/app/t/platforms/acp/static-routes.test.mjs` to `tests/src/app/platforms/acp/static-routes.test.mjs`, and rewrite its assertions from preview/noindex paths to public/indexable paths while preserving existing structure/copy/visual-contract assertions
+- update `tests/services-preview-routes.test.mjs`, `tests/redirect-endpoints.test.mjs`, and `tests/canonical-endpoints.test.mjs` to assert the old `/t/platforms/acp/<route>/page.tsx` files are absent and the new canonical files/redirect targets/sitemap entries exist
+- if docs track external links, update `docs/querypie-owned-link-audit.md` counts and remove the four ACP child `www.querypie.com/ja` redirect rows; update `docs/external-link-audit.md` rows from preview `/t/platforms/acp/<route>` to public `/platforms/acp/<route>`
+
+Focused verification for this child-controller rollout:
+```bash
+node --test \
+  tests/src/app/platforms/acp/static-routes.test.mjs \
+  tests/publication-detail-indexability.test.mjs \
+  tests/canonical-endpoints.test.mjs \
+  tests/redirect-endpoints.test.mjs \
+  tests/services-preview-routes.test.mjs
+node scripts/ci/assert-test-groups.mjs
+git diff --check
+```
+
+Rebase pitfall:
+- ACP rollout PRs often overlap with other finite-route rollouts in `tests/canonical-endpoints.test.mjs`, `tests/publication-detail-indexability.test.mjs`, `tests/redirect-endpoints.test.mjs`, and `src/app/sitemap.ts`.
+- If latest `origin/main` added another rollout such as `/plans`, resolve conflicts by preserving both the main-side public route assertions and the ACP child-route assertions. Do not drop the other rollout's sitemap/canonical/removed-preview checks while applying the ACP child rollout.
+For service landing pages that replace a public `route.ts` redirect (e.g. `/services/fde` replacing an upstream redirect), also clean up:
+- `tests/redirect-endpoints.test.mjs`: remove the corresponding redirect rule object from `expectedRedirectRules`, decrement the total count assertion, and add rollout assertions such as:
+  ```js
+  test("/t/services/fde preview entrypoint has been removed after public rollout", () => {
+    assert.equal(existsSync(new URL("../src/app/t/services/fde/page.tsx", import.meta.url)), false);
+  });
+  test("/services/fde is now a local public page and replaces the old redirect", () => {
+    assert.equal(existsSync(new URL("../src/app/services/fde/page.tsx", import.meta.url)), true);
+    assert.equal(existsSync(new URL("../src/app/services/fde/route.ts", import.meta.url)), false);
+  });
+  ```
+- `tests/services-preview-routes.test.mjs`: remove the rolled-out preview page from `previewPages` and its corresponding redirect route from `redirectRoutes`
+- `tests/preview-navigation-path-helper.test.mjs`: do **not** remove or change; the `t()` helper itself continues to work unchanged even after a specific route is rolled out
 
 Verification checklist for this pattern:
 - source test confirms the canonical `src/app/platforms/.../page.tsx` exists and the old `src/app/t/platforms/.../page.tsx` is absent
+- if the rollout is a parent landing page, source test also confirms `src/app/platforms/<family>/route.ts` is absent, metadata is canonical/indexable, and all in-page card/inline hrefs use public canonical destinations
+- for AIP platform landing rollout specifically, grep runtime `src/**` for stale `href="/t/platforms/aip`, `href="/t/services/fde`, and `https://www.querypie.com/ja/solutions/aip/fde-services`; only absence assertions in tests/docs should remain, not rendered links
 - `publication-detail-indexability.test.mjs` or the relevant SEO/indexability test includes the new public route and no longer lists the old preview route as non-indexable
 - `services-preview-routes.test.mjs` or equivalent removed-preview-route contract includes the deleted `/t/*` file path
+- `redirect-endpoints.test.mjs` no longer asserts the old public redirect and instead asserts the new canonical page file exists while the old `route.ts` does not; legacy aliases that now point internally should use `new URL("/<canonical>", request.url)`
 - negative grep for the old `/t/<path>` should only return tests that assert absence, not rendered links or docs that still describe it as current
 - preview deployment smoke: canonical URL returns 200, old `/t/*` URL returns 404, and legacy redirect URL resolves to the canonical local route
 
+## Plans finite-route rollout lesson learned
+
+When publishing the finite static plans routes from `/t/plans`, `/t/plans/aip`, and `/t/plans/acp` to `/plans`, `/plans/aip`, and `/plans/acp`, treat it as a straight route promotion, not as a content or layout refactor.
+
+Correct narrow rollout pattern:
+- move `src/app/t/plans/page.tsx` to `src/app/plans/page.tsx`
+- move explicit sibling route directories `src/app/t/plans/aip/` and `src/app/t/plans/acp/` to `src/app/plans/aip/` and `src/app/plans/acp/`
+- remove the old `/t/plans*` route files entirely unless the user explicitly requests preview compatibility redirects
+- change metadata canonical paths from `/t/plans*` to `/plans*`
+- change robots from `{ index: false, follow: false }` to `{ index: true, follow: true }`
+- preserve the existing finite explicit route shape; do not introduce `src/app/plans/[product]/page.tsx`
+- keep the root `/plans` behavior that renders the AIP page by default and redirects legacy query-tab URLs like `?acp` / `?aip` to `/plans/acp` / `/plans/aip`
+- when moving the root route, make the legacy query redirect target absolute-rooted (`/plans/${product}`), not relative (`plans/${product}`), so tests and route intent stay unambiguous
+- add `/plans`, `/plans/aip`, and `/plans/acp` to `src/app/sitemap.ts`
+- move the mirrored source test from `tests/src/app/t/plans/page.test.mjs` to `tests/src/app/plans/page.test.mjs`, fix the helper import depth, and keep its route-local pricing/table primitive assertions intact
+- update `tests/publication-detail-indexability.test.mjs` by moving the plans files from the non-indexable preview list to the public indexable list
+- update broad route/sitemap tests such as `tests/canonical-endpoints.test.mjs` to assert the new canonical paths, sitemap entries, and absence of old `/t/plans*` files
+- update source/path tests such as `tests/static-page-mobile-container-contract.test.mjs` from `src/app/t/plans/*` to `src/app/plans/*`
+- update `scripts/ci/test-groups.mjs` when the mirrored test moves out from `tests/src/app/t/plans/` to `tests/src/app/plans/`
+
+Focused verification for this class:
+```bash
+node --test \
+  tests/src/app/plans/page.test.mjs \
+  tests/static-page-mobile-container-contract.test.mjs \
+  tests/publication-detail-indexability.test.mjs \
+  tests/canonical-endpoints.test.mjs
+node scripts/ci/assert-test-groups.mjs
+```
+
 ## Test relocation and shard-assignment pitfall
 
-If a route-source test mirrors the old preview path under `tests/src/app/t/...` and you promote the page to a canonical non-`/t` path, do not only rename the source route file.
+If a route-source test mirrors the old preview path under `tests/src/app/t/...` and you promote the page to a canonical non-`/t` path, do not only rename/move the source route file.
+
+### Preserve the old test's assertion content
+
+When moving the test file, keep the existing assertion content and adapt it for the public route — do not delete the old assertions and write a thin replacement from scratch.
+
+Adaptation checklist:
+- `canonical: "/t/..."` → `canonical: "/..."` (remove `/t` prefix)
+- `robots: { index: false, follow: false }` → `robots: { index: true, follow: true }`
+- Add assertions that the old `route.ts` redirect is gone: `sourceExists("src/app/<route>/route.ts") === false`
+- Add assertions that the old `/t/*` preview route is gone: `sourceExists("src/app/t/<route>/page.tsx") === false`
+- Keep all existing section/layout primitive contract assertions (hero spacing, feature bands, CTA, image paths, asset existence, etc.)
+- If the only differences are metadata route and robots flags, amend the existing test in place rather than rewriting it
+
+This ensures the public route test is just as comprehensive as the preview test it replaces.
 
 Also update all of the following in the same PR:
 - move the mirrored source-based test file to the canonical path under `tests/src/app/...`
@@ -295,6 +421,47 @@ Also update all of the following in the same PR:
 Failure signatures if missed:
 - `ERR_MODULE_NOT_FOUND` from the moved test because the old `../../../../helpers/...` import depth is no longer correct
 - `AssertionError [ERR_ASSERTION]: Unassigned test files:` from `node scripts/ci/assert-test-groups.mjs`
+
+### Import depth fix for moved tests
+
+When a test moves from `tests/src/app/t/<family>/<page>/page.test.mjs` to `tests/src/app/<family>/<page>/page.test.mjs`, the relative path to `tests/helpers/source-readers.mjs` changes because the `/t/` segment is removed.
+
+Concrete example from AIP integrations rollout:
+- old path: `tests/src/app/t/platforms/aip/integrations/page.test.mjs`
+- new path: `tests/src/app/platforms/aip/integrations/page.test.mjs`
+- old import: `import { readSource } from "../../../../../../helpers/source-readers.mjs";` (6 levels up from `tests/src/app/t/platforms/aip/integrations/`)
+- new import: `import { readSource } from "../../../../../helpers/source-readers.mjs";` (5 levels up from `tests/src/app/platforms/aip/integrations/`)
+
+Verification: run the moved test in isolation before pushing:
+```bash
+node --test tests/src/app/<family>/<page>/page.test.mjs
+```
+
+If it fails with `ERR_MODULE_NOT_FOUND`, the import depth is wrong. Fix by counting directory levels from the test file to `tests/helpers/`.
+
+## Rebase-conflict pitfall for overlapping rollout PRs
+
+When two preview-route-rollout PRs both touch the same shared test files — typically `tests/publication-detail-indexability.test.mjs`, `tests/redirect-endpoints.test.mjs`, `tests/services-preview-routes.test.mjs`, or `tests/canonical-endpoints.test.mjs` — rebasing the later PR onto latest main (after the earlier PR merged) almost always produces content conflicts in the list/array blocks.
+
+The conflict pattern is:
+- The earlier merged PR added/removed entries in `publicIndexableListRoutes`, `nonIndexableRoutes`, `expectedRedirectRules`, etc.
+- The later rebasing PR also adds/removes entries in the same arrays.
+- Git cannot auto-merge because both PRs touched adjacent or overlapping lines.
+
+Resolution rule:
+- Include **both** the main-side additions (from the already-merged PR) and the PR-side additions (from the current rebasing PR).
+- Do not drop the other PR's changes while resolving.
+- If both PRs added new public routes to `publicIndexableListRoutes`, keep both.
+- If both PRs removed preview routes from `nonIndexableRoutes`, remove both.
+- If both PRs changed the `expectedRedirectRules` count assertion, the final count must reflect **both** removals.
+
+Quick rebase workflow when an editor prompt would block automation:
+```bash
+# after fixing conflicts manually:
+GIT_EDITOR=true git rebase --continue
+```
+
+This avoids getting stuck in Vim when the commit message does not need editing.
 
 ## Verification
 
@@ -361,6 +528,25 @@ After renaming mirrored test paths under `tests/src/app/t/...`, update both CI r
 - Accidentally applying preview `robots: noindex,nofollow` to the canonical public page
 - Removing `t(...)` preview switching from unrelated nav items
 - Forgetting to update tests that still expect `/t/*` to render a full page
+
+## Plans-specific rollout lesson learned
+
+When publishing the finite pricing/plans preview routes, treat `/t/plans`, `/t/plans/aip`, and `/t/plans/acp` as one route family:
+- move the explicit sibling App Router files to `src/app/plans/page.tsx`, `src/app/plans/aip/page.tsx`, and `src/app/plans/acp/page.tsx`
+- do not replace the explicit `aip` / `acp` siblings with a dynamic `[product]` route during rollout
+- keep the root `/plans` page rendering the default AIP view while preserving legacy product query redirects such as `?acp` and `?aip`; after rollout those redirects must target absolute path strings like `/plans/acp`, not route-relative `plans/acp`
+- update metadata canonical paths from `/t/plans*` to `/plans*` and change robots from non-indexable preview to public indexable
+- add `/plans`, `/plans/aip`, and `/plans/acp` to `src/app/sitemap.ts`
+- remove the old `/t/plans*` route files entirely unless the user explicitly requests compatibility redirects
+- move the mirrored source test from `tests/src/app/t/plans/page.test.mjs` to `tests/src/app/plans/page.test.mjs`, fix the helper import depth, and update `scripts/ci/test-groups.mjs`
+- update source/indexability/canonical tests so the canonical pages are public/indexable and old `/t/plans*` files are absent
+- if the user asks for a legacy `/pricing` alias in the same PR, add `src/app/pricing/route.ts` as a route-local same-origin redirect to `/plans`, preserve `request.nextUrl.search`, export `HEAD = GET`, and add it to `tests/redirect-endpoints.test.mjs` without adding `/pricing` to the sitemap
+
+Verification checklist for this pattern:
+```bash
+node --test tests/redirect-endpoints.test.mjs tests/src/app/plans/page.test.mjs tests/publication-detail-indexability.test.mjs tests/canonical-endpoints.test.mjs
+node scripts/ci/assert-test-groups.mjs
+```
 
 ## Whitepaper-specific lesson learned
 

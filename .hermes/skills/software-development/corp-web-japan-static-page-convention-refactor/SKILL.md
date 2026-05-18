@@ -179,10 +179,15 @@ Practical correction from `/t/plans` follow-up work:
 - shared UI/layout primitives belong in `src/components/sections/<family>/...` (for example `src/components/sections/plans/section.tsx`), but `page.tsx` should remain the caller that composes those primitives and owns visible route-specific copy
 
 Good `/t/plans` shape:
-- `src/app/t/plans/aip/page.tsx` directly renders `<PlansPageSection>`, `<PricingRoot>`, `<ProductTabs>`, `<PlanRoot>`, and AIP `<CompareTable>` rows/cells
-- `src/app/t/plans/acp/page.tsx` directly renders `<PlansPageSection>`, `<PricingRoot>`, `<ProductTabs>`, and ACP `<PlanRoot>` cards
-- `src/components/sections/plans/section.tsx` exports primitives such as `PlanRoot`, `PlanCard`, `PricingRoot`, `ProductTabs`, `CompareTableRow`, and `CompareTableTextCell`; it does not own the page body or decode product content
+- `src/app/t/plans/aip/page.tsx` directly renders the shared company/info intro primitives (`CompanyPageSection`, `CompanyPageIntro`, `CompanyPageTitle`, `CompanyPageLead`) for the page layout, H1, and lead description when the user wants it to match `/certifications` or `/news`
+- `src/app/t/plans/acp/page.tsx` uses the same company/info intro primitive set so AIP and ACP plans pages stay visually aligned
+- after switching to `CompanyPageSection`, remove redundant route-level header padding such as `pt-[72px]` because the company primitive owns the top spacing
+- `src/app/t/plans/aip/page.tsx` still directly renders `<PricingRoot>`, `<ProductTabs>`, `<PlanRoot>`, and AIP `<CompareTable>` rows/cells
+- `src/app/t/plans/acp/page.tsx` still directly renders `<PricingRoot>`, `<ProductTabs>`, and ACP `<PlanRoot>` cards
+- `src/components/sections/plans/section.tsx` exports pricing/table primitives such as `PlanRoot`, `PlanCard`, `PricingRoot`, `ProductTabs`, `CompareTableRow`, and `CompareTableTextCell`; it does not own the page body, page hero, or product content decoding
+- remove plans-only hero wrappers such as `PlansPageSection`, `PricingHeader`, `PlansHeroTitle`, and `PlansHeroDescription` if they become unused; do not keep duplicate hero primitives that can drift from the requested company/info family UI
 - structure tests should assert removed wrapper names stay absent (`PlansPageContent`, `PlansContentShell`, `AipPlansContent`) and that route pages contain the real plan/comparison JSX
+- for the company/info hero alignment case, structure tests should additionally assert that both route pages import/use the company primitives and that the plans section module no longer exports the removed hero wrappers
 
 Pitfall to avoid:
 - saying "there is no duplicate code" because a wrapper hides all product content in one file is not the intended route-local refactor when the pricing/comparison content is not actually shared

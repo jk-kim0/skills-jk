@@ -143,6 +143,12 @@ For the verdict, gather several of:
   - when the user asks for visual parity on a specific migrated route, open the exact preview route URL itself, not just the preview site root
   - if that exact route returns 404 / deployment-not-found / missing page, treat that as evidence that the PR is not a valid visual-implementation PR for the requested target
   - separate `preview exists` from `requested route is implemented in preview`; they are not the same thing
+- Metadata/content parity PR review rule:
+  - verify metadata claims against the live rendered HTML, not only route-local source. Extract `document.title`, `meta[property="og:title"]`, and `meta[name="description"]` for each affected locale.
+  - compare exact strings, including punctuation and separators. Example pitfall: Japanese title `QueryPie AI: 認証` is not equivalent to `QueryPie AI 認証`.
+  - separate production-parity fixes from independent content corrections. If production has the same bad visible copy as stage, do not describe the change as parity; classify it as a content correction and update the PR body accordingly.
+  - when latest `origin/main` already contains part of the PR's claimed fix, reset/rebase the PR branch onto latest main and keep only the remaining true delta. Refresh tests, title, and body so the PR does not keep claiming already-merged EN/KO or unrelated changes.
+  - for card/list content fixes, update the relevant test mock so it renders the changed fields (not only labels). A test that mocks cards as labels-only cannot catch description regressions such as an ISMS-P card accidentally duplicating ISO 22301 copy.
 - Important "check not completed yet" investigation pattern for PRs with deploy checks:
   - do not conclude too early from a `pending` PR check; first inspect whether the PR head was just updated and a replacement run has only just started
   - compare PR `updatedAt`, head SHA, and the current workflow run `createdAt`/`status` before calling the check stuck
@@ -151,6 +157,13 @@ For the verdict, gather several of:
   - concrete failure signature: Actions checks out `pull/<number>/merge` successfully, but the deploy step retries after a deleted/cancelled preview deployment and then fails with Vercel `incorrect_git_source_info` saying the requested branch or commit reference does not exist
   - in that case, verify the remote branch directly with `git ls-remote origin refs/heads/<head-branch>`; an empty result means the PR can still exist while the branch ref required by the deploy system is gone
   - classify that as an external preview-deploy input/reference failure, not as a repository checkout or test failure
+- Metadata / live-parity PR review pattern:
+  - when a PR claims to align page metadata with production, verify the exact rendered `<title>` and `og:title` on the live production URL, not only the PR body or source title strings
+  - punctuation and separators matter: examples like `QueryPie AI: 認証` vs `QueryPie AI 認証` are not equivalent for parity
+  - compare current stage, latest `origin/main`, and the PR head separately; if stage/main already contain part of the fix, classify that part as duplicate/stale rather than treating the whole PR as newly valuable
+  - distinguish `production parity` changes from independent content corrections. If production has the same wrong body/card text, do not cite production parity as evidence; frame the change as a content bug fix and seek/source a canonical wording
+  - inspect the matching route-local/source tests. A metadata PR that updates title strings but leaves tests expecting old titles is not valid as-is even when the runtime change is conceptually right
+  - session detail: see `references/metadata-parity-pr-review.md`
 
 ## Output style
 

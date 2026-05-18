@@ -68,6 +68,28 @@ Those may be valid product/content follow-ups, but they are not migration blocke
 
 ## Specific corp-web-japan heuristics
 
+### 2026-05-17 latest-main baseline lesson (`ec651e16a2ea65978023bc415645ebedbc65a479`)
+
+When refreshing `Website-Migration-Plan*` from latest main at or after this baseline, do not preserve older May 8/May 13 conclusions mechanically:
+
+- Company and legal are no longer redirect-only:
+  - `src/app/about-us/page.tsx` and `src/app/certifications/page.tsx` are public local pages.
+  - `src/app/cookie-preference/page.tsx`, `src/app/eula/page.tsx`, `src/app/privacy-policy/page.tsx`, `src/app/privacy-policy/[slug]/page.tsx`, and `src/app/terms-of-service/page.tsx` are public local pages.
+- Platform/service status changed substantially:
+  - `/platforms/aip`, `/platforms/aip/integrations`, `/platforms/aip/usage-based-llm`, `/platforms/aip/mcp-gateway`, `/platforms/acp`, `/platforms/acp/integrations`, and `/services/fde` are public local pages.
+  - `/services/acp`, `/platform/ai/aip`, `/platform/ai/aip/fde-services`, `/platform/ai/aip/usage-based-llm`, and `/platform/ai/aip/mcp-gateway` redirect locally to canonical routes.
+  - `/services/aip` and `/platform/ai/aihub` still redirect upstream and should be recorded as alias-policy / remaining upstream dependencies.
+  - `/platform/security/{database-access-controller,kubernetes-access-controller,system-access-controller,web-access-controller}` still redirect upstream while matching `/t/platforms/acp/*` preview pages exist; these are the main remaining ACP child public-rollout candidates.
+- Preview `/t/*` scope is now narrow:
+  - Remaining preview/local-only entrypoints are `/t/platforms/acp/*` four child pages plus `/t/plans`, `/t/plans/aip`, and `/t/plans/acp`.
+  - Do not keep `/t/about-us`, `/t/certifications`, `/t/services/*`, `/t/platforms/aip`, or `/t/platforms/acp` as current remaining previews if latest main still matches this baseline.
+- Readiness counts used in the refreshed May 17 migration-plan pages were:
+  - 28 major public local entrypoints
+  - 6 public routes still redirecting upstream
+  - 7 remaining `/t/*` preview/local-only entrypoints
+  - 11 local/public detail-route families, including `/privacy-policy/:slug`
+- Keep intentional hidden/redirect/gated publication records out of remaining-blocker lists unless the user explicitly asks to revisit those policies.
+
 ### Repo-context trap during wiki work
 Once you `cd` into the wiki clone, relative file reads/searches can accidentally hit the wiki repo instead of the product repo.
 For product inspection during wiki updates, prefer:

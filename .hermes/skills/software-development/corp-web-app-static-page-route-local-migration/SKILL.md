@@ -62,6 +62,31 @@ When consolidating explicit locale directories such as `src/app/en/**`, `src/app
 
 Important pitfall: do not leave the old explicit locale route files in place if the goal is a real relocation. In Next.js App Router, explicit static segments can continue to handle `/en/...`, `/ko/...`, and `/ja/...` instead of the new `[locale]` route. See `references/locale-dynamic-route-relocation.md` for the contact-us review pattern and verification notes.
 
+## Locale-prefixed `/t` preview routes
+
+When the user asks for a static page PR to work under preview review paths such as `/en/t/`, `/ja/t/`, and `/ko/t/`, treat the `/[locale]/t` directory as the route-local authoring surface, not merely as a wrapper that imports source files from elsewhere.
+
+Pattern:
+
+- Put the real locale-authored files under `src/app/[locale]/t/<route>/page.en.tsx`, `page.ja.tsx`, and `page.ko.tsx` (or directly under `src/app/[locale]/t/page.{locale}.tsx` for a home-page preview route).
+- Keep `src/app/[locale]/t/<route>/page.tsx` thin: parse/validate `params.locale`, choose the locale module, and hand off metadata.
+- If existing public route entries like `src/app/page.tsx`, `src/app/en/page.tsx`, or `src/app/ko/page.tsx` must keep working before rollout, make them thin wrappers that import from the `/[locale]/t` authoring files. Do not leave duplicate authored copies at the old route root.
+- Update README/provenance notes, tests, and PR body to name the `/[locale]/t` files as the canonical review surface.
+- Search for stale imports such as `src/app/page.en`, `./page.en`, or `../page.en` after moving files; old wrapper imports are a common source of broken preview deploys or misleading review structure.
+
+This came up on a home route-local PR: creating `/[locale]/t/page.tsx` while leaving `src/app/page.{locale}.tsx` in place made preview work technically, but the authoring surface was wrong. The corrected structure moved `page.en.tsx`, `page.ja.tsx`, and `page.ko.tsx` into `src/app/[locale]/t/` and changed `src/app/page.tsx`, `src/app/en/page.tsx`, and `src/app/ko/page.tsx` into thin imports from that location. See `references/home-preview-t-authoring.md` for the concrete checklist.
+
+## Stage vs production parity after route-local conversion
+
+When a user asks to compare a stage route-local page against the production route, verify the rendered page before changing code:
+
+- Clear or set cookie-preference cookies consistently on both hosts. If the cookie banner overlays first-viewport content on both stage and production, treat it as shared overlay behavior, not a stage-only route regression.
+- Use browser DOM geometry to quantify spacing rather than relying on screenshots alone. For example, a route-local `CenterSection paddingTopSize="lg"` can make a converted page's first card grid start about one spacing token higher than production; restoring `"xl"` can be the narrow fix.
+- Compare metadata/title parity as part of static-page migration quality. Route-local rewrites can accidentally change the browser title even when visible H1 copy stays the same.
+- Prefer fixing the converted route's changed spacing/metadata before touching global layout components such as cookie preference banners.
+
+See `references/certifications-stage-production-parity.md` for a concrete certifications page comparison and fix pattern.
+
 ## Migration README requirement
 
 When a static page migration may need future corrections, add a colocated `README.md` next to `page.en.tsx` / `page.ko.tsx` / `page.ja.tsx`.

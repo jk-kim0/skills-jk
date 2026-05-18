@@ -1,5 +1,3 @@
-User stores personal Hermes runtime secrets in 1Password item `skills-jk-hermes-local` in the Private vault.
-§
 In the skills-jk repo, Hermes runtime/setup facts are: portable state lives in tracked `.hermes/config.yaml`, `.hermes/memories/`, `.hermes/skills/`, and repo `skills/`; session-like records remain machine-local; runtime artifacts such as checkpoints, sessions, logs, caches, generated `.hermes/.env`, and other transient state stay untracked; the active runtime in this setup uses `HERMES_HOME=~/workspace/skills-jk/.hermes`, with session files under `.hermes/sessions`; the local Hermes CLI is git-installed under `~/.hermes/hermes-agent` and exposed via `~/.local/bin/hermes`.
 §
 In the skills-jk repo, PR creation uses the repo's GitHub Actions workflow `.github/workflows/create-pr.yml` via `workflow_dispatch`; it is the preferred PR creation path for this repo.
@@ -132,8 +130,6 @@ In corp-web-japan, follow the repo AGENTS rule that PR titles/descriptions (and 
 §
 For this user, when they say 'repo 의 workspace 정리' or similar, interpret it as repo-local cleanup only: clean the current repository's stale worktrees/branches and local residue, not the whole ~/workspace. Keep going across follow-up turns until the repo is as clean as safely possible, including cleaning root-local residue and fast-forwarding root main to origin/main when safe.
 §
-In this Hermes setup with provider openai-codex and a ChatGPT account, a session that switches in-place from gpt-5.4 to open-ai/codex can later fail auxiliary compression/child-session startup with HTTP 400 "The 'codex' model is not supported when using Codex with a ChatGPT account." Other sessions can still work if their session model remains gpt-5.4.
-§
 In corp-web-japan about-us preview work, the user prefers the migrated static assets under public/about-us rather than public/t/about-us, even when the preview route itself is /t/about-us.
 §
 In corp-web-japan, when a refactor workflow is likely to be repeated across sessions/pages, the user wants it generalized into a repo-local skill under `.agents/skills/` and delivered as a PR rather than kept only as an ad hoc prompt.
@@ -233,3 +229,7 @@ In corp-web-japan test structure work, the user wants only genuinely reusable in
 corp-web-japan main requires `Detect changed scope`, but ci.yml pull_request ignores docs/README/AGENTS/public md/skills md changes, so docs-only PRs can miss the required check.
 §
 Mac Studio LLM1 is `qp-test@10.11.1.11` (`Mac-Studio-LLM1.local`). Existing runner dirs: `/Users/qp-test/actions-runner` chequer-io native launchd, `/Users/qp-test/Workspace/github-runner` chequer-io Docker ARM64. QueryPie runners are installed at `/Users/qp-test/Workspace/github-runners-for-querypie-org`: 6 Linux ARM64 Compose runners, group `mac-studio-llm1-linux-arm64`, all `purpose:ci`, runners 1-3 also `purpose:build`.
+§
+In skills-jk repeated local-sweep cleanup, if requested scoped files (.hermes/config.yaml, .hermes/memories/MEMORY.md, USER.md) are already identical to latest main but the session creates skill-library residue, split that into a narrow follow-up PR instead of claiming the scoped PR changed.
+§
+In corp-web-app PR follow-up, `/[locale]/t` preview routes are additive review entrypoints; they must not modify existing public home route files or add new public locale entries unless explicitly requested, and tests should mirror route paths.

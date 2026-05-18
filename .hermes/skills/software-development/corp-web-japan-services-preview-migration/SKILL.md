@@ -374,7 +374,9 @@ Implementation guidance for ACP parity:
 - prefer a dedicated client section component for the interactive category browser
 - keep route-local authored copy and data in `page.tsx`, but let the section component own the tab / previous / next interaction and image rendering details
 - keep the external `Learn More` links as direct docs links when there is no local migrated equivalent
+- when the local integrations child page already exists (for example `/t/platforms/acp/integrations`), the parent page's integrations CTA should use a Next.js internal `Link` to that local route and must not force `target="_blank"` / `rel="noopener noreferrer"`; a local `href` alone is not enough if the wrapper component always renders as an external-link-style new-tab link
 - add a structure test that checks the route keeps the category labels and that the section module owns the interactive browser implementation (`useState`, prev/next controls, `Learn More` links)
+- add a structure test for local child-page CTAs that asserts the route passes the local `/t/...` href, the section wrapper renders `<Link href={href}>`, and `_blank` / `noopener noreferrer` are absent so preview navigation stays in-app without a full reload or new tab
 
 These heuristics are specific enough to save significant rediscovery time on future service-page parity work.
 

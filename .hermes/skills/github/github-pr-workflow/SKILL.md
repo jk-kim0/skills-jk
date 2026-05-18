@@ -149,14 +149,45 @@ Types: `feat`, `fix`, `refactor`, `docs`, `test`, `ci`, `chore`, `perf`
 git push -u origin HEAD
 ```
 
-### Create the PR
+### Create the PR and Immediately Provide the URL to the User
 
-**With gh:**
+**Critical step: After creating a PR, immediately show the user the exact GitHub PR URL, regardless of whether they explicitly asked for it or not. Do not wait for the user to request the URL.**
 
 ```bash
 gh pr create \
   --title "feat: add JWT-based user authentication" \
   --body-file /tmp/pr-body.md
+```
+
+**Capture and surface the PR URL:**
+
+```bash
+# After successful creation, output the PR URL explicitly
+gh pr view $(git branch --show-current) --json url --jq '.url'
+```
+
+Alternatively, if the `gh pr create` output includes the URL, capture it and present it to the user. If you fall back to curl, the response JSON contains `html_url` — extract and show it.
+
+**With git + curl:**
+
+```bash
+BRANCH=$(git branch --show-current)
+
+# Create PR via API
+RESPONSE=$(curl -s -X POST \
+  -H "Authorization: token $GITHUB_TOKEN" \
+  -H "Accept: application/vnd.github.v3+json" \
+  https://api.github.com/repos/$OWNER/$REPO/pulls \
+  -d "{
+    \"title\": \"feat: add JWT-based user authentication\",
+    \"body\": \"## Summary\nAdds login and register API endpoints.\n\nCloses #42\",
+    \"head\": \"$BRANCH\",
+    \"base\": \"main\"
+  }")
+
+# Extract and display the URL
+PR_URL=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['html_url'])")
+echo "Pull Request created: $PR_URL"
 ```
 
 Prepare `/tmp/pr-body.md` first (recommended whenever the PR body contains backticks, shell metacharacters, or multiple paragraphs):
@@ -689,6 +720,7 @@ gh pr view <branch-name> --json number,title,url,headRefName,baseRefName,state
     - explicitly note removed semantic-only variants or overrides when the final result simplified back to one shared rule
     - keep the file list and test plan aligned with the surviving diff, not the earlier larger scope
   - When the user explicitly asks for a visible experiment or validation commit on an existing PR (for example removing section-specific spacing to see whether a shared spacing contract is sufficient), keep it on the same PR branch rather than opening a new PR. Make the commit message/body state that it is a validation commit, push it, and update the PR body so reviewers understand the branch’s current visual contract instead of the earlier safer baseline. Run the narrow structural/source tests that encode the contract, but do not over-verify locally if the user wants to inspect the Preview Deployment themselves.
+  - When an existing PR follow-up asks to make the work inspectable on a Preview Deployment, implement explicit review entrypoints on the same PR branch when needed (for example locale-prefixed `/t` routes), add or update narrow source-level tests for those paths, and refresh the PR body with the exact paths reviewers should open. Important pitfall: preview-review entrypoints should not change existing public route behavior unless the user explicitly asks for public release/route changes. Keep public routes, redirects, canonical routes, and existing entry files unchanged; if a preview path needs migrated copy/components, mount them only under the preview route (for example `/[locale]/t/...`) and add tests that assert the public route surface remains unchanged. Place route tests in the path that mirrors the source route (for example `src/app/[locale]/t/page.tsx` -> `src/__tests__/app/[locale]/t/page.test.tsx`), not a broad ad hoc filename like `home-route-local.test.tsx`. After pushing, verify the new CI/Preview runs are attached to the new head SHA and report pending deploy state without passively waiting unless asked.
   - Only preserve a multi-commit PR history when the user explicitly asks for it or the commits are meaningfully staged for review.
 
 
