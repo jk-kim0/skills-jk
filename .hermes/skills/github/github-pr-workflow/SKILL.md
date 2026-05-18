@@ -143,6 +143,8 @@ Types: `feat`, `fix`, `refactor`, `docs`, `test`, `ci`, `chore`, `perf`
 
 ## 3. Pushing and Creating a PR
 
+When a requested change spans more than one repository, keep each repository's branch, commit, push, and PR separate unless the user explicitly asks for a different integration workflow. Common case: an app repo removes feature code while a sibling content repo removes a legacy dynamic page link. Create one PR per repo, with a PR body that states only that repo's diff and verification. After pushing each branch, verify local HEAD, remote branch HEAD, and PR `headRefOid` independently before reporting success.
+
 ### Push the Branch (same either way)
 
 ```bash

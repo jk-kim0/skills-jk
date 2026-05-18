@@ -44,6 +44,7 @@ In Hermes, shell commands can run in the intended worktree via `terminal(workdir
    - Use `git fetch origin --prune`.
    - Create the worktree from `origin/main` (or the requested base).
    - Verify the worktree branch and merge-base before editing.
+   - If the repository does not ignore `.worktrees/`, add `.worktrees/` to the root checkout's `.git/info/exclude` after creating the linked worktree. This keeps the protected main checkout clean without committing repository-wide ignore policy changes.
 
 3. Before the first file edit, verify edit context.
    - Prefer absolute file paths for `read_file`, `write_file`, and `patch` when working in a worktree.

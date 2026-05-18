@@ -99,7 +99,9 @@ If the user's request is ambiguous ("static page" can mean "statically rendered"
 
 ## 0B. Historical Content Route / URI Lookup
 
-When asked which URI path an old content page or PR-migrated page had in a sibling content repo, do not stop at the current filesystem. Content trees are often deleted or moved. Use git history and the consuming app's routing rules together:
+When asked which URI path an old content page or PR-migrated page had in a sibling content repo, do not stop at the current filesystem. Content trees are often deleted or moved. Use git history and the consuming app's routing rules together.
+
+Also use this workflow when a user asks to remove or edit links/copy from a legacy dynamic page that is rendered by the app but whose source content may live in a sibling content repository. In corp-web-app-style setups, `src/app/[...slug]/page.tsx` may only delegate to a dynamic renderer while the actual page body, such as `/internal`, comes from sibling `corp-web-contents/pages/.../content.mdx` or Blob-backed content. If the route file is absent in the app repo, search the sibling content repo before concluding the page does not exist.
 
 1. Confirm the current repo and sibling repo roots:
    ```bash

@@ -21,6 +21,12 @@ Use this when migrating or reviewing a corp-web-app repo-local MDX/publication c
    - A raw verification route that renders a developer sentence plus a text-only `<ul>` proves content ingestion only; it does not mean the feature/page migration is complete.
    - See `references/publication-list-render-parity-audit.md` for the session-derived checklist and corpus-count snippet.
 
+0a. When asked to create an internal preview/risk index for `/{locale}/t/*`, use a shared route-inventory module and a dead-link contract test.
+   - Do not maintain separate hand-written lists in the page and test; generate both from the same `src/lib/**` inventory.
+   - Include explicit list routes plus visible local detail records, excluding hidden, redirect-backed, and noindex records from generated detail links.
+   - Verify every listed href maps to an existing App Router `page.tsx` so the index cannot introduce dead links.
+   - See `references/internal-preview-route-risk-index.md` for the session-derived pattern.
+
 1. Work on the relevant PR branch in a fresh or freshly-reset worktree.
    - For an existing open PR, update the same branch/PR unless the user asks for a new PR.
    - If the branch is already attached to an old worktree, verify it is clean, remove/recreate or hard-reset it from the remote branch before editing.

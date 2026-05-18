@@ -61,6 +61,8 @@ If the referenced PR is already merged or closed, do not revive its branch; star
 
 When consolidating explicit locale directories such as `src/app/en/**`, `src/app/ko/**`, and `src/app/ja/**` into a dynamic `src/app/[locale]/**` route, preserve the unprefixed default public route as a thin EN wrapper unless the user explicitly asks to change public URL policy. Move the real authored pages to `page.en.tsx`, `page.ko.tsx`, and `page.ja.tsx` under the `[locale]` route and add a thin locale dispatcher at `page.tsx`.
 
+If the user asks whether an unprefixed English wrapper such as `src/app/<route>/page.tsx` is unnecessary after the `[locale]` route exists, first check whether the public `/<route>` URL is already preserved by `src/middleware.ts` `DEFAULT_LOCALE_REWRITE_PATHS`. If it is not, the wrapper is still routing-significant. The clean refactor is to add `/<route>` to `DEFAULT_LOCALE_REWRITE_PATHS`, add/update a middleware test proving `/<route>` rewrites internally to `/en/<route>` without redirecting, then delete the wrapper and update route tests/README provenance so tests import the `[locale]` route entry instead of the removed wrapper. See `references/default-locale-rewrite-wrapper-removal.md` for the concrete certifications pattern and test shape.
+
 Important pitfall: do not leave the old explicit locale route files in place if the goal is a real relocation. In Next.js App Router, explicit static segments can continue to handle `/en/...`, `/ko/...`, and `/ja/...` instead of the new `[locale]` route. See `references/locale-dynamic-route-relocation.md` for the contact-us review pattern and verification notes.
 
 ## Locale-prefixed `/t` preview routes
