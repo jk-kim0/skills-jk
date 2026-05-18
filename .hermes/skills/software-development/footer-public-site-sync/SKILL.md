@@ -108,6 +108,14 @@ Use this pattern when the user wants a footer that is denser on mobile without r
 - implement the policy in component data rather than by special-casing visible text in CSS
 - reset `compact` lists to the normal vertical list at tablet/desktop breakpoints unless the site explicitly wants grids there
 
+## Mobile menu-box wrapping policy
+
+Use this pattern when the user wants each top-level footer submenu to behave as a box and wrap based on available viewport width:
+- preserve each menu item's existing explicit width on tablet/mobile breakpoints instead of forcing the whole menu list to `flex-direction: column` too early
+- let the parent menu list keep `flex-wrap: wrap` with mobile-appropriate row/column gaps so 2 or 3 submenu boxes can share a row whenever their widths fit
+- add a narrower breakpoint only for truly small screens, and at that breakpoint set each top-level menu box to full width so the layout becomes one box per row
+- keep the change scoped to the footer layout CSS when the component already exposes per-menu widths; do not rewrite footer data or menu content for a wrapping-only bug
+
 ## Suggested verification command sequence
 
 ```bash
