@@ -291,6 +291,16 @@ git -C /path/to/main/repo worktree remove --force /path/to/worktree
 
 Do not run plain `git worktree remove ...` from an arbitrary non-repo directory. That can fail with `fatal: not a git repository`.
 
+### Batch classification helper
+
+For repos with dozens of worktrees, use the included script to classify before acting:
+
+```bash
+python3 .hermes/skills/software-development/workspace-stale-git-cleanup/scripts/classify-stale-worktrees.py /path/to/repo
+```
+
+It requires `gh` CLI and outputs JSON with `stale_candidates` and `keep` arrays.
+
 If the main repo itself is dirty and you need to switch the root worktree back to `main`, be careful with nested linked worktrees stored under the repo directory such as `.claude/worktrees/...`.
 
 Observed behavior:
@@ -316,6 +326,53 @@ Interpretation:
    - whether `git worktree list --porcelain` still tracks that path
    In practice, some "failed" removals are already effectively cleaned up, especially after prune or when the path disappeared earlier.
 8. Summarize what was deleted and what was intentionally left alone.
+
+## Important: `git worktree list` vs filesystem reality divergence
+
+A critical operational finding: **the set of worktrees reported by `git worktree list` can diverge from what is actually on disk**, especially after partial cleanup, manual deletion, or when worktrees were created outside the repo root (e.g. in `/private/tmp/`).
+
+### Symptom
+- `git worktree list` shows 112 entries
+- `git worktree list --porcelain` parsed by automation returns only 18 entries
+- `ls .worktrees/` shows only 10 directories
+- Some paths in `git worktree list` have already been removed from the filesystem but still appear in Git's worktree registry until `git worktree prune` is run
+
+### Root cause
+- Git's worktree registry (`git-worktree.dat`) tracks worktrees independently of filesystem state
+- Worktrees created in `/private/tmp/` are often auto-cleaned by the OS, but remain in Git's registry
+- The `--porcelain` format groups entries by blank-line separators, but when filesystem entries are missing, the parsing can group entries unexpectedly
+
+### Practical workaround
+
+**Always cross-check three sources of truth:**
+
+1. `git worktree list` (human-readable, shows branch names)
+2. `git worktree list --porcelain` (machine-parseable, but verify entry count matches)
+3. Actual filesystem: `ls <repo>/.worktrees/` and `ls <workspace>/` for sibling worktrees
+
+**Recommended verification after any cleanup:**
+
+```bash
+# Count total registered worktrees
+git worktree list --porcelain | grep -c '^worktree '
+
+# Count actual worktree directories on disk
+ls <repo>/.worktrees/ | wc -l
+
+# List orphaned entries (registered but path doesn't exist)
+git worktree list --porcelain | awk '/^worktree /{path=$2} /^branch /{print path, $2}' | while read p b; do
+  [ -d "$p" ] || echo "ORPHAN: $p ($b)"
+done
+```
+
+**After removing stale worktrees, always run:**
+
+```bash
+git worktree prune
+git worktree prune --dry-run --verbose  # verify nothing unexpected remains
+```
+
+This is especially important in PR-heavy repos where `/private/tmp/` helper worktrees (assets, audit, mergecheck, rebase, etc.) are created and auto-deleted by the OS, leaving hundreds of orphaned registry entries that must be pruned.
 
 ## Practical execution lesson: prefer incremental cleanup over giant batch commands
 

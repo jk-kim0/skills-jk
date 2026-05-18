@@ -103,16 +103,21 @@ Always verify:
 
 ```bash
 git worktree list --porcelain
+test -f .worktrees/<flat-name>/README.md || test -f .worktrees/<flat-name>/package.json || true
 git -C .worktrees/<flat-name> branch --show-current
 git -C .worktrees/<flat-name> rev-parse --show-toplevel
+git -C .worktrees/<flat-name> status --short --branch
 find .worktrees/<flat-name> -maxdepth 2 | sed -n '1,30p'
 ```
 
 Expected signs:
 - the worktree appears in `git worktree list --porcelain`
 - the branch/base matches what you intended
-- the directory contains a normal repo checkout shape
+- the directory contains a normal repo checkout shape, not only a tiny partial directory created by an accidental write
 - `rev-parse --show-toplevel` resolves successfully
+- `git status --short --branch` works from the worktree path
+
+If a newly created follow-up worktree is incomplete, missing, or disappears before edits are applied, preserve any drafted file to `/tmp`, remove/prune the broken worktree, fetch the intended branch/PR ref again, and recreate it before continuing. For existing open-PR follow-up work, see `existing-pr-followup-worktree/references/followup-worktree-integrity.md`.
 
 ## Path-handling rule for later commands
 

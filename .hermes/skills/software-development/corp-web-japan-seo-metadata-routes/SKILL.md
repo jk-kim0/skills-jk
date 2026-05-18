@@ -136,6 +136,34 @@ Regression-test expectation:
 
 ## Repo-specific pitfalls
 
+### Legal pages omitted from sitemap must match page robots metadata
+
+When `/privacy-policy` or `/terms-of-service` are intentionally omitted from `src/app/sitemap.ts` because they are noindex legal pages, do not stop at adding a sitemap comment. Re-check the actual page metadata too:
+- `src/app/privacy-policy/[slug]/page.tsx` owns `generatePrivacyPolicyMetadata()` for both the latest alias and version detail routes.
+- `src/app/terms-of-service/page.tsx` owns the terms metadata.
+- If the sitemap policy says these routes are noindex, set `robots: { index: false, follow: false }` in those page metadata sources as well.
+- Update source-level tests that previously classified those pages as public indexable routes, especially:
+  - `tests/src/app/privacy-policy/page.test.mjs`
+  - `tests/legal-privacy-policy-preview.test.mjs`
+  - `tests/src/app/terms-of-service/page.test.mjs`
+  - `tests/publication-detail-indexability.test.mjs`
+  - `tests/seo-metadata.test.mjs`
+- Keep the sitemap comment close to `staticRoutes` so future audits understand why the public local legal pages are absent.
+
+Useful narrow verification for this policy:
+
+```bash
+node --test \
+  tests/seo-metadata.test.mjs \
+  tests/src/app/privacy-policy/page.test.mjs \
+  tests/legal-privacy-policy-preview.test.mjs \
+  tests/src/app/terms-of-service/page.test.mjs \
+  tests/publication-detail-indexability.test.mjs \
+  tests/canonical-endpoints.test.mjs \
+  tests/launch-readiness-coverage.test.mjs
+git diff --check
+```
+
 ### 1. Preserve title decisions
 A prior PR may already have finalized page titles. Do not overwrite those strings while adding canonical metadata.
 

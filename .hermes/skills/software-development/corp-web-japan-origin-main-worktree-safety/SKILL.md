@@ -689,6 +689,55 @@ Practical rule:
 - run `node scripts/ci/assert-test-groups.mjs` before push
 - if it fails, add the narrowest regex to the appropriate group, usually `staticPages` for route/static-page structure tests
 
+## Source-inspection ownership changes, stage visual follow-ups, and broader static-page CI
+
+When refactoring corp-web-japan static/marketing page primitives, do not assume a newly added narrow route test covers every stale assertion or every stage-visible layout issue.
+
+Common failure pattern:
+- a shared UI/copy primitive is extracted from an existing section module into a new file
+- the new route-specific test passes locally
+- CI's broader `Test static pages` job fails because an older parent-route/source-inspection test still expects `export function <Primitive>` or typography classes to live in the old module
+
+Safe update pattern:
+1. Search the whole mapped test group for the primitive name and old source path.
+2. Update stale tests to assert the new ownership contract:
+   - old module imports or re-exports the primitive
+   - new primitive file owns the class/typography/spacing contract
+3. If changed files are mapped to `staticPages`, run the full group before push:
+
+```bash
+npm run test:static-pages
+```
+
+This is especially important for route-local authoring work where source-inspection tests intentionally pin file ownership, not only rendered behavior.
+
+### Stage visual follow-up after a merged PR
+
+If a merged PR is reported as still visually wrong on stage, treat it as a new latest-main follow-up PR, not an update to the old branch.
+
+Safe pattern:
+1. Verify the old PR state with `gh pr view <number>`.
+2. If it is `MERGED`, fast-forward local `main`, create a fresh worktree from `origin/main`, and make a new follow-up branch.
+3. Inspect both the parent page and all affected siblings on latest main before patching; do not reason only from the previous PR diff.
+4. For shared hero/copy/layout primitives, check both dimensions of the contract:
+   - the shared primitive class contract, e.g. heading typography and lead width
+   - the section/wrapper spacing contract, e.g. top padding between GNB/header and H1
+5. Update tests for both the parent-route contract and sibling/static-route contract. A child-page test alone can miss a parent primitive regression, and a parent test alone can miss sibling wrapper spacing drift.
+6. Run the narrow affected tests plus the full mapped group, usually:
+
+```bash
+node --test tests/src/app/platforms/acp/page.test.mjs tests/src/app/platforms/acp/static-routes.test.mjs
+npm run test:static-pages
+git diff --check
+```
+
+7. After opening the PR, verify CI/Preview. If browser MCP times out on a ready Preview Deployment, use a lightweight HTTP/HTML contract check as fallback for class-level deployment evidence, while clearly reporting that it is not a full visual browser verification.
+
+Example lesson from ACP hero parity:
+- The parent `/platforms/acp` had acceptable GNB-to-H1 spacing, but child pages still used a shorter hero top padding (`pt-[70px] md:pt-20`) instead of the parent spacing (`pt-[134px] lg:pt-[144px]`).
+- The shared `AcpHeroLead` was also capped at `max-w-[760px]`, so the parent and children did not share the desired `max-w-[1200px]` lead width contract.
+- The correct follow-up was a new PR from latest main that changed the shared primitive (`AcpHeroLead`/`AcpHeroCopy`) and the child static hero wrapper, then updated both ACP parent and static-route tests.
+
 ## CI workflow / ruleset safety for docs-only PRs and final status checks
 
 When changing `corp-web-japan` GitHub Actions workflows, do not inspect workflow triggers in isolation. Also inspect the active repository ruleset / required status checks.

@@ -195,6 +195,35 @@ Important lesson:
 
 ## Runtime-log heuristics for redirect audits
 
+When the user provides a table of `307` responses and asks whether they redirect to appropriate local pages, audit both the code path and the actual `Location` header. Do not treat any 307 as automatically correct: bucket each URI by final intent.
+
+Recommended steps:
+
+1. Verify the current repo/root and latest main SHA.
+2. For each URI, check route ownership in `src/app/**/route.ts`, canonical detail `page.tsx` routes, `src/app/ja/[[...path]]/route.ts`, `src/app/ko/[[...path]]/route.ts`, and the missing-route fallback `src/app/[...missing]/page.tsx` plus `src/lib/querypie-content-redirect.ts`.
+3. Search the local content corpus for the numeric id/slug to identify a local canonical target before accepting an external redirect.
+   - blog legacy `/features/documentation/blog/:id/:slug` should usually map to `/blog/:id/:canonicalSlug` when a local blog MDX record exists.
+   - whitepaper legacy `/features/documentation/white-paper/:id/:slug` should usually map to `/whitepapers/:id/:canonicalSlug` when a local whitepaper MDX record exists.
+   - use-case legacy `/features/demo/use-cases/:id/:slug` should usually map to `/use-cases/:id/:canonicalSlug` when a local use-case MDX record exists.
+   - locale-prefixed variants such as `/ja/...` and `/ko/...` need explicit local handling if the desired outcome is the local canonical route, because broad prefix or missing-route fallback can otherwise send them to `www.querypie.com`.
+4. Probe both production and stage with headers only and compare `Location`:
+   ```bash
+   for host in https://querypie.ai https://stage.querypie.ai; do
+     for path in /example; do
+       echo "--- $host$path"
+       curl -sS -I --max-time 15 "$host$path" | awk 'BEGIN{IGNORECASE=1} /^HTTP\// || /^location:/ {print}' | tr -d '\r'
+     done
+   done
+   ```
+5. Report concise buckets:
+   - local redirect already correct
+   - intentionally external replacement (for example docs.querypie.com API docs)
+   - external `www.querypie.com` fallback despite a local canonical target
+   - unclear mapping requiring product decision (for example `/company` might mean `/contact-us` or `/about-us`)
+
+Important pitfall:
+- `src/lib/querypie-content-redirect.ts` can broadly redirect namespaces such as `/company`, `/features/**`, and `/solutions/**` to `www.querypie.com`. That may be acceptable for un-migrated content, but it is not evidence of a correct local-page redirect when the local MDX/page replacement already exists.
+
 When `src/app/[...missing]/page.tsx` emits `[runtime-missing-redirect]` and `[runtime-404]`, use Vercel logs to distinguish three classes of candidates:
 
 ### A. Strong missing-redirect candidates

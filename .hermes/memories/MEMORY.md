@@ -34,17 +34,13 @@ In corp-web-v2, blog and white-paper MDX migration is already present under src/
 §
 In corp-web-v2, git worktrees keep per-worktree `node_modules` / `package-lock` state rather than a shared install, so fresh or older worktrees can show false baseline errors like `Cannot find module mermaid`; however, targeted Vitest runs may still resolve dependencies from the parent repo-root `node_modules`, so a separate worktree-local install is not always required.
 §
-In corp-web-japan missing-path redirect work, the user wants runtime-log 404 candidates checked against the corresponding https://www.querypie.com path first; only paths that actually return 200 OK should be added as redirects, and paths already covered by existing namespace rules should not get redundant exact-path rules.
+In corp-web-japan missing-path redirect work, check runtime-log 404 candidates against corresponding querypie.com paths first; add redirects only for targets that return 200 and are not already namespace-covered. Legacy intro download aliases are `/features/documentation/aip-introduction-download -> /introduction-deck/1/querypie-aip` and `/features/documentation/acp-introduction-download -> /introduction-deck/2/querypie-acp`.
 §
 In corp-web-v2 demo routing, canonical detail paths use short public routes: ACP `/demo/acp/:id/:slug`, AIP `/demo/aip/:id/:slug`, use-cases `/demo/use-cases/:id/:slug`, and webinars `/webinars/:id/:slug`; the AIP Google OAuth page is `/demo/aip/1/google-oauth-demo`, and older `/features/demo/**` or `/demo/webinar/**` paths should be treated as legacy/history rather than current canonical paths.
 §
 In corp-web-v2 author-box work, the component file was renamed from src/components/mdx-layout/ArticleAuthorBox.tsx to src/components/mdx-layout/AuthorBox.tsx per user preference for shorter names.
 §
 In corp-web-v2, article author profile assets live under public/crew/*, and locale author registry data now lives in src/features/mdx/authors/{en,ko,ja}.yaml with profileImage paths like crew/<file>; the server-only authors module parses the YAML at runtime.
-§
-In corp-web-v2 author-data work, the user is okay with converting YAML to JSON at runtime but does not want generated JSON author data files committed to git or managed in the repository.
-§
-In corp-web-v2 MDX author data, the user prefers the structure src/features/mdx/authors/{en,ko,ja}.yaml with a server-only authors/index.ts runtime YAML loader, rather than flat locale files or git-tracked generated JSON.
 §
 In corp-web-v2 demo migration work, keep ACP MDX routes/rendering fully separate from CMS-managed demo content, source demo detail content from ../corp-web-contents original EN/KO/JA MDX files rather than CMS-authored Tiptap/HTML data, and do not modify the existing CMS-managed `src/app/[locale]/features/demo/[slug]/page.tsx` rendering path when working on ACP MDX migration.
 §
@@ -188,7 +184,7 @@ In corp-web-japan migration/status planning, existing blog/whitepaper hidden/red
 §
 In corp-web-japan migration planning, do not surface content-volume/completeness concerns like small AIP demo corpus as remaining work unless the user explicitly asks; evaluate from the migration/route-replacement lens, not content-richness.
 §
-In corp-web-japan migration-status documentation, evaluate remaining work only by whether existing querypie.com/ja content/functionality has been fully migrated/replaced locally; do not frame content richness/completeness or intentional hidden/redirect/gated states as migration gaps unless the user explicitly asks.
+In corp-web-japan migration-status docs, evaluate only whether existing querypie.com/ja content/functionality is migrated/replaced locally; do not frame content richness or intentional hidden/redirect/gated states as gaps. Keep Website-Migration-Plan* and Route-Local-Authoring* consistent when latest-main route statuses change.
 §
 In corp-web-japan whitepapers, downloadable PDF CTA metadata is now modeled explicitly in MDX frontmatter as `downloadCta: { href, label, external }`, and route-aligned local PDF assets live under `public/whitepapers/<id>/download.pdf`.
 §
@@ -233,3 +229,5 @@ Mac Studio LLM1 is `qp-test@10.11.1.11` (`Mac-Studio-LLM1.local`). Existing runn
 In skills-jk repeated local-sweep cleanup, if requested scoped files (.hermes/config.yaml, .hermes/memories/MEMORY.md, USER.md) are already identical to latest main but the session creates skill-library residue, split that into a narrow follow-up PR instead of claiming the scoped PR changed.
 §
 In corp-web-app PR follow-up, `/[locale]/t` preview routes are additive review entrypoints; they must not modify existing public home route files or add new public locale entries unless explicitly requested, and tests should mirror route paths.
+§
+In corp-web-app route-local routing, the user prefers unprefixed English public URLs (e.g. /plans, /plans/aip, /company/contact-us) to be handled by middleware default-locale rewrite to internal /en/... [locale] routes, instead of separate src/app/<path>/page.tsx or page-compatibility route.ts files; non-English default-path requests should still redirect to /ko or /ja canonical paths.
