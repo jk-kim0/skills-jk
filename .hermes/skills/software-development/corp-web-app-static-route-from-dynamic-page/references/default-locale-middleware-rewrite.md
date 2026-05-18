@@ -21,6 +21,7 @@ Use this when a corp-web-app public English canonical URL should remain unprefix
    - `/plans/aip`
    - `/plans/acp`
    - `/company/contact-us`
+   - Example follow-up candidate: `/company/certifications` if its unprefixed English shim `src/app/company/certifications/page.tsx` is being removed in favor of the existing `src/app/[locale]/company/certifications/page.tsx` route.
 2. Keep the existing non-English redirect branch first.
 3. For allowlisted English/default requests, set `request.nextUrl.pathname = `/en${request.nextUrl.pathname}`` before calling `NextResponse.rewrite(rewriteRequest(request).nextUrl)`.
 4. Delete redundant unprefixed page/handler entries only when the `[locale]` target exists:
@@ -37,6 +38,8 @@ Use this when a corp-web-app public English canonical URL should remain unprefix
 
 ## Pitfalls
 
+- Before calling an unprefixed `src/app/<path>/page.tsx` file unnecessary, check `src/middleware.ts` first. If `<path>` is not in the default-locale rewrite allowlist, that file may still be the only thing preserving the unprefixed English public URL.
+- If the `[locale]` implementation already exists and the unprefixed file only imports the English locale page plus shared bottom/layout chrome, treat it as a removable shim only after adding the middleware allowlist entry and tests.
 - Do not globally rewrite every unprefixed route to `/en/...`; many legacy routes still depend on unprefixed `src/app/<path>/page.tsx` or the catch-all dynamic route. Use an allowlist.
 - Do not leave route-specific compatibility handlers like `src/app/company/contact-us/route.ts` once middleware owns the unprefixed compatibility behavior.
 - Do not let internal `baseUrl` leak into public redirect URLs.

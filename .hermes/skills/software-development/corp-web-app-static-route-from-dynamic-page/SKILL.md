@@ -233,6 +233,18 @@ Rules:
 - Include source repository/path/commit, original URI path, new target URI path, target implementation files, metadata/frontmatter conversion notes, MDX/component mapping notes, asset source/target paths, recovery commands, and future-edit scope boundaries.
 - If this convention is newly established or changed, update the higher-level plan/docs in a separate docs PR rather than bundling plan governance changes into the feature PR unless the user explicitly asks to bundle them.
 
+## Archived route index/listing pattern
+
+Use this when maintaining `corp-web-app` archived route-local pages under `src/app/[locale]/archived/**`, especially when the user asks for an `/archived` page that lists child pages.
+
+Core rules:
+- The `/archived` index page itself may be a `noindex` link hub, but do not assume archived child pages should also be noindexed.
+- Prefer `robots: 'noindex, follow'` on the index metadata so Google can skip the index page while still following child links.
+- Keep the index listing in sync with actual localized child authoring files: enumerate `src/app/[locale]/archived/**/page.{en,ko,ja}.tsx`, exclude the index route itself, and include only locales that actually exist.
+- Add a targeted Vitest that compares the flattened index list against the filesystem-discovered localized child routes.
+
+Reference: `references/archived-index-listing.md`.
+
 ## Middleware default-locale rewrite variant
 
 Use this variant when the user wants to make `src/app/<path>/page.tsx` unnecessary for an English default route while preserving an unprefixed English canonical URL.
@@ -246,11 +258,13 @@ Public/runtime contract:
 
 Workflow:
 1. Confirm the matching `src/app/[locale]/<path>/page.tsx` exists before deleting `src/app/<path>/page.tsx` or `src/app/<path>/route.ts`.
-2. Add the route to an explicit middleware allowlist; do not rewrite all unprefixed paths globally.
-3. Apply the rewrite before `rewriteRequest(request)` so internal `baseUrl` is still added once.
-4. Delete redundant unprefixed page/handler files only after tests cover the new middleware behavior.
-5. Update metadata and legacy query redirects so the public English target remains unprefixed and internal `baseUrl` does not leak.
-6. Update docs/inventories that still claim `src/app/<path>/page.tsx` or route-specific handlers own the route.
+2. Inspect the unprefixed file: if it only wraps/imports the English locale page and shared bottom/layout chrome, classify it as an English shim rather than a real content owner.
+3. Check `src/middleware.ts` for an explicit default-locale rewrite allowlist entry for the path. If absent, the shim is still required for the unprefixed English URL.
+4. Add the route to an explicit middleware allowlist; do not rewrite all unprefixed paths globally.
+5. Apply the rewrite before `rewriteRequest(request)` so internal `baseUrl` is still added once.
+6. Delete redundant unprefixed page/handler files only after tests cover the new middleware behavior.
+7. Update metadata and legacy query redirects so the public English target remains unprefixed and internal `baseUrl` does not leak.
+8. Update docs/inventories that still claim `src/app/<path>/page.tsx` or route-specific handlers own the route.
 
 Reference: `references/default-locale-middleware-rewrite.md`.
 
