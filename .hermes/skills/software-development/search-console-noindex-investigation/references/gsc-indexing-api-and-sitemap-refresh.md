@@ -61,6 +61,7 @@ Observed issue rows for `https://docs.querypie.com/` after applying this workflo
 - Multiple Search Console tabs may be open. A CDP helper that selects the first matching tab can attach to a stale/background tab and see only partial `Examples` content, missing the start button. Prefer a fresh tab, or choose the newest matching Search Console target and activate/bring it to front.
 - `wait_for("started")` can time out even after the page updates; take a fresh snapshot before concluding the action failed.
 - Chrome remote debugging on this machine can expose only the `DevToolsActivePort` browser WebSocket while `/json/list` or `/json/version` are unavailable. CDP clients should fall back to reading `~/Library/Application Support/Google/Chrome/DevToolsActivePort` and use browser-level `Target.getTargets` / `Target.attachToTarget`.
+- Browser-level CDP can also lack `Network.getAllCookies` even after target attach. For frontend session export, try cookie retrieval in this order: browser-level `Network.getAllCookies`, browser-level `Storage.getCookies`, then target-session `Network.getCookies({ urls: [currentGscUrl] })`.
 
 ## OAuth scope pitfall
 

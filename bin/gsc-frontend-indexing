@@ -96,11 +96,32 @@ function cookieHeader(cookies, url) {
 }
 
 async function getBrowserWebSocketUrl(port) {
-  const res = await fetch(`http://127.0.0.1:${port}/json/version`);
-  if (!res.ok) throw new Error(`Chrome DevTools endpoint HTTP ${res.status}`);
-  const version = await res.json();
-  if (!version.webSocketDebuggerUrl) throw new Error('Chrome DevTools webSocketDebuggerUrl not found');
-  return version.webSocketDebuggerUrl;
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/json/version`);
+    if (res.ok) {
+      const version = await res.json();
+      if (version.webSocketDebuggerUrl) return version.webSocketDebuggerUrl;
+    }
+  } catch {
+    // Fall through to DevToolsActivePort.
+  }
+
+  const activePortPath = path.join(os.homedir(), 'Library/Application Support/Google/Chrome/DevToolsActivePort');
+  let raw;
+  try {
+    raw = await fs.readFile(activePortPath, 'utf8');
+  } catch (error) {
+    throw new Error(
+      `Chrome DevTools endpoint HTTP unavailable and DevToolsActivePort not found at ${activePortPath}. `
+      + `Launch Chrome with --remote-debugging-port=${port} and open Search Console. Original error: ${error.message}`,
+    );
+  }
+
+  const [activePort, browserPath] = raw.trim().split(/\r?\n/);
+  if (!browserPath) {
+    throw new Error(`Invalid DevToolsActivePort file: ${activePortPath}`);
+  }
+  return `ws://127.0.0.1:${activePort || port}${browserPath}`;
 }
 
 class CdpClient {
@@ -157,6 +178,24 @@ function selectSearchConsoleTarget(targets) {
   return page;
 }
 
+async function getAllCookies(client, sessionId, url) {
+  const attempts = [
+    () => client.send('Network.getAllCookies'),
+    () => client.send('Storage.getCookies'),
+    () => client.send('Network.getCookies', { urls: [url] }, sessionId),
+  ];
+  const errors = [];
+  for (const attempt of attempts) {
+    try {
+      const result = await attempt();
+      if (Array.isArray(result.cookies)) return result.cookies;
+    } catch (error) {
+      errors.push(error.message || String(error));
+    }
+  }
+  throw new Error(`Unable to read Chrome cookies via CDP: ${errors.join(' | ')}`);
+}
+
 async function exportSession(args) {
   const wsUrl = await getBrowserWebSocketUrl(args.port);
   const client = new CdpClient(wsUrl);
@@ -170,8 +209,8 @@ async function exportSession(args) {
       const data = window.WIZ_global_data || {};
       return { SNlM0e: data.SNlM0e || null, FdrFJe: data.FdrFJe || null, cfb2h: data.cfb2h || null, href: location.href, title: document.title };
     }, {}, sessionId);
-    const allCookies = await client.send('Network.getAllCookies');
-    const cookies = (allCookies.cookies || []).filter((cookie) => {
+    const allCookies = await getAllCookies(client, sessionId, tokens.href || target.url);
+    const cookies = allCookies.filter((cookie) => {
       const d = String(cookie.domain || '');
       return d.includes('google.com') || d.includes('googleusercontent.com');
     });
