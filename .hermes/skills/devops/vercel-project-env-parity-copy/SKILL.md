@@ -42,6 +42,7 @@ Use this when a user wants one Vercel project to match another project's environ
    - re-add separate entries per target with `vercel env add <NAME> production --value ... --yes`, `development`, and `preview`
    - for a preview-wide value, `vercel env add <NAME> preview "" --value ... --yes` avoids the interactive Git branch prompt and applies to all preview branches
 13. In projects where `staging` is a custom environment matched to `main`, `vercel env pull --environment preview --git-branch main` is a practical CLI verification that the staging deployment will see the preview value/override for that branch.
+14. When a user says `VERCEL_TOKEN` or `VERCEL_TEAM_ID` exists but `terminal()` shows it missing, check whether the export lives in an interactive shell startup file such as `~/.zshrc`. Hermes terminal calls may run non-interactive bash on macOS, so load the user's shell explicitly for read-only Vercel API audits: `zsh -ic 'python3 your_probe.py'`. Verify only booleans/lengths, never print secret values.
 
 ## Prerequisites
 
