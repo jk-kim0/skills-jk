@@ -491,6 +491,7 @@ Important follow-up case from corp-web-japan cleanup:
 - practical root-main-update pattern from repeated `skills-jk` use:
   - when the user simply says `main branch 업데이트해줘` while root `main` has meaningful local changes, do not block on the dirty root forever and do not force-reset it
   - before pulling, compare the current dirty tracked paths against the incoming `origin/main` diff paths since overlap means a direct fast-forward can fail or overwrite the user's intent
+  - if requested scoped files appear different from `origin/main` but `git status --short -- <paths>` shows no local dirt, classify this as `root-behind false payload`, not a local change. Fast-forward root `main` after preserving any unrelated true dirt; do not create a PR that would revert those files to stale root contents.
   - if there is overlap, preserve the full local dirty set first; if an earlier cleanup already created a matching backup worktree/branch for the same root-local line, prefer appending the new files there instead of creating yet another backup branch
 - after copying the current tracked/untracked files into that backup worktree, commit the preservation commit there, verify which paths are truly duplicate/absorbed versus still unique, and only then restore the confirmed-duplicate root files before `git pull --ff-only origin main`
 - important verification step: after creating the backup worktree from latest `origin/main` and copying the root files over, immediately run `git -C <backup-worktree> status --short --branch` and `git -C <backup-worktree> diff --stat`
