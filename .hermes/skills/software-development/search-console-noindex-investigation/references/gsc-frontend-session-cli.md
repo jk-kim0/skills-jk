@@ -12,7 +12,9 @@ Session learning from skills-jk GSC CLI work:
   - GSC WIZ globals such as `SNlM0e`, `FdrFJe`, and `cfb2h` when present
   - source URL/title metadata only for diagnostics
 - Normal direct runs should fail fast with a clear message when the session file is missing, expired, or redirects to Google sign-in. Tell the user to rerun `frontend-session export` instead of silently falling back to browser control.
+  - Do not detect login expiry by searching the whole Search Console HTML for `accounts.google.com` or `ServiceLogin`; logged-in GSC pages can embed sign-in/account URLs in scripts and menus. Prefer final response URL/hostname plus actual Google Accounts page title/form markers.
 - Preserve dry-run semantics: list discovered/candidate issue rows without `--submit`; require explicit `--submit` before attempting direct validation-start calls.
+- Normalize GSC table cell text before filtering statuses. The page may render Material icon/private-use markers as HTML entities like `&#xE000; Failed`; strip icon entities so `--only-status Failed` matches the actual validation state.
 - Because GSC frontend RPCs are undocumented, code should report when the direct `START NEW VALIDATION` RPC template cannot be found instead of pretending the click succeeded. The explicit browser fallback can remain available for manual recovery.
 
 Suggested command shape:

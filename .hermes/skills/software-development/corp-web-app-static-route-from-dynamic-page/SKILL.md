@@ -268,10 +268,42 @@ Workflow:
 
 Reference: `references/default-locale-middleware-rewrite.md`.
 
+## Internal/index route rewrite pattern
+
+Use this when adding or rewriting a corp-web-app route-local internal index such as `src/app/[locale]/internal/page.tsx`, especially when the user asks to make it look like another route-local index page such as `/{locale}/archived`.
+
+Proven pattern:
+1. Start from latest `origin/main` in a fresh `.worktrees/<branch>` worktree before editing.
+2. Inspect the reference index route and copy the structural pattern, not just the visual idea:
+   - thin `page.tsx` locale selector
+   - locale authoring files `page.en.tsx`, `page.ko.tsx`, `page.ja.tsx`
+   - route-local index component
+   - route-local CSS module
+   - a small route-local list source such as `internal-pages.ts`
+3. Keep the index page metadata internal-safe:
+   - `robots: 'noindex, follow'`
+   - locale-specific canonical generated from `getBaseUrl()`
+4. When the target index points at English-only internal/demo pages, keep the index route available for all locales but link cards to the actual supported child routes (for example `/en/internal/...`) rather than inventing localized child pages.
+5. If the user gives items to remove from the index, encode those removals in a focused source-level test. Useful assertions:
+   - retained card titles and hrefs exactly match the intended list
+   - removed labels and routes such as `MDX Preview`, `Live MDX editor`, `Pricing Plans`, `/internal/preview`, `/internal/plans`, or language-selector labels do not appear in the route-local list source
+Reference: `references/default-locale-middleware-rewrite.md`.
+
+## Internal index route pattern
+
+Use this when the user asks to rewrite or maintain internal index routes such as `/{locale}/internal`, especially when they reference the `/{locale}/archived` UI as the desired composition.
+
+- Mirror the archived index shape: a thin `page.tsx` locale selector, `page.en.tsx` / `page.ko.tsx` / `page.ja.tsx` metadata and intro copy, a route-local card-grid renderer, and a route-local CSS module.
+- If some internal destinations are locale-aware while others are English-only component demos, model links as `hrefByLocale` and filter missing locale hrefs while rendering.
+- When exposing stage-only/internal guide children, inspect the exact stage URL before inventing the child list.
+- Add a regression test both for direct child links and for explicitly removed index entries.
+- Session detail: `references/internal-index-mdx-guide-links.md` records the observed `/internal/mdx-guide` child links and the `hrefByLocale` pattern.
+
 ## Verification
 
-Additional reference:
+Additional references:
 - `references/repo-local-skills-and-route-local-authoring.md` records the correction that corp-web-app route-local authoring requires visible locale TSX/JSX composition, not merely JSON-to-object conversion, and notes the `.agents/skills/` discovery pitfall.
+- `references/internal-index-mdx-guide-links.md` records the internal index + MDX guide direct-link pattern.
 
 Minimum verification without running a dev server:
 Minimum verification without running a dev server:

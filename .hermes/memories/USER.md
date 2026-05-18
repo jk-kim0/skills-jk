@@ -2,7 +2,7 @@ User prefers using Hermes via Telegram first, with Slack connected optionally as
 §
 User wants Hermes to default its working directory to the path where Hermes was launched (current working directory / `pwd`), not to a fixed `~/workspace` path.
 §
-User prefers the assistant to choose the method it can handle best for the task, rather than avoiding specific tools for their own sake.
+User prefers the assistant to choose the best method for the task, and expects end-of-session review to update memory/skills when durable learnings emerge.
 §
 User prefers polite Korean and may use Korean chat shorthand like ㅇㅇ, ㅇㅋ, ㄱㄱ.
 §
@@ -56,7 +56,7 @@ For repo work, user does not want time spent on local build/test verification; p
 §
 In corp-web-v2, the user does not want node_modules kept inside worktrees.
 §
-User wants very fast acknowledgements during repo work and dislikes proposal-only pauses: give a brief status message first, then proceed directly with the clear requested change; for slower tasks prefer parallel execution and do not leave the user waiting without a response.
+For repo work, user wants fast acknowledgement, brief status, direct execution, parallelism when useful, and no proposal-only pauses.
 §
 User wants root-cause investigations for Hermes latency to be thorough and evidence-based, not speculative.
 §

@@ -143,8 +143,6 @@ Types: `feat`, `fix`, `refactor`, `docs`, `test`, `ci`, `chore`, `perf`
 
 ## 3. Pushing and Creating a PR
 
-When a requested change spans more than one repository, keep each repository's branch, commit, push, and PR separate unless the user explicitly asks for a different integration workflow. Common case: an app repo removes feature code while a sibling content repo removes a legacy dynamic page link. Create one PR per repo, with a PR body that states only that repo's diff and verification. After pushing each branch, verify local HEAD, remote branch HEAD, and PR `headRefOid` independently before reporting success.
-
 ### Push the Branch (same either way)
 
 ```bash
@@ -444,6 +442,8 @@ After identifying the issue, use file tools (`patch`, `write_file`) to fix the c
 Smoke/typecheck pitfall:
 - If the failed CI job is a smoke command that chains lint + typecheck + test grouping, reproduce that full smoke command locally after the narrow fix, not only the targeted regression test.
 - When adding a new test file in repos that partition tests into CI groups, run the repo's test-group assertion script before pushing (for example `node scripts/ci/assert-test-groups.mjs`) and add the new test path to exactly one appropriate group such as `scripts/ci/test-groups.mjs`. A targeted `node --test <new-file>` pass is not enough if CI rejects unassigned tests.
+- Some CI workflows include a final aggregator job such as `Validate Test` / `Verify validation dependency results` that fails only because an upstream dependency failed. Do not debug the aggregator as a test failure. Inspect the upstream failed job logs first (for example `Validate Lint`), fix that root cause, and expect the aggregator to pass once dependencies pass.
+- For lint failures in newly added React/Next test files, check for imports that were previously needed for JSX but are unused under the repo's JSX transform (for example `import * as React from 'react';`). Run the repo smoke command, not only the targeted Vitest test, because targeted tests can pass while `next lint` fails.
 - TypeScript failures around formatting helpers often indicate a source/display contract mismatch, especially optional metadata (`string | undefined`) being passed into a formatter that expects `string`. Preserve `undefined` for missing optional fields rather than formatting an empty or missing value unless the product contract explicitly says otherwise.
 
 ```bash
