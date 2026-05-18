@@ -156,8 +156,19 @@ import { GoogleAnalytics } from "@/components/analytics/google-analytics";
 
 If the site has a real consent banner/consent-mode contract, integrate with that contract instead of always loading GA. If the repo only has a settings page without a global consent flow and the user explicitly requests immediate GA tracking, keep the scope to production-only analytics and do not invent consent UX in the same PR.
 
+## Documentation-only follow-ups
+
+Use this same skill when the user asks to document recent GA/Search Console setup instead of changing tracking code.
+
+- Keep the documentation short and operational: registration status, measurement/property identifiers already present in code or provided by the user, and where to open the console.
+- Verify the GA measurement ID from the repository source before writing it into docs; in corp-web-japan this lives in `src/components/analytics/google-analytics.tsx`.
+- If the user provides a GA report URL, include it directly as the lookup entry rather than trying to infer a different Analytics URL.
+- For Google Search Console status, document the registered production property/domain and the normal lookup flow: open Search Console, select the property, then use Performance, URL Inspection, Indexing, and Sitemaps as needed.
+- For README-only changes, prefer commit/PR plus CI status over local build/test runs unless the user explicitly asks for local verification.
+
 ## Verification
 
+- For documentation-only README updates, inspect the diff and confirm the source identifier used in the text; local build/typecheck is usually unnecessary.
 - Run a targeted TypeScript check: `npm run typecheck`.
 - Add a source-level contract test if the repository uses source tests.
 - In repositories with CI test grouping, run the group assertion before pushing, e.g. `node scripts/ci/assert-test-groups.mjs`, and assign the new test to exactly one group.
