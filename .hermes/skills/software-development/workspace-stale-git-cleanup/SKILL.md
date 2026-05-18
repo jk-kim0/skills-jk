@@ -33,6 +33,12 @@ Distinguish carefully between these two user intents:
 
 If the user is currently inside a repo and the phrasing mentions `this repo`, prefer repo-local interpretation even if the word `workspace` appears.
 
+### Repeated cleanup and pruned upstream markers
+
+After `git fetch --prune`, do not rely only on `[gone]` markers in `git branch -vv`; pruning can remove the upstream annotation entirely, and branch-backed worktrees may then look less stale than they are. Re-check open and closed PR state for local branches, then use direct two-dot/tree diff versus latest default branch to decide whether a merged/squash-merged branch is absorbed.
+
+For PR-heavy repos where the same open PR worktrees survive many cleanup cycles, the correct result can be "no stale items" after a fresh discovery pass. Still re-run `git fetch --prune`, open PR queries, merged/closed PR queries for non-open local branches, and default-branch fast-forward checks every time; do not continue from the previous cleanup table.
+
 ## Safety rules
 
 1. Do not delete the current checked-out branch.

@@ -49,6 +49,10 @@ PY
 
 ## Important findings
 
+### 0.1 `--level error` is not synonymous with 5xx
+
+`vercel logs --level error` can return rows whose `responseStatusCode` is `200` or another non-5xx status, especially edge-middleware informational logs that the platform tags as error-level. Always filter client-side for statuses starting with `5` before reporting 5xx counts; never report raw `--level error` row counts as server-error counts.
+
 ### 0. Start with a fast existence check before broad collection
 
 Important current-environment caveat:
