@@ -124,9 +124,54 @@ Then explicitly distinguish:
 - A clean worktree branch setup can still be undermined by wrong-path edits.
 - This mistake is easy to miss until verification if the same relative file paths exist in both locations.
 
+## Release branch rebase / force-push safety
+
+Use this pattern when the user asks to rebase a shared release branch onto the latest main and force-push it.
+
+1. Treat the root `main` checkout as inspection-only. Fetch first:
+   ```bash
+   git fetch origin --prune
+   ```
+2. Check whether the local release ref is stale relative to `origin/release`:
+   ```bash
+   git rev-list --left-right --count release...origin/release
+   git log --oneline origin/release..release
+   git log --oneline release..origin/release --max-count=10
+   ```
+3. If local `release` has no unique commits and is behind remote, align it before creating the worktree:
+   ```bash
+   git branch -f release origin/release
+   git worktree add .worktrees/release-rebase release
+   ```
+4. Rebase from the release worktree, not the root checkout:
+   ```bash
+   git -C .worktrees/release-rebase rebase origin/main
+   ```
+5. Resolve conflicts by preserving latest-main behavior plus the release-only fix when both are still needed. For CSS/UI conflicts, inspect `origin/main:<path>`, the release commit (`REBASE_HEAD`), and any added regression tests before choosing one side.
+6. Run the narrowest relevant verification before continuing and again rely on the rebase state:
+   ```bash
+   git add <resolved-files>
+   GIT_EDITOR=true git rebase --continue
+   ```
+7. Before pushing, verify the release branch is exactly latest main plus the intended release-only commits:
+   ```bash
+   git rev-list --left-right --count origin/main...HEAD
+   git log --oneline --decorate -5
+   ```
+   A common desired result after a hotfix release rebase is `0 1` (no commits missing from release, one release-only commit ahead).
+8. Push with lease, then verify remote equality:
+   ```bash
+   git push --force-with-lease origin release
+   git fetch origin --prune
+   git rev-parse release
+   git rev-parse origin/release
+   git rev-list --left-right --count origin/main...release
+   ```
+
 ## Minimum verification before finishing
 
 - Main checkout is clean or only has pre-existing unrelated changes.
 - Intended worktree contains the actual diff.
 - `git show --stat HEAD` or `git diff --stat` in the worktree matches the requested scope.
 - Remote branch push comes from the worktree branch, not from main.
+- For release branch rebases, local `release` and `origin/release` point at the same post-push SHA, and `origin/main...release` shows only the intended release-only commits.

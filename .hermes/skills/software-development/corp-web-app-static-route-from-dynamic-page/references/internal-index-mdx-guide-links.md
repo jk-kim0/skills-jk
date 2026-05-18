@@ -51,12 +51,29 @@ const pages = group.pages.flatMap(page => {
 
 This keeps English-only component demo pages from leaking broken `/ko` or `/ja` links while still exposing MDX guide child pages directly for every locale.
 
-## Exclusion regression
+## Exclusion and route-inventory regressions
 
-If the user asks to remove index items, add a source-level test asserting the removed labels/hrefs do not appear. In this session the removed entries were:
+If the user asks to remove index items, add a source-level test asserting the removed labels/hrefs do not appear, but distinguish label-level removals from live route-level inventory.
+
+Important correction from follow-up work:
+- `MDX Preview` / `Live MDX editor` was a removed index entry label, but the route `/{locale}/internal/preview` itself is a live internal child page and should be exposed as `Preview Route Index` when the user asks the internal index to list all live children.
+- Do not keep a blanket `not.toContain('/internal/preview')` assertion after the route is intentionally restored. Instead, assert the removed editor labels are absent and add a positive test for `/en/internal/preview`, `/ko/internal/preview`, and `/ja/internal/preview`.
+- Use a separate group such as `Internal route tools` for the live preview route so it is not confused with the deleted MDX editor entry.
+
+Route inventory workflow for `src/app/[locale]/internal`:
+1. Enumerate route files under `src/app/[locale]/internal/**/page.tsx`.
+2. Check current/stage HTTP status by locale before adding locale-specific links.
+3. Add `hrefByLocale` for routes that are live in every locale.
+4. For English-only internal demos, keep links pointed at the actual supported English route or omit unsupported locales rather than generating broken `/ko` or `/ja` hrefs.
+5. Update tests in both directions: positive assertions for restored/live routes and negative assertions for explicitly removed labels.
+
+Observed status pattern from the internal index follow-ups:
+- `preview`: `/en/internal/preview`, `/ko/internal/preview`, `/ja/internal/preview` all returned 200 and should be listed.
+- `plans`: only `/en/internal/plans` returned 200 during the session; KO/JA wrappers returned 404, so locale index links should not claim localized pricing-plan support unless that changes.
+- English-only component examples such as `usage`, `key-values`, `risks`, `main-feature-description`, `killer-features`, and `compare-table` should be separated from every-locale groups in tests.
+
+In the original rewrite session the removed entries were:
 
 - `MDX Preview` / `Live MDX editor`
-- `Pricing Plans`
+- `Pricing Plans` as a generic all-locale index entry
 - language-selector entries: `English`, `Japanese`, `Korean`
-- `/internal/preview`
-- `/internal/plans`

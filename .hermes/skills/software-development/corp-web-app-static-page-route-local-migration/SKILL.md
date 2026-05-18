@@ -79,6 +79,21 @@ Pattern:
 
 This came up on a home route-local PR: creating `/[locale]/t/page.tsx` while leaving `src/app/page.{locale}.tsx` in place made preview work technically, but the authoring surface was wrong. The corrected structure moved `page.en.tsx`, `page.ja.tsx`, and `page.ko.tsx` into `src/app/[locale]/t/` and changed `src/app/page.tsx`, `src/app/en/page.tsx`, and `src/app/ko/page.tsx` into thin imports from that location. See `references/home-preview-t-authoring.md` for the concrete checklist.
 
+## Publishing `/t` verification routes to public routes
+
+When the user explicitly asks to remove the `/t` verification prefix and publish a route-local page, treat the work as a public route rollout, not just a directory move:
+
+- Move `src/app/[locale]/t/<route>/**` to `src/app/[locale]/<route>/**`, including locale files, route-local components, CSS modules, and README/provenance notes.
+- Keep the route-local authoring contract unchanged: thin `page.tsx`; visible locale copy and composition in `page.en.tsx`, `page.ko.tsx`, and `page.ja.tsx`; no new copy registries.
+- Remove the promoted route from preview-only indexes such as `src/lib/internal-preview-routes.ts`, and update the internal preview route index test if needed.
+- Remove any `src/lib/preview-navigation.ts` mapping that rewrites the public path to `/<locale>/t/<route>`, then update `src/lib/__tests__/preview-navigation.test.ts` so the promoted route remains public when preview navigation is enabled.
+- If the old public path was still listed in `src/app/[...slug]/page.tsx` `generateStaticParams()`, remove that legacy dynamic-page ownership and update the route-local test to assert it is absent after public release.
+- For unprefixed English public URLs handled by `src/app/[locale]/...`, add the public path to `DEFAULT_LOCALE_REWRITE_PATHS` in `src/middleware.ts` and add middleware coverage for internal `/en/...` rewriting.
+- Review public navigation, canonical metadata, sitemap behavior, and redirects explicitly. Do not preserve or redirect the removed `/t/*` endpoint unless the user explicitly asks for that compatibility path.
+- Prefer targeted route, middleware, preview-navigation, and internal-preview-index Vitest checks. Do not start a local dev server unless requested.
+
+See `references/public-route-rollout-from-t.md` for the about-us rollout pattern.
+
 ## Stage vs production parity after route-local conversion
 
 When a user asks to compare a stage route-local page against the production route, verify the rendered page before changing code:

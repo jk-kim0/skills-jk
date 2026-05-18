@@ -115,10 +115,6 @@ Branch naming conventions:
 - `docs/description` — documentation
 - `ci/description` — CI/CD changes
 
-### Production release-branch hotfixes
-
-When a bug is visible on production but latest `main`/staging already appears fixed, first identify the deployment source branch before creating a PR. Some repos deploy production from a long-lived `release` branch while staging deploys from `main`. In that case, compare `origin/release` to `origin/main`, port only the minimal fix, and create the PR with `--base release` rather than opening a no-op `main` PR. See `references/production-release-branch-hotfix.md` for the full diagnostic and browser-verification pattern.
-
 ## 2. Making Commits
 
 Use the agent's file tools (`write_file`, `patch`) to make changes, then commit:
@@ -798,6 +794,14 @@ gh pr view <branch-name> --json number,title,url,headRefName,baseRefName,state
      grep -R "ubuntu-latest\|self-hosted, Linux," .github/workflows || true
      ```
    - In the PR body, state the final runner selector, not any intermediate broader/narrower selector considered during the session.
+
+9a. Production deploy workflow branch-source changes.
+
+   - When changing a manual production deploy workflow from a release-branch promotion model to direct branch deployment, remove branch-mutation steps entirely instead of keeping a hidden `git checkout/rebase/push` phase.
+   - Prefer passing the dispatch-selected ref to the deployment script, for example `BRANCH: ${{ github.ref_name }}`, when the deploy script already uses an env var as the provider git source ref.
+   - After removing push/rebase behavior, lower workflow permissions from `contents: write` to `contents: read` unless another remaining step still needs writes.
+   - Compare against a known-good sibling workflow when the user says "like repo X", but keep repo-specific secrets/vars intact unless the request explicitly includes normalizing those too.
+   - See `references/workflow-dispatch-production-branch.md` for a concise migration recipe and verification checklist.
 
 10. Markdown links to GitHub paths containing `[` or `]` need extra escaping.
 
