@@ -441,6 +441,7 @@ After identifying the issue, use file tools (`patch`, `write_file`) to fix the c
 
 Smoke/typecheck pitfall:
 - If the failed CI job is a smoke command that chains lint + typecheck + test grouping, reproduce that full smoke command locally after the narrow fix, not only the targeted regression test.
+- When adding a new test file in repos that partition tests into CI groups, run the repo's test-group assertion script before pushing (for example `node scripts/ci/assert-test-groups.mjs`) and add the new test path to exactly one appropriate group such as `scripts/ci/test-groups.mjs`. A targeted `node --test <new-file>` pass is not enough if CI rejects unassigned tests.
 - TypeScript failures around formatting helpers often indicate a source/display contract mismatch, especially optional metadata (`string | undefined`) being passed into a formatter that expects `string`. Preserve `undefined` for missing optional fields rather than formatting an empty or missing value unless the product contract explicitly says otherwise.
 
 ```bash
