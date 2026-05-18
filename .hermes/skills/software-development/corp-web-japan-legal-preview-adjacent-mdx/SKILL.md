@@ -65,6 +65,7 @@ date: "2025-06-05"
   - `join` from `node:path`
 - Evaluate the MDX with `parseFrontmatter: true`
 - Define a frontmatter type in `page.tsx`
+- Cache the legal MDX read/evaluation path when the page can render the same source more than once (for example `generateMetadata()` plus the page body, or versioned legal pages that re-read the same file). Match the repo’s publication pattern by avoiding repeated raw file reads for the same source.
 - Use `generateMetadata()` so metadata is derived from MDX frontmatter
 - Render a route-owned hero/header block from frontmatter values:
   - date

@@ -99,6 +99,33 @@ Goal:
 - branch history rebased to latest `main`
 - local uncommitted work restored on top of that rebased state
 
+### Practical outcome check: the PR can become empty after rebase
+
+Another real-world outcome:
+- the branch's remaining commits were already incorporated into `main` through earlier PRs or equivalent upstream commits
+- after rebase and conflict resolution, `HEAD` may become exactly equal to `origin/main`
+- force-pushing then makes the open PR show no remaining commits and no changed files
+
+Verify explicitly:
+
+```bash
+git rev-parse HEAD
+git rev-parse origin/main
+git diff --stat origin/main...HEAD
+gh pr view <PR_NUMBER> --json headRefOid,baseRefOid,commits,files,mergeStateStatus,url
+```
+
+Typical empty-PR signals:
+- `git diff origin/main...HEAD` is empty
+- `headRefOid == baseRefOid`
+- `commits: []`
+- `files: []`
+
+In that case:
+- force-push the rebased branch so GitHub reflects the true empty state
+- do not invent extra changes just to keep the PR non-empty
+- do not close the PR unless the user explicitly asks; instead report that the branch is now identical to `main`
+
 ## 2a. If the old stacked base branch was merged and deleted
 
 A common real-world case:
