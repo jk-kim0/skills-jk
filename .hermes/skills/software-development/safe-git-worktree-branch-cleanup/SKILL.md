@@ -477,6 +477,16 @@ Important follow-up case from corp-web-japan cleanup:
   - some root-dirty files may already be absorbed by latest `origin/main`, but do not treat them as discardable until you have compared the preserved copy path-by-path against current main and any PR branch carrying related work
   - keep only the residual meaningful diff instead of assuming every copied file still represents unpublished work
   - practical example: root `next.config.ts` / `tsconfig.next.json` dirt can vanish after the backup worktree is based on newer `origin/main`, leaving only a smaller remaining route/test patch to preserve
+- additional stale-file pitfall from later `skills-jk` use:
+  - a root-local edit can be genuinely small on an old local `main`, yet become a huge reverse diff if you preserve it by overwriting the whole tracked file inside a fresh backup worktree from latest `origin/main`
+  - this happens when latest `origin/main` has heavily evolved the same file, while the old root checkout still contains a stale snapshot plus a small local tweak
+  - in that situation, a clean backup commit and even a clean disposable rebase onto latest main do **not** prove the preserved patch is PR-valid; you may have created a branch that mostly rolls back upstream additions
+  - therefore split the goals:
+    1. `backup-preserved` — raw stale file snapshot safely copied into a backup branch/worktree so nothing is lost
+    2. `pr-valid` — minimal intended delta manually re-extracted onto the latest file content
+  - if `git diff --stat origin/main...<backup-branch>` shows an unexpectedly huge deletion-heavy diff for a supposedly small local tweak, classify the branch as backup-only first, not as ready for PR
+  - useful summary label:
+    - `backup preserved, but stale whole-file overwrite not PR-valid`
 - this leaves root `main` actually updated while still preserving the user's local work in an inspectable branch/worktree
 - prefer this backup-worktree variant over `git stash`
 
@@ -1200,6 +1210,12 @@ Safe handling:
 Practical rule:
 - once cleanup starts deleting worktrees, switch all remaining destructive/verification commands to explicit repo-root context
 - this avoids false command failures unrelated to git state itself
+
+Important Hermes/tooling quirk observed in practice:
+- after a deleted/pruned worktree invalidates the session's inherited cwd, some later `terminal()` calls can still fail with `FileNotFoundError` even when you pass an explicit `workdir`
+- if that happens, do not keep retrying the same `terminal()` pattern blindly
+- fall back to `execute_code()` with Python `subprocess.run(..., cwd=<stable-repo-root>)` or otherwise force execution from a known-good cwd in a fresh context
+- then clean the stale/prunable worktree registration with `git worktree prune` and continue verification from the stable repo root
 
 Practical rule:
 - once cleanup starts deleting stale worktrees/branches, re-run `git fetch --prune`, re-check open PR heads, and re-check `git worktree list` before each new deletion batch if the repo is actively changing
