@@ -378,6 +378,8 @@ This is especially important in PR-heavy repos where `/private/tmp/` helper work
 
 In a repo with many nested worktrees, giant shell loops or monolithic cleanup scripts can hit tool timeouts even when Git is making progress.
 
+For broad cross-repo sweeps under `~/workspace`, keep terminal output concise and store full details in a temp JSON/log file. Raw `git merge --ff-only` output from monorepos can be enormous and can truncate the useful cleanup report. Also treat dirty root checkouts that remain behind remote as intentionally preserved, not failed cleanup. See `references/cross-repo-cleanup-output-and-dirty-roots.md`.
+
 Preferred pattern:
 - remove safe worktrees in smaller batches or one-by-one
 - after any timeout, immediately re-query `git worktree list --porcelain` and `git branch -vv`
