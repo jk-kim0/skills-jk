@@ -115,6 +115,10 @@ Branch naming conventions:
 - `docs/description` — documentation
 - `ci/description` — CI/CD changes
 
+### Production release-branch hotfixes
+
+When a bug is visible on production but latest `main`/staging already appears fixed, first identify the deployment source branch before creating a PR. Some repos deploy production from a long-lived `release` branch while staging deploys from `main`. In that case, compare `origin/release` to `origin/main`, port only the minimal fix, and create the PR with `--base release` rather than opening a no-op `main` PR. See `references/production-release-branch-hotfix.md` for the full diagnostic and browser-verification pattern.
+
 ## 2. Making Commits
 
 Use the agent's file tools (`write_file`, `patch`) to make changes, then commit:
