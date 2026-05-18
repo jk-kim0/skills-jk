@@ -49,6 +49,18 @@ PY
 
 ## Important findings
 
+### 0.1 `--level error` is NOT always 5xx — filter client-side
+
+A practical edge case: `--level error` can return rows whose `responseStatusCode` is `200`.
+These are typically edge-middleware info logs mis-tagged by the platform, not real server errors.
+
+Rule: always filter client-side for 5xx codes; do not report `--level error` counts as 5xx counts without this verification.
+
+Example symptom from `corp-web-app`:
+```json
+{"responseStatusCode": 200, "level": "error", "message": "[features] /... status=200", "source": "edge-middleware"}
+```
+
 ### 0. Start with a fast existence check before broad collection
 
 Important current-environment caveat:

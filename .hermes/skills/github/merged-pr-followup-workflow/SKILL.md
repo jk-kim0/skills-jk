@@ -109,6 +109,35 @@ git ls-tree -r --name-only origin/main -- <candidate-paths>
 git grep -n '<old-path>\|<new-path>' origin/main -- <relevant-src-dirs>
 ```
 
+## Retargeting a release-targeted hotfix back to main
+
+If the user asks to recreate a merged hotfix PR that targeted `release` as a new `main` PR, do not blindly cherry-pick the release PR commits. First compare the hotfix's files against the current `origin/main`, because main may already contain part of the same fix from a separate path.
+
+Recommended flow:
+
+```bash
+# Inspect the old PR and capture its patch for reference.
+gh pr view <pr> --json state,mergedAt,baseRefName,headRefName,headRefOid,mergeCommit,title,url,files
+gh pr diff <pr> --patch > /tmp/pr-<pr>.patch
+
+# Check which parts are already present on latest main.
+git fetch origin --prune
+git show origin/main:<path-from-pr> | sed -n '<relevant-range>p'
+git cat-file -e origin/main:<test-or-new-file> || echo MISSING
+
+# Start a fresh main-based worktree and apply only the missing final delta.
+git worktree add .worktrees/<flat-name> -b <branch-name> origin/main
+```
+
+When only a subset is missing, make a narrow commit that ports just the absent final behavior/test, and say that the new PR is a main-target follow-up to the release hotfix. This avoids reverting newer main-side edits or reintroducing stale release-branch context.
+
+For fresh worktrees without local `node_modules`, prefer a targeted check using the root checkout's installed binaries when that is already available, rather than running a slow install just for a small PR:
+
+```bash
+PATH=/path/to/root/node_modules/.bin:$PATH vitest run <target-test>
+node scripts/ci/assert-test-groups.mjs
+```
+
 For shared asset follow-ups, distinguish page-specific route-aligned assets from shared asset corpora. If a sibling merged PR still uses the same logo/icon files from a shared root, prefer consolidating the shared root and deleting duplicate route-local copies rather than forcing every consumer into the first PR's route-local asset path. Example: company/customer logo SVGs used by both archived customers and archived customer-success pages belong in `public/company-icon/*`, while page-specific thumbnails can remain under a route/family-specific asset directory.
 
 ## Practical example from this session

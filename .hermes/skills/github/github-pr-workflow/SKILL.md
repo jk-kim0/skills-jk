@@ -798,9 +798,11 @@ gh pr view <branch-name> --json number,title,url,headRefName,baseRefName,state
 9a. Production deploy workflow branch-source changes.
 
    - When changing a manual production deploy workflow from a release-branch promotion model to direct branch deployment, remove branch-mutation steps entirely instead of keeping a hidden `git checkout/rebase/push` phase.
-   - Prefer passing the dispatch-selected ref to the deployment script, for example `BRANCH: ${{ github.ref_name }}`, when the deploy script already uses an env var as the provider git source ref.
+   - When the requested pattern is “like querypie-docs/corp-web-japan” or another sibling repo, match the sibling implementation shape closely instead of inventing extra deploy-script behavior.
+   - If the sibling workflow exposes a `workflow_dispatch` input such as `BRANCH` with default `main`, use that input directly, for example `BRANCH: ${{ inputs.BRANCH }}`, rather than `github.ref_name`. This makes the manual dispatch UI the source of the deployed branch and preserves the default-main behavior.
+   - If the deploy script already reads `process.env.BRANCH` / `process.env.TARGET_ENV` and passes them to Vercel SDK `gitSource.ref` / `target`, do not add new env validation, target normalization, or helper abstractions unless the user explicitly asks for script hardening. The safer follow-up for a sibling-parity request is usually to leave the script unchanged and only adjust the workflow.
    - After removing push/rebase behavior, lower workflow permissions from `contents: write` to `contents: read` unless another remaining step still needs writes.
-   - Compare against a known-good sibling workflow when the user says "like repo X", but keep repo-specific secrets/vars intact unless the request explicitly includes normalizing those too.
+   - Compare against known-good sibling workflows and scripts when the user says "like repo X", and keep repo-specific secrets/vars intact unless the request explicitly includes normalizing those too.
    - See `references/workflow-dispatch-production-branch.md` for a concise migration recipe and verification checklist.
 
 10. Markdown links to GitHub paths containing `[` or `]` need extra escaping.
