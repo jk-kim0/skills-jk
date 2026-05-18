@@ -397,6 +397,7 @@ Observed in `skills-jk`:
 - repeated cleanup can leave an old `backup/*` branch with a huge raw stale diff but a tiny portable synthetic-squash payload. When the user repeats `workspace 정리`, promote only that synthetic payload to a fresh latest-main branch/PR, verify the remote head, then delete the old backup worktree/branch and reset root `main`. If direct `git apply` of the synthetic diff fails on latest main, create the new branch at the synthetic squash commit and `git rebase origin/main` instead.
 - rebase conflict resolution via `sed` can silently discard the HEAD side when naively stripping markers (`/<<<<<<< HEAD/,/=======/d`). Both sides often contain independently valid additions in `skills-jk` append-only files. Always re-read after any automated strip, or prefer manual resolution. See `references/sed-conflict-strip-pitfall.md`.
 - if you do update that existing PR branch, still verify the branch head SHA on the remote after push because PR metadata can lag briefly
+- before dispatching a new create-PR workflow during repeated cleanup/local-sweep work, compare the candidate branch payload against existing open cleanup/follow-up PR branches; if another open bot PR already has the same tree, do not create a duplicate PR. See `references/avoid-duplicate-payload-prs.md`.
 
 ## Completion checklist
 
