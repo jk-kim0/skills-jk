@@ -75,7 +75,13 @@ function gscValidationResourceId(siteUrl) {
 }
 
 function normalize(value) {
-  return String(value || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+  return String(value || '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&#xE[0-9A-F]+;|&#\d+;/gi, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function cookieMatches(cookie, url) {
@@ -237,9 +243,27 @@ async function loadSession(sessionFile) {
   return session;
 }
 
+function isGoogleSignInResponse(finalUrl, text) {
+  try {
+    const parsed = new URL(finalUrl);
+    if (parsed.hostname === 'accounts.google.com' && /\/signin|ServiceLogin|AccountChooser/i.test(`${parsed.pathname}${parsed.search}`)) {
+      return true;
+    }
+  } catch {
+    // Ignore malformed response URLs and fall through to content checks.
+  }
+
+  const title = (text.match(/<title[^>]*>([^<]+)/i) || [])[1] || '';
+  if (/Sign in\s*-\s*Google Accounts|Google Accounts/i.test(title)) {
+    return /ServiceLogin|identifierId|name=["']?identifier["']?/i.test(text);
+  }
+  return false;
+}
+
 async function frontendFetch(session, url, options = {}) {
   const headers = {
-    'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/537.36 Chrome Safari/537.36',
+    'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+    accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
     'accept-language': 'en-US,en;q=0.9',
     ...options.headers,
   };
@@ -248,7 +272,7 @@ async function frontendFetch(session, url, options = {}) {
   const res = await fetch(url, { ...options, headers, redirect: 'follow' });
   const text = await res.text();
   if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}: ${text.slice(0, 300)}`);
-  if (/accounts\.google\.com\/.*signin|ServiceLogin/i.test(text)) {
+  if (isGoogleSignInResponse(res.url, text)) {
     throw new Error('Saved GSC frontend session is not logged in or expired. Run --export-session again.');
   }
   return text;
