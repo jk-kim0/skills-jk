@@ -125,6 +125,7 @@ Important shape preference:
 
 - Do not treat every `FileQuery.getLayoutData(...)` call as in-scope. Header/GNB local-data work does not imply changing cookie banner, plans, article categories, or other remote-backed content.
 - Do not remove preview-navigation rewriting. Local JSON is still transformed by `withPreviewNavigation(...)` in preview mode.
+- When adding preview-only footer/header links, verify the responsive layout contract as well as the data/JSX. In corp-web-app footer, navigation columns live inside `src/components/layout/footer/ui/footer.module.css` `.nav`; a historical `@media (max-width: 1260px) { .nav { display: none; } }` style hid all footer navigation on tablet/mobile, so desktop-only inspection missed that newly added preview links disappeared at mobile widths. Prefer responsive wrapping/stacking and add a source-level regression test that rejects `display: none` for the nav when the requirement is visibility on mobile.
 - Do not hand-author Japanese/Korean labels from memory. Pull current remote JSON from the cached metadata endpoint or other authoritative current source.
 - File-tool lint may show false import-resolution errors when writing files outside the repo-root context. Verify with the repo's own targeted `npx vitest run ...` command from the worktree.
 - JSON data files can be large; use `git diff --stat` plus focused tests instead of pasting full JSON into reports.
@@ -134,3 +135,4 @@ Important shape preference:
 
 - `references/header-gnb-local-data-pr-660.md` — session notes for the header/GNB implementation that followed footer PR #657.
 - `references/header-json-to-tsx-authoring-pr-658.md` — session notes for rewriting a superseded header JSON PR into a latest-main TSX locale-module authoring follow-up.
+- `references/footer-preview-internal-menu-mobile-nav.md` — session notes for the preview-only footer Internal menu and the mobile `.nav { display: none; }` regression.
