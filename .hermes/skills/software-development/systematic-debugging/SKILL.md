@@ -403,14 +403,20 @@ Investigate in this order:
 3. Inspect computed layout on the worst offenders:
    - `display`, `gridTemplateColumns`, `gap`
    - `whiteSpace`, `overflowX`, `flexWrap`
-   - actual link/text widths via `getBoundingClientRect()`
 4. Verify whether the cause is global chrome such as a header/footer rather than the route's main content.
+
+For global chrome bugs such as header/footer content disappearing on mobile:
+- Test the exact user-visible environment first (production/stage/preview/local) and record the URL + viewport + computed style evidence.
+- Then test latest main or the current candidate branch with the same DOM probe. If production still has `display: none` but stage/latest main is already fixed, report it as a deployment/version gap instead of creating a duplicate code fix.
+- Use a route that can render without unrelated credentials or data services when validating site-wide chrome. For example, prefer a repo-local static/semistatic route to validate footer behavior rather than a legacy Blob-backed dynamic route that may fail locally for missing storage credentials.
+- Confirm visible DOM data, not just source code: count links/text in the footer/header, inspect `getComputedStyle(nav).display`, and capture a mobile screenshot when visual proof is required.
 
 Common mobile root cause pattern:
 - narrow viewport
 - multi-column grid retained on mobile
 - `white-space: nowrap` on long localized links
 - grid column minimums + gap exceed the container width
+
 
 Additional mobile layout pitfall:
 - there may be no horizontal overflow at all, yet the page still looks wrong because a top-level page section lost its mobile side padding
