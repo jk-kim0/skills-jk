@@ -394,7 +394,34 @@ def build_validate_index_issues_browser_cmd(args, site_url: str) -> list[str]:
         cmd.extend(['--delay-ms', str(args.delay_ms)])
     if getattr(args, 'port', None) is not None:
         cmd.extend(['--port', str(args.port)])
+    if getattr(args, 'connect_timeout_ms', None) is not None:
+        cmd.extend(['--connect-timeout-ms', str(args.connect_timeout_ms)])
     return cmd
+
+
+def build_validate_index_issues_browser_batch_cmd(args, site_urls: list[str]) -> list[str]:
+    """Build one browser helper invocation that keeps a single Chrome attach for all sites."""
+    if not site_urls:
+        raise ValueError('site_urls must not be empty')
+    cmd = build_validate_index_issues_browser_cmd(args, site_urls[0])
+    for site_url in site_urls[1:]:
+        cmd.extend(['--site', site_url])
+    if getattr(args, 'site_delay_ms', None) is not None:
+        cmd.extend(['--site-delay-ms', str(args.site_delay_ms)])
+    return cmd
+
+
+def run_validate_index_issues_site(cmd: list[str], timeout_ms: int | None = None) -> int:
+    """Run one per-site validation helper and return a process-style status code."""
+    try:
+        completed = subprocess.run(
+            cmd,
+            timeout=(timeout_ms / 1000) if timeout_ms else None,
+        )
+        return completed.returncode
+    except subprocess.TimeoutExpired:
+        print(f"ERROR: site validation helper timed out after {timeout_ms}ms")
+        return 124
 
 
 def select_validation_sites(site_entries: list[dict], include_domain_properties: bool = False,
@@ -453,20 +480,36 @@ def validate_all_index_issues(args, browser: bool = False) -> int:
         return 0
 
     results: list[dict] = []
+    if browser:
+        print(f"\n{'=' * 80}")
+        print(f"[browser-batch] {len(selected)} sites")
+        print(f"{'=' * 80}")
+        sys.stdout.flush()
+        cmd = build_validate_index_issues_browser_batch_cmd(args, selected)
+        returncode = run_validate_index_issues_site(cmd, getattr(args, 'batch_timeout_ms', None))
+        results = [{'siteUrl': site_url, 'returncode': None} for site_url in selected]
+        ok_count = len(selected) if returncode == 0 else 0
+        fail_count = 0 if returncode == 0 else len(selected)
+        print(f"\n{'=' * 80}")
+        print("요약")
+        print(f"  대상 사이트: {len(results)}")
+        print(f"  성공: {ok_count}")
+        print(f"  실패: {fail_count}")
+        print(f"  browser-batch: {'OK' if returncode == 0 else f'FAIL({returncode})'}")
+        return returncode
+
     for idx, site_url in enumerate(selected, 1):
         print(f"\n{'=' * 80}")
         print(f"[{idx}/{len(selected)}] {site_url}")
         print(f"{'=' * 80}")
         sys.stdout.flush()
         cmd = build_validate_index_issues_browser_cmd(args, site_url) if browser else build_validate_index_issues_frontend_cmd(args, site_url)
-        completed = subprocess.run(cmd)
-        returncode = completed.returncode
+        returncode = run_validate_index_issues_site(cmd, getattr(args, 'site_timeout_ms', None))
         if returncode != 0 and browser and getattr(args, 'retry_failed_sites', 0):
             for retry_idx in range(args.retry_failed_sites):
                 print(f"Retrying failed site ({retry_idx + 1}/{args.retry_failed_sites}): {site_url}")
                 sys.stdout.flush()
-                completed = subprocess.run(cmd)
-                returncode = completed.returncode
+                returncode = run_validate_index_issues_site(cmd, getattr(args, 'site_timeout_ms', None))
                 if returncode == 0:
                     break
         results.append({'siteUrl': site_url, 'returncode': returncode})
@@ -880,6 +923,9 @@ def main():
         p.add_argument('--browser', action='store_true', help='저장 session 대신 열린 Chrome/GSC 세션으로 처리')
         p.add_argument('--port', type=int, help='Chrome remote debugging 포트 (--browser에서 사용)')
         p.add_argument('--retry-failed-sites', type=int, default=0, help='사이트 helper 실패 시 재시도 횟수 (--browser에서 유용)')
+        p.add_argument('--site-timeout-ms', type=int, default=180000, help='사이트별 helper 최대 실행 시간(ms, 기본: 180000)')
+        p.add_argument('--batch-timeout-ms', type=int, default=900000, help='browser batch helper 최대 실행 시간(ms, 기본: 900000)')
+        p.add_argument('--connect-timeout-ms', type=int, default=120000, help='Chrome DevTools 연결/승인 대기 시간(ms, 기본: 120000)')
 
     # validate-index-issues 명령어: 사용자가 기대하는 전체 사이트 기본 entrypoint
     validation_alias_parser = subparsers.add_parser(
@@ -915,6 +961,9 @@ def main():
     validation_all_parser.add_argument('--site-delay-ms', type=int, default=3000, help='사이트 사이 지연 시간(ms, 기본: 3000)')
     validation_all_parser.add_argument('--port', type=int, help='Chrome remote debugging 포트')
     validation_all_parser.add_argument('--retry-failed-sites', type=int, default=0, help='사이트 helper 실패 시 재시도 횟수')
+    validation_all_parser.add_argument('--site-timeout-ms', type=int, default=180000, help='사이트별 helper 최대 실행 시간(ms, 기본: 180000)')
+    validation_all_parser.add_argument('--batch-timeout-ms', type=int, default=900000, help='browser batch helper 최대 실행 시간(ms, 기본: 900000)')
+    validation_all_parser.add_argument('--connect-timeout-ms', type=int, default=120000, help='Chrome DevTools 연결/승인 대기 시간(ms, 기본: 120000)')
 
     # inspect 명령어
     inspect_parser = subparsers.add_parser('inspect', help='URL 인덱싱 상태 검사')
