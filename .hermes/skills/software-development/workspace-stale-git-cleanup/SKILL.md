@@ -33,6 +33,33 @@ Distinguish carefully between these two user intents:
 
 If the user is currently inside a repo and the phrasing mentions `this repo`, prefer repo-local interpretation even if the word `workspace` appears.
 
+### After `git fetch --prune` the `[gone]` tracking marker disappears
+
+In repos with heavy squash-merge workflows, `git fetch --prune origin` removes the remote-tracking branch entirely. Once that happens, the local branch's `[gone]` marker is gone too — `git branch -vv` may show the branch with no upstream annotation at all, or with a different upstream name than expected.
+
+This makes purely `[gone]`-based classification unreliable after a fetch.
+
+**Correct stale signal after prune:**
+- the branch has no open PR (cross-check with `gh pr list`)
+- the branch was the head of a merged-closed PR (cross-check with `gh pr list --state closed`)
+- the branch's local tip is an ancestor of `origin/main` OR its unique diff versus `origin/main` is empty
+
+Example from this repo: after `git fetch --prune`, a branch like `feat/blog-public-release` lost its `[origin/feat/blog-public-release: ahead 1, behind 32]` annotation entirely, but the open PR was still live. The correct signal was the open PR check, not the upstream state.
+
+### Long-lived open PR worktrees and repeated cleanup cycles
+
+In PR-heavy repos, the same open PR worktrees survive across many cleanup cycles (days or weeks). On each repeated `workspace 정리` request, the standard discovery pass (`git fetch --prune`, `gh pr list`, `git worktree list`) may show identical results.
+
+**When all open PRs are still open, the correct response is to report no stale items**, not to re-classify the same live worktrees as stale.
+
+However, between cycles the following can change:
+1. A previously open PR gets merged → its worktree becomes stale
+2. A new merged PR creates a new local branch/worktree not in the previous cycle
+3. A new open PR creates a new worktree (sometimes outside `.worktrees/`)
+4. `origin/main` advances → root main needs fast-forward
+
+Recommendation: on each cleanup request, always re-run `git fetch --prune`, query open PRs, query closed/merged PRs for any local branches not in the open list, and check root main fast-forward before declaring nothing to do.
+
 ## Safety rules
 
 1. Do not delete the current checked-out branch.
