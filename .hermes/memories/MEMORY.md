@@ -226,8 +226,8 @@ corp-web-japan main requires `Detect changed scope`, but ci.yml pull_request ign
 §
 Mac Studio LLM1 is `qp-test@10.11.1.11` (`Mac-Studio-LLM1.local`). Existing runner dirs: `/Users/qp-test/actions-runner` chequer-io native launchd, `/Users/qp-test/Workspace/github-runner` chequer-io Docker ARM64. QueryPie runners are installed at `/Users/qp-test/Workspace/github-runners-for-querypie-org`: 6 Linux ARM64 Compose runners, group `mac-studio-llm1-linux-arm64`, all `purpose:ci`, runners 1-3 also `purpose:build`.
 §
-In skills-jk repeated local-sweep cleanup, if requested scoped files (.hermes/config.yaml, .hermes/memories/MEMORY.md, USER.md) are already identical to latest main but the session creates skill-library residue, split that into a narrow follow-up PR instead of claiming the scoped PR changed.
-§
 In corp-web-app PR follow-up, `/[locale]/t` preview routes are additive review entrypoints; they must not modify existing public home route files or add new public locale entries unless explicitly requested, and tests should mirror route paths.
 §
 In corp-web-app route-local routing, the user prefers unprefixed English public URLs (e.g. /plans, /plans/aip, /company/contact-us) to be handled by middleware default-locale rewrite to internal /en/... [locale] routes, instead of separate src/app/<path>/page.tsx or page-compatibility route.ts files; non-English default-path requests should still redirect to /ko or /ja canonical paths.
+§
+In querypie-mono runner ops: L2 SSH `ubuntu`, L3 native `deploy`. Cleanup assumes `runner:<name>` labels exist; manual cleanup accepts `runner_names` JSON array and schedules matrix jobs directly on those labels. Retention stays in script defaults/env.
