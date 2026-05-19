@@ -16,10 +16,29 @@ References:
 - `references/gsc-indexing-api-and-sitemap-refresh.md` — API capability limits, sitemap refresh workflow, issue-level validation restart workflow, and OAuth/browser-session pitfalls.
 - `references/gsc-all-site-validation-cli.md` — pattern for a CLI that discovers all managed GSC properties and runs Page indexing issue validation across them safely.
 - `references/gsc-frontend-session-cli.md` — pattern for replacing repeated Chrome/CDP control with a one-time cookie/WIZ-token export and direct frontend HTTP calls.
+- `references/gsc-validate-cli-regression.md` — regression checklist for exact `validate-index-issues` CLI UX, actionable status filtering, browser-click reliability, and partial-success reporting.
 
 ## Goal
 
 Prove the root cause with live evidence, not just Search Console wording. When the task is an indexing-refresh request, first clarify whether the user wants URL-level Request indexing or issue-level validation restart. For this user, do not default to URL-by-URL bulk Request indexing for docs/sites; prefer the Page indexing issue table workflow when they refer to “Why pages aren’t indexed” or validation pages.
+
+## GSC site-by-site indexing status audit workflow
+
+When the user asks for indexing error/status by site/property (without asking to start validation):
+
+1. Enumerate the accessible properties before summarizing.
+   - Open the Search Console property selector and capture both URL-prefix and `sc-domain:*` properties.
+   - Treat Domain properties as aggregate/overlapping views; prefer URL-prefix properties for actionable site-by-site counts, and label Domain rows as aggregate to avoid double-counting.
+
+2. Visit each property’s Page indexing report directly.
+   - Use `https://search.google.com/search-console/index?resource_id=<encoded property>` for each property.
+   - Wait for `Why pages aren’t indexed` / `Not indexed` and capture: Last update, Indexed, Not indexed, reason, source, validation, pages.
+   - Report reason-level counts instead of exporting or listing huge URL samples unless root-cause verification is requested.
+
+3. Prioritize findings in the summary.
+   - Call out high-volume `Not found (404)`, `Page with redirect`, `Crawled - currently not indexed`, `Blocked by robots.txt`, and any `Excluded by ‘noindex’ tag` rows.
+   - Distinguish `Started` validations from `Failed`/`Not Started`; do not restart validations unless the user explicitly asks for action.
+   - For app/private/support/trust-style properties with tiny counts or intentionally non-public content, note that they may be lower priority rather than treating every exclusion as equally urgent.
 
 ## GSC issue-level validation workflow
 
@@ -40,10 +59,18 @@ When the user points to `https://search.google.com/search-console/index?...`, me
    - GSC is a SPA; after navigation, wait for the `Validation details` heading and either `START NEW VALIDATION` or a terminal/started validation state, not just any text containing “Validation”.
    - If using Chrome DevTools Protocol, multiple old Search Console tabs can be open. Prefer a fresh tab or activate/bring the selected target to front; otherwise a background/stale tab may show only partial “Examples” content and hide the start button.
    - `wait_for` text can time out even when the page updates; take a fresh snapshot before concluding failure.
+   - DOM `button.click()` is not always equivalent to a user click in GSC. Prefer a CDP/Playwright-style mouse click at the `START NEW VALIDATION` button center, then verify the post-click state.
 
-4. Verification.
+4. CLI regression checks when maintaining automation.
+   - Preserve the exact user-facing command name the user tried, such as `validate-index-issues`; do not force them onto only longer internal subcommands.
+   - Keep action runs limited to actionable validation states (`Failed`, `Not Started`) unless the user explicitly asks for already-passed or non-actionable rows.
+   - Propagate nested per-issue failures to a non-zero process exit. Never summarize a site as OK if one of its issue validations failed.
+   - See `references/gsc-validate-cli-regression.md` for a compact regression checklist.
+
+5. Verification.
    - Return to the Page indexing table and confirm every intended issue row is `Started`, `Passed`, or otherwise intentionally skipped.
    - Report issue reasons and page counts, not a huge URL list.
+   - If a bulk/all-site run was partial, explicitly separate confirmed `Validation started` rows from CLI/browser failures; do not present a partial run as all-site success.
 
 ## GSC API / CLI indexing-refresh workflow
 

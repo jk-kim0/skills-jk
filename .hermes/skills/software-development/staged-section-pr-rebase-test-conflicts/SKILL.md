@@ -49,6 +49,8 @@ If earlier sibling PRs added tests for sections A and B, and the current PR adds
 - not just C
 - and not an older variant of A/B from before those sibling PRs merged
 
+The same additive rule applies to shared category/sidebar data files, not only tests. Example: if latest `main` already added an `events` resource category and the current PR adds `tutorials`, the resolved `resource-category-data.ts` should keep `events` and add `tutorials`; when flattening the current PR before the parent is merged, keep only the current PR's category so the PR remains independent.
+
 ## Why this matters
 
 In staged route-local authoring work, the implementation files can be independent enough to rebase cleanly, but the shared structure test file becomes an append-only hotspot. Treat the conflict as a merge of assertion coverage, not a choice between branches.

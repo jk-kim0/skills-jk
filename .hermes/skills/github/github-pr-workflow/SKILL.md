@@ -219,6 +219,13 @@ Issue-linking and closing rule:
 - If you already opened a PR with an auto-closing keyword by mistake, edit the PR body immediately to remove it before merge.
 - When in doubt, leave issue closure to a separate explicit user decision or a later manual issue comment.
 
+Stacked split-PR rule for foundation + first usage:
+- If the user asks for a reusable/foundation change and then a separate first application of that foundation, make two PRs instead of bundling them.
+- PR 1 targets `main` and contains only the shared component, primitive, infrastructure, or other foundation change.
+- PR 2 targets PR 1's branch and contains only the usage/application change.
+- In PR 2's body, explicitly state `Base branch: <parent-branch>` and `Parent PR: #<number>` so reviewers understand the stacked base.
+- Verify PR 2's scoped diff against the parent branch (`git diff --stat origin/<parent-branch>...HEAD`), not only against `origin/main`, so the parent foundation diff is not mistaken for part of the child PR.
+
 Important temp-file safety rule:
 - Prefer a repo-external temp path such as `/tmp/pr-body.md` or another absolute temp location.
 - Do **not** default to writing PR/issue body drafts inside the repository or worktree root (for example `.tmp-pr-body.md`) unless you intentionally want that file tracked.
@@ -645,6 +652,8 @@ gh pr view <branch-name> --json number,title,url,headRefName,baseRefName,state
      ```
    - This is especially useful when updating multiple stacked branches quickly and one branch appears to vanish or lose its expected base.
    - If you flatten a formerly stacked PR directly onto `main`, immediately rewrite the PR title/body so they no longer claim an old parent branch or parent PR. A common stale-state bug is: the code/base are already `main`-based, but the PR body still says `base branch: <old-parent-branch>` or `parent PR: #...`, which misleads reviewers.
+   - When flattening a chain of open stacked PRs that should be independent, do not blindly rebase every head branch with its full stacked history. First inspect each PR with `gh pr view <n> --json headRefName,baseRefName,commits,files` and identify the commit/files that belong only to that PR. If a PR's diff includes parent/sibling files, recreate that PR branch from current `origin/main` and cherry-pick only the intended commit(s), then force-push back to the same head branch and edit the PR base to `main`. Verify every flattened PR with `git merge-base origin/main origin/<branch>` equals `origin/main`, `git rev-list --left-right --count origin/main...origin/<branch>` reports `0 1` (or the expected independent commit count), and `gh pr view <n> --json files,commits,baseRefName,assignees` shows only that PR's scoped files. Add requested assignees during the same sweep, e.g. `gh pr edit <n> --base main --add-assignee <login>`.
+   - During a multi-PR flatten/rebase sweep, `origin/main` can advance while you are working because an earlier PR in the set merges. After force-pushing the batch, fetch again and re-run the merge-base / left-right-count checks against the new `origin/main`; if counts show `1 1` instead of `0 1`, rebase the rewritten branches once more onto the updated main before reporting completion.
    - When a stacked parent PR is squash-merged and its branch is deleted, the child PR may automatically retarget to `main` while its head still contains the parent's original, now-unmerged-by-SHA commit. Symptom: `gh pr view <child> --json baseRefName,commits` shows `baseRefName=main` and both the parent original commit plus the child commit. Fix by rebasing the child with `git rebase --onto origin/main <original-parent-commit-sha> <child-branch>`, then force-push and update the PR body to remove stacked-parent language. Verify with `git rev-list --oneline origin/main..HEAD` and `gh pr view <child> --json commits,files,baseRefName` before reporting success.
    - Important recovery pattern for existing open PRs: GitHub can still show an open PR with `headRefName` / prior `headRefOid` metadata even when the actual remote head branch ref is gone. Practical symptom set:
      ```bash
@@ -711,6 +720,9 @@ gh pr view <branch-name> --json number,title,url,headRefName,baseRefName,state
   - Default to a full branch-hygiene pass unless the user narrows scope:
     - inspect review comments, CI failures, and `mergeStateStatus`
     - when asked to sweep open PRs for conflicts/CI failures, do not stop after repairing the first PR. After each push, re-run the open-PR scan for `mergeStateStatus=DIRTY` and failed check conclusions (`FAILURE`, `ERROR`, `ACTION_REQUIRED`) because another open PR may become visible as conflicted once GitHub state refreshes or after the first branch is updated.
+    - when the user gives a PR number as a lower bound such as "PR 750 and later open PRs", first classify that boundary PR's state. If the boundary PR is already `MERGED`, treat it as context/baseline only and sweep the subsequent open PRs rather than trying to revive its deleted branch.
+    - before editing code for a failing open PR, compare every target branch's merge-base against current `origin/main`. A branch that is one or more commits behind latest main can fail deploy/build because it lacks a shared component or helper that already landed on main; the correct fix is often a clean rebase/force-with-lease push, not duplicating the missing file or changing product code.
+    - after rebasing a multi-PR batch, verify `git ls-remote` head SHA, `gh pr view .headRefOid`, `git merge-base origin/main origin/<branch>`, `git rev-list --left-right --count origin/main...origin/<branch>`, required checks, and deploy/Vercel status for each PR. Also repair small PR metadata gaps discovered during the sweep, such as missing assignees, while staying on the existing PRs.
     - if checks are green but `mergeStateStatus=DIRTY`, diagnose it as a latest-main conflict/rebase task rather than a test-failure task
     - inspect the merged PR(s) or commits that advanced `origin/main` across the conflicted files, preserve their intent, and reapply only the open PR's intended delta
     - when a merged PR intentionally removed UI/copy/metadata, preserve the full removal, not only the obvious component deletion. Do not resurrect adjacent deleted lines while resolving conflicts just because they are part of the open PR side's preferred structure. Example: if latest main removed privacy-policy header controls and date metadata, keep both removed; reapply only the shared legal primitive/className changes.
