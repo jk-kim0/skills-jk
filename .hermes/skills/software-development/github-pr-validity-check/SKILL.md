@@ -143,12 +143,23 @@ For the verdict, gather several of:
   - when the user asks for visual parity on a specific migrated route, open the exact preview route URL itself, not just the preview site root
   - if that exact route returns 404 / deployment-not-found / missing page, treat that as evidence that the PR is not a valid visual-implementation PR for the requested target
   - separate `preview exists` from `requested route is implemented in preview`; they are not the same thing
+- Reference-implementation port completeness rule:
+  - when a PR claims to port or align with another repository/component implementation, do not audit only top-level markup or style/class names
+  - compare the full implementation contract: runtime interactions, client components/hooks, nested helper components, required public assets, icon dependencies, scroll/focus/active states, share/copy behavior, and data-model adaptations
+  - if only className/style structure was copied while interactive components or assets were left behind, classify the PR as incomplete even if the visual shell superficially matches
+  - when fixing an existing PR after this finding, update the same PR branch and PR body to state exactly which reference files/contracts were ported
 - Metadata/content parity PR review rule:
   - verify metadata claims against the live rendered HTML, not only route-local source. Extract `document.title`, `meta[property="og:title"]`, and `meta[name="description"]` for each affected locale.
   - compare exact strings, including punctuation and separators. Example pitfall: Japanese title `QueryPie AI: 認証` is not equivalent to `QueryPie AI 認証`.
   - separate production-parity fixes from independent content corrections. If production has the same bad visible copy as stage, do not describe the change as parity; classify it as a content correction and update the PR body accordingly.
   - when latest `origin/main` already contains part of the PR's claimed fix, reset/rebase the PR branch onto latest main and keep only the remaining true delta. Refresh tests, title, and body so the PR does not keep claiming already-merged EN/KO or unrelated changes.
   - for card/list content fixes, update the relevant test mock so it renders the changed fields (not only labels). A test that mocks cards as labels-only cannot catch description regressions such as an ISMS-P card accidentally duplicating ISO 22301 copy.
+- Sibling-repo reference / Tailwind migration PR review rule:
+  - when a PR claims it copied or aligned with a sibling repository implementation, inspect the exact referenced source file and compare it against the PR head, not only the PR description.
+  - then compare the PR head against the target repository's pre-existing UI contract: design tokens, CSS variables, global resets, asset paths, component primitives, interaction behavior, and route/link conventions.
+  - flag mechanical className copying as a validity risk when it replaces target-repo semantic tokens with sibling-repo hardcoded colors, Tailwind default palettes, or spacing assumptions.
+  - check copied asset references explicitly in the target repository's `public/` tree. A source-repo asset path that does not exist in the target repo is evidence that the implementation was not properly ported.
+  - distinguish `source was referenced` from `source was properly adapted`. A PR can truthfully mirror many classes from the source repo while still being invalid because it changes target-repo UI behavior or breaks target assets.
 - Important "check not completed yet" investigation pattern for PRs with deploy checks:
   - do not conclude too early from a `pending` PR check; first inspect whether the PR head was just updated and a replacement run has only just started
   - compare PR `updatedAt`, head SHA, and the current workflow run `createdAt`/`status` before calling the check stuck

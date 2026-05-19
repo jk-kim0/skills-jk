@@ -24,11 +24,37 @@ Trigger: user asks to compare stage and production URLs, or asks to fix UI discr
 4. Capture full-page screenshots (this avoids sticky headers looking like mid-page bugs).
 5. Run automated probes (see `references/stage-production-audit-checklist.md`).
 6. Compare computed styles before declaring a layout bug.
+   - Always include `getComputedStyle(document.documentElement).fontSize` at the same viewport width for both pages. A responsive root rem difference (for example 16px vs 15px or 14px) scales all rem-based typography, gaps, padding, radii, and icon boxes; do not misdiagnose that as many independent component regressions.
+   - If one repo intentionally keeps a constant 16px root and another has responsive `html { font-size: ... }` breakpoints, quantify the global rem impact before proposing a local CSS fix. See `references/root-rem-breakpoint-parity.md`.
 7. When the user names a specific mismatch (for example "H1 heading and lead description spacing"), measure that exact element pair with DOM geometry before changing anything. Also measure the nearest semantic/container wrapper (section/hero/content) and its computed padding/margins, because the heading and lead typography/gap can match while the parent section offset differs. Do not infer the fix from downstream landmarks such as card-grid start position.
 8. For multi-element sections such as CTAs, measure each internal landmark separately: section top, heading-to-heading gap, final heading-to-button gap, alignment, and button width. Do not assume matching text means matching UI.
-9. Build a full-page landmark inventory before reporting completion: hero, lead, primary content/cards, page-local CTA, global bottom CTA, footer. Route-local rewrites can preserve the main content while silently dropping downstream layout components such as `DownloadBottom` / `Stop Thinking. Start Transforming.`.
+9. For interactive controls inside those sections, measure every relevant state before claiming parity: normal, hover when applicable, programmatic `:focus`, keyboard `:focus-visible`, active/pressed if present, SVG child/path computed fill/stroke, and pseudo-elements. A CTA button is not visually matched until its icon color and focus ring/glow behavior match the reference, not only its normal-state size/background.
+   - Measure typography at the correct internal element level, not only the clickable wrapper. For CTA/button parity, record both the anchor/button computed font/line-height and the visible text span's computed font/line-height, plus padding, gap, border radius, icon wrapper size, and SVG/path fill. A wrapper can be `16px/16px` while the text span is `15px/22px`.
+   - Re-measure the current live page and the current preview/deploy URL at the same viewport/root font-size before follow-up claims. Do not reuse an earlier scaled measurement or mix reference states from different deploys; if root font-size or viewport changed, all rem-derived values such as padding, gap, radius, and icon box need a fresh comparison.
+   - Before cloning or approximating CSS for a button/CTA, search the current repo for a known-good rendered instance and reuse its shared primitive when possible. In corp-web-app, a correctly rendered bottom CTA such as `Stop Thinking. Start Transforming.` may be implemented through `DownloadBottom` + `ButtonLink variant="gradation" size="lg"`; if that canonical path exists, make the new CTA use the same component/CSS instead of copying button/icon/focus styles into a route-specific or section-specific module. CSS cloning is a parity risk because it can miss nested icon fill rules, hover gradients, and browser focus/glow behavior.
+   - Before porting a Tailwind/className implementation from a sibling repo such as corp-web-japan into corp-web-app, verify the target repo actually has Tailwind in its build pipeline: `package.json` dependencies, `package-lock.json`, `postcss.config.mjs`, and `src/app/globals.css` imports. If Tailwind is absent, do not rewrite UI with Tailwind classes in the feature PR; either use the target repo's existing styling system for the immediate parity fix, or split a separate Tailwind foundation PR before a Tailwind-based page migration.
+   - When parity target is an existing live querypie.com page, measure that live page directly and treat its computed values as the contract. Avoid approximate scaled values copied from corp-web-japan or inferred rem conversions if live metrics show exact values such as `60px/72px` headings, `120px` icons, or two stacked headings with a `20px` gap. See `references/corp-web-app-certifications-live-metric-parity.md`.
+10. Build a full-page landmark inventory before reporting completion: hero, lead, primary content/cards, page-local CTA, global bottom CTA, footer. Route-local rewrites can preserve the main content while silently dropping downstream layout components such as `DownloadBottom` / `Stop Thinking. Start Transforming.`.
+10. Build a full-page landmark inventory before reporting completion: hero, lead, primary content/cards, page-local CTA, global bottom CTA, footer. Route-local rewrites can preserve the main content while silently dropping downstream layout components such as `DownloadBottom` / `Stop Thinking. Start Transforming.`.
 10. Explicitly check background visual layers for major sections, especially hero sections: compare computed `backgroundImage`, `backgroundColor`, pseudo-element backgrounds, absolutely positioned decorative images, gradient overlays, and section wrapper assets. Do not stop at text/media geometry; a page can match hero copy and screenshot sizes while still missing a production gradient background image layer.
 11. Inspect source content data for copy/description mismatches.
+12. For MDX/publication detail parity, explicitly check whether the target renders raw MDX/JSX text. Literal tags such as `<Box>`, `<ArticleFileImage>`, `<br />`, or markdown links in the visible body mean the route is a body-preview stub, not a publication renderer. In that case, inspect the route for direct `{post.body}` / `renderBodyPreview` usage and fix it by evaluating MDX with the appropriate component map and composing the full article layout (hero, body images, TOC, related/sidebar CTAs), rather than patching typography around the raw text.
+
+## Cross-repo Tailwind port pitfall
+
+When comparing a page ported from another repository, especially `corp-web-japan` → `corp-web-app`, do not stop at matching JSX or Tailwind `className` strings. A reference implementation's visual output may depend on global CSS cascade layers, root route shell, header/footer wrappers, fonts/theme variables, sibling client components, and static assets. If the user says to reference or bring over the sibling implementation, treat that as the full rendered implementation contract: UI, layout shell, global CSS assumptions, interactions/client components, assets, and route-specific behavior.
+
+Required checks before declaring the port faithful:
+
+1. Open the exact Preview URL and exact reference URL in the browser.
+2. Compare computed styles for the main section and its ancestors: `padding`, `margin`, `width`, `maxWidth`, `top`, `fontFamily`, and root/body font settings.
+3. Verify that Tailwind utilities actually win in computed style, not just that the class names and CSS rules exist.
+4. Inspect global resets. In Tailwind v4, an unlayered reset such as `* { padding: 0; margin: 0; }` can override `@layer utilities`; the reference repo may put reset/base rules inside `@layer base` so utilities win.
+5. Trace the full implementation dependency graph: component file, sibling client components, assets, route shell, layout wrappers, fonts, theme tokens, and global CSS layer contract.
+6. If the target repo has an unlayered reset but the task is a scoped page/PR migration, do not bundle a global `@layer base` reset conversion into the feature PR. Add route-scoped CSS Module overrides for the reset-invalidated spacing, verify computed styles, and leave the global reset conversion for a separate visual-risk PR.
+
+See `references/corp-web-app-tailwind-port-cascade-pitfall.md` for a concrete corp-web-app/corp-web-japan failure mode and browser probe.
+See `references/corp-web-app-tailwind-route-scoped-reset-workaround.md` for the safe interim route-scoped CSS Module pattern when global reset conversion is too broad for the current PR.
 
 ## Common false positives
 
@@ -61,11 +87,17 @@ See `references/headless-chrome-cdp-style-probe.md` for a concise reusable Node/
 
 - URLs, viewport sizes, scrollY values
 - JSON from `evaluate_script` probes
-- Screenshot paths
-- Fixes made and intentional differences
+Keep evidence of compared URLs, viewports, screenshots, observed differences,
+fixes, and intentional differences.
+
+Reference example:
+- `references/corp-web-app-certifications-live-metric-parity.md` captures a concrete corp-web-app case where subtle live-page drift required measuring H1 typography, lead line-height, certification card/icon dimensions, and stacked CTA heading gaps directly in the browser.
 
 ## References
 
 - [Stage ↔ Production Audit Checklist](references/stage-production-audit-checklist.md) — step-by-step probes and common false positives.
+- [Raw MDX preview vs publication rendering](references/raw-mdx-preview-vs-publication-rendering.md) — pitfall and fix pattern for routes that display literal MDX/JSX instead of the live article layout.
 - [Cookie preference H1/lead gap parity case](references/cookie-preference-heading-gap.md) — corp-web-app example where production used a shared `Box` `gapSize="sm"` wrapper while stage used a plain section, causing a 0px vs 20px H1-to-lead gap.
 - [Hero background layer miss](references/hero-background-layer-miss.md) — lesson and probe for avoiding missed live hero gradient/background-image layers when foreground geometry appears similar.
+- [Simple CTA parity lesson](references/simple-cta-parity-lesson.md) — bottom CTA landmark and nested button measurement checklist from a corp-web-app Simple CTA transfer/application follow-up.
+- [Root rem breakpoint parity](references/root-rem-breakpoint-parity.md) — checklist and impact math for responsive `html` root font-size differences such as corp-web-app 15px/14px breakpoints versus corp-web-japan's constant 16px root.

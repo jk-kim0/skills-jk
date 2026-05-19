@@ -235,6 +235,7 @@ search_files("similar_pattern", path="src/", file_glob="*.py")
 - If implementing a pattern, read the reference implementation COMPLETELY
 - Don't skim — read every line
 - Understand the pattern fully before applying
+- For cross-repository UI ports, trace the full implementation contract, not only the component file: route shell, layout wrappers, global CSS cascade/layers, theme/font variables, sibling client components, and static assets. Matching JSX/className strings is not proof of a faithful port; verify browser computed styles on the exact reference and target URLs.
 
 ### 3. Identify Differences
 
