@@ -141,17 +141,20 @@ class CdpClient {
   }
 
   async evaluate(fn, arg, sessionId = undefined) {
-    const expression = `(${fn})(${JSON.stringify(arg)})`;
     const result = await this.send('Runtime.evaluate', {
-      expression,
+      expression: `(${fn})(${JSON.stringify(arg)})`,
       awaitPromise: true,
       returnByValue: true,
       timeout: 180000,
     }, sessionId);
-    if (result.exceptionDetails) {
-      throw new Error(result.exceptionDetails.text || JSON.stringify(result.exceptionDetails));
-    }
+    if (result.exceptionDetails) throw new Error(result.exceptionDetails.text || JSON.stringify(result.exceptionDetails));
     return result.result ? result.result.value : undefined;
+  }
+
+  async clickPoint(x, y, sessionId = undefined) {
+    await this.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y, button: 'none' }, sessionId);
+    await this.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1 }, sessionId);
+    await this.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', buttons: 0, clickCount: 1 }, sessionId);
   }
 
   close() {
@@ -304,6 +307,11 @@ async function navigateAndWait(client, sessionId, url, timeoutMs = 45000) {
   await sleep(1000);
 }
 
+function isActionableValidationStatus(status) {
+  const normalized = String(status || '').toLowerCase();
+  return normalized === 'failed' || normalized === 'not started';
+}
+
 function scrapeIndexIssuesPage(input) {
   const normalize = (value) => String(value || '').replace(/\s+/g, ' ').trim();
   const rows = Array.from(document.querySelectorAll('tr[data-rowid]'));
@@ -360,12 +368,21 @@ function readValidationPage(input) {
   };
 }
 
-function clickStartValidation(input) {
+function getStartValidationButtonRect(input) {
   const normalize = (value) => String(value || '').replace(/\s+/g, ' ').trim();
   const button = Array.from(document.querySelectorAll('button')).find((candidate) => normalize(candidate.innerText).toUpperCase() === 'START NEW VALIDATION');
   if (!button) return { ok: false, message: 'START NEW VALIDATION button not found', href: location.href };
-  button.click();
-  return { ok: true, href: location.href };
+  button.scrollIntoView({ block: 'center', inline: 'center' });
+  button.focus();
+  const rect = button.getBoundingClientRect();
+  return {
+    ok: true,
+    href: location.href,
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2,
+    width: rect.width,
+    height: rect.height,
+  };
 }
 
 async function runIndexIssueValidations(client, sessionId, args) {
@@ -382,9 +399,11 @@ async function runIndexIssueValidations(client, sessionId, args) {
   const onlyStatus = args.onlyStatus ? args.onlyStatus.toLowerCase() : null;
   let candidates = scraped.issues.filter((issue) => {
     if (!issue.pages || issue.pages <= 0) return false;
-    if (!args.includeStarted && issue.validation.toLowerCase() === 'started') return false;
-    if (!onlyStatus || onlyStatus === 'all') return true;
-    return issue.validation.toLowerCase() === onlyStatus;
+    const validation = issue.validation.toLowerCase();
+    if (!args.includeStarted && validation === 'started') return false;
+    if (!onlyStatus) return isActionableValidationStatus(issue.validation);
+    if (onlyStatus === 'actionable' || onlyStatus === 'all') return isActionableValidationStatus(issue.validation);
+    return validation === onlyStatus;
   });
   if (Number.isFinite(args.limit)) candidates = candidates.slice(0, args.limit);
 
@@ -412,9 +431,9 @@ async function runIndexIssueValidations(client, sessionId, args) {
         const headings = Array.from(document.querySelectorAll('h1')).map((h) => normalize(h.innerText));
         const buttons = Array.from(document.querySelectorAll('button')).map((button) => normalize(button.innerText).toUpperCase());
         const body = document.body.innerText;
-        const ready = headings.includes('Validation details') && (buttons.includes('START NEW VALIDATION') || /Validation\s+(started|passed)/i.test(body));
+        const ready = headings.includes('Validation details') && (buttons.includes('START NEW VALIDATION') || /Validation\s+(started|passed|failed)/i.test(body));
         return { ok: ready, href: location.href, headings, hasStart: buttons.includes('START NEW VALIDATION') };
-      }, {}, 45000, 1000);
+      }, {}, 120000, 1000);
       const before = await client.evaluate(readValidationPage, {}, sessionId);
       if (!before.hasStartButton) {
         const result = { ...issue, itemKey, submitted: false, skipped: true, before };
@@ -423,8 +442,9 @@ async function runIndexIssueValidations(client, sessionId, args) {
         results.push(result);
         continue;
       }
-      const clickResult = await client.evaluate(clickStartValidation, {}, sessionId);
-      if (!clickResult.ok) throw new Error(clickResult.message || 'could not click START NEW VALIDATION');
+      const clickTarget = await client.evaluate(getStartValidationButtonRect, {}, sessionId);
+      if (!clickTarget.ok) throw new Error(clickTarget.message || 'could not locate START NEW VALIDATION');
+      await client.clickPoint(clickTarget.x, clickTarget.y, sessionId);
       await waitForCondition(client, sessionId, () => {
         const body = document.body.innerText;
         return { ok: /Validation\s+started/i.test(body) || !body.includes('Processing state update'), text: body.slice(0, 500), href: location.href };
@@ -446,6 +466,7 @@ async function runIndexIssueValidations(client, sessionId, args) {
   const skipped = results.filter((r) => r.skipped).length;
   const failed = results.length - ok - skipped;
   console.log(JSON.stringify({ summary: { total: results.length, started: ok, skipped, failed }, results }, null, 2));
+  if (failed) process.exitCode = 1;
 }
 
 async function main() {
