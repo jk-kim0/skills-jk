@@ -18,7 +18,7 @@ function usage() {
   gsc-browser-indexing --probe
 
 Options:
-  --site URL        GSC property URL, e.g. https://docs.querypie.com/
+  --site URL        GSC property URL, e.g. https://docs.querypie.com/ (repeatable for --index-issues)
   --url URL         Single URL to inspect/request
   --file PATH       Newline-delimited URL list
   --submit          Actually submit the selected action
@@ -28,7 +28,9 @@ Options:
   --only-status S   Only process issue rows with this validation status (default: Failed)
   --include-started Include rows already in Started validation state
   --limit N         Max URLs from --file or max issue rows from --index-issues
-  --delay-ms N      Delay between URLs (default: 15000)
+  --delay-ms N      Delay between URLs/issues (default: 15000)
+  --site-delay-ms N Delay between repeated --site entries for --index-issues (default: 3000)
+  --connect-timeout-ms N Chrome DevTools approval/connect timeout (default: 120000)
   --port N          Chrome remote debugging port (default: 9222)
   --target URL      Existing GSC tab URL hint (default: search-console)
   --probe           Verify a debuggable, logged-in GSC tab is reachable
@@ -41,7 +43,7 @@ Notes:
 }
 
 function parseArgs(argv) {
-  const args = { port: DEFAULT_PORT, delayMs: 15000, submit: false, probe: false, target: 'search-console', indexIssues: false, onlyStatus: 'Failed', includeStarted: false };
+  const args = { port: DEFAULT_PORT, delayMs: 15000, siteDelayMs: 3000, connectTimeoutMs: 120000, sites: [], submit: false, probe: false, target: 'search-console', indexIssues: false, onlyStatus: 'Failed', includeStarted: false };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--help' || a === '-h') args.help = true;
@@ -50,11 +52,17 @@ function parseArgs(argv) {
     else if (a === '--index-issues') args.indexIssues = true;
     else if (a === '--include-started') args.includeStarted = true;
     else if (a === '--only-status') args.onlyStatus = argv[++i];
-    else if (a === '--site') args.site = argv[++i];
+    else if (a === '--site') {
+      const site = argv[++i];
+      args.site = site;
+      args.sites.push(site);
+    }
     else if (a === '--url') args.url = argv[++i];
     else if (a === '--file') args.file = argv[++i];
     else if (a === '--limit') args.limit = Number(argv[++i]);
     else if (a === '--delay-ms') args.delayMs = Number(argv[++i]);
+    else if (a === '--site-delay-ms') args.siteDelayMs = Number(argv[++i]);
+    else if (a === '--connect-timeout-ms') args.connectTimeoutMs = Number(argv[++i]);
     else if (a === '--port') args.port = Number(argv[++i]);
     else if (a === '--target') args.target = argv[++i];
     else throw new Error(`Unknown argument: ${a}`);
@@ -93,19 +101,28 @@ async function getBrowserWebSocketUrl(port) {
 
 function selectSearchConsoleTarget(targets, hint) {
   const infos = targets.targetInfos || targets;
-  const pages = infos.filter((t) => t.type === 'page' && t.url && t.url.includes('search.google.com/search-console'));
+  const isSearchConsolePage = (target) => {
+    if (target.type !== 'page') return false;
+    const url = String(target.url || '');
+    const title = String(target.title || '');
+    return url.includes('search.google.com/search-console')
+      || (url.includes('accounts.google.com/') && title.includes('Google Search Console'));
+  };
+  const pages = infos.filter(isSearchConsolePage);
   const newestFirst = pages.slice().reverse();
-  const page = newestFirst.find((t) => t.url.includes(hint))
+  const page = newestFirst.find((t) => String(t.url || '').includes(hint))
+    || newestFirst.find((t) => String(t.title || '').includes('Google Search Console'))
     || newestFirst[0];
   if (!page) {
-    throw new Error('No open Search Console tab found in debuggable Chrome. Open https://search.google.com/search-console first.');
+    throw new Error('No open Search Console or Search Console login tab found in debuggable Chrome. Open https://search.google.com/search-console first.');
   }
   return page;
 }
 
 class CdpClient {
-  constructor(wsUrl) {
+  constructor(wsUrl, connectTimeoutMs = 120000) {
     this.wsUrl = wsUrl;
+    this.connectTimeoutMs = connectTimeoutMs;
     this.nextId = 1;
     this.pending = new Map();
   }
@@ -113,7 +130,7 @@ class CdpClient {
   async connect() {
     this.ws = new WebSocket(this.wsUrl);
     await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('Timed out connecting to Chrome DevTools WebSocket')), 30000);
+      const timer = setTimeout(() => reject(new Error('Timed out connecting to Chrome DevTools WebSocket; approve the Chrome remote-debugging prompt once, or relaunch Chrome with a persistent debugging profile.')), this.connectTimeoutMs);
       this.ws.addEventListener('open', () => { clearTimeout(timer); resolve(); }, { once: true });
       this.ws.addEventListener('error', (event) => { clearTimeout(timer); reject(new Error(`WebSocket error: ${event.message || 'unknown'}`)); }, { once: true });
     });
@@ -278,8 +295,10 @@ function gscResourceId(siteUrl) {
   return encodeURIComponent(siteUrl);
 }
 
-function gscValidationResourceId(siteUrl) {
-  return encodeURIComponent(siteUrl).replace(/^https%3A/i, 'https:').replace(/^http%3A/i, 'http:');
+function validationUrlFromDrilldownHref(drilldownHref) {
+  const url = new URL(drilldownHref);
+  url.pathname = '/search-console/index/validation';
+  return url.toString();
 }
 
 async function waitForCondition(client, sessionId, fn, arg = {}, timeoutMs = 30000, intervalMs = 500) {
@@ -368,6 +387,19 @@ function readValidationPage(input) {
   };
 }
 
+function clickSeeDetailsOnDrilldown(input) {
+  const normalize = (value) => String(value || '').replace(/\s+/g, ' ').trim();
+  const target = Array.from(document.querySelectorAll('a, button')).find((candidate) => {
+    const text = normalize(candidate.innerText || candidate.textContent).toUpperCase();
+    const href = candidate.getAttribute && candidate.getAttribute('href');
+    return text === 'SEE DETAILS' || (href && href.includes('/search-console/index/validation'));
+  });
+  if (!target) return { ok: false, href: location.href };
+  target.scrollIntoView({ block: 'center', inline: 'center' });
+  target.click();
+  return { ok: true, href: location.href };
+}
+
 function getStartValidationButtonRect(input) {
   const normalize = (value) => String(value || '').replace(/\s+/g, ' ').trim();
   const button = Array.from(document.querySelectorAll('button')).find((candidate) => normalize(candidate.innerText).toUpperCase() === 'START NEW VALIDATION');
@@ -424,8 +456,16 @@ async function runIndexIssueValidations(client, sessionId, args) {
       });
       const drilldownHref = await client.evaluate(() => location.href, {}, sessionId);
       const itemKey = new URL(drilldownHref).searchParams.get('item_key');
-      const validationUrl = `https://search.google.com/search-console/index/validation?resource_id=${gscValidationResourceId(args.site)}&item_key=${encodeURIComponent(itemKey)}`;
-      await navigateAndWait(client, sessionId, validationUrl);
+      const detailsClicked = await client.evaluate(clickSeeDetailsOnDrilldown, {}, sessionId);
+      if (detailsClicked.ok) {
+        await waitForCondition(client, sessionId, () => {
+          const url = new URL(location.href);
+          return { ok: url.pathname.includes('/index/validation') && Boolean(url.searchParams.get('item_key')), href: location.href };
+        }, {}, 45000, 1000);
+      } else {
+        const validationUrl = validationUrlFromDrilldownHref(drilldownHref);
+        await navigateAndWait(client, sessionId, validationUrl);
+      }
       await waitForCondition(client, sessionId, () => {
         const normalize = (value) => String(value || '').replace(/\s+/g, ' ').trim();
         const headings = Array.from(document.querySelectorAll('h1')).map((h) => normalize(h.innerText));
@@ -474,7 +514,7 @@ async function main() {
   if (args.help) { usage(); return; }
 
   const wsUrl = await getBrowserWebSocketUrl(args.port);
-  const client = new CdpClient(wsUrl);
+  const client = new CdpClient(wsUrl, args.connectTimeoutMs);
   await client.connect();
   let sessionId;
   let target;
@@ -499,7 +539,28 @@ async function main() {
     }
 
     if (args.indexIssues) {
-      await runIndexIssueValidations(client, sessionId, args);
+      const sites = args.sites && args.sites.length ? args.sites : (args.site ? [args.site] : []);
+      if (!sites.length) throw new Error('--site is required');
+      const batchResults = [];
+      for (const [idx, site] of sites.entries()) {
+        args.site = site;
+        if (sites.length > 1) {
+          console.log(`\n${'='.repeat(80)}\n[${idx + 1}/${sites.length}] ${site}\n${'='.repeat(80)}`);
+        }
+        const beforeExitCode = process.exitCode || 0;
+        process.exitCode = 0;
+        await runIndexIssueValidations(client, sessionId, args);
+        const siteExitCode = process.exitCode || 0;
+        batchResults.push({ siteUrl: site, returncode: siteExitCode });
+        process.exitCode = beforeExitCode || siteExitCode;
+        if (idx < sites.length - 1 && args.siteDelayMs) await sleep(args.siteDelayMs);
+      }
+      if (sites.length > 1) {
+        const okCount = batchResults.filter((result) => result.returncode === 0).length;
+        const failCount = batchResults.length - okCount;
+        console.log(JSON.stringify({ summary: { sites: batchResults.length, ok: okCount, failed: failCount }, results: batchResults }, null, 2));
+        if (failCount) process.exitCode = 1;
+      }
       return;
     }
 

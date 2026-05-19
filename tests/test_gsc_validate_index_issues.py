@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 import sys
 import types
 from importlib.machinery import SourceFileLoader
@@ -75,6 +76,7 @@ def test_validate_index_issues_alias_can_build_browser_command() -> None:
         issue_limit=3,
         limit=None,
         delay_ms=250,
+        connect_timeout_ms=120000,
         port=9222,
     )
 
@@ -94,4 +96,59 @@ def test_validate_index_issues_alias_can_build_browser_command() -> None:
         "250",
         "--port",
         "9222",
+        "--connect-timeout-ms",
+        "120000",
     ]
+
+
+def test_validate_index_issues_browser_batch_reuses_one_helper_process() -> None:
+    gsc = load_gsc_module("gsc_validate_browser_batch_test")
+    args = SimpleNamespace(
+        submit=True,
+        only_status="Failed",
+        include_started=False,
+        issue_limit=1,
+        limit=None,
+        delay_ms=250,
+        site_delay_ms=500,
+        connect_timeout_ms=120000,
+        port=9222,
+    )
+
+    cmd = gsc.build_validate_index_issues_browser_batch_cmd(
+        args,
+        ["https://docs.querypie.com/", "https://querypie.ai/"],
+    )
+
+    assert cmd.count("--site") == 2
+    assert "https://docs.querypie.com/" in cmd
+    assert "https://querypie.ai/" in cmd
+    assert cmd[-2:] == ["--site-delay-ms", "500"]
+
+
+
+def test_validate_index_issues_site_timeout_returns_process_style_124(monkeypatch, capsys) -> None:
+    gsc = load_gsc_module("gsc_validate_site_timeout_test")
+
+    def fake_run(cmd, timeout=None):
+        assert cmd == ["helper"]
+        assert timeout == 1.5
+        raise subprocess.TimeoutExpired(cmd, timeout)
+
+    monkeypatch.setattr(gsc.subprocess, "run", fake_run)
+
+    assert gsc.run_validate_index_issues_site(["helper"], timeout_ms=1500) == 124
+    assert "timed out after 1500ms" in capsys.readouterr().out
+
+
+def test_browser_helper_reuses_drilldown_resource_id_for_validation_url() -> None:
+    source = (SCRIPT_PATH.parent / "gsc-browser-indexing").read_text()
+
+    assert "function validationUrlFromDrilldownHref(drilldownHref)" in source
+    assert "function clickSeeDetailsOnDrilldown(input)" in source
+    assert "accounts.google.com/" in source
+    assert "Search Console login tab" in source
+    assert "url.pathname = '/search-console/index/validation';" in source
+    assert "const detailsClicked = await client.evaluate(clickSeeDetailsOnDrilldown" in source
+    assert "const validationUrl = validationUrlFromDrilldownHref(drilldownHref);" in source
+    assert "gscValidationResourceId" not in source
