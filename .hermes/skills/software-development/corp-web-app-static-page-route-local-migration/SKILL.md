@@ -94,6 +94,21 @@ When the user explicitly asks to remove the `/t` verification prefix and publish
 
 See `references/public-route-rollout-from-t.md` for the about-us rollout pattern.
 
+## Shared Simple CTA section transfer and application
+
+When the user asks to port a common CTA section from corp-web-japan into corp-web-app, treat it as a reusable component migration first and a page adoption second. If they ask for separate PRs, keep the component/library PR and the route usage PR separate.
+
+Steps:
+
+1. Inspect the source repo implementation named `SimpleCtaSection` and port the component shape into a shared corp-web-app component location; do not invent a new API unless the target repo's primitives require a small adapter.
+2. Inspect `corp-web-contents` source pages such as `/ko/` and `/en/` for bottom CTA behavior above the footer before deciding a corp-web-app route-local page is complete.
+3. For `/{locale}/t/` preview/home pages, ensure the Simple CTA appears as a bottom page landmark immediately before the footer/layout boundary.
+4. Keep route-local copy/composition visible in the page file when route-local authoring applies; the shared component should provide reusable section layout/style, not a hidden marketing copy registry.
+5. Reuse existing corp-web-app button/link primitives for the CTA action when they already match canonical visual behavior, instead of cloning nested button/icon/focus CSS from another repo.
+6. Verify with targeted route/component tests and, for visual acceptance, a browser pass over the exact preview URL.
+
+See `references/simple-cta-section-port-and-preview-application.md` for the PR split, provenance checks, and bottom-of-page verification checklist.
+
 ## Stage vs production parity after route-local conversion
 
 When a user asks to compare a stage route-local page against the production route, verify the rendered page before changing code:

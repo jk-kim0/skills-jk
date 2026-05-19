@@ -1,7 +1,7 @@
 ---
 name: writing-plans
 description: "Write implementation plans: bite-sized tasks, paths, code."
-version: 1.1.0
+version: 1.1.1
 author: Hermes Agent (adapted from obra/superpowers)
 license: MIT
 metadata:
@@ -136,6 +136,28 @@ When the user asks for a plan, planning document, migration plan, audit plan, or
 - It is acceptable to inspect code, run read-only/browser verification, and update the planning document.
 - If the user resolves an open decision during planning, rewrite the plan so the resolved choice appears as a concrete directive in the relevant step/checklist, rather than leaving a separate “decision needed” section.
 - If implementation accidentally starts and the user corrects the scope, revert/remove the out-of-scope implementation artifacts and continue with documentation only.
+
+### Planning framework adoption plus first usage
+
+When planning a repository-wide foundation change and its first concrete usage (for example adding Tailwind CSS and then converting one page to Tailwind classes), split the plan into two PRs unless the user explicitly asks to bundle them:
+
+1. **Foundation PR** — dependencies, build/config files, global imports/token bridges, tiny helper utilities, and minimal smoke verification only. Explicitly forbid production page rewrites in this PR.
+2. **Usage PR** — the individual page/component migration that depends on the foundation. If the foundation PR is still open, document the stacked-base option and parent PR reference; if merged, branch the usage PR from latest main.
+
+The plan document should spell out allowed files, forbidden scope, verification for each PR, and whether the usage PR is stacked or main-based. For CSS framework adoption specifically, include a preflight/global-style risk note and require checking whether the target repo already has the framework pipeline before proposing className-only rewrites.
+
+When the existing app has legacy global resets or CSS Modules, explicitly plan the cascade-layer migration path. Do not treat global reset changes as part of a routine route migration: document whether the first usage PR must use route-scoped CSS Module / stable `data-*` selector corrections while leaving `globals.css` unchanged, then schedule a separate visual-risk PR for moving reset/base rules into the framework layer (for Tailwind v4, usually `@layer base`) and a cleanup follow-up to remove temporary route-scoped corrections. Acceptance criteria should require browser computed-style validation, because className presence and generated CSS rules can still lose to cascade. See `references/css-framework-global-reset-risk.md`.
+
+### Preserve broad migration scope when the first usage is only a pilot
+
+When a user asks for a plan that starts with one page, route, collection, or feature as the first implementation target, do not accidentally narrow the whole plan to that pilot. Explicitly separate:
+
+- **Overall scope** — the full class of pages/routes/collections/surfaces the migration is meant to cover.
+- **First milestone** — the initial page or family chosen because it is urgent, broken, easiest to validate, or provides the reference pattern.
+- **Follow-up sequence** — the remaining families/surfaces in a reviewable order, usually one route family or page group per PR.
+- **Common rules** — behavior that must remain stable across all follow-up PRs, such as route/canonical/sitemap boundaries, CMS-managed surface exclusions, loader/frontmatter preservation, and whether customer-facing copy may mention internal implementation terms.
+
+If the user corrects “this is not only X; it starts with X,” update the plan title, goal, architecture, PR labels, follow-up sections, and acceptance criteria so every part reflects the broader scope. Avoid leaving a document whose title or task headings still imply X-only scope while a small paragraph says otherwise.
 
 ## Writing Process
 

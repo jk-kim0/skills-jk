@@ -225,6 +225,12 @@ Stacked split-PR rule for foundation + first usage:
 - PR 2 targets PR 1's branch and contains only the usage/application change.
 - In PR 2's body, explicitly state `Base branch: <parent-branch>` and `Parent PR: #<number>` so reviewers understand the stacked base.
 - Verify PR 2's scoped diff against the parent branch (`git diff --stat origin/<parent-branch>...HEAD`), not only against `origin/main`, so the parent foundation diff is not mistaken for part of the child PR.
+- When a merged planning/documentation PR explicitly defines a foundation PR followed by a first usage PR, treat the merged PR as context from latest `main`, not as a branch to revive; create PR 1 from `origin/main`, then create PR 2 stacked on `origin/<pr-1-branch>` if PR 1 is still open.
+- If that plan is a living document, update it on the active implementation branches so reviewers can see which planned PRs now exist and how the stacked child relates to the parent.
+- See `references/stacked-plan-execution.md` for the detailed recipe, including lockfile-only dependency updates and worktree-local `node_modules` cleanup after verification.
+- If an open child PR was stacked on a parent/foundation PR that has since landed on `main`, rebuild the same child PR branch on latest `origin/main` so the PR contains only the child patch, then update stale stacked-parent PR body text; use `references/stacked-pr-after-parent-merge.md`.
+- Important distinction: if the user says to “rebase PR A on top of PR B” or “PR A를 PR B 위로 rebase,” do not automatically change PR A's GitHub target/base branch. Rebase the head branch history as requested, but keep the PR base branch unchanged unless the user explicitly asks to retarget the PR. Some review workflows want the branch ancestry stacked while the GitHub target remains `main`.
+- Important: do not change an existing PR's GitHub target/base branch just because the user asks to “rebase it on top of” another PR. Unless the user explicitly says to retarget the PR, keep the PR target branch unchanged (often `main`), rebase only the head branch history, and mention the dependency in the PR body if helpful. Changing the target branch changes review/merge semantics and can be wrong even when the branch ancestry is stacked.
 
 Important temp-file safety rule:
 - Prefer a repo-external temp path such as `/tmp/pr-body.md` or another absolute temp location.

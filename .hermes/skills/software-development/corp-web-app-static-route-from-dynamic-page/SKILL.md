@@ -245,6 +245,34 @@ Core rules:
 
 Reference: `references/archived-index-listing.md`.
 
+## Preview-route component-parity refactor pattern
+
+Use this variant when the user asks to refactor an existing `src/app/[locale]/t/**` verification route to match a corp-web-japan equivalent page or to adopt a shared section primitive such as `simple-cta-section`.
+
+Key rules:
+- Treat the named `/<locale>/t/*` route literally as the target unless the user explicitly asks for public rollout. Do not modify sibling public routes such as `src/app/[locale]/company/certifications/**`, middleware, navigation, sitemap, redirects, or canonicals by implication.
+- Inspect the corp-web-japan equivalent page and copy its component/markup structure conceptually, but adapt imports and styling to corp-web-app conventions such as CSS Modules and existing ButtonLink/FileImage/Image usage.
+- If the equivalent page uses shared primitives that do not exist in corp-web-app, add class-level section primitives under `src/components/sections/**` rather than burying the structure inside the route file or a route-local CSS blob.
+- Keep locale files (`page.en.tsx`, `page.ko.tsx`, `page.ja.tsx`) as the visible authoring surfaces: headings, lead copy, trust-center text, CTA labels, and the `SimpleCtaSection` composition should be readable there.
+- Remove obsolete route-local CSS and wrappers once the page moves to shared section primitives, and update any colocated README/provenance notes so they no longer point at the old widget/render path.
+- Update focused source tests to assert the new primitive usage and the removal of the old route-specific/wrapper implementation, but avoid changing unrelated public-route tests unless public rollout is explicitly in scope.
+
+Reference: `references/preview-route-component-parity-refactor.md` records a certifications verification-route example.
+
+## Locale-prefixed `/t` home public rollout pattern
+
+Use this variant when a corp-web-app home page has already been reviewed under `src/app/[locale]/t/page.tsx` and the user asks to publish/roll out `/ko/t` or `/{locale}/t` to the public locale-prefixed home route.
+
+Proven minimal shape:
+- add `src/app/[locale]/page.tsx` as a thin public entry
+- import the reviewed locale modules from `./t/page.en`, `./t/page.ja`, and `./t/page.ko`
+- generate public canonical metadata as `/${locale}` rather than `/${locale}/t`
+- keep the `/[locale]/t` preview route and preview-route canonical metadata intact unless the user explicitly asks to remove it
+- preserve root `/` dynamic home and production-only `/ja` redirect when they are out of scope
+- update the existing `/[locale]/t/page.test.tsx` or a mirrored test to assert both the new public route contract and the preserved preview contract
+
+Reference: `references/locale-t-home-rollout.md`.
+
 ## Middleware default-locale rewrite variant
 
 Use this variant when the user wants to make `src/app/<path>/page.tsx` unnecessary for an English default route while preserving an unprefixed English canonical URL.
@@ -270,8 +298,9 @@ Reference: `references/default-locale-middleware-rewrite.md`.
 
 ## Verification
 
-Additional reference:
+Additional references:
 - `references/repo-local-skills-and-route-local-authoring.md` records the correction that corp-web-app route-local authoring requires visible locale TSX/JSX composition, not merely JSON-to-object conversion, and notes the `.agents/skills/` discovery pitfall.
+- `references/route-local-shared-section-style-followups.md` records the pattern for small visual follow-ups on route-local pages: change the shared section primitive CSS when the user asks for common-component style changes, keep locale page files content-focused, and assert the CSS contract in a lightweight source test.
 
 Minimum verification without running a dev server:
 Minimum verification without running a dev server:
