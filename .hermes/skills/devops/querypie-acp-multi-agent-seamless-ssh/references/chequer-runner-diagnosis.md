@@ -43,8 +43,23 @@ ssh \
 
 This successfully verified `SVR-L2-RUNNER-4` as `ubuntu` and avoided `qpctl ssh` remote-command argument ordering issues.
 
+## Physical host access and runner placement
+
+Known physical server connections registered in `sec.querypie.io` include `[DC] 10.11.0.11`, `[DC] 10.11.0.12`, `[DC] 10.11.0.13`, `[DC] 10.11.0.14`, and `[DC] 10.11.1.13`. Treat these as QueryPie connection names for physical hosts and verify the actual access account before running diagnostics.
+
+Verified on 2026-05-19 through QueryPie ACP seamless SSH:
+
+| Host | SSH target | Remote hostname | OS | Role |
+| --- | --- | --- | --- | --- |
+| L2 physical host | `ubuntu@10.11.0.12` | `ip-10-11-0-12` | Ubuntu 20.04.6 LTS | KVM host for `SVR-L2-RUNNER-1` through `SVR-L2-RUNNER-6`; `sudo -n virsh list --all` also shows `SVR-L2-RUNNER-7` shut off. |
+| L3 physical host | `ubuntu@10.11.0.13` | `ip-10-11-0-13` | Ubuntu 20.04.6 LTS | Docker host for `SVR-L3-DOCKERIZED-RUNNER-1` through `10` and `SVR-L3-MINI-DOCKERIZED-RUNNER-1` through `5`; `sudo -n virsh list --all` shows legacy `SVR-L3-RUNNER-*` libvirt VMs shut off. |
+| L3 standalone VM 1 | `deploy@10.11.13.2` | `SVR-L3-RUNNER-1` | Ubuntu/Linux x64 | GitHub runner VM. |
+| L3 standalone VM 2 | `deploy@10.11.13.3` | `SVR-L3-RUNNER-2` | Ubuntu/Linux x64 | GitHub runner VM. |
+
+Use the physical hosts only for placement/host-level diagnosis (`virsh list`, `docker ps`, redacted `docker inspect`). Do not stop/restart/delete VMs or containers without explicit approval.
+
 ## Observed access caveat
 
-L2 runner hosts accepted `ubuntu` through QueryPie Seamless SSH in this session. L3 runner hosts were visible in QueryPie and online in GitHub, but `ubuntu` Seamless SSH returned `[QueryPie] Authentication failed`; other tested custom accounts returned `Custom account not supported on seamless SSH`.
+L2 runner hosts accepted `ubuntu` through QueryPie Seamless SSH. L3 standalone runner VMs accepted `deploy` through QueryPie Seamless SSH on 2026-05-19. If `ubuntu` on an L3 standalone runner fails with `[QueryPie] Authentication failed`, use the documented `deploy` account or re-check QueryPie server/account permissions.
 
-Do not encode that as a permanent inability to reach L3. For future sessions, report it as an access/permission state to verify in QueryPie ACP rather than as a host outage.
+Do not encode a transient authentication failure as host outage; report it as an access/permission state to verify in QueryPie ACP.
