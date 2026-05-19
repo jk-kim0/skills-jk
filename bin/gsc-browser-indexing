@@ -425,15 +425,44 @@ function clickSeeDetailsOnDrilldown(input) {
 
 function getSeeDetailsRect(input) {
   const normalize = (value) => String(value || '').replace(/\s+/g, ' ').trim();
-  const target = Array.from(document.querySelectorAll('a, button')).find((candidate) => {
-    const text = normalize(candidate.innerText || candidate.textContent).toUpperCase();
-    const href = candidate.getAttribute && candidate.getAttribute('href');
-    return text === 'SEE DETAILS' || (href && href.includes('/search-console/index/validation'));
-  });
-  if (!target) return { ok: false, href: location.href };
-  target.scrollIntoView({ block: 'center', inline: 'center' });
-  const rect = target.getBoundingClientRect();
-  return { ok: true, href: location.href, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  const desiredStatus = normalize(input && input.validationStatus).toLowerCase();
+  const desiredReason = normalize(input && input.reason).toLowerCase();
+  const candidates = Array.from(document.querySelectorAll('a, button'))
+    .filter((candidate) => {
+      const text = normalize(candidate.innerText || candidate.textContent).toUpperCase();
+      const href = candidate.getAttribute && candidate.getAttribute('href');
+      return text === 'SEE DETAILS' || (href && href.includes('/search-console/index/validation'));
+    })
+    .map((candidate) => {
+      let container = candidate;
+      let context = '';
+      for (let depth = 0; container && depth < 6; depth += 1) {
+        context = normalize(container.innerText || container.textContent);
+        const lower = context.toLowerCase();
+        if ((desiredStatus && lower.includes(desiredStatus)) || lower.includes('validation failed') || lower.includes('validation')) break;
+        container = container.parentElement;
+      }
+      const lower = context.toLowerCase();
+      let score = 0;
+      if (desiredStatus && lower.includes(desiredStatus)) score += 10;
+      if (lower.includes('validation failed')) score += 8;
+      if (lower.includes('validation')) score += 4;
+      if (desiredReason && lower.includes(desiredReason)) score += 2;
+      return { candidate, score, context: context.slice(0, 300) };
+    })
+    .sort((a, b) => b.score - a.score);
+  const selected = candidates[0];
+  if (!selected) return { ok: false, href: location.href, message: 'SEE DETAILS button not found' };
+  selected.candidate.scrollIntoView({ block: 'center', inline: 'center' });
+  const rect = selected.candidate.getBoundingClientRect();
+  return {
+    ok: true,
+    href: location.href,
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2,
+    score: selected.score,
+    context: selected.context,
+  };
 }
 
 function getStartValidationButtonRect(input) {
@@ -493,17 +522,21 @@ async function runIndexIssueValidations(client, sessionId, args) {
       });
       const drilldownHref = await client.evaluate(() => location.href, {}, sessionId);
       const itemKey = new URL(drilldownHref).searchParams.get('item_key');
-      const detailsTarget = await client.evaluate(getSeeDetailsRect, {}, sessionId);
-      if (detailsTarget.ok) {
-        await client.clickPoint(detailsTarget.x, detailsTarget.y, sessionId);
-        await waitForCondition(client, sessionId, () => {
-          const url = new URL(location.href);
-          return { ok: url.pathname.includes('/index/validation') && Boolean(url.searchParams.get('item_key')), href: location.href };
-        }, {}, 45000, 1000);
-      } else {
-        const validationUrl = validationUrlFromDrilldownHref(drilldownHref);
-        await navigateAndWait(client, sessionId, validationUrl);
+      await waitForCondition(client, sessionId, () => {
+        const body = document.body.innerText || '';
+        const hasSeeDetails = /SEE\s+DETAILS/i.test(body);
+        const hasValidationCard = /Validation\s+(Failed|Not started|Started|Passed)/i.test(body);
+        return { ok: hasSeeDetails || hasValidationCard, href: location.href, text: body.slice(0, 500) };
+      }, {}, 45000, 1000);
+      const detailsTarget = await client.evaluate(getSeeDetailsRect, { reason: issue.reason, validationStatus: issue.validation }, sessionId);
+      if (!detailsTarget.ok) {
+        throw new Error(detailsTarget.message || 'could not locate validation SEE DETAILS on drilldown page');
       }
+      await client.clickPoint(detailsTarget.x, detailsTarget.y, sessionId);
+      await waitForCondition(client, sessionId, () => {
+        const url = new URL(location.href);
+        return { ok: url.pathname.includes('/index/validation') && Boolean(url.searchParams.get('item_key')), href: location.href };
+      }, {}, 45000, 1000);
       await waitForCondition(client, sessionId, () => {
         const normalize = (value) => String(value || '').replace(/\s+/g, ' ').trim();
         const headings = Array.from(document.querySelectorAll('h1')).map((h) => normalize(h.innerText));

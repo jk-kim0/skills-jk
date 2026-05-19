@@ -152,6 +152,20 @@ def test_browser_helper_reuses_drilldown_resource_id_for_validation_url() -> Non
     assert "function getSeeDetailsRect(input)" in source
     assert "await client.clickPoint(rowTarget.x, rowTarget.y" in source
     assert "await client.clickPoint(detailsTarget.x, detailsTarget.y" in source
+    assert "validationStatus: issue.validation" in source
+    assert "could not locate validation SEE DETAILS on drilldown page" in source
+    assert "Validation\\s+(Failed|Not started|Started|Passed)" in source
     assert "url.pathname = '/search-console/index/validation';" in source
-    assert "const validationUrl = validationUrlFromDrilldownHref(drilldownHref);" in source
+    assert "const validationUrl = validationUrlFromDrilldownHref(drilldownHref);" not in source
     assert "gscValidationResourceId" not in source
+
+
+def test_browser_helper_prefers_validation_failed_see_details_context() -> None:
+    source = (SCRIPT_PATH.parent / "gsc-browser-indexing").read_text()
+
+    assert "const desiredStatus = normalize(input && input.validationStatus).toLowerCase();" in source
+    assert "const desiredReason = normalize(input && input.reason).toLowerCase();" in source
+    assert "lower.includes('validation failed')" in source
+    assert "if (desiredStatus && lower.includes(desiredStatus)) score += 10;" in source
+    assert "if (lower.includes('validation failed')) score += 8;" in source
+    assert "sort((a, b) => b.score - a.score)" in source
