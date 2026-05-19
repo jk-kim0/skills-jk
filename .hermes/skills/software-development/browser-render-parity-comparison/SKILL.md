@@ -39,7 +39,9 @@ Trigger: user asks to compare stage and production URLs, or asks to fix UI discr
 
 When auditing marketing pages, inspect hero and section background layers as first-class visual parity targets. A full-page screenshot or DOM geometry pass can still miss that production uses a gradient background image, masked decorative asset, or pseudo-element overlay while stage renders a plain white section. For each major section, include background layers in the report and name the likely source contract (for example the shared hero primitive or live CSS background asset), not only typography, screenshots, cards, and CTA spacing.
 
-## Playwright browser availability pitfall
+## Browser automation fallback pitfalls
+
+### Playwright browser availability
 
 In repo worktrees, `require('playwright')` can resolve successfully while the bundled Chromium executable is missing, producing an error like `Executable doesn't exist at ... chromium_headless_shell ... Please run npx playwright install`. Do not stop the render audit there if a system Chrome is installed. On macOS, check `/Applications` for `Google Chrome.app` and launch Playwright with the installed browser channel instead:
 
@@ -48,6 +50,12 @@ const browser = await chromium.launch({ channel: 'chrome', headless: true });
 ```
 
 Use this as a lightweight fallback for screenshot/DOM collection when installing Playwright browsers would be slower or outside the task scope.
+
+### Direct CDP computed-style probe
+
+When interactive Chrome DevTools MCP is unavailable during a live visual parity task, do not encode the failure as a durable limitation and do not switch to subjective visual guessing. Launch system Chrome headless with a remote debugging port, connect via Chrome DevTools Protocol, and evaluate computed styles/DOM geometry directly. This is especially useful for matching CTA/button details such as size, padding, gap, gradient, border radius, typography, and SVG chevron path data.
+
+See `references/headless-chrome-cdp-style-probe.md` for a concise reusable Node/CDP recipe. Note that current Chrome requires `PUT /json/new?...`; `GET /json/new?...` can fail with `Using unsafe HTTP verb GET...`.
 
 ## Evidence to keep
 

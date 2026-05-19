@@ -17,6 +17,9 @@ References:
 - `references/gsc-all-site-validation-cli.md` — pattern for a CLI that discovers all managed GSC properties and runs Page indexing issue validation across them safely.
 - `references/gsc-frontend-session-cli.md` — pattern for replacing repeated Chrome/CDP control with a one-time cookie/WIZ-token export and direct frontend HTTP calls.
 - `references/gsc-validate-cli-regression.md` — regression checklist for exact `validate-index-issues` CLI UX, actionable status filtering, browser-click reliability, and partial-success reporting.
+- `references/gsc-browser-batch-attach.md` — browser/CDP batch attach pattern for processing multiple GSC properties through one Chrome connection without repeated approval prompts.
+- `references/gsc-browser-batch-connection.md` — notes for keeping one Chrome DevTools attachment alive across many GSC properties to avoid repeated approval prompts and WebSocket churn.
+- `references/gsc-validation-detail-partial-view.md` — GSC validation detail partial-view pitfall where a Failed issue exposes only Examples and no `START NEW VALIDATION` control, plus reporting/automation guidance.
 
 ## Goal
 
@@ -52,14 +55,17 @@ When the user points to `https://search.google.com/search-console/index?...`, me
 2. For each candidate issue row, use the row’s `item_key` validation flow.
    - Clicking the row opens `/index/drilldown?...&item_key=<key>`.
    - “SEE DETAILS” or direct navigation opens `/index/validation?...&item_key=<key>`.
-   - If `START NEW VALIDATION` is present, click it and verify the issue changes to `Validation started` / table state `Started`.
-   - If the start button is absent, report it as non-actionable for the current state rather than falling back to URL-level Request indexing.
+   - Prefer the real UI path for failed validations: Page indexing table → issue row `/index/drilldown?...&item_key=...` → the validation-status card’s right-side `SEE DETAILS` button → `/index/validation?...&item_key=...` → `START NEW VALIDATION`.
+   - If direct navigation to `/index/validation?...&item_key=...` shows only `Examples` or no `START NEW VALIDATION`, do not conclude non-actionable yet. Return to the drilldown page and click the `SEE DETAILS` button associated with the `Validation Failed` (or target validation status) card; some GSC issue types only expose `START NEW VALIDATION` after that transition.
+   - If `START NEW VALIDATION` is present after the drilldown/SEE DETAILS transition, click it and verify the issue changes to `Validation started` / table state `Started`.
+   - If the start button is absent even after the drilldown/SEE DETAILS transition, report it as non-actionable for the current state rather than falling back to URL-level Request indexing.
 
 3. Browser automation pitfalls.
    - GSC is a SPA; after navigation, wait for the `Validation details` heading and either `START NEW VALIDATION` or a terminal/started validation state, not just any text containing “Validation”.
    - If using Chrome DevTools Protocol, multiple old Search Console tabs can be open. Prefer a fresh tab or activate/bring the selected target to front; otherwise a background/stale tab may show only partial “Examples” content and hide the start button.
    - `wait_for` text can time out even when the page updates; take a fresh snapshot before concluding failure.
-   - DOM `button.click()` is not always equivalent to a user click in GSC. Prefer a CDP/Playwright-style mouse click at the `START NEW VALIDATION` button center, then verify the post-click state.
+   - DOM `button.click()` is not always equivalent to a user click in GSC. Prefer a CDP/Playwright-style mouse click at the table row, `SEE DETAILS`, and `START NEW VALIDATION` button center, then verify the post-click state.
+   - A `Failed` issue can still open a validation/detail view that shows only `Examples` and no `START NEW VALIDATION` when reached by the wrong route. Before declaring it non-actionable, reproduce the real UI path: issue row → drilldown → validation-status card `SEE DETAILS`. Treat it as non-actionable only if that path still does not expose `START NEW VALIDATION`; never fall back to URL-level Request indexing. See `references/gsc-validation-detail-partial-view.md`.
 
 4. CLI regression checks when maintaining automation.
    - Preserve the exact user-facing command name the user tried, such as `validate-index-issues`; do not force them onto only longer internal subcommands.
@@ -93,6 +99,7 @@ When the user asks to “request indexing”, “update indexing requests”, or
    - Keep the wrapper dry-run by default and require `--submit` for actual validation-start actions.
    - Add smoke-test controls such as `--site`, `--limit-sites`, and `--issue-limit` before running the full account.
    - If repeated browser/CDP control makes the CLI impractical, split the implementation into a one-time `frontend-session export` step plus direct frontend HTTP calls that reuse saved cookies/WIZ tokens. Keep the browser helper as an explicit fallback, not the default automation path.
+   - If browser/CDP fallback is required for multiple properties, do not spawn one helper process per site. Use one helper process with repeated `--site` arguments so Chrome is attached once and the same WebSocket handles the full batch. Pair it with a persistent debug Chrome profile/port such as `~/.chrome-hermes-gsc` on `9333` to avoid repeated Chrome approval prompts. See `references/gsc-browser-batch-attach.md`.
    - See `references/gsc-all-site-validation-cli.md` and `references/gsc-frontend-session-cli.md` for reusable CLI shapes and verification recipes.
 
 4. Preflight OAuth scopes before submitting.
