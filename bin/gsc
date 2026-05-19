@@ -11,6 +11,7 @@ Google Search Console API 클라이언트
     gsc query <site_url> --by-device       # 디바이스별 조회
     gsc sitemaps <site_url>                # 사이트맵 목록
     gsc inspect <site_url> <page_url>      # URL 인덱싱 상태 검사
+    gsc validate-index-issues              # 전체 사이트 Page indexing validation 재시작
     gsc validate-index-issues-all          # 저장된 frontend session으로 전체 사이트 validation 재시작
     gsc validate-index-issues-all-browser  # 열린 Chrome 탭으로 전체 사이트 validation 재시작
 
@@ -422,6 +423,8 @@ def select_validation_sites(site_entries: list[dict], include_domain_properties:
 
 def validate_all_index_issues(args, browser: bool = False) -> int:
     """관리 중인 GSC 사이트를 조회하고 각 사이트별 Page indexing validation을 실행합니다."""
+    if getattr(args, 'browser', False):
+        browser = True
     sites = get_site_entries()
     selected, skipped = select_validation_sites(
         sites,
@@ -457,7 +460,16 @@ def validate_all_index_issues(args, browser: bool = False) -> int:
         sys.stdout.flush()
         cmd = build_validate_index_issues_browser_cmd(args, site_url) if browser else build_validate_index_issues_frontend_cmd(args, site_url)
         completed = subprocess.run(cmd)
-        results.append({'siteUrl': site_url, 'returncode': completed.returncode})
+        returncode = completed.returncode
+        if returncode != 0 and browser and getattr(args, 'retry_failed_sites', 0):
+            for retry_idx in range(args.retry_failed_sites):
+                print(f"Retrying failed site ({retry_idx + 1}/{args.retry_failed_sites}): {site_url}")
+                sys.stdout.flush()
+                completed = subprocess.run(cmd)
+                returncode = completed.returncode
+                if returncode == 0:
+                    break
+        results.append({'siteUrl': site_url, 'returncode': returncode})
         if idx < len(selected) and args.site_delay_ms:
             import time
             time.sleep(args.site_delay_ms / 1000)
@@ -850,25 +862,38 @@ def main():
     validation_parser.add_argument('--delay-ms', type=int, help='이슈 사이 지연 시간(ms)')
     validation_parser.add_argument('--port', type=int, help='Chrome remote debugging 포트')
 
+    def add_validate_all_arguments(p):
+        p.add_argument('--submit', action='store_true', help='실제 START NEW VALIDATION 요청')
+        p.add_argument('--site', action='append', help='특정 사이트 URL만 처리 (여러 번 지정 가능)')
+        p.add_argument('--session-file', help='GSC frontend session 파일 경로')
+        p.add_argument(
+            '--include-domain-properties',
+            action='store_true',
+            help='sc-domain 속성까지 포함 (기본: URL-prefix 속성만)',
+        )
+        p.add_argument('--only-status', default='Failed', help='처리할 Validation 상태 (기본: Failed, all로 전체)')
+        p.add_argument('--include-started', action='store_true', help='Started 상태 이슈도 후보에 포함')
+        p.add_argument('--limit-sites', type=int, help='처리할 최대 사이트 수')
+        p.add_argument('--issue-limit', type=int, help='사이트별 처리할 최대 이슈 수')
+        p.add_argument('--delay-ms', type=int, help='사이트 내부 이슈 사이 지연 시간(ms)')
+        p.add_argument('--site-delay-ms', type=int, default=3000, help='사이트 사이 지연 시간(ms, 기본: 3000)')
+        p.add_argument('--browser', action='store_true', help='저장 session 대신 열린 Chrome/GSC 세션으로 처리')
+        p.add_argument('--port', type=int, help='Chrome remote debugging 포트 (--browser에서 사용)')
+        p.add_argument('--retry-failed-sites', type=int, default=0, help='사이트 helper 실패 시 재시도 횟수 (--browser에서 유용)')
+
+    # validate-index-issues 명령어: 사용자가 기대하는 전체 사이트 기본 entrypoint
+    validation_alias_parser = subparsers.add_parser(
+        'validate-index-issues',
+        help='사이트별 Page indexing 이슈 현황 조회/Start New Validation 실행',
+    )
+    add_validate_all_arguments(validation_alias_parser)
+
     # validate-index-issues-all 명령어
     validation_all_frontend_parser = subparsers.add_parser(
         'validate-index-issues-all',
         help='저장된 GSC frontend session으로 사이트별 Page indexing 이슈 현황 조회/Start New Validation 실행',
     )
-    validation_all_frontend_parser.add_argument('--submit', action='store_true', help='실제 START NEW VALIDATION 요청')
-    validation_all_frontend_parser.add_argument('--site', action='append', help='특정 사이트 URL만 처리 (여러 번 지정 가능)')
-    validation_all_frontend_parser.add_argument('--session-file', help='GSC frontend session 파일 경로')
-    validation_all_frontend_parser.add_argument(
-        '--include-domain-properties',
-        action='store_true',
-        help='sc-domain 속성까지 포함 (기본: URL-prefix 속성만)',
-    )
-    validation_all_frontend_parser.add_argument('--only-status', default='Failed', help='처리할 Validation 상태 (기본: Failed, all로 전체)')
-    validation_all_frontend_parser.add_argument('--include-started', action='store_true', help='Started 상태 이슈도 후보에 포함')
-    validation_all_frontend_parser.add_argument('--limit-sites', type=int, help='처리할 최대 사이트 수')
-    validation_all_frontend_parser.add_argument('--issue-limit', type=int, help='사이트별 처리할 최대 이슈 수')
-    validation_all_frontend_parser.add_argument('--delay-ms', type=int, help='사이트 내부 이슈 사이 지연 시간(ms)')
-    validation_all_frontend_parser.add_argument('--site-delay-ms', type=int, default=3000, help='사이트 사이 지연 시간(ms, 기본: 3000)')
+    add_validate_all_arguments(validation_all_frontend_parser)
 
     # validate-index-issues-all-browser 명령어
     validation_all_parser = subparsers.add_parser(
@@ -889,6 +914,7 @@ def main():
     validation_all_parser.add_argument('--delay-ms', type=int, help='사이트 내부 이슈 사이 지연 시간(ms)')
     validation_all_parser.add_argument('--site-delay-ms', type=int, default=3000, help='사이트 사이 지연 시간(ms, 기본: 3000)')
     validation_all_parser.add_argument('--port', type=int, help='Chrome remote debugging 포트')
+    validation_all_parser.add_argument('--retry-failed-sites', type=int, default=0, help='사이트 helper 실패 시 재시도 횟수')
 
     # inspect 명령어
     inspect_parser = subparsers.add_parser('inspect', help='URL 인덱싱 상태 검사')
@@ -939,6 +965,8 @@ def main():
         sys.exit(request_indexing_via_browser(args))
     elif args.command == 'validate-index-issues-browser':
         sys.exit(validate_index_issues_via_browser(args))
+    elif args.command == 'validate-index-issues':
+        sys.exit(validate_all_index_issues(args, browser=False))
     elif args.command == 'validate-index-issues-all':
         sys.exit(validate_all_index_issues(args, browser=False))
     elif args.command == 'validate-index-issues-all-browser':

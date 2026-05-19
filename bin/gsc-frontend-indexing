@@ -287,6 +287,11 @@ function refreshTokensFromHtml(session, html) {
   }
 }
 
+function isActionableValidationStatus(status) {
+  const normalized = String(status || '').toLowerCase();
+  return normalized === 'failed' || normalized === 'not started';
+}
+
 function parseIssueRows(html) {
   const rows = [];
   const rowRe = /<tr\b[^>]*data-rowid=["']?([^"'\s>]+)["']?[^>]*>[\s\S]*?<\/tr>/gi;
@@ -379,9 +384,11 @@ async function runIndexIssues(args) {
   const onlyStatus = args.onlyStatus ? args.onlyStatus.toLowerCase() : null;
   let candidates = issues.filter((issue) => {
     if (!issue.pages || issue.pages <= 0) return false;
-    if (!args.includeStarted && issue.validation.toLowerCase() === 'started') return false;
-    if (!onlyStatus || onlyStatus === 'all') return true;
-    return issue.validation.toLowerCase() === onlyStatus;
+    const validation = issue.validation.toLowerCase();
+    if (!args.includeStarted && validation === 'started') return false;
+    if (!onlyStatus) return isActionableValidationStatus(issue.validation);
+    if (onlyStatus === 'actionable' || onlyStatus === 'all') return isActionableValidationStatus(issue.validation);
+    return validation === onlyStatus;
   });
   if (Number.isFinite(args.limit)) candidates = candidates.slice(0, args.limit);
   console.log(JSON.stringify({ mode: 'index-issues-frontend', site: args.site, submit: args.submit, discovered: issues, candidates }, null, 2));
