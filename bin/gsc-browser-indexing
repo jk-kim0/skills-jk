@@ -371,6 +371,28 @@ function clickIssueRow(input) {
   return { ok: true, reason: input.reason };
 }
 
+
+function getIssueRowRect(input) {
+  const normalize = (value) => String(value || '').replace(/\s+/g, ' ').trim();
+  const rows = Array.from(document.querySelectorAll('tr[data-rowid]'));
+  const row = rows.find((candidate) => {
+    const cells = Array.from(candidate.querySelectorAll('td'));
+    return cells.length && normalize(cells[0].innerText) === input.reason;
+  });
+  if (!row) return { ok: false, reason: input.reason, message: 'issue row not found', href: location.href };
+  row.scrollIntoView({ block: 'center', inline: 'center' });
+  const rect = row.getBoundingClientRect();
+  return {
+    ok: true,
+    reason: input.reason,
+    href: location.href,
+    x: rect.left + Math.min(rect.width - 8, Math.max(8, rect.width / 3)),
+    y: rect.top + rect.height / 2,
+    width: rect.width,
+    height: rect.height,
+  };
+}
+
 function readValidationPage(input) {
   const normalize = (value) => String(value || '').replace(/\s+/g, ' ').trim();
   const button = Array.from(document.querySelectorAll('button')).find((candidate) => normalize(candidate.innerText).toUpperCase() === 'START NEW VALIDATION');
@@ -398,6 +420,20 @@ function clickSeeDetailsOnDrilldown(input) {
   target.scrollIntoView({ block: 'center', inline: 'center' });
   target.click();
   return { ok: true, href: location.href };
+}
+
+
+function getSeeDetailsRect(input) {
+  const normalize = (value) => String(value || '').replace(/\s+/g, ' ').trim();
+  const target = Array.from(document.querySelectorAll('a, button')).find((candidate) => {
+    const text = normalize(candidate.innerText || candidate.textContent).toUpperCase();
+    const href = candidate.getAttribute && candidate.getAttribute('href');
+    return text === 'SEE DETAILS' || (href && href.includes('/search-console/index/validation'));
+  });
+  if (!target) return { ok: false, href: location.href };
+  target.scrollIntoView({ block: 'center', inline: 'center' });
+  const rect = target.getBoundingClientRect();
+  return { ok: true, href: location.href, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
 }
 
 function getStartValidationButtonRect(input) {
@@ -448,16 +484,18 @@ async function runIndexIssueValidations(client, sessionId, args) {
     try {
       await navigateAndWait(client, sessionId, indexUrl);
       await waitForCondition(client, sessionId, () => ({ ok: document.querySelectorAll('tr[data-rowid]').length > 0, href: location.href }));
-      const clicked = await client.evaluate(clickIssueRow, { reason: issue.reason }, sessionId);
-      if (!clicked.ok) throw new Error(clicked.message || 'could not click issue row');
+      const rowTarget = await client.evaluate(getIssueRowRect, { reason: issue.reason }, sessionId);
+      if (!rowTarget.ok) throw new Error(rowTarget.message || 'could not locate issue row');
+      await client.clickPoint(rowTarget.x, rowTarget.y, sessionId);
       await waitForCondition(client, sessionId, () => {
         const url = new URL(location.href);
         return { ok: url.pathname.includes('/index/drilldown') && Boolean(url.searchParams.get('item_key')), href: location.href, itemKey: url.searchParams.get('item_key') };
       });
       const drilldownHref = await client.evaluate(() => location.href, {}, sessionId);
       const itemKey = new URL(drilldownHref).searchParams.get('item_key');
-      const detailsClicked = await client.evaluate(clickSeeDetailsOnDrilldown, {}, sessionId);
-      if (detailsClicked.ok) {
+      const detailsTarget = await client.evaluate(getSeeDetailsRect, {}, sessionId);
+      if (detailsTarget.ok) {
+        await client.clickPoint(detailsTarget.x, detailsTarget.y, sessionId);
         await waitForCondition(client, sessionId, () => {
           const url = new URL(location.href);
           return { ok: url.pathname.includes('/index/validation') && Boolean(url.searchParams.get('item_key')), href: location.href };

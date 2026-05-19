@@ -148,7 +148,10 @@ def test_browser_helper_reuses_drilldown_resource_id_for_validation_url() -> Non
     assert "function clickSeeDetailsOnDrilldown(input)" in source
     assert "accounts.google.com/" in source
     assert "Search Console login tab" in source
+    assert "function getIssueRowRect(input)" in source
+    assert "function getSeeDetailsRect(input)" in source
+    assert "await client.clickPoint(rowTarget.x, rowTarget.y" in source
+    assert "await client.clickPoint(detailsTarget.x, detailsTarget.y" in source
     assert "url.pathname = '/search-console/index/validation';" in source
-    assert "const detailsClicked = await client.evaluate(clickSeeDetailsOnDrilldown" in source
     assert "const validationUrl = validationUrlFromDrilldownHref(drilldownHref);" in source
     assert "gscValidationResourceId" not in source
