@@ -13,6 +13,7 @@ metadata:
 
 Reference files:
 - `references/browser-websocket-fallback.md` — how to attach via the `DevToolsActivePort` browser WebSocket when `/json/list` and `/json/version` return 404.
+- `references/persistent-debug-profile-for-automation.md` — how to avoid repeated Chrome approval prompts by using a persistent automation profile and a single batch WebSocket attach.
 
 Use this when:
 - the user wants Hermes to control or inspect their already-open local Chrome session
@@ -62,6 +63,8 @@ cat "$HOME/Library/Application Support/Google/Chrome/DevToolsActivePort"
 
 In that case a low-level CDP client should connect to `ws://127.0.0.1:9222/devtools/browser/<uuid>` and use browser-level `Target.getTargets` + `Target.attachToTarget` to attach to the desired page. The MCP tool may still list/control pages even when the HTTP JSON discovery endpoints return 404.
 
+If Chrome/macOS presents a remote-debugging approval prompt, design automation so that the user approves once and the agent keeps that single WebSocket connection alive for the whole batch. Repeated helper subprocesses that reconnect per site/page can cause repeated approval prompts and intermittent WebSocket handshake timeouts; prefer one long-lived browser-level CDP connection for multi-site operations.
+
 If these are missing, Hermes cannot attach, even if Chrome is visibly running and even if a browser-side extension is installed.
 
 ## Strong negative signal
@@ -78,6 +81,9 @@ then the correct diagnosis is:
 - MCP attach will fail until Chrome is relaunched appropriately
 
 ## Safe user guidance
+
+### Avoid repeated approval prompts for multi-step automation
+When a workflow will process many sites/pages through CDP, prefer a persistent debug-only Chrome profile and keep one WebSocket attach open for the whole batch. This avoids re-triggering Chrome remote-debugging approval for every helper subprocess. See `references/persistent-debug-profile-for-automation.md`.
 
 ### Reuse current profile/session if the user wants their existing login state
 Ask them to fully quit Chrome, then relaunch with:

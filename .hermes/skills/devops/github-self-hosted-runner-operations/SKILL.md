@@ -199,6 +199,19 @@ Separate the report into:
 6. Sensitive files found but not printed.
 7. Exact commands for safe follow-up status/log checks.
 
+### Runner-by-runner wiki reporting
+
+When the user asks to document resource usage across several self-hosted runners in a GitHub wiki, prefer a runner-by-runner workflow instead of drafting one monolithic page:
+
+1. Clone or reuse the wiki repo in the expected workspace location.
+2. Investigate one runner.
+3. Create or update that runner's separate wiki detail page.
+4. Update the main status page as an index with the runner link and short reclaimable-resource summary.
+5. Commit and push that runner's wiki update before moving to the next runner.
+6. If a runner cannot be accessed, still create its page with GitHub metadata, QueryPie/SSH probe evidence, and a clear "not collected; do not estimate" statement.
+
+For the querypie-mono runner audit page shape, QueryPie IP mapping, browser inventory fallback, timeout-bounded remote probes, and local raw-output hygiene, see `references/querypie-mono-runner-resource-audit.md`.
+
 ## Common Pitfalls
 
 - Stopping after `ps` and missing Docker Compose runner fleets. Check both native processes and containers.
@@ -213,3 +226,4 @@ Separate the report into:
 - `references/mac-studio-llm1-runner-audit.md` — concrete Mac Studio LLM1 example with one launchd macOS runner and a 12-container Docker Compose Linux ARM64 runner fleet.
 - `references/querypie-org-linux-arm64-compose-plan.md` — concrete plan for a separate QueryPie org Linux ARM64 Docker Compose fleet with 6 runners, host-specific runner group, and split CI/build labels.
 - `references/querypie-org-linux-arm64-compose-install.md` — concrete install outcome and verification commands for the QueryPie org six-runner Docker Compose fleet on Mac Studio LLM1.
+- `references/querypie-mono-runner-resource-audit.md` — querypie-mono wiki audit pattern: one runner per page, main status index, QueryPie inventory mapping, bounded remote resource probes, and access-blocked runner documentation.
