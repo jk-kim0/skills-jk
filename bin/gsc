@@ -487,15 +487,11 @@ def validate_all_index_issues(args, browser: bool = False) -> int:
         sys.stdout.flush()
         cmd = build_validate_index_issues_browser_batch_cmd(args, selected)
         returncode = run_validate_index_issues_site(cmd, getattr(args, 'batch_timeout_ms', None))
-        results = [{'siteUrl': site_url, 'returncode': None} for site_url in selected]
-        ok_count = len(selected) if returncode == 0 else 0
-        fail_count = 0 if returncode == 0 else len(selected)
         print(f"\n{'=' * 80}")
         print("요약")
-        print(f"  대상 사이트: {len(results)}")
-        print(f"  성공: {ok_count}")
-        print(f"  실패: {fail_count}")
+        print(f"  대상 사이트: {len(selected)}")
         print(f"  browser-batch: {'OK' if returncode == 0 else f'FAIL({returncode})'}")
+        print("  세부 사이트별 성공/실패는 위 browser helper summary를 확인하세요.")
         return returncode
 
     for idx, site_url in enumerate(selected, 1):
