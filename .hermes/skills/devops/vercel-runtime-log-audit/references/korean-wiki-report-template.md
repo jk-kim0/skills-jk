@@ -3,26 +3,28 @@
 이 템플릿은 `corp-web-app` 또는 `corp-web-japan` 등 한국어 wiki 보고서를 작성할 때 사용한 구조를 담고 있습니다.
 
 ## Front-matter
+## Front-matter
 
 ```markdown
 # Vercel Runtime Log - {날짜 범위}
 
-Date: {YYYY-MM-DD} ~ {YYYY-MM-DD}
-Audit performed: {YYYY-MM-DD HH:MM} KST
-Repo wiki: `querypie/{repo}`
-Vercel project: `{project}`
-Product domain: `{domain}`
+날짜: {YYYY-MM-DD} ~ {YYYY-MM-DD}
+감사 수행 시각: {YYYY-MM-DD HH:MM} KST
+저장소 위키: `querypie/{repo}`
+Vercel 프로젝트: `{project}`
 ```
 
-## Scope
+한국어 보고서를 요청받으면 제목/명령어/HTTP 용어처럼 그대로 두는 편이 나은 고유 기술어를 제외하고 구조 라벨도 한국어로 쓴다. 예: `Scope` -> `범위`, `Executive summary` -> `요약`, `Interpretation` -> `해석`, `Recommended next actions` -> `권장 다음 조치`. May 19/20 작성 중 영어 템플릿 라벨이 섞였으므로 최종 전 `Reference pages:`, `Interpretation:`, `Report generated`, `No production ... for ...` 같은 잔여 영어 문장을 grep으로 점검한다.
 
-- Project checked: `{project}`
-- Environment: `production`
-- KST window requested
-- Effective data range:
-- Focus: non-200 응답, 5xx 유무, 고빈도 404/307/308 패턴
+## 범위
 
-## Important data-integrity note
+- 확인한 프로젝트: `{project}`
+- 환경: `production`
+- 요청한 KST 기준 로그 창
+- 실제 데이터 범위:
+- 확인 초점: non-200 응답, 5xx 유무, 고빈도 404/307/308 패턴
+
+## 데이터 무결성 참고
 
 - Vercel CLI `--limit` plateau/dedupe 현상 언급
 - 샘플링된 top-set이며 전체 트래픽 집계가 아님
