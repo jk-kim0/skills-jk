@@ -176,6 +176,12 @@ hermes cron remove ID       Delete a job
 hermes cron status          Scheduler status
 ```
 
+Cron creation pitfalls and proven patterns:
+- `hermes cron create` accepts options such as `--name`, `--deliver`, `--skill`, and `--workdir`, then positional `schedule` and optional `prompt`. For long/multiline prompts, place all options before the `schedule` and final `prompt` positional, e.g. `hermes cron create --name ... --deliver local --skill a --skill b --workdir /abs/repo '0 */3 * * *' "$prompt"`. Putting options after the first positional can cause argparse to treat the prompt/options incorrectly and fail with `unrecognized arguments`.
+- If creating a job from a repository document, extract the exact prompt block to a temp file first, verify its first/last line and line count, then pass it as the final positional argument using a small Python subprocess wrapper to avoid shell quoting issues.
+- The CLI create command may not expose every cron metadata field, such as `enabled_toolsets`. If the Hermes cron tool/API is available in-session, create with the CLI when convenient, then immediately update/verify the job with the cronjob tool/API so fields like `enabled_toolsets`, `skills`, `deliver`, and `workdir` match the source-of-truth document.
+- Always finish by listing cron jobs and checking the new job's `enabled`, `state`, `next_run_at`, `schedule`, `skills`, `enabled_toolsets`, `deliver`, and `workdir` values.
+
 ### Webhooks
 
 ```

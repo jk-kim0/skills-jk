@@ -23,6 +23,7 @@ Trigger: user asks to compare stage and production URLs, or asks to fix UI discr
 3. Reset scroll: run `window.scrollTo(0, 0)` on both before any full-page screenshot.
 4. Capture full-page screenshots (this avoids sticky headers looking like mid-page bugs).
 5. Run automated probes (see `references/stage-production-audit-checklist.md`).
+   - For responsive header/GNB questions, probe exact breakpoint-adjacent widths and distinguish interaction modes from visual viewport bands; see `references/responsive-header-gnb-breakpoint-audit.md`.
 6. Compare computed styles before declaring a layout bug.
    - Always include `getComputedStyle(document.documentElement).fontSize` at the same viewport width for both pages. A responsive root rem difference (for example 16px vs 15px or 14px) scales all rem-based typography, gaps, padding, radii, and icon boxes; do not misdiagnose that as many independent component regressions.
    - If one repo intentionally keeps a constant 16px root and another has responsive `html { font-size: ... }` breakpoints, quantify the global rem impact before proposing a local CSS fix. See `references/root-rem-breakpoint-parity.md`.

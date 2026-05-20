@@ -19,6 +19,7 @@ Use this skill when migrating, relocating, or maintaining a static/semistatic co
 - User asks to change the public route of an already migrated static page.
 - User asks to move page-specific `public/**` assets into a route-aligned location.
 - User asks to document migration source/provenance for a migrated page.
+- User asks to delete or decommission an unused public static page or locale-prefixed static route.
 - User asks to add a lightweight index/list page for migrated static routes, such as `/archived` or locale-prefixed archived pages.
 - Existing PR follow-up for a route-local static page in corp-web-app.
 
@@ -57,11 +58,17 @@ If the referenced PR is already merged or closed, do not revive its branch; star
    - Use `--force-with-lease` for rewritten PR follow-up branches.
    - Verify remote head with `git ls-remote origin refs/heads/<branch>` and report CI status without long passive waits.
 
+## Decommissioning unused static routes
+
+When the user asks to delete an unused static page such as `/{locale}/<route>` or `src/app/[locale]/<route>`, treat it as narrow public-route decommissioning, not a broad cleanup. Identify the exact route owner, delete only the requested public route files, update any explicit route inventories, and preserve similarly named internal/demo routes unless explicitly included in scope. Verify with `git diff --check` plus a post-delete search for the removed public path and route directory. See `references/decommission-unused-static-route.md` for the concrete checklist and the `key-values` pattern.
+
 ## Locale dynamic route relocation
 
 When consolidating explicit locale directories such as `src/app/en/**`, `src/app/ko/**`, and `src/app/ja/**` into a dynamic `src/app/[locale]/**` route, preserve the unprefixed default public route as a thin EN wrapper unless the user explicitly asks to change public URL policy. Move the real authored pages to `page.en.tsx`, `page.ko.tsx`, and `page.ja.tsx` under the `[locale]` route and add a thin locale dispatcher at `page.tsx`.
 
 If the user asks whether an unprefixed English wrapper such as `src/app/<route>/page.tsx` is unnecessary after the `[locale]` route exists, first check whether the public `/<route>` URL is already preserved by `src/middleware.ts` `DEFAULT_LOCALE_REWRITE_PATHS`. If it is not, the wrapper is still routing-significant. The clean refactor is to add `/<route>` to `DEFAULT_LOCALE_REWRITE_PATHS`, add/update a middleware test proving `/<route>` rewrites internally to `/en/<route>` without redirecting, then delete the wrapper and update route tests/README provenance so tests import the `[locale]` route entry instead of the removed wrapper. See `references/default-locale-rewrite-wrapper-removal.md` for the concrete certifications pattern and test shape.
+
+For route families preserved by middleware prefix rewrites, such as archived pages with `DEFAULT_LOCALE_REWRITE_PREFIXES = ['/archived']`, root wrapper deletion is safe only after proving every removed `src/app/archived/**/page.tsx` has a matching `src/app/[locale]/archived/**/page.tsx`, middleware still rewrites/redirects `/archived/**` correctly, and tests/docs no longer import the deleted root wrappers. Move mirrored tests to `src/__tests__/app/[locale]/archived/**` rather than leaving them under the deleted root-route mirror. See `references/archived-root-wrapper-removal.md` for the checklist and verification commands.
 
 Important pitfall: do not leave the old explicit locale route files in place if the goal is a real relocation. In Next.js App Router, explicit static segments can continue to handle `/en/...`, `/ko/...`, and `/ja/...` instead of the new `[locale]` route. See `references/locale-dynamic-route-relocation.md` for the contact-us review pattern and verification notes.
 
@@ -144,6 +151,7 @@ See `references/become-a-partner-archived-route-readme.md` for a concrete patter
 
 ## Pitfalls
 
+- Do not delete similarly named internal/demo routes when decommissioning an unused public static route unless the user explicitly includes those routes. Search for both public references (`/<locale>/<route>`, `[locale]/<route>`) and internal references (`/internal/<route>`) and preserve internal index/test coverage when it points to the internal route.
 - Lightweight index/list pages still need explicit route-local styling. In corp-web-app, the root layout already wraps children in `src/components/layout/main`; adding another `<main>` inside a route-local index can become a flex child that shrinks to content width. Also, global CSS resets plain `a` and `ul` styles, so plain links/lists can look like unclickable text unless styled. See `references/archived-index-route.md`.
 - Do not infer that all similarly named assets are page-specific. Verify whether assets are shared by unrelated form/layout flows before moving them.
 - Do not silently normalize a user-specified route spelling. If the user asks for `/archived/become-a-parter`, preserve that spelling unless they correct it.
@@ -152,6 +160,7 @@ See `references/become-a-partner-archived-route-readme.md` for a concrete patter
 - When the user says to reference the corp-web-japan plans implementation, treat the directory shape as part of the requirement: use explicit static route directories like `src/app/plans/aip/page.tsx`, `src/app/plans/acp/page.tsx`, `src/app/[locale]/plans/aip/page.tsx`, and `src/app/[locale]/plans/acp/page.tsx`. Do **not** implement this as a variable route such as `src/app/plans/[product]/page.tsx` or `src/app/[locale]/plans/[product]/page.tsx`; `[product]` hides the intended explicit route-local structure and will be rejected.
 - When adding explicit plans product routes, also preserve the existing plans index entrypoints: `src/app/plans/page.tsx` and `src/app/[locale]/plans/page.tsx`. Add legacy query-string redirects at both levels so `/plans?acp`, `/plans?aip`, `/en/plans?acp`, `/ko/plans?aip`, etc. redirect to the matching explicit product route while preserving unrelated query params.
 - Do not add new flat `src/__tests__/app/*-route-local.test.tsx` files for static App Router pages. Mirror the route path under `src/__tests__/app/**/page.test.tsx`; if the CI grouping script only matches the old flat pattern, update `scripts/ci/test-groups.mjs` in the same PR.
+- In corp-web-app fresh worktrees, targeted Vitest can fail for CSS/PostCSS-loading suites because the worktree has no local `node_modules` and even the root checkout may lack the required package (for example `@tailwindcss/postcss`). If the user prefers CI over local installs, do not spend time installing dependencies; record the exact partial pass/failure and rely on CI after push.
 - Do not use `python` blindly on macOS; this user's environment may only have `python3`.
 - When a PR branch is already checked out in another worktree, a detached fresh worktree at `origin/<branch>` is acceptable for follow-up work; push `HEAD:<branch>` with force-with-lease after rebase.
 

@@ -121,6 +121,23 @@ Important shape preference:
    - Korean PR title/body is appropriate for this user's corp-web-app repo preference.
    - Do not wait passively for CI; verify fresh checks attached and report current status.
 
+## Header/GNB responsive breakpoint changes
+
+Use this subsection when the task is not data-localization but still targets corp-web-app header/GNB behavior, especially viewport breakpoints.
+
+1. Verify the live behavior first at the requested widths with browser automation before editing; do not infer the active GNB mode from source alone.
+2. Keep the JavaScript hooks and CSS media queries in sync:
+   - `src/components/layout/header/lib/use-is-mobile-header.hook.ts` controls whether mobile-only header UI such as bottom buttons is rendered.
+   - `src/components/layout/header/lib/use-is-phone-width.hook.ts` controls phone-specific bottom-button offset behavior.
+   - `src/components/layout/header/ui/header.module.css` controls the desktop vs hamburger header breakpoint.
+   - Related header CSS that usually must match the same mobile breakpoint includes `menu-item.module.css`, `menu-space.module.css`, and `preview-mode-toggle.module.css`.
+3. If the user describes the tablet/narrow-desktop mobile-style GNB range as `431px ~ 860px`, implement that as:
+   - mobile header breakpoint: `window.innerWidth <= 860` and `@media (max-width: 860px)` for header mobile styles.
+   - compact phone breakpoint: `window.innerWidth <= 430` and root header-height/layout-padding `@media (max-width: 430px)`.
+   - desktop horizontal GNB begins at `861px`.
+4. When changing global root breakpoints in `src/app/globals.css`, avoid leaving duplicate equivalent media blocks such as two separate `@media (max-width: 430px)` sections with the same variables.
+5. For narrow breakpoint-only UI PRs, `git diff --check` is often the lightest useful local verification when the user prefers CI over local builds/tests; report any file-tool automatic lint/type failures separately if they are baseline dependency/type issues.
+
 ## Pitfalls
 
 - Do not treat every `FileQuery.getLayoutData(...)` call as in-scope. Header/GNB local-data work does not imply changing cookie banner, plans, article categories, or other remote-backed content.
