@@ -69,7 +69,8 @@ When the user points to `https://search.google.com/search-console/index?...`, me
 
 4. CLI regression checks when maintaining automation.
    - Preserve the exact user-facing command name the user tried, such as `validate-index-issues`; do not force them onto only longer internal subcommands.
-   - Keep action runs limited to actionable validation states (`Failed`, `Not Started`) unless the user explicitly asks for already-passed or non-actionable rows.
+   - Default action runs to actionable validation states (`Failed` + `Not Started`), not only `Failed`. The user expects rows that are not already `Passed`/in-progress to have validation started by default.
+   - Keep `Passed` excluded by default, and keep already `Started` rows excluded unless the user explicitly passes an include/retry flag such as `--include-started`.
    - Propagate nested per-issue failures to a non-zero process exit. Never summarize a site as OK if one of its issue validations failed.
    - See `references/gsc-validate-cli-regression.md` for a compact regression checklist.
 
