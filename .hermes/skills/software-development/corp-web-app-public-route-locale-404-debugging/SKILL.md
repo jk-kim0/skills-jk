@@ -1,6 +1,6 @@
 ---
 name: corp-web-app-public-route-locale-404-debugging
-description: Diagnose 404s on corp-web-app /public file URLs by separating true file-missing cases from locale-redirect bugs that rewrite /public/** to /:locale/public/** and fall through to the catch-all page route.
+description: Diagnose corp-web-app locale-prefixed public-route 404s by separating true missing resources from locale/route mismatches, including /public/** locale redirects and legacy share/redirect paths such as /:locale/chat/publication/**.
 version: 1.0.0
 author: Hermes Agent
 license: MIT
@@ -11,7 +11,11 @@ metadata:
 
 # corp-web-app public-route locale 404 debugging
 
-Use this when a file under `https://www.querypie.com/public/**` appears to 404, especially when the failure is reported from a non-English locale environment.
+Use this when a public/legacy route under `https://www.querypie.com/**` appears to 404 only with a locale prefix or non-English locale environment. Common cases include:
+- `/public/**` file URLs that become `/:locale/public/**`
+- legacy/share redirect endpoints such as `/chat/publication/**` that work without a locale prefix but 404 as `/:locale/chat/publication/**`
+
+The class-level question is: is the resource actually missing, or did locale-aware routing move the request into a path shape that no handler owns?
 
 ## Core lesson
 
@@ -26,6 +30,56 @@ In `corp-web-app` the key pattern is:
 So always distinguish these two cases:
 1. file genuinely missing from the backing content repo/storage
 2. file exists, but locale redirect rewrites the URL into an unsupported route
+
+## Chat publication redirect variant
+
+Use this variant when a reported 404 path looks like:
+- `/:locale/chat/publication/<uuid>/<slug>`
+
+Known current behavior from `corp-web-app` latest main:
+- `src/app/chat/publication/[[...path]]/route.ts` handles only non-locale `/chat/publication/**`
+- that handler returns `307` to `https://app.querypie.com${pathname}`
+- `https://app.querypie.com/chat/publication/**` can return `200`
+- `https://app.querypie.com/:locale/chat/publication/**` can redirect to app-side 404/error
+- `/:locale/chat/publication/**` in corp-web-app has no matching app route, so it falls through to normal page/catch-all handling and 404s
+
+Reproduction commands:
+```bash
+for url in \
+  'https://www.querypie.com/ko/chat/publication/<uuid>/<slug>' \
+  'https://www.querypie.com/chat/publication/<uuid>/<slug>' \
+  'https://app.querypie.com/ko/chat/publication/<uuid>/<slug>' \
+  'https://app.querypie.com/chat/publication/<uuid>/<slug>'; do
+  echo "--- $url"
+  curl -sS -o /dev/null -D - --max-redirs 0 "$url" |
+    awk 'BEGIN{IGNORECASE=1} /^HTTP\// || /^location:/ || /^server:/ || /^x-vercel-id:/ {print}'
+done
+```
+
+Root-cause signature:
+- `www.querypie.com/chat/publication/**` -> `307 Location: https://app.querypie.com/chat/publication/**`
+- `www.querypie.com/:locale/chat/publication/**` -> `404`
+- `app.querypie.com/chat/publication/**` -> `200`
+- `app.querypie.com/:locale/chat/publication/**` -> app-side 404/error redirect
+
+Recommended fix direction:
+- Add an explicit Next.js redirect for locale-prefixed chat publication paths.
+- Strip the locale prefix in the destination; do **not** forward `/ko` or `/ja` to `app.querypie.com`.
+
+Example `next.config.ts` rule:
+```ts
+{
+  source: '/:locale(en|ko|ja)/chat/publication/:path*',
+  destination: 'https://app.querypie.com/chat/publication/:path*',
+  permanent: false,
+}
+```
+
+Expected result:
+- `/ko/chat/publication/<uuid>/<slug>` returns a normal 30x, typically `307`, to `https://app.querypie.com/chat/publication/<uuid>/<slug>`.
+
+Pitfall:
+- Do not implement `destination: 'https://app.querypie.com/:locale/chat/publication/:path*'`; app.querypie.com does not treat the locale-prefixed version as the working content URL.
 
 ## Investigation workflow
 
@@ -162,7 +216,8 @@ A practical worktree/testing note from this repo:
 
 ## Pitfalls
 
-- Assuming the PDF is missing just because the browser showed 404 once
+- Assuming the PDF/resource is missing just because the browser showed 404 once
+- For legacy redirect endpoints, preserving the locale prefix in the upstream/app destination even after evidence shows only the non-locale upstream path works
 - Testing only the non-locale URL and missing the locale-triggered redirect behavior
 - Looking only in `corp-web-app` and forgetting that the source file may live in `corp-web-contents`
 - Treating `/ko/public/**` as if it were covered by the same route as `/public/**`
