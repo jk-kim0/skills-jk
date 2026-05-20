@@ -141,6 +141,44 @@ def test_validate_index_issues_site_timeout_returns_process_style_124(monkeypatc
     assert "timed out after 1500ms" in capsys.readouterr().out
 
 
+def test_validate_all_frontend_submit_does_not_fallback_to_browser(monkeypatch, capsys) -> None:
+    gsc = load_gsc_module("gsc_validate_all_no_browser_fallback_test")
+    args = SimpleNamespace(
+        submit=True,
+        include_domain_properties=False,
+        site=["https://www.querypie.com/"],
+        limit_sites=None,
+        only_status="actionable",
+        include_started=False,
+        issue_limit=1,
+        limit=None,
+        delay_ms=0,
+        site_delay_ms=0,
+        session_file="/tmp/frontend-session.json",
+        site_timeout_ms=180000,
+    )
+
+    monkeypatch.setattr(gsc, "get_site_entries", lambda: [{"siteUrl": "https://www.querypie.com/"}])
+
+    def fake_run(cmd, timeout_ms=None):
+        assert cmd[0].endswith("gsc-frontend-indexing")
+        assert "gsc-browser-indexing" not in " ".join(cmd)
+        assert "--submit" in cmd
+        return 7
+
+    monkeypatch.setattr(gsc, "run_validate_index_issues_site", fake_run)
+
+    def forbidden_browser_cmd(*_args, **_kwargs):
+        raise AssertionError("browser fallback must not be built for validate-index-issues-all")
+
+    monkeypatch.setattr(gsc, "build_validate_index_issues_browser_cmd", forbidden_browser_cmd)
+
+    assert gsc.validate_all_index_issues(args, browser=False) == 1
+    out = capsys.readouterr().out
+    assert "FAIL(7) https://www.querypie.com/" in out
+    assert "browser fallback" not in out
+
+
 def test_browser_helper_reuses_drilldown_resource_id_for_validation_url() -> None:
     source = (SCRIPT_PATH.parent / "gsc-browser-indexing").read_text()
 
@@ -153,7 +191,7 @@ def test_browser_helper_reuses_drilldown_resource_id_for_validation_url() -> Non
     assert "await client.clickPoint(rowTarget.x, rowTarget.y" in source
     assert "await client.clickPoint(detailsTarget.x, detailsTarget.y" in source
     assert "validationStatus: issue.validation" in source
-    assert "could not locate validation SEE DETAILS on drilldown page" in source
+    assert "could not locate validation SEE DETAILS or VALIDATE FIX on drilldown page" in source
     assert "Validation\\s+(Failed|Not started|Started|Passed)" in source
     assert "url.pathname = '/search-console/index/validation';" in source
     assert "const validationUrl = validationUrlFromDrilldownHref(drilldownHref);" not in source

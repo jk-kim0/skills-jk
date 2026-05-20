@@ -399,7 +399,7 @@ async function runIndexIssues(args) {
     const prefix = `[${idx + 1}/${candidates.length}] ${issue.reason}`;
     try {
       const itemKey = issue.itemKey;
-      if (!itemKey) throw new Error('item_key was not present in fetched frontend markup; run with browser fallback or refresh the saved session from an index page that has loaded issue rows.');
+      if (!itemKey) throw new Error('item_key was not present in fetched frontend markup; refresh the saved frontend session from an index page that has loaded issue rows.');
       const validationUrl = `https://search.google.com/search-console/index/validation?resource_id=${gscValidationResourceId(args.site)}&item_key=${encodeURIComponent(itemKey)}`;
       const validationHtml = await frontendFetch(session, validationUrl, { headers: { referer: indexUrl } });
       refreshTokensFromHtml(session, validationHtml);
