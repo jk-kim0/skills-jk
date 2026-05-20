@@ -134,16 +134,18 @@ When a repository needs both human-readable guidance and an agent skill for the 
 
 Preferred shape:
 
-- Put the complete, canonical procedure in `docs/<topic>.md` or another repo documentation page when humans and agents both need to read it.
+- Put the complete, canonical procedure in `docs/<topic>.md`, `ops/<topic>.md`, or another repo documentation page when humans and agents both need to read it.
 - Keep the repo-local `SKILL.md` as a very thin trigger/index that covers only:
   - when to load the skill
   - the exact path to the canonical docs page
   - optional pointers to related skills, without restating their procedures
+- Put reusable output formats/templates in one `references/<template-or-format>.md` file when the format is used by more than one prompt/doc/skill.
 - Do not duplicate scripts, taxonomy tables, viewport lists, reporting formats, verification checklists, done criteria, examples, or step-by-step execution rules in both the docs page and the skill.
+- If a prompt/runbook must remain self-contained enough for cron/autonomous execution, prefer embedding the execution procedure in the canonical runbook and making the skill point to it, rather than copying the same procedure into every required skill.
 - If the reviewer says the skill and docs are still duplicative, remove more from the skill rather than arguing that the remaining duplicate is only a summary.
 - If the skill needs session-specific or deeply technical supporting detail that is not appropriate for human-facing docs, place it under `references/` and add a one-line pointer from `SKILL.md`.
 
-Use this pattern especially after a reviewer notes duplication between a docs guide and a skill. Make the docs page complete, then reduce the skill to a durable trigger/reference layer.
+Use this pattern especially after a reviewer notes duplication between a docs guide and a skill. Make the docs page complete, then reduce the skill to a durable trigger/reference layer. For repo-local cron/runbook work, explicitly document the source-of-truth split in the canonical doc (for example: runbook owns schedule/procedure; `references/` owns report template; `SKILL.md` files are thin indexes).
 
 ## Repo-Local Skills Need Agent Guidance Entry Points
 

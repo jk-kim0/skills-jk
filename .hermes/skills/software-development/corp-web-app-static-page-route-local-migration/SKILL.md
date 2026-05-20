@@ -120,6 +120,10 @@ When a user asks to compare a stage route-local page against the production rout
 
 See `references/certifications-stage-production-parity.md` for a concrete certifications page comparison and fix pattern.
 
+## Wiki status documentation
+
+When asked to create or refresh corp-web-app route-local authoring wiki documentation, keep the wiki page Korean by default unless the user explicitly requests another language. Base the inventory on latest `origin/main`, not an in-progress branch, and keep it concise: classify static/semistatic marketing pages as route-local, preview/rollout candidate, partial/scope decision, or excluded. Do not turn the page into a full migration dashboard, and explicitly exclude MDX/publication families such as blog, whitepapers, news, events, demo details, glossary, manuals, tutorials, and introduction deck. See `references/route-local-authoring-wiki-status.md` for the recommended command sequence and page shape.
+
 ## Migration README requirement
 
 When a static page migration may need future corrections, add a colocated `README.md` next to `page.en.tsx` / `page.ko.tsx` / `page.ja.tsx`.
