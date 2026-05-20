@@ -193,3 +193,5 @@ If browser interaction is needed while another agent is using the browser, the u
 For corp-web-japan and similar repo work, any reusable migration/workflow skill should be provided as a repo-local skill under .agents/skills/, not only as a built-in/global skill.
 §
 For corp-web-app MDX migration reviews, user expects frontmatter relationship fields such as relatedIds, accepted identifier formats, and collection/family identifier contracts to be audited explicitly, not just content counts/routes/assets.
+§
+User prohibits browser direct-control fallback unless explicitly permitted; direct-mode CLI/tool failures should surface rather than silently control a browser.
