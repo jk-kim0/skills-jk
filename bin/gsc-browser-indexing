@@ -31,6 +31,7 @@ Options:
   --delay-ms N      Delay between URLs/issues (default: 15000)
   --site-delay-ms N Delay between repeated --site entries for --index-issues (default: 3000)
   --connect-timeout-ms N Chrome DevTools approval/connect timeout (default: 120000)
+  --output-json     Print machine-readable JSON instead of the default table report for --index-issues
   --port N          Chrome remote debugging port (default: 9222)
   --target URL      Existing GSC tab URL hint (default: search-console)
   --probe           Verify a debuggable, logged-in GSC tab is reachable
@@ -43,7 +44,7 @@ Notes:
 }
 
 function parseArgs(argv) {
-  const args = { port: DEFAULT_PORT, delayMs: 15000, siteDelayMs: 3000, connectTimeoutMs: 120000, sites: [], submit: false, probe: false, target: 'search-console', indexIssues: false, onlyStatus: 'actionable', includeStarted: false };
+  const args = { port: DEFAULT_PORT, delayMs: 15000, siteDelayMs: 3000, connectTimeoutMs: 120000, sites: [], submit: false, probe: false, target: 'search-console', indexIssues: false, onlyStatus: 'actionable', includeStarted: false, outputJson: false };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--help' || a === '-h') args.help = true;
@@ -51,6 +52,7 @@ function parseArgs(argv) {
     else if (a === '--probe') args.probe = true;
     else if (a === '--index-issues') args.indexIssues = true;
     else if (a === '--include-started') args.includeStarted = true;
+    else if (a === '--output-json') args.outputJson = true;
     else if (a === '--only-status') args.onlyStatus = argv[++i];
     else if (a === '--site') {
       const site = argv[++i];
@@ -326,6 +328,61 @@ async function navigateAndWait(client, sessionId, url, timeoutMs = 45000) {
   await sleep(1000);
 }
 
+function normalize(value) {
+  return String(value || '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&#xE[0-9A-F]+;|&#\d+;/gi, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+const ISSUE_COLUMNS = [
+  ['SITE', 34],
+  ['ROW', 7],
+  ['VALIDATION', 13],
+  ['PAGES', 7],
+  ['OUTCOME', 15],
+  ['ACTION', 12],
+  ['REASON', 56],
+];
+
+function clipCell(value, width) {
+  const text = normalize(value);
+  if (text.length <= width) return text;
+  if (width <= 1) return text.slice(0, width);
+  return `${text.slice(0, width - 1)}…`;
+}
+
+function padCell(value, width) {
+  return clipCell(value, width).padEnd(width, ' ');
+}
+
+function printIssueReportHeader({ mode, site, submit, discoveredCount, candidateCount }) {
+  console.log(`GSC Page indexing issue report | mode=${mode} | site=${site} | submit=${submit}`);
+  console.log(`discovered=${discoveredCount} candidates=${candidateCount}`);
+  console.log(ISSUE_COLUMNS.map(([label, width]) => padCell(label, width)).join(' | '));
+  console.log(ISSUE_COLUMNS.map(([, width]) => '-'.repeat(width)).join('-+-'));
+}
+
+function printIssueReportRow({ site, index, total, issue, outcome, action }) {
+  const values = [
+    site,
+    `${index}/${total}`,
+    issue.validation || '-',
+    String(issue.pages || 0),
+    outcome,
+    action,
+    issue.reason || '-',
+  ];
+  console.log(values.map((value, idx) => padCell(value, ISSUE_COLUMNS[idx][1])).join(' | '));
+}
+
+function printIssueReportSummary({ total, started = 0, skipped = 0, failed = 0 }) {
+  console.log(`summary: total=${total} started=${started} skipped=${skipped} failed=${failed}`);
+}
+
 function isActionableValidationStatus(status) {
   const normalized = String(status || '').toLowerCase();
   return normalized === 'failed' || normalized === 'not started';
@@ -550,8 +607,20 @@ async function runIndexIssueValidations(client, sessionId, args) {
   });
   if (Number.isFinite(args.limit)) candidates = candidates.slice(0, args.limit);
 
-  console.log(JSON.stringify({ mode: 'index-issues', site: args.site, submit: args.submit, discovered: scraped.issues, candidates }, null, 2));
-  if (!args.submit) return;
+  if (args.outputJson) {
+    console.log(JSON.stringify({ mode: 'index-issues', site: args.site, submit: args.submit, discovered: scraped.issues, candidates }, null, 2));
+  } else {
+    printIssueReportHeader({ mode: 'browser-cdp', site: args.site, submit: args.submit, discoveredCount: scraped.issues.length, candidateCount: candidates.length });
+  }
+  if (!args.submit) {
+    if (!args.outputJson) {
+      for (const [idx, issue] of candidates.entries()) {
+        printIssueReportRow({ site: args.site, index: idx + 1, total: candidates.length, issue, outcome: 'DRY-RUN', action: 'candidate' });
+      }
+      printIssueReportSummary({ total: candidates.length });
+    }
+    return;
+  }
 
   const results = [];
   for (const [idx, issue] of candidates.entries()) {
@@ -579,15 +648,23 @@ async function runIndexIssueValidations(client, sessionId, args) {
       const drilldownBefore = await client.evaluate(readDrilldownValidationState, {}, sessionId);
       if (String(drilldownBefore.validationStatus || '').toLowerCase() === 'started') {
         const result = { ...issue, itemKey, submitted: true, before: drilldownBefore, after: drilldownBefore };
-        console.log(`${prefix} OK already-started`);
-        console.log(JSON.stringify(result));
+        if (args.outputJson) {
+          console.log(`${prefix} OK already-started`);
+          console.log(JSON.stringify(result));
+        } else {
+          printIssueReportRow({ site: args.site, index: idx + 1, total: candidates.length, issue, outcome: 'OK', action: 'already-started' });
+        }
         results.push(result);
         continue;
       }
       if (String(drilldownBefore.validationStatus || '').toLowerCase() === 'passed') {
         const result = { ...issue, itemKey, submitted: false, skipped: true, before: drilldownBefore };
-        console.log(`${prefix} SKIP passed`);
-        console.log(JSON.stringify(result));
+        if (args.outputJson) {
+          console.log(`${prefix} SKIP passed`);
+          console.log(JSON.stringify(result));
+        } else {
+          printIssueReportRow({ site: args.site, index: idx + 1, total: candidates.length, issue, outcome: 'SKIP', action: 'passed' });
+        }
         results.push(result);
         continue;
       }
@@ -610,8 +687,12 @@ async function runIndexIssueValidations(client, sessionId, args) {
         const drilldownAfter = await client.evaluate(readDrilldownValidationState, {}, sessionId);
         const submitted = String(drilldownAfter.validationStatus || '').toLowerCase() === 'started' || !drilldownAfter.hasValidateFixButton;
         const result = { ...issue, itemKey, submitted, before: drilldownBefore, after: drilldownAfter };
-        console.log(`${prefix} OK ${submitted ? 'started' : 'clicked'}`);
-        console.log(JSON.stringify(result));
+        if (args.outputJson) {
+          console.log(`${prefix} OK ${submitted ? 'started' : 'clicked'}`);
+          console.log(JSON.stringify(result));
+        } else {
+          printIssueReportRow({ site: args.site, index: idx + 1, total: candidates.length, issue, outcome: 'OK', action: submitted ? 'started' : 'clicked' });
+        }
         results.push(result);
         continue;
       }
@@ -636,8 +717,12 @@ async function runIndexIssueValidations(client, sessionId, args) {
       const before = await client.evaluate(readValidationPage, {}, sessionId);
       if (!before.hasStartButton) {
         const result = { ...issue, itemKey, submitted: false, skipped: true, before };
-        console.log(`${prefix} SKIP ${before.validationStatus || 'no-start-button'}`);
-        console.log(JSON.stringify(result));
+        if (args.outputJson) {
+          console.log(`${prefix} SKIP ${before.validationStatus || 'no-start-button'}`);
+          console.log(JSON.stringify(result));
+        } else {
+          printIssueReportRow({ site: args.site, index: idx + 1, total: candidates.length, issue, outcome: 'SKIP', action: before.validationStatus || 'no-start-button' });
+        }
         results.push(result);
         continue;
       }
@@ -651,12 +736,20 @@ async function runIndexIssueValidations(client, sessionId, args) {
       const after = await client.evaluate(readValidationPage, {}, sessionId);
       const submitted = String(after.validationStatus || '').toLowerCase() === 'started' || !after.hasStartButton;
       const result = { ...issue, itemKey, submitted, before, after };
-      console.log(`${prefix} OK ${submitted ? 'started' : 'clicked'}`);
-      console.log(JSON.stringify(result));
+      if (args.outputJson) {
+        console.log(`${prefix} OK ${submitted ? 'started' : 'clicked'}`);
+        console.log(JSON.stringify(result));
+      } else {
+        printIssueReportRow({ site: args.site, index: idx + 1, total: candidates.length, issue, outcome: 'OK', action: submitted ? 'started' : 'clicked' });
+      }
       results.push(result);
     } catch (error) {
       const result = { ...issue, submitted: false, error: error.message };
-      console.log(`${prefix} FAIL ${error.message}`);
+      if (args.outputJson) {
+        console.log(`${prefix} FAIL ${error.message}`);
+      } else {
+        printIssueReportRow({ site: args.site, index: idx + 1, total: candidates.length, issue, outcome: 'FAIL', action: error.message });
+      }
       results.push(result);
     }
     if (idx < candidates.length - 1) await sleep(args.delayMs);
@@ -664,7 +757,11 @@ async function runIndexIssueValidations(client, sessionId, args) {
   const ok = results.filter((r) => r.submitted).length;
   const skipped = results.filter((r) => r.skipped).length;
   const failed = results.length - ok - skipped;
-  console.log(JSON.stringify({ summary: { total: results.length, started: ok, skipped, failed }, results }, null, 2));
+  if (args.outputJson) {
+    console.log(JSON.stringify({ summary: { total: results.length, started: ok, skipped, failed }, results }, null, 2));
+  } else {
+    printIssueReportSummary({ total: results.length, started: ok, skipped, failed });
+  }
   if (failed) process.exitCode = 1;
 }
 
@@ -717,7 +814,16 @@ async function main() {
       if (sites.length > 1) {
         const okCount = batchResults.filter((result) => result.returncode === 0).length;
         const failCount = batchResults.length - okCount;
-        console.log(JSON.stringify({ summary: { sites: batchResults.length, ok: okCount, failed: failCount }, results: batchResults }, null, 2));
+        if (args.outputJson) {
+          console.log(JSON.stringify({ summary: { sites: batchResults.length, ok: okCount, failed: failCount }, results: batchResults }, null, 2));
+        } else {
+          console.log(`site summary: total=${batchResults.length} ok=${okCount} failed=${failCount}`);
+          console.log('SITE                               | RESULT');
+          console.log('-----------------------------------+--------');
+          for (const result of batchResults) {
+            console.log(`${padCell(result.siteUrl, 34)} | ${result.returncode === 0 ? 'OK' : `FAIL(${result.returncode})`}`);
+          }
+        }
         if (failCount) process.exitCode = 1;
       }
       return;

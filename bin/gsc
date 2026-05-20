@@ -345,6 +345,8 @@ def validate_index_issues_via_browser(args) -> int:
         cmd.extend(['--only-status', args.only_status])
     if args.include_started:
         cmd.append('--include-started')
+    if args.output_json:
+        cmd.append('--output-json')
     if args.limit is not None:
         cmd.extend(['--limit', str(args.limit)])
     if args.delay_ms is not None:
@@ -367,6 +369,8 @@ def build_validate_index_issues_frontend_cmd(args, site_url: str) -> list[str]:
         cmd.extend(['--only-status', args.only_status])
     if getattr(args, 'include_started', False):
         cmd.append('--include-started')
+    if getattr(args, 'output_json', False):
+        cmd.append('--output-json')
     issue_limit = getattr(args, 'issue_limit', None)
     if issue_limit is None:
         issue_limit = getattr(args, 'limit', None)
@@ -387,6 +391,8 @@ def build_validate_index_issues_browser_cmd(args, site_url: str) -> list[str]:
         cmd.extend(['--only-status', args.only_status])
     if getattr(args, 'include_started', False):
         cmd.append('--include-started')
+    if getattr(args, 'output_json', False):
+        cmd.append('--output-json')
     issue_limit = getattr(args, 'issue_limit', None)
     if issue_limit is None:
         issue_limit = getattr(args, 'limit', None)
@@ -890,6 +896,7 @@ def main():
     validation_parser.add_argument('--submit', action='store_true', help='실제 START NEW VALIDATION 클릭')
     validation_parser.add_argument('--only-status', default='actionable', help='처리할 Validation 상태 (기본: actionable = Failed + Not Started, all도 actionable과 동일)')
     validation_parser.add_argument('--include-started', action='store_true', help='Started 상태 이슈도 후보에 포함')
+    validation_parser.add_argument('--output-json', action='store_true', help='기본 테이블 리포트 대신 JSON 출력')
     validation_parser.add_argument('--limit', type=int, help='처리할 최대 이슈 수')
     validation_parser.add_argument('--delay-ms', type=int, help='이슈 사이 지연 시간(ms)')
     validation_parser.add_argument('--port', type=int, help='Chrome remote debugging 포트')
@@ -905,6 +912,7 @@ def main():
         )
         p.add_argument('--only-status', default='actionable', help='처리할 Validation 상태 (기본: actionable = Failed + Not Started, all도 actionable과 동일)')
         p.add_argument('--include-started', action='store_true', help='Started 상태 이슈도 후보에 포함')
+        p.add_argument('--output-json', action='store_true', help='기본 테이블 리포트 대신 JSON 출력')
         p.add_argument('--limit-sites', type=int, help='처리할 최대 사이트 수')
         p.add_argument('--issue-limit', type=int, help='사이트별 처리할 최대 이슈 수')
         p.add_argument('--delay-ms', type=int, help='사이트 내부 이슈 사이 지연 시간(ms)')
@@ -939,6 +947,7 @@ def main():
     )
     validation_all_parser.add_argument('--only-status', default='actionable', help='처리할 Validation 상태 (기본: actionable = Failed + Not Started, all도 actionable과 동일)')
     validation_all_parser.add_argument('--include-started', action='store_true', help='Started 상태 이슈도 후보에 포함')
+    validation_all_parser.add_argument('--output-json', action='store_true', help='기본 테이블 리포트 대신 JSON 출력')
     validation_all_parser.add_argument('--limit-sites', type=int, help='처리할 최대 사이트 수')
     validation_all_parser.add_argument('--issue-limit', type=int, help='사이트별 처리할 최대 이슈 수')
     validation_all_parser.add_argument('--delay-ms', type=int, help='사이트 내부 이슈 사이 지연 시간(ms)')

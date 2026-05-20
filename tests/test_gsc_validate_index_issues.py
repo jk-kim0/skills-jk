@@ -107,6 +107,7 @@ def test_validate_index_issues_browser_batch_reuses_one_helper_process() -> None
         submit=True,
         only_status="Failed",
         include_started=False,
+        output_json=False,
         issue_limit=1,
         limit=None,
         delay_ms=250,
@@ -124,6 +125,51 @@ def test_validate_index_issues_browser_batch_reuses_one_helper_process() -> None
     assert "https://docs.querypie.com/" in cmd
     assert "https://querypie.ai/" in cmd
     assert cmd[-2:] == ["--site-delay-ms", "500"]
+
+
+
+def test_validate_index_issues_output_json_is_opt_in() -> None:
+    gsc = load_gsc_module("gsc_validate_output_json_opt_in_test")
+    args = SimpleNamespace(
+        submit=False,
+        session_file="/tmp/frontend-session.json",
+        only_status="actionable",
+        include_started=False,
+        output_json=False,
+        issue_limit=2,
+        limit=None,
+        delay_ms=0,
+    )
+
+    default_cmd = gsc.build_validate_index_issues_frontend_cmd(args, "https://www.querypie.com/")
+    assert "--output-json" not in default_cmd
+
+    args.output_json = True
+    json_cmd = gsc.build_validate_index_issues_frontend_cmd(args, "https://www.querypie.com/")
+    assert "--output-json" in json_cmd
+
+
+
+def test_validation_helpers_default_to_table_report_and_gate_json_output() -> None:
+    frontend_source = (SCRIPT_PATH.parent / "gsc-frontend-indexing").read_text()
+    browser_source = (SCRIPT_PATH.parent / "gsc-browser-indexing").read_text()
+
+    for source in (frontend_source, browser_source):
+        assert "--output-json" in source
+        assert "const ISSUE_COLUMNS = [" in source
+        assert "['SITE', 34]" in source
+        assert "['VALIDATION', 13]" in source
+        assert "['PAGES', 7]" in source
+        assert "['OUTCOME', 15]" in source
+        assert "['ACTION', 12]" in source
+        assert "['REASON', 56]" in source
+        assert "function printIssueReportHeader" in source
+        assert "function printIssueReportRow" in source
+        assert "function printIssueReportSummary" in source
+        assert "if (args.outputJson)" in source
+
+    assert "mode: 'index-issues-frontend'" in frontend_source
+    assert "mode: 'index-issues'" in browser_source
 
 
 
