@@ -1,12 +1,22 @@
 # corp-web-app Tailwind route-scoped reset workaround
 
-Use when a Tailwind-based page port renders with the right class names and generated Tailwind rules, but browser computed styles show `padding: 0px` or `margin: 0px` because the target repo still has an unlayered global reset such as:
+Use when a Tailwind-based page port renders with the right class names and generated Tailwind rules, but browser computed styles show reset-driven values such as:
+
+- `padding: 0px` or `margin: 0px` from a global `*` reset
+- `border: 0px none` on Tailwind `border border-*` buttons because a later unlayered `button { border: none; }` rule wins
+- dark inherited link/text color on Tailwind `text-white` CTA anchors because an unlayered or CSS Module rule outranks the utility
+
+Common corp-web-app reset examples:
 
 ```css
 * {
   box-sizing: border-box;
   padding: 0;
   margin: 0;
+}
+
+button {
+  border: none;
 }
 ```
 
@@ -63,13 +73,58 @@ For body/prose areas, patch only the properties the reset invalidates:
 }
 ```
 
+For interactive elements, do not rely on Tailwind utility class presence when a global element rule exists. Add route-local CSS Module classes to the affected element and explicitly restore the computed properties the reference requires:
+
+```tsx
+<button
+  type="button"
+  className={`${styles.shareButton} inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#e5e7eb] text-slate-400`}
+>
+  <Icon className={`${styles.shareIcon} h-4 w-4`} />
+</button>
+
+<Link
+  href={`/${locale}/t/company/contact-us`}
+  className={`${styles.contactCta} inline-flex w-full items-center justify-center rounded-[6px] bg-[#24292F] text-white`}
+>
+  Contact Us
+</Link>
+```
+
+```css
+.shareButton {
+  border: 1px solid #e5e7eb;
+  color: #94a3b8;
+}
+
+.shareButton:hover,
+.shareButton:focus-visible {
+  border-color: #020617;
+  color: #020617;
+}
+
+.shareIcon {
+  width: 16px;
+  height: 16px;
+}
+
+.contactCta,
+.contactCta:hover,
+.contactCta:focus-visible {
+  color: #ffffff;
+}
+```
+
+This pattern is especially important for article share buttons and right-sidebar contact CTAs: the visual failure may be a missing border or wrong text/icon color even when layout, size, and class names appear correct.
+
 ## Verification probe
 
 Compare exact reference and preview URLs in the browser. For the migrated route, record at least:
 
 - root/html font size
 - section computed `padding`, `margin`, `width`, `max-width`, and top offset
-- heading/body/sidebar/contact CTA computed margins and padding
+- heading/body/sidebar/contact CTA computed margins, padding, border, text color, icon color, and background
+- social/share button computed border, color, width/height, icon SVG size, hover/focus state colors
 - generated Tailwind rule presence only as supporting evidence, never as final proof
 
 Success means computed values match or intentionally differ. It is not enough that DOM class names match.
