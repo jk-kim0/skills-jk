@@ -131,6 +131,10 @@ See `references/certifications-stage-production-parity.md` for a concrete certif
 
 When asked to create or refresh corp-web-app route-local authoring wiki documentation, keep the wiki page Korean by default unless the user explicitly requests another language. Base the inventory on latest `origin/main`, not an in-progress branch, and keep it concise: classify static/semistatic marketing pages as route-local, preview/rollout candidate, partial/scope decision, or excluded. Do not turn the page into a full migration dashboard, and explicitly exclude MDX/publication families such as blog, whitepapers, news, events, demo details, glossary, manuals, tutorials, and introduction deck. See `references/route-local-authoring-wiki-status.md` for the recommended command sequence and page shape.
 
+## Route-local authoring wiki and i18n status docs
+
+When updating corp-web-app wiki pages such as `Route-Local-Authoring` or `Route-Local-Authoring-i18n`, keep the wiki Korean by default, read the latest `origin/main` implementation rather than stale wiki prose, and use the endpoint list in `Route-Local-Authoring` as the baseline for i18n status. Do not create or modify `_Sidebar.md` unless the user explicitly asks for a custom sidebar. For i18n status, do not trust `page.ko.tsx` / `page.ja.tsx` existence alone; inspect actual visible copy and mark pages that remain English-centered as not ready. See `references/route-local-authoring-wiki-i18n-status.md` for the concise workflow, status labels, and edge cases such as redirect-only pricing routes and privacy-policy content records.
+
 ## Migration README requirement
 
 When a static page migration may need future corrections, add a colocated `README.md` next to `page.en.tsx` / `page.ko.tsx` / `page.ja.tsx`.
