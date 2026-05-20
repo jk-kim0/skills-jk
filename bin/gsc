@@ -22,6 +22,8 @@ Google Search Console API 클라이언트
     4. 첫 실행 시 브라우저에서 OAuth 인증 수행 (토큰 자동 저장)
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import os
@@ -450,8 +452,6 @@ def select_validation_sites(site_entries: list[dict], include_domain_properties:
 
 def validate_all_index_issues(args, browser: bool = False) -> int:
     """관리 중인 GSC 사이트를 조회하고 각 사이트별 Page indexing validation을 실행합니다."""
-    if getattr(args, 'browser', False):
-        browser = True
     sites = get_site_entries()
     selected, skipped = select_validation_sites(
         sites,
@@ -499,21 +499,8 @@ def validate_all_index_issues(args, browser: bool = False) -> int:
         print(f"[{idx}/{len(selected)}] {site_url}")
         print(f"{'=' * 80}")
         sys.stdout.flush()
-        cmd = build_validate_index_issues_browser_cmd(args, site_url) if browser else build_validate_index_issues_frontend_cmd(args, site_url)
+        cmd = build_validate_index_issues_frontend_cmd(args, site_url)
         returncode = run_validate_index_issues_site(cmd, getattr(args, 'site_timeout_ms', None))
-        if returncode != 0 and not browser and getattr(args, 'submit', False):
-            print(f"Frontend direct validation failed; retrying with browser fallback: {site_url}")
-            sys.stdout.flush()
-            fallback_cmd = build_validate_index_issues_browser_cmd(args, site_url)
-            fallback_timeout = getattr(args, 'batch_timeout_ms', None) or getattr(args, 'site_timeout_ms', None)
-            returncode = run_validate_index_issues_site(fallback_cmd, fallback_timeout)
-        if returncode != 0 and browser and getattr(args, 'retry_failed_sites', 0):
-            for retry_idx in range(args.retry_failed_sites):
-                print(f"Retrying failed site ({retry_idx + 1}/{args.retry_failed_sites}): {site_url}")
-                sys.stdout.flush()
-                returncode = run_validate_index_issues_site(cmd, getattr(args, 'site_timeout_ms', None))
-                if returncode == 0:
-                    break
         results.append({'siteUrl': site_url, 'returncode': returncode})
         if idx < len(selected) and args.site_delay_ms:
             import time
@@ -922,12 +909,7 @@ def main():
         p.add_argument('--issue-limit', type=int, help='사이트별 처리할 최대 이슈 수')
         p.add_argument('--delay-ms', type=int, help='사이트 내부 이슈 사이 지연 시간(ms)')
         p.add_argument('--site-delay-ms', type=int, default=3000, help='사이트 사이 지연 시간(ms, 기본: 3000)')
-        p.add_argument('--browser', action='store_true', help='저장 session 대신 열린 Chrome/GSC 세션으로 처리')
-        p.add_argument('--port', type=int, help='Chrome remote debugging 포트 (--browser에서 사용)')
-        p.add_argument('--retry-failed-sites', type=int, default=0, help='사이트 helper 실패 시 재시도 횟수 (--browser에서 유용)')
-        p.add_argument('--site-timeout-ms', type=int, default=180000, help='사이트별 helper 최대 실행 시간(ms, 기본: 180000)')
-        p.add_argument('--batch-timeout-ms', type=int, default=900000, help='browser batch helper 최대 실행 시간(ms, 기본: 900000)')
-        p.add_argument('--connect-timeout-ms', type=int, default=120000, help='Chrome DevTools 연결/승인 대기 시간(ms, 기본: 120000)')
+        p.add_argument('--site-timeout-ms', type=int, default=180000, help='사이트별 frontend helper 최대 실행 시간(ms, 기본: 180000)')
 
     # validate-index-issues 명령어: 사용자가 기대하는 전체 사이트 기본 entrypoint
     validation_alias_parser = subparsers.add_parser(
