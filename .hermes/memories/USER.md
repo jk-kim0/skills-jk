@@ -78,7 +78,7 @@ In corp-web-v2 static-page work, the user prefers each page's content to stay co
 §
 The user is open to challenging existing corp-web-v2 repository conventions and does not consider the current overall structure inherently authoritative when evaluating better file placement.
 §
-For corp-web-app/corp-web-japan route-local/migration work, user wants visible JSX copy/links/composition and full corp-web-japan ports (UI, interactions, client components, assets), not JSON/object moves or style-only adaptations.
+For corp-web-app/corp-web-japan route-local authoring, user wants visible JSX copy/links/composition; JSON-like registries do not satisfy it. In corp-web-app, route page.tsx files and related route code should be colocated under locale-scoped paths like `src/app/[locale]/t/blog/page.tsx`; do not create parallel locale-less route files like `src/app/t/blog/page.tsx`.
 §
 In corp-web-v2 follow-up work, the user does not want a new PR or reviewer requests created unless they explicitly ask for that PR/review action for the current scoped task; do not infer PR/reviewer permission from earlier broader requests.
 §
@@ -162,7 +162,7 @@ In corp-web-japan route-local authoring, the user prefers section/card subtitles
 §
 For corp-web-japan static marketing copy, the user prefers semantic emphasis in route-local JSX via `<strong>...</strong>` rather than presentation-heavy inline `<span className=...>` markup; visual highlight styling should live in the wrapper/section component.
 §
-User expects clear implementation instructions to be executed, but for sensitive infrastructure/self-hosted-runner work they want step-by-step guided execution; for QueryPie runner/server operations, use CLI `qpctl host list/use` + `qpctl ssh-proxy`/SSH and do not use Web Terminal/browser-terminal command execution. If the access method would change, explain and ask first.
+User expects clear implementation instructions to be executed, but for sensitive infrastructure setup such as GitHub self-hosted runners, they want step-by-step guided execution and no proceeding ahead of explicit guidance.
 §
 User does not use /rollback and prefers Hermes checkpoints disabled unless explicitly needed.
 §
