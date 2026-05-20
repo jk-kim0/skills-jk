@@ -501,6 +501,12 @@ def validate_all_index_issues(args, browser: bool = False) -> int:
         sys.stdout.flush()
         cmd = build_validate_index_issues_browser_cmd(args, site_url) if browser else build_validate_index_issues_frontend_cmd(args, site_url)
         returncode = run_validate_index_issues_site(cmd, getattr(args, 'site_timeout_ms', None))
+        if returncode != 0 and not browser and getattr(args, 'submit', False):
+            print(f"Frontend direct validation failed; retrying with browser fallback: {site_url}")
+            sys.stdout.flush()
+            fallback_cmd = build_validate_index_issues_browser_cmd(args, site_url)
+            fallback_timeout = getattr(args, 'batch_timeout_ms', None) or getattr(args, 'site_timeout_ms', None)
+            returncode = run_validate_index_issues_site(fallback_cmd, fallback_timeout)
         if returncode != 0 and browser and getattr(args, 'retry_failed_sites', 0):
             for retry_idx in range(args.retry_failed_sites):
                 print(f"Retrying failed site ({retry_idx + 1}/{args.retry_failed_sites}): {site_url}")

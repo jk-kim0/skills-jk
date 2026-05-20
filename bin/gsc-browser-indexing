@@ -23,7 +23,7 @@ Options:
   --file PATH       Newline-delimited URL list
   --submit          Actually submit the selected action
                     For URL mode: submit Request indexing after live validation
-                    For --index-issues: click START NEW VALIDATION per issue
+                    For --index-issues: click VALIDATE FIX or START NEW VALIDATION per issue
   --index-issues    List or start validation for Page indexing issue rows
   --only-status S   Only process issue rows with this validation status (default: actionable = Failed + Not Started)
   --include-started Include rows already in Started validation state
@@ -409,6 +409,52 @@ function readValidationPage(input) {
   };
 }
 
+function readDrilldownValidationState(input) {
+  const normalize = (value) => String(value || '').replace(/\s+/g, ' ').trim();
+  const body = normalize(document.body.innerText || '');
+  const statusMatch = body.match(/Validation\s+(started|failed|passed|not started)/i);
+  const validateFixButton = Array.from(document.querySelectorAll('button, [role="button"]'))
+    .find((candidate) => normalize(candidate.innerText || candidate.textContent).toUpperCase() === 'VALIDATE FIX');
+  return {
+    href: location.href,
+    itemKey: new URL(location.href).searchParams.get('item_key'),
+    hasValidateFixButton: Boolean(validateFixButton),
+    validationStatus: statusMatch ? statusMatch[1] : null,
+    bodyExcerpt: body.slice(0, 500),
+  };
+}
+
+function getValidateFixButtonRect(input) {
+  const normalize = (value) => String(value || '').replace(/\s+/g, ' ').trim();
+  const button = Array.from(document.querySelectorAll('button, [role="button"]'))
+    .find((candidate) => normalize(candidate.innerText || candidate.textContent).toUpperCase() === 'VALIDATE FIX');
+  if (!button) return { ok: false, message: 'VALIDATE FIX button not found', href: location.href };
+  button.scrollIntoView({ block: 'center', inline: 'center' });
+  button.focus();
+  const rect = button.getBoundingClientRect();
+  return {
+    ok: true,
+    href: location.href,
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2,
+    width: rect.width,
+    height: rect.height,
+  };
+}
+
+function clickValidateFixButton(input) {
+  const normalize = (value) => String(value || '').replace(/\s+/g, ' ').trim();
+  const button = Array.from(document.querySelectorAll('button, [role="button"]'))
+    .find((candidate) => normalize(candidate.innerText || candidate.textContent).toUpperCase() === 'VALIDATE FIX');
+  if (!button) return { ok: false, message: 'VALIDATE FIX button not found', href: location.href };
+  button.scrollIntoView({ block: 'center', inline: 'center' });
+  button.focus();
+  button.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
+  button.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
+  button.click();
+  return { ok: true, href: location.href };
+}
+
 function clickSeeDetailsOnDrilldown(input) {
   const normalize = (value) => String(value || '').replace(/\s+/g, ' ').trim();
   const target = Array.from(document.querySelectorAll('a, button')).find((candidate) => {
@@ -524,13 +570,55 @@ async function runIndexIssueValidations(client, sessionId, args) {
       const itemKey = new URL(drilldownHref).searchParams.get('item_key');
       await waitForCondition(client, sessionId, () => {
         const body = document.body.innerText || '';
+        const hasValidateFix = /VALIDATE\s+FIX/i.test(body);
         const hasSeeDetails = /SEE\s+DETAILS/i.test(body);
         const hasValidationCard = /Validation\s+(Failed|Not started|Started|Passed)/i.test(body);
-        return { ok: hasSeeDetails || hasValidationCard, href: location.href, text: body.slice(0, 500) };
+        return { ok: hasValidateFix || hasSeeDetails || hasValidationCard, href: location.href, text: body.slice(0, 500) };
       }, {}, 45000, 1000);
+
+      const drilldownBefore = await client.evaluate(readDrilldownValidationState, {}, sessionId);
+      if (String(drilldownBefore.validationStatus || '').toLowerCase() === 'started') {
+        const result = { ...issue, itemKey, submitted: true, before: drilldownBefore, after: drilldownBefore };
+        console.log(`${prefix} OK already-started`);
+        console.log(JSON.stringify(result));
+        results.push(result);
+        continue;
+      }
+      if (String(drilldownBefore.validationStatus || '').toLowerCase() === 'passed') {
+        const result = { ...issue, itemKey, submitted: false, skipped: true, before: drilldownBefore };
+        console.log(`${prefix} SKIP passed`);
+        console.log(JSON.stringify(result));
+        results.push(result);
+        continue;
+      }
+      if (drilldownBefore.hasValidateFixButton) {
+        const clickTarget = await client.evaluate(getValidateFixButtonRect, {}, sessionId);
+        if (!clickTarget.ok) throw new Error(clickTarget.message || 'could not locate VALIDATE FIX');
+        await client.clickPoint(clickTarget.x, clickTarget.y, sessionId);
+        const domClick = await client.evaluate(clickValidateFixButton, {}, sessionId);
+        if (!domClick.ok) throw new Error(domClick.message || 'could not dispatch VALIDATE FIX click');
+        await waitForCondition(client, sessionId, () => {
+          const body = document.body.innerText || '';
+          const hasValidateFix = /VALIDATE\s+FIX/i.test(body);
+          return {
+            ok: /Validation\s+(started|passed)/i.test(body) || !hasValidateFix,
+            text: body.slice(0, 500),
+            href: location.href,
+            hasValidateFix,
+          };
+        }, {}, 180000, 1000);
+        const drilldownAfter = await client.evaluate(readDrilldownValidationState, {}, sessionId);
+        const submitted = String(drilldownAfter.validationStatus || '').toLowerCase() === 'started' || !drilldownAfter.hasValidateFixButton;
+        const result = { ...issue, itemKey, submitted, before: drilldownBefore, after: drilldownAfter };
+        console.log(`${prefix} OK ${submitted ? 'started' : 'clicked'}`);
+        console.log(JSON.stringify(result));
+        results.push(result);
+        continue;
+      }
+
       const detailsTarget = await client.evaluate(getSeeDetailsRect, { reason: issue.reason, validationStatus: issue.validation }, sessionId);
       if (!detailsTarget.ok) {
-        throw new Error(detailsTarget.message || 'could not locate validation SEE DETAILS on drilldown page');
+        throw new Error(detailsTarget.message || 'could not locate validation SEE DETAILS or VALIDATE FIX on drilldown page');
       }
       await client.clickPoint(detailsTarget.x, detailsTarget.y, sessionId);
       await waitForCondition(client, sessionId, () => {

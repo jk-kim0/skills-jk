@@ -57,14 +57,16 @@ When the user points to `https://search.google.com/search-console/index?...`, me
    - “SEE DETAILS” or direct navigation opens `/index/validation?...&item_key=<key>`.
    - Prefer the real UI path for failed validations: Page indexing table → issue row `/index/drilldown?...&item_key=...` → the validation-status card’s right-side `SEE DETAILS` button → `/index/validation?...&item_key=...` → `START NEW VALIDATION`.
    - If direct navigation to `/index/validation?...&item_key=...` shows only `Examples` or no `START NEW VALIDATION`, do not conclude non-actionable yet. Return to the drilldown page and click the `SEE DETAILS` button associated with the `Validation Failed` (or target validation status) card; some GSC issue types only expose `START NEW VALIDATION` after that transition.
+   - For current `Not Started` issue drilldown pages, GSC may show a direct `VALIDATE FIX` control on the drilldown page instead of the older `SEE DETAILS` → `START NEW VALIDATION` validation-detail path. Click `VALIDATE FIX` and verify the drilldown/table state changes to `Validation started` / `Started`.
    - If `START NEW VALIDATION` is present after the drilldown/SEE DETAILS transition, click it and verify the issue changes to `Validation started` / table state `Started`.
-   - If the start button is absent even after the drilldown/SEE DETAILS transition, report it as non-actionable for the current state rather than falling back to URL-level Request indexing.
+   - If neither `VALIDATE FIX` nor `START NEW VALIDATION` is present even after the drilldown/SEE DETAILS transition, report it as non-actionable for the current state rather than falling back to URL-level Request indexing.
 
 3. Browser automation pitfalls.
    - GSC is a SPA; after navigation, wait for the `Validation details` heading and either `START NEW VALIDATION` or a terminal/started validation state, not just any text containing “Validation”.
    - If using Chrome DevTools Protocol, multiple old Search Console tabs can be open. Prefer a fresh tab or activate/bring the selected target to front; otherwise a background/stale tab may show only partial “Examples” content and hide the start button.
    - `wait_for` text can time out even when the page updates; take a fresh snapshot before concluding failure.
-   - DOM `button.click()` is not always equivalent to a user click in GSC. Prefer a CDP/Playwright-style mouse click at the table row, `SEE DETAILS`, and `START NEW VALIDATION` button center, then verify the post-click state.
+   - DOM `button.click()` is not always equivalent to a user click in GSC. Prefer a CDP/Playwright-style mouse click at the table row, `SEE DETAILS`, `VALIDATE FIX`, and `START NEW VALIDATION` button center, then verify the post-click state.
+   - Some current GSC Material controls that appear as buttons in the accessibility tree are implemented as `div role="button"`; browser helpers should query both `button` and `[role="button"]` when locating `VALIDATE FIX`.
    - A `Failed` issue can still open a validation/detail view that shows only `Examples` and no `START NEW VALIDATION` when reached by the wrong route. Before declaring it non-actionable, reproduce the real UI path: issue row → drilldown → validation-status card `SEE DETAILS`. Treat it as non-actionable only if that path still does not expose `START NEW VALIDATION`; never fall back to URL-level Request indexing. See `references/gsc-validation-detail-partial-view.md`.
 
 4. CLI regression checks when maintaining automation.
