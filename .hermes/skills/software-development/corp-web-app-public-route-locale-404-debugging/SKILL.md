@@ -81,6 +81,23 @@ Expected result:
 Pitfall:
 - Do not implement `destination: 'https://app.querypie.com/:locale/chat/publication/:path*'`; app.querypie.com does not treat the locale-prefixed version as the working content URL.
 
+Alternative route-handler pattern when the user explicitly wants to remove the unprefixed handler and route through middleware:
+1. Add the route prefix to `DEFAULT_LOCALE_REWRITE_PREFIXES` in `src/middleware.ts`, e.g. `'/chat/publication'`.
+2. Create one localized route handler at `src/app/[locale]/chat/publication/[[...path]]/route.ts`.
+3. In that handler, match only supported locale prefixes (`en|ko|ja`) and strip the prefix before building the external redirect URL.
+4. Export `HEAD = GET` for redirect compatibility.
+5. Delete the old unprefixed handler at `src/app/chat/publication/[[...path]]/route.ts`.
+6. Add focused tests for both layers:
+   - middleware rewrites English `/chat/publication/...` to `/en/chat/publication/...`
+   - middleware still redirects non-English unprefixed requests to `/:locale/chat/publication/...`
+   - the localized route handler redirects `/:locale/chat/publication/...` to the locale-less external app URL
+   - unsupported prefixes do not get forwarded to the external app
+
+Additional pitfalls for the route-handler pattern:
+- Do not redirect to `https://app.querypie.com/ko/chat/publication/...`; verify the external app target first.
+- Avoid a broad dynamic route at `src/app/[locale]/route.ts`; create the exact nested handler under `[locale]/chat/publication/[[...path]]/route.ts`.
+- If a fresh worktree lacks local `node_modules`, broad routing test groups can fail on unrelated PostCSS plugin resolution (`Cannot find module '@tailwindcss/postcss'`). In that case, run the directly affected Vitest files plus `node scripts/ci/assert-test-groups.mjs`, and report the broad-suite environment failure separately.
+
 ## Investigation workflow
 
 ### 1. Check the exact requested URL literally
