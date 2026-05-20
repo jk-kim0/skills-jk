@@ -402,6 +402,7 @@ Observed in `skills-jk`:
 - rebase conflict resolution via `sed` can silently discard the HEAD side when naively stripping markers (`/<<<<<<< HEAD/,/=======/d`). Both sides often contain independently valid additions in `skills-jk` append-only files. Always re-read after any automated strip, or prefer manual resolution. See `references/sed-conflict-strip-pitfall.md`.
 - if you do update that existing PR branch, still verify the branch head SHA on the remote after push because PR metadata can lag briefly
 - before dispatching a new create-PR workflow during repeated cleanup/local-sweep work, compare the candidate branch payload against existing open cleanup/follow-up PR branches; if another open bot PR already has the same tree, do not create a duplicate PR. See `references/avoid-duplicate-payload-prs.md`.
+- after a scoped memory/config PR and root reset, run one more root status loop: the current session can reveal new tracked skill/reference residue that was not part of the scoped payload. If meaningful and the user asked to PR local changes broadly, split it into a separate narrow PR; if the preservation branch is tree-identical to `origin/main`, do not report it as meaningful preservation. See `references/post-reset-skill-reference-residue.md`.
 
 ## Completion checklist
 
