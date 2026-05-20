@@ -23,7 +23,8 @@ This workflow is for repositories that may have many old worktrees, detached rev
 - `branch-squash-validity-and-stale-cleanup` — use when the user explicitly wants each local branch judged by a synthetic squash of current local state versus latest `origin/main`, with a disposable rebase-onto-latest-main test before deciding whether to preserve or delete it.
 
 References:
-- `references/promote-portable-backup-patch.md` — detailed pattern for repeated cleanup where an old backup branch has a huge stale raw diff but a small portable synthetic-squash payload that should be promoted to a fresh branch/PR before deleting the old worktree.
+- `references/promote-portable-backup-patch.md` — repeated cleanup pattern for stale backup branches whose portable synthetic-squash payload should be promoted before deletion.
+- `references/merged-pr-gone-upstream-cleanup.md` — recipe for deleting clean worktrees/branches whose upstream refs were pruned after merged-PR confirmation, then fast-forwarding root `main`.
 
 ## Goals
 

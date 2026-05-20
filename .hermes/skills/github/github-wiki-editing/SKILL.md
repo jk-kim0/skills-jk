@@ -106,6 +106,7 @@ Typical git steps:
 - If `git push` is rejected because `origin/master` advanced, prefer `git fetch` + `git pull --rebase origin master` and then push again, rather than force-pushing wiki history.
 - When the user wants markdown links in wiki docs, apply the requested `[path](url)` format consistently everywhere links appear: table cells, bullet lists, and section headings that include route paths. Do not leave bare URLs in those places unless the user explicitly wants raw URLs.
 - GitHub wiki right-side navigation can be customized by creating `_Sidebar.md` in the wiki repo. If `_Sidebar.md` does not exist, creating it replaces the default auto-generated page list with your custom sidebar.
+- Do **not** create or modify `_Sidebar.md` by default when adding a normal wiki page. A custom sidebar suppresses GitHub wiki's automatic page list, and some users prefer the automatic sidebar. Only add `_Sidebar.md` when the user explicitly asks for a custom/manual sidebar. If the user asks to restore the automatic sidebar, delete `_Sidebar.md`, commit, and push the wiki repo.
 - `_Sidebar.md` is plain Markdown, so hierarchical navigation is achieved with nested bullet lists. This is suitable for grouping many related pages (for example, multiple dated operational reports under a single parent label), but it is not a real collapsible folder tree.
 
 ## Example: path-first sitemap format
