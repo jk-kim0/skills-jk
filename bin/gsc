@@ -895,7 +895,7 @@ def main():
     )
     validation_parser.add_argument('site_url', help='사이트 URL')
     validation_parser.add_argument('--submit', action='store_true', help='실제 START NEW VALIDATION 클릭')
-    validation_parser.add_argument('--only-status', default='Failed', help='처리할 Validation 상태 (기본: Failed, all로 전체)')
+    validation_parser.add_argument('--only-status', default='actionable', help='처리할 Validation 상태 (기본: actionable = Failed + Not Started, all도 actionable과 동일)')
     validation_parser.add_argument('--include-started', action='store_true', help='Started 상태 이슈도 후보에 포함')
     validation_parser.add_argument('--limit', type=int, help='처리할 최대 이슈 수')
     validation_parser.add_argument('--delay-ms', type=int, help='이슈 사이 지연 시간(ms)')
@@ -910,7 +910,7 @@ def main():
             action='store_true',
             help='sc-domain 속성까지 포함 (기본: URL-prefix 속성만)',
         )
-        p.add_argument('--only-status', default='Failed', help='처리할 Validation 상태 (기본: Failed, all로 전체)')
+        p.add_argument('--only-status', default='actionable', help='처리할 Validation 상태 (기본: actionable = Failed + Not Started, all도 actionable과 동일)')
         p.add_argument('--include-started', action='store_true', help='Started 상태 이슈도 후보에 포함')
         p.add_argument('--limit-sites', type=int, help='처리할 최대 사이트 수')
         p.add_argument('--issue-limit', type=int, help='사이트별 처리할 최대 이슈 수')
@@ -949,7 +949,7 @@ def main():
         action='store_true',
         help='sc-domain 속성까지 포함 (기본: URL-prefix 속성만)',
     )
-    validation_all_parser.add_argument('--only-status', default='Failed', help='처리할 Validation 상태 (기본: Failed, all로 전체)')
+    validation_all_parser.add_argument('--only-status', default='actionable', help='처리할 Validation 상태 (기본: actionable = Failed + Not Started, all도 actionable과 동일)')
     validation_all_parser.add_argument('--include-started', action='store_true', help='Started 상태 이슈도 후보에 포함')
     validation_all_parser.add_argument('--limit-sites', type=int, help='처리할 최대 사이트 수')
     validation_all_parser.add_argument('--issue-limit', type=int, help='사이트별 처리할 최대 이슈 수')

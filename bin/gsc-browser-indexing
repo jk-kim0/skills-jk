@@ -25,7 +25,7 @@ Options:
                     For URL mode: submit Request indexing after live validation
                     For --index-issues: click START NEW VALIDATION per issue
   --index-issues    List or start validation for Page indexing issue rows
-  --only-status S   Only process issue rows with this validation status (default: Failed)
+  --only-status S   Only process issue rows with this validation status (default: actionable = Failed + Not Started)
   --include-started Include rows already in Started validation state
   --limit N         Max URLs from --file or max issue rows from --index-issues
   --delay-ms N      Delay between URLs/issues (default: 15000)
@@ -43,7 +43,7 @@ Notes:
 }
 
 function parseArgs(argv) {
-  const args = { port: DEFAULT_PORT, delayMs: 15000, siteDelayMs: 3000, connectTimeoutMs: 120000, sites: [], submit: false, probe: false, target: 'search-console', indexIssues: false, onlyStatus: 'Failed', includeStarted: false };
+  const args = { port: DEFAULT_PORT, delayMs: 15000, siteDelayMs: 3000, connectTimeoutMs: 120000, sites: [], submit: false, probe: false, target: 'search-console', indexIssues: false, onlyStatus: 'actionable', includeStarted: false };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--help' || a === '-h') args.help = true;

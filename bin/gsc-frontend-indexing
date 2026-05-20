@@ -29,7 +29,7 @@ Options:
   --site URL             GSC property URL, e.g. https://docs.querypie.com/
   --index-issues         List or start validation for Page indexing issue rows
   --submit               Actually request validation when a direct frontend action is available
-  --only-status S        Only process rows with this validation status (default: Failed)
+  --only-status S        Only process rows with this validation status (default: actionable = Failed + Not Started)
   --include-started      Include rows already in Started validation state
   --limit N              Max issue rows to process
   --delay-ms N           Delay between issue requests (default: 15000)
@@ -43,7 +43,7 @@ Notes:
 }
 
 function parseArgs(argv) {
-  const args = { port: DEFAULT_PORT, sessionFile: DEFAULT_SESSION_FILE, onlyStatus: 'Failed', includeStarted: false, delayMs: 15000, submit: false };
+  const args = { port: DEFAULT_PORT, sessionFile: DEFAULT_SESSION_FILE, onlyStatus: 'actionable', includeStarted: false, delayMs: 15000, submit: false };
   for (let i = 2; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === '--help' || a === '-h') args.help = true;
