@@ -136,6 +136,14 @@ THEN investigate that specific component.
 - Keep tracing upstream until you find the source
 - Fix at the source, not at the symptom
 
+**WHEN a CLI/helper appears to disagree with a web console/UI:**
+
+- First verify the CLI and UI are observing the same scope, filters, and execution mode before assuming the parser or API is broken.
+- Re-run the helper with and without optional filters that change the data scope (for example sitemap-specific filters vs the unfiltered Page indexing screen).
+- If there are multiple collection paths (for example direct saved-session HTML scraping vs live browser DOM/CDP scraping), compare both and note which one reads static HTML vs fully rendered DOM.
+- Cross-check authoritative adjacent APIs or list commands for inventory mismatches (for example registered sitemap list vs sitemap options parsed from frontend markup).
+- Report the distinction explicitly: “CLI can read the unfiltered UI, but this option makes it inspect a narrower filtered view” is a root cause, not just a workaround.
+
 **Action:** Use `search_files` to trace references:
 
 ### 6. For browser layout bugs, measure document overflow before changing CSS
