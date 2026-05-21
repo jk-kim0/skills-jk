@@ -34,6 +34,8 @@ User wants repo work to start from the latest main branch, use a git worktree ra
 §
 User prefers clear, concise names, but if they request a product name in the symbol, follow it.
 §
+User prefers clear reviewer-facing terms; in Korean layout docs use '공통 레이아웃 UI' not 'chrome'.
+§
 User currently wants corp-web-v2 demo use-cases and webinars to use plural route-aligned naming consistently: detail routes should use `/demo/use-cases/:id/:slug`, and MDX content directories should mirror actual public URI naming such as `src/content/mdx/demo/use-cases/**` and `src/content/mdx/demo/webinars/**`.
 §
 For GitHub issue/report writing, the user prefers the body to present English first and then a Japanese translation below it, rather than mixing languages or leading with Japanese.

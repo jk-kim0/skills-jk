@@ -63,7 +63,11 @@ See `references/corp-web-app-tailwind-route-scoped-reset-workaround.md` for the 
 ## Common false positives
 
 - **Header shadow appearing mid-page**: caused by capturing at scrollY > 0. Remedy: `window.scrollTo(0,0)`.
-- **Viewport width difference**: stage tab may be 1467 px, prod tab 1535 px. Always sync width.
+- **Viewport width difference**: stage tab may be 1467 px, prod tab may be 1535 px. Always sync width.
+
+## App Router private-folder 404 pitfall
+
+When a Preview URL 404s for a newly added Next.js App Router route, inspect the physical `src/app` folder names before assuming deployment or middleware failure. In App Router, folders prefixed with `_` are private folders and are opted out of routing, even if they contain `page.tsx` or `route.ts`. A route implemented under `src/app/_translations/...` or `src/app/[locale]/_translations/...` will not register and will 404 on Preview. If the public URL truly needs a leading underscore, use the encoded folder segment `%5Fname`; otherwise prefer a normal segment such as `translations`. Direct unit tests that import `src/app/_segment/.../page` can still pass because they bypass Next's route registration, so validate the deployed path with HTTP/browser evidence after route-segment changes.
 
 ## Visual layer pitfall
 
