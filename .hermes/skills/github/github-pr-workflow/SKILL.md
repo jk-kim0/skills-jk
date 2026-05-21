@@ -813,7 +813,20 @@ gh pr view <branch-name> --json number,title,url,headRefName,baseRefName,state
      ```
    - In the PR body, state the final runner selector, not any intermediate broader/narrower selector considered during the session.
 
-9a. Production deploy workflow branch-source changes.
+9a. Manual deployed-URL E2E workflow and WAF-aware throttling.
+
+   - When a user asks to add a GitHub Actions workflow to run an already-merged E2E spec from a prior PR, treat the prior PR as context only if it is merged: start from latest `origin/main`, create a fresh branch/worktree, and add a narrow workflow-only PR instead of reviving the deleted old PR branch.
+   - Prefer `workflow_dispatch` only when the user asks for manual execution. Do not add automatic `pull_request` or `push` triggers unless explicitly requested.
+   - If the E2E suite lives in a nested workspace such as `tests/`, set `defaults.run.working-directory: tests`, use `cache-dependency-path: tests/package-lock.json`, and run `npm ci` plus the browser install command from that workspace before invoking the existing package script.
+   - Expose only safe runtime knobs as manual inputs, for example concurrency or max request rate inputs mapped to existing test environment variables. Avoid adding route/deploy behavior or modifying the app under test unless requested.
+   - Upload Playwright artifacts with `if: always()` and paths rooted from the repository checkout, such as `tests/playwright-report/` and `tests/test-results/`, so failed manual runs are inspectable.
+   - For workflow-only PR verification, prefer YAML parse + `actionlint` + `git diff --check`. If the referenced E2E is known to fail against the current deployed baseline, do not spend time running it locally just to reproduce the known failure; state that the workflow was statically validated and the E2E is expected to fail until the baseline issues are fixed.
+   - If a manual E2E workflow sweeps many deployed URLs, distinguish app failures from rate limiting before changing product code: inspect the Actions log for the first non-200, retries, and request settings; query Vercel runtime logs for the same environment/time window and explicit `403`/`429` status codes; direct-curl representative failed URLs after the burst. If runtime logs show the app returned 200 and no runtime 403/429 rows, treat the failure as WAF/rate-limit behavior and fix the E2E by lowering default request rate and disabling whole-suite retries for that script.
+   - When a deployed-URL E2E sweep is governed by a known Vercel WAF rate limit, set the default request rate to a deliberate safety fraction of the real WAF limit rather than an arbitrary slow delay. Practical pattern from corp-web-app: WAF challenge threshold was `100 requests / 10s` for same `ip + user-agent`; the workflow default targeted 70% (`70 requests / 10s`) and exposed a manual input such as `sitemap_max_requests_per_10s`.
+   - Implement throttling at the actual HTTP request-start boundary, not only after each logical URL item, so redirects/retries also count toward the limit. If concurrency is useful for slow network responses, keep a separate concurrency knob but make the global rate limiter authoritative. Example: `SITEMAP_E2E_CONCURRENCY=8` controls parallel in-flight URL checks, while `SITEMAP_E2E_MAX_REQUESTS_PER_10S=70` computes `ceil(10000 / 70)` milliseconds between stage request starts.
+   - Log the effective concurrency, max requests per window, and request interval in the E2E output so Actions evidence explains the actual request rate. Document the manual workflow entry near the E2E script docs so future users know the spec can be launched from GitHub Actions UI and understand the WAF-aware default rate.
+
+9b. Production deploy workflow branch-source changes.
 
    - When changing a manual production deploy workflow from a release-branch promotion model to direct branch deployment, remove branch-mutation steps entirely instead of keeping a hidden `git checkout/rebase/push` phase.
    - When the requested pattern is “like querypie-docs/corp-web-japan” or another sibling repo, match the sibling implementation shape closely instead of inventing extra deploy-script behavior.
