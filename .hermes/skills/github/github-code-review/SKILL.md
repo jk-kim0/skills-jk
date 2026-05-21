@@ -297,6 +297,7 @@ When performing a code review (local or PR), systematically check:
 - DRY — no duplicated logic that should be extracted
 - Functions are focused (single responsibility)
 - For layout/refactor PRs, trace container-width ownership end-to-end instead of reviewing only the renamed/extracted wrapper. If a route previously wrapped both title and list/content inside one `max-w-*` container, an extracted intro/title wrapper must not leave the sibling list/content area unconstrained unless the wider layout is explicitly intended.
+- For Next.js App Router layout PRs, distinguish styling opt-in from layout-shell replacement. A child route `layout.tsx` can add wrappers but cannot remove or replace an already-applied parent/root layout. If a PR changes `src/app/layout.tsx` or middleware to enable one endpoint, call out that the implementation touches global request/render paths even if the visible behavior is route-gated; the structurally isolated alternative is route groups with multiple root layouts, which usually has a much larger routing-tree diff.
 
 ### Testing
 - New code paths tested?
