@@ -32,3 +32,19 @@ During or between agent sessions, the root working tree can accumulate a large n
 ## Historical context
 
 This pattern appeared during repeated `workspace 정리` sessions in the `skills-jk` repo, where root `main` showed 60+ modified `.hermes/skills/` files with a net diff of 3,200+ lines. The diff turned out to be entirely generated noise (bundled manifest hash updates, version field rollbacks, and deleted session artifact references). Running `git restore .hermes/skills/` cleanly discarded the noise without losing any authored work.
+
+## Preserve branch from uncommitted root state (HEAD == origin/main)
+
+When root `HEAD` is already at `origin/main` but the working tree contains authored skill/memory changes (not generated noise), use:
+
+```bash
+git add -A
+git commit -m "preserve: agent skill/memory updates $(date +%Y-%m-%d)"
+git branch preserve/<description> HEAD
+git reset --hard HEAD~1
+git checkout main
+```
+
+This creates a named preserve branch from the uncommitted state directly, without touching `main`'s history. Unlike `git stash branch`, this avoids re-applying uncommitted changes onto multiple branches and leaving working tree dirt behind.
+
+Important: before committing, verify the diff is genuine authored work by sampling a few files. Do not accidentally preserve generated noise. If generated noise is mixed with authored changes, restore the noise paths first, then commit the authored subset.
