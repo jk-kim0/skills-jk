@@ -76,6 +76,16 @@ git fetch origin --prune
 git checkout -b feat/<topic> origin/main
 ```
 
+When fast-forwarding an existing local `main`, prefer the explicit fetched remote ref over ambiguous pull syntax:
+
+```bash
+git fetch origin --prune
+git checkout main
+git merge --ff-only origin/main
+```
+
+Avoid relying on `git pull --ff-only origin main` in unusual repo/worktree configurations; it can fail with messages such as `Cannot fast-forward to multiple branches`. The explicit `fetch` + `merge --ff-only origin/main` form is clearer and safer.
+
 Important safety rule:
 - Do NOT create a new PR branch from a previously used feature/fix branch, even if that branch's PR was already merged.
 - If the previous PR was squash-merged or otherwise rewritten on GitHub, the old local commit SHA may not exist on `main`, so GitHub can show that old commit again in the new PR even though the content was already merged.
@@ -816,9 +826,14 @@ gh pr view <branch-name> --json number,title,url,headRefName,baseRefName,state
      ```
    - In the PR body, state the final runner selector, not any intermediate broader/narrower selector considered during the session.
 
-9a. Manual deployed-URL E2E workflow and WAF-aware throttling.
+9a. Manual deployed-URL E2E workflow, Node runtime upgrades, and WAF-aware throttling.
 
    - When a workflow run emits a warning like `Node.js 20 actions are deprecated` for `actions/checkout@v4`, `actions/setup-node@v4`, or `actions/upload-artifact@v4`, diagnose it as the JavaScript action runtime version, not the app/test `node-version`. Prefer upgrading the referenced first-party action majors to releases whose `action.yml` declares `runs.using: node24` rather than hiding the warning with `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` or opting out later with `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true`.
+   - Keep the distinction explicit in PRs and user reports:
+     - **Action runtime upgrade**: changes action majors such as `actions/checkout@v4` -> `@v6`, while preserving `node-version: '22'` or whatever app/test runtime the repo already uses.
+     - **Repo/app Node runtime upgrade**: changes `actions/setup-node` inputs like `node-version: '22'` -> `'24'`, and may also declare `package.json` `engines.node`, update lockfile root metadata, and add `.nvmrc` / `.node-version` for local tool selection.
+   - When the user asks to upgrade the repo to a Node LTS version, treat it as an app/CI runtime change, not merely an action-major cleanup. Keep the PR narrow but align the obvious sources of truth: workflow `node-version`, `package.json` `engines.node`, package-lock root package `engines`, and local version files if the repo does not already have a different version-management convention. Use `24.x` in `engines.node` when the intent is “Node 24 LTS major” rather than a specific patch.
+   - For Node runtime PRs where the user wants to run verification later, do not spend time on local build/test. Use lightweight verification such as `git diff --check`, `actionlint .github/workflows/*.yml`, JSON parse checks for `package.json` / `package-lock.json`, grep for stale `node-version: '22'`, then push and report queued CI instead of waiting.
    - Verification pattern for that warning:
      ```bash
      # Discover old first-party action majors in workflows
@@ -834,6 +849,8 @@ gh pr view <branch-name> --json number,title,url,headRefName,baseRefName,state
      ```
    - If the warning is reported from one manual workflow but the same deprecated action majors remain in other workflow files, consider a narrow repo-wide workflow action-major update across `.github/workflows/*.yml`; otherwise the PR's own Validate/Deploy workflows may continue emitting the same warning. Keep behavior unchanged: do not alter workflow triggers, permissions, cache settings, or app/test Node versions unless needed.
    - Validate workflow-only action upgrades with `actionlint .github/workflows/*.yml`, `git diff --check`, and a final grep showing no remaining deprecated action refs. If the affected workflow is manual `workflow_dispatch`, dispatch it on the PR branch after push and report the run URL/current state without passively waiting.
+   - If the workflow being upgraded is also the mechanism used to create the PR (for example a repo-standard `create-pr.yml` workflow), expect the PR-creation run itself to still execute from the default branch's old workflow until the PR merges. Do not treat that one last Node deprecation warning as proof the branch failed; verify the branch diff, confirm the upgraded action tag's `action.yml` declares `runs.using: node24`, and explain that future runs after merge will use the new runtime.
+   - `actionlint` may surface unrelated pre-existing shellcheck warnings while validating an action-runtime-only change. If the fix is narrow and behavior-preserving, include it; otherwise report it separately rather than broadening the workflow PR into unrelated cleanup.
 
    - When a user asks to add a GitHub Actions workflow to run an already-merged E2E spec from a prior PR, treat the prior PR as context only if it is merged: start from latest `origin/main`, create a fresh branch/worktree, and add a narrow workflow-only PR instead of reviving the deleted old PR branch.
    - Prefer `workflow_dispatch` only when the user asks for manual execution. Do not add automatic `pull_request` or `push` triggers unless explicitly requested.

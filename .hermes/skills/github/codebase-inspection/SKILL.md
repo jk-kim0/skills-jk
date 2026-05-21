@@ -197,6 +197,56 @@ Report shape:
 
 Pitfall: do not add redirects or restore deleted legacy public assets just because runtime logs show 404s. For asset-shaped 404s, the default is no-action when the current site does not emit the exact URL. Restore a compatibility file only for a repeated/high-value external compatibility case with explicit evidence.
 
+## 0D. Node.js Major Upgrade Necessity Check
+
+When asked whether a repo needs to upgrade to a specific Node.js major, do not answer from general lifecycle intuition alone. Inspect the live repo, CI/runtime pins, dependency engine ranges, hosting/runtime support, and the official Node release schedule.
+
+1. Confirm the active repo and current local toolchain:
+   ```bash
+   pwd
+   git rev-parse --show-toplevel 2>/dev/null || true
+   node -v 2>/dev/null || true
+   npm -v 2>/dev/null || true
+   ```
+2. Find repo-level runtime pins and CI/deploy runtime versions:
+   ```bash
+   for f in package.json .nvmrc .node-version .tool-versions vercel.json Dockerfile docker/Dockerfile .github/workflows/*.yml .github/workflows/*.yaml; do
+     [ -e "$f" ] && echo "$f"
+   done
+   rg -n "node-version|setup-node|NODE_VERSION|engines|node:" package.json vercel.json .github/workflows Dockerfile docker 2>/dev/null || true
+   ```
+3. Read `package.json` and any workflow files that pin Node. Distinguish root `engines.node` from transitive `package-lock.json` package engine metadata.
+4. Check the official Node schedule/current versions rather than relying on memory:
+   ```bash
+   python3 - <<'PY'
+   import json, urllib.request
+   schedule = json.load(urllib.request.urlopen('https://raw.githubusercontent.com/nodejs/Release/main/schedule.json', timeout=20))
+   index = json.load(urllib.request.urlopen('https://nodejs.org/dist/index.json', timeout=20))
+   latest = {}
+   for row in index:
+       latest.setdefault(row['version'].split('.')[0], row)
+   for major in ['v20','v22','v24','v25','v26']:
+       print(major, 'schedule=', schedule.get(major), 'latest=', latest.get(major))
+   PY
+   ```
+5. Check important package engine ranges when they materially affect the answer:
+   ```bash
+   npm view next engines --json
+   npm view prisma engines --json
+   npm view vitest engines --json
+   ```
+6. For Vercel-hosted projects, verify Vercel's currently supported Node majors before recommending a major bump. Vercel can lag newly released majors; if the target major is not supported, say so clearly.
+
+Recommended answer shape:
+- Direct conclusion first: required / not required / not recommended yet.
+- Evidence bullets: repo pins, CI/deploy pins, package engine compatibility, Node LTS/EOL status, hosting support.
+- If an upgrade is reasonable but not the requested major, name the safer candidate (for example, Node 24 LTS instead of a non-LTS/unsupported Node 26) and recommend a separate PR/check cycle.
+
+Pitfalls:
+- Do not treat a newly released even-numbered Node major as automatically safe; confirm whether it is LTS yet and whether the host supports it.
+- Do not recommend changing CI to a major the deployment platform cannot run.
+- Do not confuse transitive dependency `engines` in lockfiles with this repo's own Node contract.
+
 ## 1. Basic Summary (Most Common)
 
 Get a full language breakdown with file counts, code lines, and comment lines:

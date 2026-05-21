@@ -34,6 +34,13 @@ Use this when migrating or reviewing a corp-web-app repo-local MDX/publication c
    - For list-card families such as blog, reuse the same card fields as the `/{locale}/t/<family>` list route and let available-locale hover/focus preview that locale's card data.
    - See `references/internal-translation-coverage-routes.md` for the route/data/test recipe.
 
+0c. When a `/{locale}/t/<family>` publication list route must visually match a live page and the user asks for Tailwind, convert only the requested list surface to Tailwind while keeping the loader/content contract stable.
+   - For `/{locale}/t/news`, the live `querypie.ai/news` pattern is a left-aligned editorial list, not the older company-news or resource-card/sidebar pattern.
+   - Replace the relevant list shell classes with Tailwind utilities, then remove the CSS Module only after confirming there are no remaining imports or `styles.` references.
+   - Keep public routes, sitemap, canonical, and redirects unchanged unless the task explicitly says to release the public route.
+   - If targeted Vitest fails because stale worktree dependencies cannot resolve unrelated CSS/PostCSS imports, mock the unrelated component rather than doing a slow install; do not use unsupported `--runInBand` with Vitest v3.
+   - See `references/t-news-tailwind-list-parity.md` for live-page measurements, source checks, and test pitfalls.
+
 1. Work on the relevant PR branch in a fresh or freshly-reset worktree.
    - For an existing open PR, update the same branch/PR unless the user asks for a new PR.
    - If the branch is already attached to an old worktree, verify it is clean, remove/recreate or hard-reset it from the remote branch before editing.

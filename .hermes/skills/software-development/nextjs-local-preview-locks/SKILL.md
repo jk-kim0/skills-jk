@@ -52,10 +52,16 @@ ln -s /path/to/root-checkout/node_modules node_modules
 npm run dev -- --port 3456
 ```
 
+Before trusting the symlink fast-path, verify that the root install can resolve key build-time packages used by the current repo, especially PostCSS/Tailwind plugins:
+```bash
+node -p "require.resolve('@tailwindcss/postcss')" || echo 'root install is missing Tailwind PostCSS plugin'
+```
+
 Why:
 - for local browser verification, this is often enough to boot the correct worktree without paying the cost of another install
 - this is especially useful for quick rendering checks after a small UI/style fix
 - still verify the server PID/cwd after startup so you know the browser is hitting the intended worktree
+- if the symlinked server returns 500 with `Cannot find module '@tailwindcss/postcss'`, the root `node_modules` is incomplete for the current branch; remove the symlink, run a worktree-local `npm install`, then restart the dev server
 
 
 ### 2. Try starting on an explicit port

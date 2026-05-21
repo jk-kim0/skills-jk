@@ -99,6 +99,14 @@ Interpretation:
 - Top-level public route references should be removed or explicitly justified.
 - `public/` sitemap/static references should not include internal route families.
 
+## Internal MDX pages migrated from corp-web-contents
+
+When an internal-only MDX page is moved from `corp-web-contents` into `corp-web-app`, do not stop at changing internal index links. Move the actual MDX into `src/content/internal/`, add an explicit `src/app/[locale]/internal/<slug>/page.tsx` route, and make that route read the repo-local MDX directly rather than delegating to `dynamic-page`, `FileQuery`, or remote `corp-web-contents` lookups.
+
+Also migrate referenced assets into a route-aligned app-local public directory such as `public/internal/<slug>/...` and rewrite the MDX references. Watch for indirect remote dependencies in shared article rendering: `ArticleFileImage`, `ogImage`, and string `relatedPosts` can still trigger FileQuery/remote frontmatter behavior unless the internal route or frontmatter handles them explicitly.
+
+See `references/internal-mdx-repo-local-migration.md` for the session-derived checklist and verification snippets.
+
 ## Tests to add or update
 
 Add tests that lock all three contracts:
@@ -106,6 +114,8 @@ Add tests that lock all three contracts:
 1. Internal index links point at `/{locale}/internal/...`.
 2. The route metadata is noindex/nofollow.
 3. The metadata has no public canonical alternate when the page is internal-only.
+
+For publication translation coverage pages such as `/internal/translations/blog` or `/internal/translations/news`, follow the reusable implementation and verification pattern in `references/publication-translation-coverage-endpoints.md`.
 
 Example assertion:
 
@@ -127,11 +137,15 @@ Run the narrowest route tests first:
 npx vitest run 'src/__tests__/app/[locale]/internal/<family>/<page>/page.test.tsx'
 ```
 
+For visual/layout questions on deployed internal pages, inspect the exact stage URL in the browser and measure computed layout before judging from code alone. Prefer a targeted DOM script that identifies semantic elements and reports `getBoundingClientRect()` plus computed `margin`, `padding`, `display`, and `gap`; this quickly separates intentional hero/list spacing from accidental CSS inheritance. For translation coverage pages specifically, avoid broad text-walker matching only by text content because Next.js inline flight `script` payloads may also contain strings like `Translation coverage`; constrain by tag/role/id/aria labels such as the eyebrow `p`, `[aria-label="... summary"]`, and `section[aria-labelledby="..."]`.
+
 Then run test group assignment validation if test files moved:
 
 ```bash
 node scripts/ci/assert-test-groups.mjs
 ```
+
+For visual/layout follow-ups on internal utility pages, verify the exact affected URL in the browser and at least one sibling route that shares the same layout primitive. Prefer concrete computed-style checks for the contract being changed (for example shell padding, shell background, eyebrow/header position, and content/list section margin) instead of relying only on screenshots or subjective spacing impressions. If the visible list label duplicates the page heading, promote the meaningful label to the page-level `h1` and remove the list-level visible `h2`; add a route test that asserts the label is an `h1` and is not also rendered as an `h2`. If a local dev server was started for this review, stop it and confirm the port is clear before creating the PR.
 
 If a broad internal index test fails before collection because a fresh worktree lacks worktree-local PostCSS/Tailwind dependencies, do not install by default if the user prefers avoiding local installs. Report it explicitly and rely on the narrower tests that can run plus CI.
 
@@ -145,3 +159,4 @@ If a broad internal index test fails before collection because a fresh worktree 
 ## References
 
 - `references/translation-coverage-internalization.md` — session-specific example: moving translation coverage pages from public-looking `/translations/*` paths to internal-only `/internal/translations/*` paths.
+- `references/translation-coverage-layout-spacing.md` — session-specific spacing/layout pattern for internal translation coverage pages, including shared primitive extraction, computed-style browser verification, and dev-server cleanup before PR creation.
