@@ -228,6 +228,6 @@ Mac Studio LLM1: `qp-test@10.11.1.11` (`Mac-Studio-LLM1.local`). QueryPie runner
 §
 In skills-jk repeated local-sweep cleanup, if requested scoped files (.hermes/config.yaml, .hermes/memories/MEMORY.md, USER.md) are already identical to latest main but the session creates skill-library residue, split that into a narrow follow-up PR instead of claiming the scoped PR changed.
 §
-In corp-web-app PR follow-up, `/[locale]/t` preview routes are additive review entrypoints; they must not modify existing public home route files or add new public locale entries unless explicitly requested, and tests should mirror route paths.
+In corp-web-app PR follow-up, keep scope narrow: do not modify public home/locale entries or shared ArticleFileImage/ArticleMain for internal sample MDX unless explicitly requested; prefer route-local MDX/frontmatter fixes; tests mirror route paths.
 §
 In corp-web-app routing, unprefixed English public URLs rewrite to /en/...; non-English defaults redirect to /ko or /ja. Translation coverage is internal-only at `/{locale}/internal/translations/{events,blog}`; avoid public `/translations/**`, keep noindex/out of sitemap. QueryPie messaging should position QueryPie as an AI Solution/AI Platform company, not primarily a security company; ACP/security assets are AI Connect Platform/security-for-AI while still serving humans.
