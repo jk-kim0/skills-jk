@@ -27,12 +27,12 @@ Use this when migrating or reviewing a corp-web-app repo-local MDX/publication c
    - Verify every listed href maps to an existing App Router `page.tsx` so the index cannot introduce dead links.
    - See `references/internal-preview-route-risk-index.md` for the session-derived pattern.
 
-0b. When asked to add a `/translations/<family>` coverage endpoint, treat it as a translation inventory page, not as a publication list.
-   - Group MDX records by stable ID and show one row per record, sorted by ID descending.
-   - Show EN/JA/KO availability as explicit status/link columns and omit thumbnails unless explicitly requested.
-   - For `/:locale/translations/<family>`, choose the visible title from the current URI locale first; fallback EN -> KO -> JA when that locale is missing.
-   - If language badges should preview titles, implement hover plus keyboard focus behavior in a small client table component while keeping filesystem/frontmatter loading in a server-side loader.
-   - See `references/translation-coverage-endpoints.md` for the session-derived pattern and tests.
+0b. When asked for an internal translation coverage endpoint for an MDX publication family, use the underscore route family and group records by ID.
+   - Prefer `/_translations/<family>` and `/{locale}/_translations/<family>`, not `/translations/<family>`.
+   - Build a `src/lib/translations/<family>.ts` loader that groups visible records by ID, carries per-locale entry data, and sorts IDs descending.
+   - For event-style coverage, show one fallback title per ID (EN -> KO -> JA), EN/JA/KO availability badges/links, and `eventDate ?? date`; hide thumbnails when the user says they are unnecessary.
+   - For list-card families such as blog, reuse the same card fields as the `/{locale}/t/<family>` list route and let available-locale hover/focus preview that locale's card data.
+   - See `references/internal-translation-coverage-routes.md` for the route/data/test recipe.
 
 1. Work on the relevant PR branch in a fresh or freshly-reset worktree.
    - For an existing open PR, update the same branch/PR unless the user asks for a new PR.
