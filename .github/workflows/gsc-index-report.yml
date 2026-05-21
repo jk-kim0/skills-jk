@@ -28,7 +28,7 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6.0.2
         with:
           fetch-depth: 0
 
@@ -37,13 +37,14 @@ jobs:
 
       - name: Run report
         run: |
-          ARGS="--headless --sitemaps"
-          if [ -n "${{ github.event.inputs.site }}" ]; then
-            ARGS="$ARGS --site ${{ github.event.inputs.site }}"
+          args=(--headless --sitemaps)
+          if [ -n "$GSC_REPORT_SITE" ]; then
+            args+=(--site "$GSC_REPORT_SITE")
           fi
-          bin/gsc-index-report $ARGS
+          bin/gsc-index-report "${args[@]}"
         env:
           GSC_COOKIE_PATH: ${{ secrets.GSC_COOKIE_PATH }}
+          GSC_REPORT_SITE: ${{ github.event.inputs.site }}
 
       - name: Create PR with report
         env:
