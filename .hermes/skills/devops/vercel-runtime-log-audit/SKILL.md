@@ -404,6 +404,7 @@ Practical implication:
 ## Project-specific references
 
 - `references/corp-web-japan-runtime-log-patterns.md` records observed corp-web-japan runtime-log patterns such as current-day 50-row plateaus, generic company/contact-path Python probing, and route-policy candidates from May 2026 snapshots.
+- `references/vercel-waf-rate-limit-investigation.md` records how to inspect active Vercel WAF rate-limit config with `vercel api`, interpret official WAF rate-limit behavior, and diagnose E2E 403/429 bursts as rate-limit/challenge behavior rather than app runtime failures.
 
 ## Useful one-off commands
 

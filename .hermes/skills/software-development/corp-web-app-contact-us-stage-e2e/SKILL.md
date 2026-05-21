@@ -13,6 +13,8 @@ metadata:
 
 Use this when the user asks for E2E coverage of `corp-web-app` Contact Us on `https://stage.querypie.com`.
 
+For stage-hosted E2E tasks that are not specifically Contact Us form behavior, load the broader `corp-web-app-stage-e2e` skill instead or alongside this one.
+
 ## Current status warning
 
 As of PR #624 follow-up (`docs: 무효 문서와 E2E 검증 범위 정리`), the repo keeps the verified `@playwright/test` E2E specs under `tests/e2e/` instead of deleting the runner. Before removing any E2E spec, run it individually against the intended target and classify failures per test case.

@@ -11,11 +11,12 @@ metadata:
 
 # corp-web-app public-route locale 404 debugging
 
-Use this when a public/legacy route under `https://www.querypie.com/**` appears to 404 only with a locale prefix or non-English locale environment. Common cases include:
+Use this when a public/legacy route under `https://www.querypie.com/**` appears to 404 only with a locale prefix, non-English locale environment, or a locale-specific legal/static rewrite. Common cases include:
 - `/public/**` file URLs that become `/:locale/public/**`
-- legacy/share redirect endpoints such as `/chat/publication/**` that work without a locale prefix but 404 as `/:locale/chat/publication/**`
+- legacy/share redirect endpoints such as `/:locale/chat/publication/**`
+- legal/static shortcuts such as `/terms-of-service`, `/en/terms-of-service`, `/privacy-policy`, or `/:locale/privacy-policy` whose `next.config.ts` rewrite destination points at a missing locale-shaped content route
 
-The class-level question is: is the resource actually missing, or did locale-aware routing move the request into a path shape that no handler owns?
+The class-level question is: is the resource actually missing, did locale-aware routing move the request into a path shape that no handler owns, or does a config rewrite point to the wrong localized destination?
 
 ## Core lesson
 
@@ -30,6 +31,65 @@ In `corp-web-app` the key pattern is:
 So always distinguish these two cases:
 1. file genuinely missing from the backing content repo/storage
 2. file exists, but locale redirect rewrites the URL into an unsupported route
+
+## Legal/static rewrite variant
+
+Use this variant when reported 404 paths include legal/static shortcuts such as:
+- `/terms-of-service`
+- `/en/terms-of-service`
+- `/privacy-policy`
+- `/:locale/privacy-policy`
+- `/eula`
+- `/:locale/eula`
+
+Known diagnostic patterns from `corp-web-app`:
+- public shortcut paths may be implemented in `next.config.ts` `rewrites`, App Router route handlers, or the catch-all dynamic page plus middleware rewrites
+- a rewrite destination can be locale-shaped differently from the public shortcut
+- for example, `/terms-of-service` and `/en/terms-of-service` returned 404 when both rewrote to `/terms-of-service-en`, while `/en/terms-of-service-en` itself returned 200
+- `/ko/terms-of-service` and `/ja/terms-of-service` worked because their destinations were already locale-prefixed: `/ko/terms-of-service-ko` and `/ja/terms-of-service-ja`
+- `/eula` returned 404 while `/en/eula`, `/ko/eula`, and `/ja/eula` returned 200; this was not missing content, but a default-English middleware routing gap where `/eula` needed to be included in `DEFAULT_LOCALE_REWRITE_PATHS` so it internally rewrites to `/en/eula` for English/default users and still redirects to `/:locale/eula` for non-English users
+
+Reproduction commands:
+```bash
+for host in stage.querypie.com www.querypie.com; do
+  for path in \
+    /terms-of-service /en/terms-of-service /ko/terms-of-service /ja/terms-of-service \
+    /privacy-policy /en/privacy-policy /ko/privacy-policy /ja/privacy-policy \
+    /terms-of-service-en /en/terms-of-service-en \
+    /eula /en/eula /ko/eula /ja/eula; do
+    echo "--- https://$host$path"
+    curl -sS -o /dev/null -D - --max-redirs 0 --connect-timeout 10 --max-time 20 "https://$host$path" |
+      awk 'BEGIN{IGNORECASE=1} /^HTTP\// || /^location:/ || /^x-matched-path:/ || /^x-vercel-id:/ {print}'
+  done
+done
+```
+
+Investigation workflow:
+1. Test both requested public shortcuts and their configured rewrite/dynamic destinations literally on stage and production.
+2. Inspect `next.config.ts`, `src/middleware.ts`, and `src/app/[...slug]/page.tsx` before adding route handlers.
+3. If only English/default shortcuts fail, test whether the real working content route needs an explicit `/en/...` prefix; compare `/foo` against `/en/foo`, `/ko/foo`, and `/ja/foo`.
+4. If the user prefers middleware over `next.config.ts`, prefer adding the unprefixed path to `DEFAULT_LOCALE_REWRITE_PATHS` when the locale-prefixed content routes already work.
+5. Add a middleware regression test for the default-English internal rewrite and a companion non-English redirect test.
+6. Keep the fix narrow: change the broken rewrite/middleware mapping rather than adding duplicate route handlers unless routing evidence shows no existing content route can serve the page.
+
+Expected minimal config-level fix shape:
+```ts
+{
+  source: '/terms-of-service',
+  destination: '/en/terms-of-service-en',
+},
+{
+  source: '/en/terms-of-service',
+  destination: '/en/terms-of-service-en',
+},
+```
+
+App Router route-handler replacement option:
+- If the user asks to move legal shortcuts out of `next.config.ts`, implement localized handlers under `src/app/[locale]/.../route.ts` rather than keeping rewrites.
+- Add the unprefixed legal shortcuts to `DEFAULT_LOCALE_REWRITE_PATHS` so `/terms-of-service` and `/privacy-policy` internally reach `/en/...` route handlers for English/default users while non-English users still redirect to `/:locale/...`.
+- Put shared locale-to-content mapping in a helper such as `src/app/[locale]/_legal/redirect.ts` and export `HEAD = GET` from each route handler.
+- If redirect destinations do not have dedicated endpoint files under `src/app/[locale]/`, add a code comment explaining that they are corp-web-contents-backed dynamic content paths resolved by the catch-all page, not missing route code.
+- See `references/legal-page-route-handlers.md` for the concrete route-handler pattern, tests, and verification commands.
 
 ## Chat publication redirect variant
 
@@ -63,10 +123,11 @@ Root-cause signature:
 - `app.querypie.com/:locale/chat/publication/**` -> app-side 404/error redirect
 
 Recommended fix direction:
-- Add an explicit Next.js redirect for locale-prefixed chat publication paths.
-- Strip the locale prefix in the destination; do **not** forward `/ko` or `/ja` to `app.querypie.com`.
+- Strip the locale prefix in the upstream destination; do **not** forward `/ko` or `/ja` to `app.querypie.com`.
+- If the user allows `next.config.ts`, an explicit redirect rule is the smallest config-level fix.
+- If the user wants App Router ownership and/or wants to remove the old unprefixed handler, use a localized route handler plus middleware default-locale rewrite instead.
 
-Example `next.config.ts` rule:
+Config-level option:
 ```ts
 {
   source: '/:locale(en|ko|ja)/chat/publication/:path*',
@@ -75,28 +136,21 @@ Example `next.config.ts` rule:
 }
 ```
 
+App Router consolidation option:
+1. Add `src/app/[locale]/chat/publication/[[...path]]/route.ts`.
+2. In that handler, match only `^/(?:en|ko|ja)(/chat/publication(?:/.*)?/?$)` and redirect to `https://app.querypie.com${match[1]}` with status `307`.
+3. Export `HEAD = GET` so HEAD checks also redirect.
+4. Add `/chat/publication` to `DEFAULT_LOCALE_REWRITE_PREFIXES` in `src/middleware.ts`.
+   - This lets unprefixed English `/chat/publication/**` internally rewrite to `/en/chat/publication/**` and reach the localized route handler.
+   - Non-English users can still be redirected by middleware to `/:locale/chat/publication/**`, then handled by the same localized route handler.
+5. Remove `src/app/chat/publication/[[...path]]/route.ts` once the middleware rewrite is covered by tests.
+
 Expected result:
 - `/ko/chat/publication/<uuid>/<slug>` returns a normal 30x, typically `307`, to `https://app.querypie.com/chat/publication/<uuid>/<slug>`.
 
 Pitfall:
 - Do not implement `destination: 'https://app.querypie.com/:locale/chat/publication/:path*'`; app.querypie.com does not treat the locale-prefixed version as the working content URL.
-
-Alternative route-handler pattern when the user explicitly wants to remove the unprefixed handler and route through middleware:
-1. Add the route prefix to `DEFAULT_LOCALE_REWRITE_PREFIXES` in `src/middleware.ts`, e.g. `'/chat/publication'`.
-2. Create one localized route handler at `src/app/[locale]/chat/publication/[[...path]]/route.ts`.
-3. In that handler, match only supported locale prefixes (`en|ko|ja`) and strip the prefix before building the external redirect URL.
-4. Export `HEAD = GET` for redirect compatibility.
-5. Delete the old unprefixed handler at `src/app/chat/publication/[[...path]]/route.ts`.
-6. Add focused tests for both layers:
-   - middleware rewrites English `/chat/publication/...` to `/en/chat/publication/...`
-   - middleware still redirects non-English unprefixed requests to `/:locale/chat/publication/...`
-   - the localized route handler redirects `/:locale/chat/publication/...` to the locale-less external app URL
-   - unsupported prefixes do not get forwarded to the external app
-
-Additional pitfalls for the route-handler pattern:
-- Do not redirect to `https://app.querypie.com/ko/chat/publication/...`; verify the external app target first.
-- Avoid a broad dynamic route at `src/app/[locale]/route.ts`; create the exact nested handler under `[locale]/chat/publication/[[...path]]/route.ts`.
-- If a fresh worktree lacks local `node_modules`, broad routing test groups can fail on unrelated PostCSS plugin resolution (`Cannot find module '@tailwindcss/postcss'`). In that case, run the directly affected Vitest files plus `node scripts/ci/assert-test-groups.mjs`, and report the broad-suite environment failure separately.
+- Do not remove the unprefixed route handler unless `/chat/publication` is explicitly covered by middleware default-locale rewrite tests; otherwise English/default unprefixed share URLs can regress to 404.
 
 ## Investigation workflow
 
@@ -220,16 +274,48 @@ Prefer the smallest fix that preserves existing public file serving behavior.
 
 ## Implementation notes when asked to patch it
 
-Use TDD for the middleware change:
-1. add a regression test showing `/public/...` with `Accept-Language: ko` does **not** redirect to `/ko/public/...`
+Use TDD for middleware-related changes:
+1. for `/public/**`, add a regression test showing `/public/...` with `Accept-Language: ko` does **not** redirect to `/ko/public/...`
 2. add a companion test showing a normal route like `/plans` still redirects to `/ko/plans`
 3. optionally also cover `/public` itself, since the middleware condition usually needs to special-case both `/public` and `/public/**`
-4. only then patch `src/middleware.ts`
+4. for `/chat/publication/**`, add middleware tests for:
+   - English/default unprefixed `/chat/publication/**` rewrites internally to `/en/chat/publication/**`
+   - non-English unprefixed `/chat/publication/**` redirects to `/:locale/chat/publication/**`
+5. add route-handler tests for `/:locale/chat/publication/**` returning `307` to the non-locale app URL and for `HEAD = GET`
+6. only then patch `src/middleware.ts` and the App Router route handler(s)
 
 A practical worktree/testing note from this repo:
 - a fresh git worktree may not have its own `node_modules`
-- `npm run test:run` can fail with `sh: vitest: command not found` or config-time module resolution errors even if the root checkout already has dependencies installed
-- a workable repo-local workaround is to symlink the worktree's `node_modules` to the root repo's `node_modules` before running the focused Vitest command, instead of doing a full new install
+- focused route/middleware Vitest commands may still pass by resolving dependencies from the root checkout
+- broader groups such as `npm run test:routing` can fail with PostCSS/config-time module resolution errors like `Cannot find module '@tailwindcss/postcss'` when run from a fresh worktree without local `node_modules`; do not misreport those as product regressions if the directly affected tests pass
+- a workable repo-local workaround, when full local verification is actually needed, is to symlink the worktree's `node_modules` to the root repo's `node_modules` instead of doing a full new install
+- pitfall: a failed or partial Vitest run in a fresh worktree can create a real `node_modules/.vite/...` cache directory; `ln -s ../../node_modules node_modules` will then fail because `node_modules` already exists as a directory. Check with `test -L node_modules` / `ls -ld node_modules`, remove only that cache-only worktree-local directory if safe (`rm -rf node_modules` when `git status` is clean except intended files and inspection shows only `.vite` cache), then recreate the symlink with the correct relative path or use an absolute symlink.
+
+## Deployment verification
+
+After the PR is merged and the user asks to verify production/stage rollout, test the exact URL literally with `curl` headers and `--max-redirs 0`.
+
+Use bounded polling when deployment may still be rolling out:
+```bash
+url='https://www.querypie.com/ko/chat/publication/<uuid>/<slug>'
+expected='https://app.querypie.com/chat/publication/<uuid>/<slug>'
+for i in $(seq 1 11); do
+  echo "--- attempt $i $(date -Is)"
+  curl --connect-timeout 10 --max-time 25 -sS -o /dev/null -D - --max-redirs 0 "$url" |
+    awk 'BEGIN{IGNORECASE=1} /^HTTP\// || /^location:/ || /^x-vercel-id:/ {print}'
+  # stop manually when status is 307 and Location equals $expected
+  sleep 60
+done
+```
+
+If automating with Python/subprocess, include `--connect-timeout` and `--max-time`; a watcher without curl timeouts can hang on the first attempt and fail to produce minute-by-minute output.
+
+Success criteria:
+- status `HTTP/2 307` (or the expected 30x for that route)
+- `Location: https://app.querypie.com/chat/publication/<uuid>/<slug>`
+- include `x-vercel-id` in the report for deploy-edge evidence
+
+If the expected redirect still is not live after the user-specified window (for example 10 minutes), create a follow-up debugging PR rather than continuing passive polling.
 
 ## Pitfalls
 

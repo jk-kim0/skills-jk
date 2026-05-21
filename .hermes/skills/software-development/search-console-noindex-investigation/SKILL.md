@@ -74,6 +74,7 @@ When the user points to `https://search.google.com/search-console/index?...`, me
    - Default action runs to actionable validation states (`Failed` + `Not Started`), not only `Failed`. The user expects rows that are not already `Passed`/in-progress to have validation started by default.
    - Keep `Passed` excluded by default, and keep already `Started` rows excluded unless the user explicitly passes an include/retry flag such as `--include-started`.
    - Propagate nested per-issue failures to a non-zero process exit. Never summarize a site as OK if one of its issue validations failed.
+   - Default stdout for `validate-index-issues`, `validate-index-issues-all`, and related validation helpers should be human-readable row/table output, not raw JSON. Use a stable column contract such as `SITE`, `ROW`, `VALIDATION`, `PAGES`, `OUTCOME`, `ACTION`, and `REASON`, printing one issue/result per row. Keep machine-readable JSON behind an explicit opt-in flag such as `--output-json`.
    - See `references/gsc-validate-cli-regression.md` for a compact regression checklist.
 
 5. Verification.
