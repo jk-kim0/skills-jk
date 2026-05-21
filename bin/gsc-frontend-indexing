@@ -33,6 +33,7 @@ Options:
   --include-started      Include rows already in Started validation state
   --limit N              Max issue rows to process
   --delay-ms N           Delay between issue requests (default: 15000)
+  --output-json          Print machine-readable JSON instead of the default table report
   --port N               Chrome remote debugging port for --export-session (default: 9222)
 
 Notes:
@@ -43,7 +44,7 @@ Notes:
 }
 
 function parseArgs(argv) {
-  const args = { port: DEFAULT_PORT, sessionFile: DEFAULT_SESSION_FILE, onlyStatus: 'actionable', includeStarted: false, delayMs: 15000, submit: false };
+  const args = { port: DEFAULT_PORT, sessionFile: DEFAULT_SESSION_FILE, onlyStatus: 'actionable', includeStarted: false, delayMs: 15000, submit: false, outputJson: false };
   for (let i = 2; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === '--help' || a === '-h') args.help = true;
@@ -51,6 +52,7 @@ function parseArgs(argv) {
     else if (a === '--index-issues') args.indexIssues = true;
     else if (a === '--submit') args.submit = true;
     else if (a === '--include-started') args.includeStarted = true;
+    else if (a === '--output-json') args.outputJson = true;
     else if (a === '--site') args.site = argv[++i];
     else if (a === '--session-file') args.sessionFile = argv[++i];
     else if (a === '--only-status') args.onlyStatus = argv[++i];
@@ -82,6 +84,52 @@ function normalize(value) {
     .replace(/&amp;/g, '&')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+
+const ISSUE_COLUMNS = [
+  ['SITE', 34],
+  ['ROW', 7],
+  ['VALIDATION', 13],
+  ['PAGES', 7],
+  ['OUTCOME', 15],
+  ['ACTION', 12],
+  ['REASON', 56],
+];
+
+function clipCell(value, width) {
+  const text = normalize(value);
+  if (text.length <= width) return text;
+  if (width <= 1) return text.slice(0, width);
+  return `${text.slice(0, width - 1)}…`;
+}
+
+function padCell(value, width) {
+  return clipCell(value, width).padEnd(width, ' ');
+}
+
+function printIssueReportHeader({ mode, site, submit, discoveredCount, candidateCount }) {
+  console.log(`GSC Page indexing issue report | mode=${mode} | site=${site} | submit=${submit}`);
+  console.log(`discovered=${discoveredCount} candidates=${candidateCount}`);
+  console.log(ISSUE_COLUMNS.map(([label, width]) => padCell(label, width)).join(' | '));
+  console.log(ISSUE_COLUMNS.map(([, width]) => '-'.repeat(width)).join('-+-'));
+}
+
+function printIssueReportRow({ site, index, total, issue, outcome, action }) {
+  const values = [
+    site,
+    `${index}/${total}`,
+    issue.validation || '-',
+    String(issue.pages || 0),
+    outcome,
+    action,
+    issue.reason || '-',
+  ];
+  console.log(values.map((value, idx) => padCell(value, ISSUE_COLUMNS[idx][1])).join(' | '));
+}
+
+function printIssueReportSummary({ total, started = 0, skipped = 0, failed = 0 }) {
+  console.log(`summary: total=${total} started=${started} skipped=${skipped} failed=${failed}`);
 }
 
 function cookieMatches(cookie, url) {
@@ -391,8 +439,20 @@ async function runIndexIssues(args) {
     return validation === onlyStatus;
   });
   if (Number.isFinite(args.limit)) candidates = candidates.slice(0, args.limit);
-  console.log(JSON.stringify({ mode: 'index-issues-frontend', site: args.site, submit: args.submit, discovered: issues, candidates }, null, 2));
-  if (!args.submit) return;
+  if (args.outputJson) {
+    console.log(JSON.stringify({ mode: 'index-issues-frontend', site: args.site, submit: args.submit, discovered: issues, candidates }, null, 2));
+  } else {
+    printIssueReportHeader({ mode: 'frontend-session', site: args.site, submit: args.submit, discoveredCount: issues.length, candidateCount: candidates.length });
+  }
+  if (!args.submit) {
+    if (!args.outputJson) {
+      for (const [idx, issue] of candidates.entries()) {
+        printIssueReportRow({ site: args.site, index: idx + 1, total: candidates.length, issue, outcome: 'DRY-RUN', action: 'candidate' });
+      }
+      printIssueReportSummary({ total: candidates.length });
+    }
+    return;
+  }
 
   const results = [];
   for (const [idx, issue] of candidates.entries()) {
@@ -409,19 +469,31 @@ async function runIndexIssues(args) {
       }
       const rpcResult = await rpc(session, template.rpcid, JSON.parse(template.argsJson));
       const result = { ...issue, itemKey, submitted: true, rpcid: template.rpcid, result: rpcResult };
-      console.log(`${prefix} OK started`);
-      console.log(JSON.stringify(result));
+      if (args.outputJson) {
+        console.log(`${prefix} OK started`);
+        console.log(JSON.stringify(result));
+      } else {
+        printIssueReportRow({ site: args.site, index: idx + 1, total: candidates.length, issue, outcome: 'OK', action: 'started' });
+      }
       results.push(result);
     } catch (error) {
       const result = { ...issue, submitted: false, error: error.message };
-      console.log(`${prefix} FAIL ${error.message}`);
+      if (args.outputJson) {
+        console.log(`${prefix} FAIL ${error.message}`);
+      } else {
+        printIssueReportRow({ site: args.site, index: idx + 1, total: candidates.length, issue, outcome: 'FAIL', action: error.message });
+      }
       results.push(result);
     }
     if (idx < candidates.length - 1) await sleep(args.delayMs);
   }
   const ok = results.filter((r) => r.submitted).length;
   const failed = results.length - ok;
-  console.log(JSON.stringify({ summary: { total: results.length, started: ok, failed }, results }, null, 2));
+  if (args.outputJson) {
+    console.log(JSON.stringify({ summary: { total: results.length, started: ok, failed }, results }, null, 2));
+  } else {
+    printIssueReportSummary({ total: results.length, started: ok, failed });
+  }
   if (failed) process.exitCode = 1;
 }
 
