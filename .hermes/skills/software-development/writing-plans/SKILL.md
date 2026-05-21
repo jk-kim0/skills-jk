@@ -159,6 +159,17 @@ When a user asks for a plan that starts with one page, route, collection, or fea
 
 If the user corrects “this is not only X; it starts with X,” update the plan title, goal, architecture, PR labels, follow-up sections, and acceptance criteria so every part reflects the broader scope. Avoid leaving a document whose title or task headings still imply X-only scope while a small paragraph says otherwise.
 
+### Use clear product/reviewer terminology, not internal jargon
+
+When writing repository planning docs, especially Korean docs for UI/layout work, avoid unexplained implementation jargon in titles and section headings. If a technical term is likely to be confused with a product or vendor name, replace it with the concrete reviewer-facing meaning across the title, body, proposed file names, branch names, and PR body.
+
+Example from UI layout planning:
+
+- Avoid: `layout chrome`, `site chrome`, `Tailwind chrome`, `chromeVariant`
+- Prefer: `공통 레이아웃 UI`, `사이트 공통 UI`, `Tailwind 기반 공통 레이아웃 UI`, `layoutVariant`
+
+For layout/header/GNB/footer plans, use “공통 레이아웃 UI” unless the repo already has an established term. If the user asks what a term means or says it is unclear, treat that as a doc-quality correction: revise all related headings, examples, proposed branch names, file names, and PR metadata, not only the first occurrence.
+
 ## Writing Process
 
 ### Step 1: Understand Requirements

@@ -2,19 +2,28 @@
 
 Use this reference when adding an internal translation-coverage page for a repo-local MDX publication family, such as `/translations/events` and `/:locale/translations/events`.
 
-## Pattern proven in corp-web-app events
+## Pattern proven in corp-web-app events and blog
 
 Goal:
 - show all records for one MDX family, grouped by stable numeric ID
 - sort by ID descending
 - show one title per record, not one row per locale
 - expose EN/JA/KO availability as explicit status/link columns
-- omit thumbnails when the page is a coverage/inventory tool, not a publication list
+- omit thumbnails when the page is a coverage/inventory tool, not a publication list, unless the user explicitly asks for list-card parity
+
+Preflight before coding:
+- Read `docs/code-location-conventions.md` whenever the task creates new `src/app/**` routes or route-local support components, even if the main task sounds like MDX/publication work.
+- Inspect the existing family publication module first, such as `src/lib/publications/blog/records.ts`, before creating any new `src/lib/translations/<family>.ts` file.
+- In Next.js App Router, route folders whose names start with `_` are private and do not create public routes. Do not implement `/translations/<family>` as `src/app/_translations/<family>`; use `src/app/translations/<family>` unless the requested URL literally requires an underscore, in which case use the URL-encoded segment form (`%5F...`) deliberately.
 
 Recommended implementation split:
-- Server loader under `src/lib/translations/<family>.ts`
-  - scan the collection root such as `src/content/events/*.mdx`
-  - parse frontmatter with `js-yaml`
+- First inspect the family’s existing loader/list code.
+  - If it already exposes visible list entries with the same public/list-card contract, call it per locale and group those returned items by `id`.
+  - Example: blog should reuse `listBlogPublicationItems(Locale.EN|JA|KO)` rather than reimplementing `blogPublicationRepository.records` filtering, listDescription fallback, date formatting, badge selection, and href construction.
+  - Add a new translation loader only for cross-locale grouping or fields the existing loader does not expose. Example: events may need a dedicated loader when the coverage page must prefer `eventDate ?? date` and the generic publication list item does not carry `eventDate`.
+- Server loader under `src/lib/translations/<family>.ts` only when needed
+  - scan the collection root such as `src/content/events/*.mdx`, or reuse existing family list loaders per locale
+  - parse frontmatter with `js-yaml` only when no existing repository/list loader exposes the required data
   - group entries by `id`
   - keep each locale entry's `title`, `slug`, `date`, optional `eventDate`, and detail `href`
   - compute display date as `eventDate ?? date` when the family supports event dates
@@ -25,9 +34,11 @@ Recommended implementation split:
 - Locale route under `src/app/[locale]/translations/<family>/page.tsx`
   - parse only supported locales and `notFound()` unsupported values
   - pass `currentLocale` into the shared page component
-- Shared page component under `src/app/translations/<family>/_components/...`
-  - mostly server component
-  - uses a nested client table only if hover/focus interactivity is required
+- Route-local support components
+  - check `docs/code-location-conventions.md` / `docs/static-page-route-local-authoring.md` before adding route support UI
+  - do not add new `src/app/**/_components/**` folders; in Next App Router, underscore folders are private and also conflict with the repo's route-local component placement convention
+  - when the component is used only by that route, place it as a sibling like `src/app/translations/<family>/<family>-translations-table.component.tsx`
+  - move reusable section/UI implementations to `src/components/sections/**` or `src/components/ui/**` instead
 
 ## Title contract
 
