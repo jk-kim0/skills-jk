@@ -182,6 +182,14 @@ Cron creation pitfalls and proven patterns:
 - The CLI create command may not expose every cron metadata field, such as `enabled_toolsets`. If the Hermes cron tool/API is available in-session, create with the CLI when convenient, then immediately update/verify the job with the cronjob tool/API so fields like `enabled_toolsets`, `skills`, `deliver`, and `workdir` match the source-of-truth document.
 - Always finish by listing cron jobs and checking the new job's `enabled`, `state`, `next_run_at`, `schedule`, `skills`, `enabled_toolsets`, `deliver`, and `workdir` values.
 
+Cron execution debugging patterns:
+- Hermes gateway owns automatic cron execution; CLI instances mainly create/list/edit jobs. Start with `hermes cron status`, `hermes cron list --all`, gateway PID/process inspection, and `$HERMES_HOME/cron/jobs.json`.
+- Do not judge a recurring job as healthy from `active`/`next_run_at` alone. Compare `last_run_at`, `last_status`, `$HERMES_HOME/cron/output/<job_id>/`, and the downstream side effect (wiki commit, file, message delivery). A job can be active and have a future `next_run_at` while the expected run/output is missing.
+- Recurring cron jobs use at-most-once semantics: the scheduler advances `next_run_at` before execution. Missed recurring runs beyond the catch-up grace window are fast-forwarded rather than backfilled. In the current implementation the grace is half the period, clamped up to 2 hours, so a `0 */3 * * *` job can skip overnight missed slots and move to the next future slot.
+- If a scheduled run appears missing, inspect `$HERMES_HOME/cron/output/<job_id>/` and `$HERMES_HOME/sessions/session_cron_<job_id>_*.json`. A session file without a matching output file usually means the cron agent started but has not completed or was interrupted before `save_job_output()`/`mark_job_run()`.
+- On macOS, check `pmset -g log` for Sleep/DarkWake/FullWake events when overnight cron reports are missing. Gateway may remain listed as running while the ticker did not fire during sleep/darkwake windows.
+- Avoid manually triggering a cron job while an existing `session_cron_<job_id>_*` is still actively updating, especially for jobs that edit/push shared targets such as wiki repos; it can create duplicate work or git conflicts.
+
 ### Webhooks
 
 ```
