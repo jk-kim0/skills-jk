@@ -458,6 +458,7 @@ Smoke/typecheck pitfall:
 - Some CI workflows include a final aggregator job such as `Validate Test` / `Verify validation dependency results` that fails only because an upstream dependency failed. Do not debug the aggregator as a test failure. Inspect the upstream failed job logs first (for example `Validate Lint`), fix that root cause, and expect the aggregator to pass once dependencies pass.
 - For Vercel preview/deploy workflows, distinguish product build/deploy status from wrapper-script transport failures. If the Vercel status context is already `SUCCESS` / "Deployment has completed" but the GitHub Actions deploy job failed at the end with a transient request error such as `TypeError: fetch failed`, do not rewrite product code. Rerun the failed deploy job/run, then verify the rerun is attached to the current PR head SHA and all check rollup entries are success/skipped.
 - For lint failures in newly added React/Next test files, check for imports that were previously needed for JSX but are unused under the repo's JSX transform (for example `import * as React from 'react';`). Run the repo smoke command, not only the targeted Vitest test, because targeted tests can pass while `next lint` fails.
+- For routing/internal-index source tests, broad negative assertions can fail because new reviewer-facing copy accidentally reintroduces forbidden UI labels or selector words. If CI says a removed label such as `English`, `Japanese`, or `Korean` reappeared, inspect both the new code and the test's intended guard before weakening the test; prefer changing the new internal/admin copy to neutral abbreviations (`EN`/`KO`/`JA`) or more specific wording so the guard remains meaningful. See `references/internal-route-followup-ci.md`.
 - TypeScript failures around formatting helpers often indicate a source/display contract mismatch, especially optional metadata (`string | undefined`) being passed into a formatter that expects `string`. Preserve `undefined` for missing optional fields rather than formatting an empty or missing value unless the product contract explicitly says otherwise.
 
 ```bash
@@ -815,6 +816,23 @@ gh pr view <branch-name> --json number,title,url,headRefName,baseRefName,state
    - In the PR body, state the final runner selector, not any intermediate broader/narrower selector considered during the session.
 
 9a. Manual deployed-URL E2E workflow and WAF-aware throttling.
+
+   - When a workflow run emits a warning like `Node.js 20 actions are deprecated` for `actions/checkout@v4`, `actions/setup-node@v4`, or `actions/upload-artifact@v4`, diagnose it as the JavaScript action runtime version, not the app/test `node-version`. Prefer upgrading the referenced first-party action majors to releases whose `action.yml` declares `runs.using: node24` rather than hiding the warning with `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true` or opting out later with `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true`.
+   - Verification pattern for that warning:
+     ```bash
+     # Discover old first-party action majors in workflows
+     grep -R "actions/checkout@v4\|actions/setup-node@v4\|actions/upload-artifact@v4" .github/workflows || true
+
+     # Confirm candidate releases run on node24 before editing
+     for repo_tag in actions/checkout@v6.0.2 actions/setup-node@v6.4.0 actions/upload-artifact@v7.0.1; do
+       repo=${repo_tag%@*}; tag=${repo_tag#*@}; tmp=$(mktemp -d)
+       git clone --depth 1 --branch "$tag" "https://github.com/$repo.git" "$tmp/repo" >/dev/null 2>&1
+       grep -n "using:" "$tmp/repo/action.yml"
+       rm -rf "$tmp"
+     done
+     ```
+   - If the warning is reported from one manual workflow but the same deprecated action majors remain in other workflow files, consider a narrow repo-wide workflow action-major update across `.github/workflows/*.yml`; otherwise the PR's own Validate/Deploy workflows may continue emitting the same warning. Keep behavior unchanged: do not alter workflow triggers, permissions, cache settings, or app/test Node versions unless needed.
+   - Validate workflow-only action upgrades with `actionlint .github/workflows/*.yml`, `git diff --check`, and a final grep showing no remaining deprecated action refs. If the affected workflow is manual `workflow_dispatch`, dispatch it on the PR branch after push and report the run URL/current state without passively waiting.
 
    - When a user asks to add a GitHub Actions workflow to run an already-merged E2E spec from a prior PR, treat the prior PR as context only if it is merged: start from latest `origin/main`, create a fresh branch/worktree, and add a narrow workflow-only PR instead of reviving the deleted old PR branch.
    - Prefer `workflow_dispatch` only when the user asks for manual execution. Do not add automatic `pull_request` or `push` triggers unless explicitly requested.
