@@ -14,6 +14,7 @@ const fs = require('node:fs/promises');
 const fssync = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const vm = require('node:vm');
 
 const DEFAULT_PORT = 9222;
 const DEFAULT_SESSION_FILE = path.join(os.homedir(), '.config/gsc/frontend-session.json');
@@ -86,6 +87,98 @@ function normalize(value) {
     .trim();
 }
 
+function normalizeKey(value) {
+  return normalize(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
+}
+
+function supportAnchorToReason(anchor) {
+  const normalized = String(anchor || '').toLowerCase();
+  const known = {
+    page_with_redirect: 'Page with redirect',
+    duplicate_page_with_proper_canonical_tag: 'Alternate page with proper canonical tag',
+    blocked_by_noindex_tag: 'Excluded by noindex tag',
+    discovered__unclear_status: 'Discovered - currently not indexed',
+    crawled: 'Crawled - currently not indexed',
+    google_chose_different_canonical_than_user: 'Duplicate, Google chose different canonical than user',
+    blocked_by_robotstxt: 'Blocked by robots.txt',
+    not_found_404: 'Not found (404)',
+  };
+  if (known[normalized]) return known[normalized];
+  return normalized.replace(/_+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function walkJson(value, visit, jsonPath = []) {
+  visit(value, jsonPath);
+  if (Array.isArray(value)) {
+    value.forEach((child, index) => walkJson(child, visit, jsonPath.concat(index)));
+    return;
+  }
+  if (value && typeof value === 'object') {
+    Object.entries(value).forEach(([key, child]) => walkJson(child, visit, jsonPath.concat(key)));
+  }
+}
+
+function parseAfInitDataCallbacks(html) {
+  const callbacks = [];
+  for (const match of html.matchAll(/AF_initDataCallback\((\{[\s\S]*?\})\);/g)) {
+    try {
+      callbacks.push(vm.runInNewContext(`(${match[1]})`, {}, { timeout: 1000 }));
+    } catch {
+      // Ignore unrelated or malformed bootstrapped data blocks.
+    }
+  }
+  return callbacks;
+}
+
+function firstIssueItemKey(value) {
+  let found = null;
+  walkJson(value, (node) => {
+    if (!found && typeof node === 'string' && /^CA[A-Za-z0-9_-]{4,}$/.test(node)) found = node;
+  });
+  return found;
+}
+
+function extractIssueItemKeyIndex(html) {
+  const byReason = new Map();
+  const byAnchor = new Map();
+  const byCode = new Map();
+  const entries = [];
+
+  for (const callback of parseAfInitDataCallbacks(html)) {
+    const blockText = JSON.stringify(callback.data || callback);
+    if (!/support\.google\.com\/webmasters\/answer\/7440203#/.test(blockText) || !/"CA[A-Za-z0-9_-]{4,}"/.test(blockText)) continue;
+
+    walkJson(callback.data || callback, (node) => {
+      if (!Array.isArray(node)) return;
+      const nodeText = JSON.stringify(node);
+      const anchor = (nodeText.match(/support\.google\.com\/webmasters\/answer\/7440203#([^"\\]+)/) || [])[1];
+      if (!anchor) return;
+      const itemKey = firstIssueItemKey(node);
+      if (!itemKey) return;
+      const code = (nodeText.match(/"(ALT_[A-Z_]+|NO_INDEX_TAG|DISCOVERED|CRAWLED|BLOCKED|NOT_FOUND)"/) || [])[1] || null;
+      const reason = supportAnchorToReason(anchor);
+      const entry = { anchor, code, reason, itemKey };
+      entries.push(entry);
+      byAnchor.set(normalizeKey(anchor), entry);
+      byReason.set(normalizeKey(reason), entry);
+      if (code) byCode.set(normalizeKey(code), entry);
+    });
+  }
+
+  return { byReason, byAnchor, byCode, entries };
+}
+
+function fallbackIssueItemKey(issueKeyIndex, issue) {
+  if (!issueKeyIndex) return null;
+  const reason = normalizeKey(issue.reason);
+  if (issueKeyIndex.byReason.has(reason)) return issueKeyIndex.byReason.get(reason).itemKey;
+
+  for (const entry of issueKeyIndex.entries) {
+    const entryReason = normalizeKey(entry.reason);
+    if (reason && (reason.includes(entryReason) || entryReason.includes(reason))) return entry.itemKey;
+  }
+  return null;
+}
 
 const ISSUE_COLUMNS = [
   ['SITE', 34],
@@ -342,6 +435,7 @@ function isActionableValidationStatus(status) {
 
 function parseIssueRows(html) {
   const rows = [];
+  const issueKeyIndex = extractIssueItemKeyIndex(html);
   const rowRe = /<tr\b[^>]*data-rowid=["']?([^"'\s>]+)["']?[^>]*>[\s\S]*?<\/tr>/gi;
   let rowMatch;
   while ((rowMatch = rowRe.exec(html))) {
@@ -351,7 +445,7 @@ function parseIssueRows(html) {
     const hrefMatch = rowHtml.match(/href=["']([^"']*\/search-console\/index\/drilldown[^"']+)["']/i);
     const itemKeyMatch = rowHtml.match(/[?&]item_key=([^&"']+)/i) || rowHtml.match(/item_key["']?\s*[:=]\s*["']([^"']+)/i);
     const pages = Number(String(cells[cells.length - 1]).replace(/,/g, ''));
-    rows.push({
+    const issue = {
       rowId: rowMatch[1],
       reason: cells[0],
       source: cells[1],
@@ -359,7 +453,13 @@ function parseIssueRows(html) {
       pages: Number.isFinite(pages) ? pages : null,
       href: hrefMatch ? hrefMatch[1].replace(/&amp;/g, '&') : null,
       itemKey: itemKeyMatch ? decodeURIComponent(itemKeyMatch[1]) : null,
-    });
+      itemKeySource: itemKeyMatch ? 'row-markup' : null,
+    };
+    if (!issue.itemKey) {
+      issue.itemKey = fallbackIssueItemKey(issueKeyIndex, issue);
+      issue.itemKeySource = issue.itemKey ? 'af-init-data' : null;
+    }
+    rows.push(issue);
   }
   return rows;
 }
@@ -409,17 +509,57 @@ async function rpc(session, rpcid, args, sourcePath = '/search-console/index/val
   return parseRpcResponse(text, rpcid);
 }
 
-function extractValidationRpcTemplate(html) {
-  // GSC does not expose a public validation API. If the frontend embeds the
-  // start-validation RPC metadata in HTML/bootstrapped data, use it; otherwise
-  // report a clear error instead of falling back to browser clicking.
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function extractValidationIssueType(html, itemKey) {
+  const escapedKey = escapeRegExp(itemKey);
+  const patterns = [
+    new RegExp(`\\[([0-9]+),&quot;${escapedKey}&quot;\\]`),
+    new RegExp(`\\[([0-9]+),\\\\?"${escapedKey}\\\\?"\\]`),
+  ];
+  for (const pattern of patterns) {
+    const match = html.match(pattern);
+    if (match) return Number(match[1]);
+  }
+  return 13;
+}
+
+function extractValidationFailedAt(html, itemKey) {
+  const callbacks = parseAfInitDataCallbacks(html);
+  for (const callback of callbacks) {
+    const data = callback.data;
+    if (!JSON.stringify(data || '').includes(itemKey)) continue;
+    if (Array.isArray(data) && typeof data[2] === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(data[2])) return data[2];
+  }
+  for (const callback of callbacks) {
+    const data = callback.data;
+    if (!JSON.stringify(data || '').includes(itemKey)) continue;
+    const match = JSON.stringify(data).match(/"(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z)"/);
+    if (match) return match[1];
+  }
+  return null;
+}
+
+function extractValidationRpcTemplate(html, site, itemKey) {
+  // GSC does not expose a public validation API. Prefer an embedded RPC
+  // template if one is present; current GSC markup instead renders a Wiz
+  // controller that constructs RYZlBc at click time, so reconstruct the same
+  // payload from the validation page bootstrap data.
   const candidates = [];
-  const aroundButton = html.match(/START NEW VALIDATION[\s\S]{0,3000}/i) || html.match(/[\s\S]{0,3000}START NEW VALIDATION/i);
+  const aroundButton = html.match(/start new validation[\s\S]{0,3000}/i) || html.match(/[\s\S]{0,3000}start new validation/i);
   const text = aroundButton ? aroundButton[0] : html;
   for (const match of text.matchAll(/\[\s*"([A-Za-z0-9_-]{4,})"\s*,\s*"(\[[\s\S]{0,1000}?\])"/g)) {
     candidates.push({ rpcid: match[1], argsJson: match[2] });
   }
-  return candidates[0] || null;
+  if (candidates[0]) return candidates[0];
+
+  if (!itemKey || !/start new validation/i.test(html)) return null;
+  const failedAt = extractValidationFailedAt(html, itemKey);
+  if (!failedAt) return null;
+  const issueType = extractValidationIssueType(html, itemKey);
+  return { rpcid: 'RYZlBc', argsJson: JSON.stringify([site, issueType, itemKey, 3, null, failedAt]), source: 'validation-bootstrap' };
 }
 
 async function runIndexIssues(args) {
@@ -459,11 +599,11 @@ async function runIndexIssues(args) {
     const prefix = `[${idx + 1}/${candidates.length}] ${issue.reason}`;
     try {
       const itemKey = issue.itemKey;
-      if (!itemKey) throw new Error('item_key was not present in fetched frontend markup; refresh the saved frontend session from an index page that has loaded issue rows.');
+      if (!itemKey) throw new Error('item_key was not present in row markup or AF_initDataCallback bootstrap data; refresh the saved frontend session from a fully loaded Page indexing screen.');
       const validationUrl = `https://search.google.com/search-console/index/validation?resource_id=${gscValidationResourceId(args.site)}&item_key=${encodeURIComponent(itemKey)}`;
       const validationHtml = await frontendFetch(session, validationUrl, { headers: { referer: indexUrl } });
       refreshTokensFromHtml(session, validationHtml);
-      const template = extractValidationRpcTemplate(validationHtml);
+      const template = extractValidationRpcTemplate(validationHtml, args.site, itemKey);
       if (!template) {
         throw new Error('direct START NEW VALIDATION RPC template was not found in frontend markup; refusing to drive Chrome fallback in direct mode.');
       }
