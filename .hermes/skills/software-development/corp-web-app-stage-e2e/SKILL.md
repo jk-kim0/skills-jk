@@ -120,6 +120,17 @@ Never commit this symlink or generated Playwright output.
 - In the PR body, state when a new E2E test is expected to fail because stage currently has real Non-200 URLs. This is not a failed implementation if the test's purpose is to expose those gaps.
 - Report current CI/check status after PR creation without passively waiting unless the user asks.
 
+## RSS 404 diagnosis pitfall
+
+If the stage sitemap availability E2E fails only for `/rss*.xml` URLs, do not assume corp-web-contents is missing RSS files. Check for a policy mismatch first:
+
+- `src/app/sitemap.xml/route.ts` may serve Blob-backed `public/sitemap.xml` on stage.
+- corp-web-contents `scripts/generate-sitemap.js` includes `public/rss*.xml` files in the sitemap.
+- `src/utils/middleware/rss.ts` may still have a production-only `isProduction()` early return, causing stage `/rss*.xml` to return 404 before Blob lookup.
+
+Preferred fix, when the test is meant to verify production sitemap URL availability on stage: allow stage to serve Blob-backed RSS files too, and return 404 only when the RSS file is actually missing. See `references/stage-sitemap-rss-404-diagnosis.md` for the full checklist.
+
 ## References
 
 - `references/sitemap-stage-availability-pr-783.md`: session notes for the archived + live sitemap URL availability E2E added in corp-web-app PR #783.
+- `references/stage-sitemap-rss-404-diagnosis.md`: diagnosis checklist and fix options for stage sitemap E2E failures where production RSS is 200 but stage `/rss*.xml` is 404.
