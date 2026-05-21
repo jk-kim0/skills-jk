@@ -135,6 +135,8 @@ def test_validate_index_issues_output_json_is_opt_in() -> None:
         session_file="/tmp/frontend-session.json",
         only_status="actionable",
         include_started=False,
+        sitemap=None,
+        all_sitemaps=False,
         output_json=False,
         issue_limit=2,
         limit=None,
@@ -149,6 +151,39 @@ def test_validate_index_issues_output_json_is_opt_in() -> None:
     assert "--output-json" in json_cmd
 
 
+def test_validate_index_issues_sitemap_filter_arguments_are_forwarded() -> None:
+    gsc = load_gsc_module("gsc_validate_sitemap_filter_args_test")
+    args = SimpleNamespace(
+        submit=False,
+        session_file="/tmp/frontend-session.json",
+        only_status="actionable",
+        include_started=False,
+        sitemap="/sitemap.xml",
+        all_sitemaps=False,
+        output_json=False,
+        issue_limit=2,
+        limit=None,
+        delay_ms=0,
+        port=9222,
+        connect_timeout_ms=120000,
+    )
+
+    frontend_cmd = gsc.build_validate_index_issues_frontend_cmd(args, "https://www.querypie.com/")
+    browser_cmd = gsc.build_validate_index_issues_browser_cmd(args, "https://www.querypie.com/")
+
+    for cmd in (frontend_cmd, browser_cmd):
+        assert "--sitemap" in cmd
+        assert cmd[cmd.index("--sitemap") + 1] == "/sitemap.xml"
+        assert "--all-sitemaps" not in cmd
+
+    args.sitemap = None
+    args.all_sitemaps = True
+    frontend_all_cmd = gsc.build_validate_index_issues_frontend_cmd(args, "https://www.querypie.com/")
+    browser_all_cmd = gsc.build_validate_index_issues_browser_cmd(args, "https://www.querypie.com/")
+    assert "--all-sitemaps" in frontend_all_cmd
+    assert "--all-sitemaps" in browser_all_cmd
+
+
 
 def test_validation_helpers_default_to_table_report_and_gate_json_output() -> None:
     frontend_source = (SCRIPT_PATH.parent / "gsc-frontend-indexing").read_text()
@@ -156,6 +191,9 @@ def test_validation_helpers_default_to_table_report_and_gate_json_output() -> No
 
     for source in (frontend_source, browser_source):
         assert "--output-json" in source
+        assert "--sitemap" in source
+        assert "--all-sitemaps" in source
+        assert "sitemap=" in source
         assert "const ISSUE_COLUMNS = [" in source
         assert "['SITE', 34]" in source
         assert "['VALIDATION', 13]" in source

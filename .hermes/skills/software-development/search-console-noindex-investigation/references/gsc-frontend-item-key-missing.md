@@ -18,7 +18,7 @@ Interpretation:
 - `Failed` is actionable by default. The row was not skipped because it was `Failed`.
 - `discovered=N candidates=M` proves the helper selected the rows.
 - The failure happens inside submit processing before the validation URL/RPC can be built.
-- Full error from `bin/gsc-frontend-indexing`: `item_key was not present in fetched frontend markup...`.
+- Full error from `bin/gsc-frontend-indexing`: `item_key was not present in fetched frontend markup; refresh the saved frontend session from an index page that has loaded issue rows.`
 
 Root cause pattern:
 
@@ -30,6 +30,12 @@ Root cause pattern:
 Recommended explanation to user:
 
 - “Yes, Failed rows should be retried. This run did select them. It did not send the validation requests because direct frontend mode could not extract `item_key`, so it had no safe target for the validation action.”
+- If the user asks why the Search Console UI still shows `Failed` after a `--submit` run, explain the state transition explicitly: a successful submit should change the issue to `Started` / `Validation started`; if the CLI row shows `OUTCOME=FAIL`, `started=0`, and an `ACTION` like `item_key was not present...`, no validation request was sent, so GSC correctly remains `Failed`.
+- Do not describe this as “skipped because Failed.” In this CLI contract, `Failed` is a retry target. The failure is a pre-submit addressing/parser failure.
+
+Reporting improvement for maintainers:
+
+- Avoid truncating the only actionable error in the `ACTION` column without a nearby full message. If table width truncates `item_key was not present...`, include a post-table diagnostic note such as `failed before submit: item_key missing; validation request not sent` so users can distinguish GSC refusal from CLI extraction failure.
 
 Next actions:
 

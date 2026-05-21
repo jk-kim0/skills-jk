@@ -32,6 +32,8 @@ Options:
   --submit               Actually request validation when a direct frontend action is available
   --only-status S        Only process rows with this validation status (default: actionable = Failed + Not Started)
   --include-started      Include rows already in Started validation state
+  --sitemap URL_OR_PATH  Filter Page indexing issues to one sitemap, e.g. /sitemap.xml
+  --all-sitemaps         Process every sitemap shown under Filter to Sitemaps for the site
   --limit N              Max issue rows to process
   --delay-ms N           Delay between issue requests (default: 15000)
   --output-json          Print machine-readable JSON instead of the default table report
@@ -45,7 +47,7 @@ Notes:
 }
 
 function parseArgs(argv) {
-  const args = { port: DEFAULT_PORT, sessionFile: DEFAULT_SESSION_FILE, onlyStatus: 'actionable', includeStarted: false, delayMs: 15000, submit: false, outputJson: false };
+  const args = { port: DEFAULT_PORT, sessionFile: DEFAULT_SESSION_FILE, onlyStatus: 'actionable', includeStarted: false, delayMs: 15000, submit: false, outputJson: false, sitemap: null, allSitemaps: false };
   for (let i = 2; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === '--help' || a === '-h') args.help = true;
@@ -53,9 +55,11 @@ function parseArgs(argv) {
     else if (a === '--index-issues') args.indexIssues = true;
     else if (a === '--submit') args.submit = true;
     else if (a === '--include-started') args.includeStarted = true;
+    else if (a === '--all-sitemaps') args.allSitemaps = true;
     else if (a === '--output-json') args.outputJson = true;
     else if (a === '--site') args.site = argv[++i];
     else if (a === '--session-file') args.sessionFile = argv[++i];
+    else if (a === '--sitemap') args.sitemap = argv[++i];
     else if (a === '--only-status') args.onlyStatus = argv[++i];
     else if (a === '--limit') args.limit = Number(argv[++i]);
     else if (a === '--delay-ms') args.delayMs = Number(argv[++i]);
@@ -89,6 +93,40 @@ function normalize(value) {
 
 function normalizeKey(value) {
   return normalize(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
+}
+
+function normalizeSitemapUrl(site, sitemap) {
+  if (!sitemap) return null;
+  const value = String(sitemap).trim();
+  if (!value) return null;
+  if (/^https?:\/\//i.test(value)) return value;
+  return new URL(value.startsWith('/') ? value : `/${value}`, site).toString();
+}
+
+function indexIssuesUrl(site, sitemap = null) {
+  const url = new URL('https://search.google.com/search-console/index');
+  url.searchParams.set('resource_id', site);
+  const sitemapUrl = normalizeSitemapUrl(site, sitemap);
+  if (sitemapUrl) url.searchParams.set('sitemap', sitemapUrl);
+  return url.toString();
+}
+
+function parseSitemapOptions(html, site) {
+  const options = [];
+  const seen = new Set();
+  const re = /<div\b[^>]*data-event-label=["']SITEMAP["'][^>]*>[\s\S]*?<\/div>\s*<\/div>/gi;
+  for (const match of html.matchAll(re)) {
+    const optionHtml = match[0];
+    const urlMatch = optionHtml.match(/data-url=["']([^"']+)["']/i)
+      || optionHtml.match(/data-value=["']([^"']+)["']/i);
+    if (!urlMatch) continue;
+    const url = normalizeSitemapUrl(site, urlMatch[1].replace(/&amp;/g, '&'));
+    if (!url || seen.has(url)) continue;
+    const label = normalize((optionHtml.match(/<span\b[^>]*>([\s\S]*?)<\/span>/i) || [])[1] || new URL(url).pathname);
+    seen.add(url);
+    options.push({ url, label });
+  }
+  return options;
 }
 
 function supportAnchorToReason(anchor) {
@@ -201,8 +239,9 @@ function padCell(value, width) {
   return clipCell(value, width).padEnd(width, ' ');
 }
 
-function printIssueReportHeader({ mode, site, submit, discoveredCount, candidateCount }) {
-  console.log(`GSC Page indexing issue report | mode=${mode} | site=${site} | submit=${submit}`);
+function printIssueReportHeader({ mode, site, sitemap, submit, discoveredCount, candidateCount }) {
+  const sitemapPart = sitemap ? ` | sitemap=${sitemap}` : '';
+  console.log(`GSC Page indexing issue report | mode=${mode} | site=${site}${sitemapPart} | submit=${submit}`);
   console.log(`discovered=${discoveredCount} candidates=${candidateCount}`);
   console.log(ISSUE_COLUMNS.map(([label, width]) => padCell(label, width)).join(' | '));
   console.log(ISSUE_COLUMNS.map(([, width]) => '-'.repeat(width)).join('-+-'));
@@ -562,10 +601,9 @@ function extractValidationRpcTemplate(html, site, itemKey) {
   return { rpcid: 'RYZlBc', argsJson: JSON.stringify([site, issueType, itemKey, 3, null, failedAt]), source: 'validation-bootstrap' };
 }
 
-async function runIndexIssues(args) {
-  if (!args.site) throw new Error('--site is required');
-  const session = await loadSession(args.sessionFile);
-  const indexUrl = `https://search.google.com/search-console/index?resource_id=${gscResourceId(args.site)}`;
+async function runIndexIssuesForSitemap(args, session, sitemap = null) {
+  const sitemapUrl = normalizeSitemapUrl(args.site, sitemap);
+  const indexUrl = indexIssuesUrl(args.site, sitemapUrl);
   const html = await frontendFetch(session, indexUrl);
   refreshTokensFromHtml(session, html);
   const issues = parseIssueRows(html);
@@ -580,9 +618,9 @@ async function runIndexIssues(args) {
   });
   if (Number.isFinite(args.limit)) candidates = candidates.slice(0, args.limit);
   if (args.outputJson) {
-    console.log(JSON.stringify({ mode: 'index-issues-frontend', site: args.site, submit: args.submit, discovered: issues, candidates }, null, 2));
+    console.log(JSON.stringify({ mode: 'index-issues-frontend', site: args.site, sitemap: sitemapUrl, submit: args.submit, discovered: issues, candidates }, null, 2));
   } else {
-    printIssueReportHeader({ mode: 'frontend-session', site: args.site, submit: args.submit, discoveredCount: issues.length, candidateCount: candidates.length });
+    printIssueReportHeader({ mode: 'frontend-session', site: args.site, sitemap: sitemapUrl, submit: args.submit, discoveredCount: issues.length, candidateCount: candidates.length });
   }
   if (!args.submit) {
     if (!args.outputJson) {
@@ -591,12 +629,12 @@ async function runIndexIssues(args) {
       }
       printIssueReportSummary({ total: candidates.length });
     }
-    return;
+    return { total: candidates.length, started: 0, failed: 0, results: [] };
   }
 
   const results = [];
   for (const [idx, issue] of candidates.entries()) {
-    const prefix = `[${idx + 1}/${candidates.length}] ${issue.reason}`;
+    const prefix = `[${idx + 1}/${candidates.length}] ${sitemapUrl ? `${sitemapUrl} | ` : ''}${issue.reason}`;
     try {
       const itemKey = issue.itemKey;
       if (!itemKey) throw new Error('item_key was not present in row markup or AF_initDataCallback bootstrap data; refresh the saved frontend session from a fully loaded Page indexing screen.');
@@ -608,7 +646,7 @@ async function runIndexIssues(args) {
         throw new Error('direct START NEW VALIDATION RPC template was not found in frontend markup; refusing to drive Chrome fallback in direct mode.');
       }
       const rpcResult = await rpc(session, template.rpcid, JSON.parse(template.argsJson));
-      const result = { ...issue, itemKey, submitted: true, rpcid: template.rpcid, result: rpcResult };
+      const result = { ...issue, sitemap: sitemapUrl, itemKey, submitted: true, rpcid: template.rpcid, result: rpcResult };
       if (args.outputJson) {
         console.log(`${prefix} OK started`);
         console.log(JSON.stringify(result));
@@ -617,7 +655,7 @@ async function runIndexIssues(args) {
       }
       results.push(result);
     } catch (error) {
-      const result = { ...issue, submitted: false, error: error.message };
+      const result = { ...issue, sitemap: sitemapUrl, submitted: false, error: error.message };
       if (args.outputJson) {
         console.log(`${prefix} FAIL ${error.message}`);
       } else {
@@ -630,9 +668,47 @@ async function runIndexIssues(args) {
   const ok = results.filter((r) => r.submitted).length;
   const failed = results.length - ok;
   if (args.outputJson) {
-    console.log(JSON.stringify({ summary: { total: results.length, started: ok, failed }, results }, null, 2));
+    console.log(JSON.stringify({ summary: { total: results.length, started: ok, failed, sitemap: sitemapUrl }, results }, null, 2));
   } else {
     printIssueReportSummary({ total: results.length, started: ok, failed });
+  }
+  return { total: results.length, started: ok, failed, results };
+}
+
+async function runIndexIssues(args) {
+  if (!args.site) throw new Error('--site is required');
+  if (args.sitemap && args.allSitemaps) throw new Error('--sitemap and --all-sitemaps are mutually exclusive');
+  const session = await loadSession(args.sessionFile);
+
+  if (!args.allSitemaps) {
+    const summary = await runIndexIssuesForSitemap(args, session, args.sitemap);
+    if (summary.failed) process.exitCode = 1;
+    return;
+  }
+
+  const html = await frontendFetch(session, indexIssuesUrl(args.site));
+  refreshTokensFromHtml(session, html);
+  const sitemaps = parseSitemapOptions(html, args.site);
+  if (!sitemaps.length) throw new Error('No sitemap options were found under Filter to Sitemaps on the Page indexing screen.');
+  if (!args.outputJson) {
+    console.log(`GSC Page indexing sitemap filter run | mode=frontend-session | site=${args.site} | submit=${args.submit}`);
+    console.log(`sitemaps=${sitemaps.length}`);
+  }
+  const summaries = [];
+  for (const [idx, sitemap] of sitemaps.entries()) {
+    if (!args.outputJson) {
+      console.log(`\n${'='.repeat(80)}`);
+      console.log(`[sitemap ${idx + 1}/${sitemaps.length}] ${sitemap.label || sitemap.url} (${sitemap.url})`);
+      console.log(`${'='.repeat(80)}`);
+    }
+    summaries.push(await runIndexIssuesForSitemap(args, session, sitemap.url));
+    if (idx < sitemaps.length - 1) await sleep(args.delayMs);
+  }
+  const failed = summaries.reduce((sum, summary) => sum + summary.failed, 0);
+  if (!args.outputJson) {
+    const total = summaries.reduce((sum, summary) => sum + summary.total, 0);
+    const started = summaries.reduce((sum, summary) => sum + summary.started, 0);
+    console.log(`\nall-sitemaps summary: sitemaps=${summaries.length} total=${total} started=${started} failed=${failed}`);
   }
   if (failed) process.exitCode = 1;
 }
