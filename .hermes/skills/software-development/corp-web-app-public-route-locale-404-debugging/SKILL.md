@@ -32,6 +32,42 @@ So always distinguish these two cases:
 1. file genuinely missing from the backing content repo/storage
 2. file exists, but locale redirect rewrites the URL into an unsupported route
 
+## App Router private-folder underscore variant
+
+Use this variant when a newly added App Router page appears to exist in source but returns 404 on Vercel/preview, especially for paths shaped like:
+- `/_translations/<family>`
+- `/:locale/_translations/<family>`
+- any URL segment that intentionally starts with `_`
+
+Next.js App Router treats folders whose names start with `_` as private folders. A folder such as `src/app/_translations/...` or `src/app/[locale]/_translations/...` is not considered by the routing system, even if it contains `page.tsx` or `route.ts`. The source module can still be imported by unit tests, so component-level tests may pass while the real deployed URL 404s.
+
+Root-cause signature:
+- Preview/deployed URL returns a normal site 404 in browser and via `curl`
+- source contains `src/app/.../_segment/.../page.tsx`
+- unit tests import the page module directly and pass
+- no App Router route is generated because the segment is private
+
+Correct route-folder fix:
+- rename the route segment folder from `_segment` to `%5Fsegment`
+- for example:
+  - `src/app/_translations/blog/page.tsx` -> `src/app/%5Ftranslations/blog/page.tsx`
+  - `src/app/[locale]/_translations/blog/page.tsx` -> `src/app/[locale]/%5Ftranslations/blog/page.tsx`
+- keep implementation-only helper folders private as `_components`, `_lib`, etc.; only URL-owning underscore segments need `%5F...`
+
+Investigation commands:
+```bash
+for path in /_translations/blog /en/_translations/blog /ja/_translations/blog /ko/_translations/blog; do
+  url="https://<preview-host>$path"
+  printf '\n== %s ==\n' "$url"
+  curl -sS -o /tmp/route-body.html -w 'HTTP %{http_code} final:%{url_effective}\n' "$url"
+done
+
+git ls-tree -r --name-only HEAD src/app | grep '_translations\|%5Ftranslations' || true
+```
+
+Testing pitfall:
+- A test like `import Page from 'src/app/_translations/blog/page'` verifies the component module but not route registration. Add or update source-level tests/checks to assert the URL-owning folder uses `%5F...`, or verify against a real Next/Vercel deployment when the task is route availability.
+
 ## Legal/static rewrite variant
 
 Use this variant when reported 404 paths include legal/static shortcuts such as:
