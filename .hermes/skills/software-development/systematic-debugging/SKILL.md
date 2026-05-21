@@ -310,6 +310,17 @@ pytest tests/test_module.py::test_regression -v
 pytest tests/ -q
 ```
 
+#### Controlled failure output for aggregate E2E validations
+
+When a Playwright E2E test intentionally validates a large external contract (for example, sitemap URL health) and already prints a useful `Summary`/`Errors` section, the final aggregate failure should prioritize actionable diagnostics over assertion stack noise.
+
+If the default `expect(...).toBe(...)` output obscures the real failures with `expect(received)` and `at ...spec.ts` frames, replace only the final aggregate assertion with a helper that:
+- formats a controlled message containing the validation rule, summary counts, and failed item lines
+- throws `new Error(message)`
+- overrides the error stack with the same controlled message before throwing, so Playwright reports the controlled message without source stack frames
+
+Do not use this for unexpected programming errors where a stack trace is valuable. See `references/playwright-controlled-e2e-failures.md` for a concrete TypeScript pattern and verification notes.
+
 ### 4. If Fix Doesn't Work — The Rule of Three
 
 - **STOP.**

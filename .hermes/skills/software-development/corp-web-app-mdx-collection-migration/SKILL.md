@@ -27,6 +27,13 @@ Use this when migrating or reviewing a corp-web-app repo-local MDX/publication c
    - Verify every listed href maps to an existing App Router `page.tsx` so the index cannot introduce dead links.
    - See `references/internal-preview-route-risk-index.md` for the session-derived pattern.
 
+0b. When asked to add a `/translations/<family>` coverage endpoint, treat it as a translation inventory page, not as a publication list.
+   - Group MDX records by stable ID and show one row per record, sorted by ID descending.
+   - Show EN/JA/KO availability as explicit status/link columns and omit thumbnails unless explicitly requested.
+   - For `/:locale/translations/<family>`, choose the visible title from the current URI locale first; fallback EN -> KO -> JA when that locale is missing.
+   - If language badges should preview titles, implement hover plus keyboard focus behavior in a small client table component while keeping filesystem/frontmatter loading in a server-side loader.
+   - See `references/translation-coverage-endpoints.md` for the session-derived pattern and tests.
+
 1. Work on the relevant PR branch in a fresh or freshly-reset worktree.
    - For an existing open PR, update the same branch/PR unless the user asks for a new PR.
    - If the branch is already attached to an old worktree, verify it is clean, remove/recreate or hard-reset it from the remote branch before editing.
@@ -323,5 +330,7 @@ PY
 - Tests assert ID and locale coverage.
    - If the task is render parity, the production/list UX is verified separately from content ingestion: localized hero, category/sidebar or drawer, card grid/list, thumbnail/date/badge rendering, progressive controls, responsive behavior, and absence of developer-only verification copy.
    - For resource-list sidebar/category parity, do not leave the category set as an open decision once the user confirms matching GNB/menu links exist. Adopt the reference resource category set for page-body navigation, while exposing only routes that exist or are intentionally part of the verification surface.
+- When removing a category from the shared resource sidebar, update existing verification-route tests for any still-existing list route that previously expected that category as its active sidebar link. The route may remain valid while its sidebar entry is intentionally absent; assert the category link is absent and that the remaining "All"/equivalent link targets the aggregate resource endpoint.
+- For `/<locale>/t/resources` aggregate-resource endpoints modeled after corp-web-japan, aggregate the same broad resource-list families as the sidebar rather than tutorials-only content. In corp-web-app this can be implemented as a locale-aware publication-record aggregator under `src/lib/publications/resources/records.ts`, with prefixed IDs such as `blog:<id>` to keep load-more `until` IDs unique across families.
 - Docs inventory/matrix no longer contradict the implemented migration.
 - PR branch is pushed and PR body reflects the final scope.

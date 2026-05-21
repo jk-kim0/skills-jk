@@ -18,7 +18,7 @@ Interpretation:
 - `Failed` is actionable by default. The row was not skipped because it was `Failed`.
 - `discovered=N candidates=M` proves the helper selected the rows.
 - The failure happens inside submit processing before the validation URL/RPC can be built.
-- Full error from `bin/gsc-frontend-indexing`: `item_key was not present in fetched frontend markup; refresh the saved frontend session from an index page that has loaded issue rows.`
+- Full error from `bin/gsc-frontend-indexing`: `item_key was not present in fetched frontend markup...`.
 
 Root cause pattern:
 

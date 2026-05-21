@@ -17,7 +17,7 @@ Current GSC Page indexing markup may omit drilldown `href` / `item_key` from tab
 - `blocked_by_robotstxt`
 - `not_found_404`
 
-In the observed `querypie.ai` case:
+Observed `querypie.ai` mapping:
 
 - `Page with redirect` -> `CAMYCyAC`
 - `Alternate page with proper canonical tag` -> `CAMYGCAC`
@@ -34,7 +34,7 @@ args: [site, 13, itemKey, 3, null, failedAt]
 source-path: /search-console/index/validation
 ```
 
-Example payload for `Page with redirect`:
+Example payload:
 
 ```json
 [[["RYZlBc","[\"https://querypie.ai/\",13,\"CAMYCyAC\",3,null,\"2026-05-16T04-55-07Z\"]",null,"generic"]]]
@@ -64,4 +64,4 @@ When the direct-mode RPC shape is unknown:
 3. Click `START NEW VALIDATION`.
 4. Read the captured request body and reconstruct only if enough bootstrap data exists.
 
-Do not silently fall back to controlling the browser in the normal frontend-session command path; direct-mode failures should surface so the helper can be fixed.
+Do not silently fall back to controlling the browser in the normal frontend-session command path; direct-mode failures should surface so the helper can be fixed. Browser control is acceptable for debugging, but final CLI behavior must use only the saved authentication session plus direct HTTP/RPC calls.
