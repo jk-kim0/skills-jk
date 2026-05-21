@@ -426,7 +426,7 @@ Then summarize:
     4. only after the patch is safely preserved, restore/remove the original alias worktree and delete the alias branch
   - Useful summary label:
     - `stale alias branch promoted via fresh latest-main branch carrying the real dirty patch`
-- Additional repeated-cleanup case from `skills-jk`: a local-only preserve branch can look broad or stale because it still carries historical deletions from older lines, while its latest-main-portable payload is actually much smaller.
+- Additional repeated-cleanup case from `skills-jk`: a local-only preserve branch can look broad or stale because it still carries historical deletions from older lines, while its latest-main-portable payload is actually much smaller. See `references/preserve-branch-subset-promotion.md` for the focused promotion-and-delete pattern.
   - Signal pattern:
     - no open PR
     - the preserved branch diff vs `origin/main` includes old deletions or unrelated historical files from previously merged helper lines
