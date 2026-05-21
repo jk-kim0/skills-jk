@@ -22,6 +22,7 @@ Use this skill when migrating, relocating, or maintaining a static/semistatic co
 - User asks to delete or decommission an unused public static page or locale-prefixed static route.
 - User asks to add a lightweight index/list page for migrated static routes, such as `/archived` or locale-prefixed archived pages.
 - Existing PR follow-up for a route-local static page in corp-web-app.
+- User asks to plan or introduce a Tailwind-based layout/header/GNB/footer alongside the existing chrome, especially when endpoints will opt in one by one.
 
 For follow-up work on an open PR, also load `existing-pr-followup-worktree`.
 If the referenced PR is already merged or closed, do not revive its branch; start a new branch and PR from latest `origin/main`.
@@ -57,6 +58,22 @@ If the referenced PR is already merged or closed, do not revive its branch; star
    - If the PR branch is so stale that `origin/main...HEAD` shows broad unrelated files, do not keep building on that branch. Create a clean temporary worktree from latest `origin/main`, copy or reconstruct only the intended route-local changes, run the targeted checks there, commit once, and force-with-lease that clean commit back to the same open PR branch. Verify the PR file list no longer contains unrelated stale files.
    - Use `--force-with-lease` for rewritten PR follow-up branches.
    - Verify remote head with `git ls-remote origin refs/heads/<branch>` and report CI status without long passive waits.
+
+## Tailwind layout chrome planning
+
+When the user asks to add Tailwind-based layout, header, GNB, or footer while keeping the existing corp-web-app chrome, treat it as a parallel site-chrome foundation and endpoint opt-in plan, not as an immediate root layout replacement.
+
+Key rules:
+
+- Add the new Tailwind chrome as a separate component family under `src/components/layout/**` beside the existing layout/header/footer code.
+- Do not delete, rewrite, or replace the existing root layout/header/GNB/footer in the foundation PR.
+- Keep Tailwind page/content migration separate from Tailwind layout chrome migration. A page can migrate its body shell first, then opt in to the new chrome in a later PR.
+- Endpoint adoption should be explicit via a wrapper such as `TailwindSiteLayout` or a URL-neutral route group; do not silently switch all routes.
+- Navigation targets, middleware, sitemap, canonical metadata, redirects, and CMS-managed data are forbidden scope unless explicitly requested.
+- Plan root layout default replacement only after multiple endpoint-level Preview checks prove desktop header, mobile menu, GNB/dropdown behavior, footer links, sticky header spacing, reset/preflight computed styles, and mobile overflow.
+- For docs-only planning updates, patch the living plan document, run `git diff --check`, and open a docs PR from a fresh latest-main worktree.
+
+See `references/tailwind-layout-chrome-opt-in-plan.md` for the concrete plan shape and PR split.
 
 ## Decommissioning unused static routes
 
