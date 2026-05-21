@@ -27,6 +27,9 @@ Options:
   --index-issues    List or start validation for Page indexing issue rows
   --only-status S   Only process issue rows with this validation status (default: actionable = Failed + Not Started)
   --include-started Include rows already in Started validation state
+  --sitemap URL_OR_PATH
+                    Filter Page indexing issues to one sitemap, e.g. /sitemap.xml
+  --all-sitemaps    Process every sitemap shown under Filter to Sitemaps for each site
   --limit N         Max URLs from --file or max issue rows from --index-issues
   --delay-ms N      Delay between URLs/issues (default: 15000)
   --site-delay-ms N Delay between repeated --site entries for --index-issues (default: 3000)
@@ -44,7 +47,7 @@ Notes:
 }
 
 function parseArgs(argv) {
-  const args = { port: DEFAULT_PORT, delayMs: 15000, siteDelayMs: 3000, connectTimeoutMs: 120000, sites: [], submit: false, probe: false, target: 'search-console', indexIssues: false, onlyStatus: 'actionable', includeStarted: false, outputJson: false };
+  const args = { port: DEFAULT_PORT, delayMs: 15000, siteDelayMs: 3000, connectTimeoutMs: 120000, sites: [], submit: false, probe: false, target: 'search-console', indexIssues: false, onlyStatus: 'actionable', includeStarted: false, outputJson: false, sitemap: null, allSitemaps: false };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--help' || a === '-h') args.help = true;
@@ -52,8 +55,10 @@ function parseArgs(argv) {
     else if (a === '--probe') args.probe = true;
     else if (a === '--index-issues') args.indexIssues = true;
     else if (a === '--include-started') args.includeStarted = true;
+    else if (a === '--all-sitemaps') args.allSitemaps = true;
     else if (a === '--output-json') args.outputJson = true;
     else if (a === '--only-status') args.onlyStatus = argv[++i];
+    else if (a === '--sitemap') args.sitemap = argv[++i];
     else if (a === '--site') {
       const site = argv[++i];
       args.site = site;
@@ -297,6 +302,22 @@ function gscResourceId(siteUrl) {
   return encodeURIComponent(siteUrl);
 }
 
+function normalizeSitemapUrl(site, sitemap) {
+  if (!sitemap) return null;
+  const value = String(sitemap).trim();
+  if (!value) return null;
+  if (/^https?:\/\//i.test(value)) return value;
+  return new URL(value.startsWith('/') ? value : `/${value}`, site).toString();
+}
+
+function indexIssuesUrl(site, sitemap = null) {
+  const url = new URL('https://search.google.com/search-console/index');
+  url.searchParams.set('resource_id', site);
+  const sitemapUrl = normalizeSitemapUrl(site, sitemap);
+  if (sitemapUrl) url.searchParams.set('sitemap', sitemapUrl);
+  return url.toString();
+}
+
 function validationUrlFromDrilldownHref(drilldownHref) {
   const url = new URL(drilldownHref);
   url.pathname = '/search-console/index/validation';
@@ -359,8 +380,9 @@ function padCell(value, width) {
   return clipCell(value, width).padEnd(width, ' ');
 }
 
-function printIssueReportHeader({ mode, site, submit, discoveredCount, candidateCount }) {
-  console.log(`GSC Page indexing issue report | mode=${mode} | site=${site} | submit=${submit}`);
+function printIssueReportHeader({ mode, site, sitemap, submit, discoveredCount, candidateCount }) {
+  const sitemapPart = sitemap ? ` | sitemap=${sitemap}` : '';
+  console.log(`GSC Page indexing issue report | mode=${mode} | site=${site}${sitemapPart} | submit=${submit}`);
   console.log(`discovered=${discoveredCount} candidates=${candidateCount}`);
   console.log(ISSUE_COLUMNS.map(([label, width]) => padCell(label, width)).join(' | '));
   console.log(ISSUE_COLUMNS.map(([, width]) => '-'.repeat(width)).join('-+-'));
@@ -409,10 +431,18 @@ function scrapeIndexIssuesPage(input) {
       pages: Number.isFinite(pages) ? pages : null,
     });
   }
+  const sitemapOptions = Array.from(document.querySelectorAll('[data-event-label="SITEMAP"]'))
+    .map((option) => {
+      const url = option.getAttribute('data-url') || option.getAttribute('data-value') || '';
+      const label = normalize(option.innerText || option.textContent || '');
+      return url ? { url, label } : null;
+    })
+    .filter(Boolean);
   return {
     href: location.href,
     title: document.title,
     issues,
+    sitemapOptions,
   };
 }
 
@@ -585,14 +615,15 @@ function getStartValidationButtonRect(input) {
   };
 }
 
-async function runIndexIssueValidations(client, sessionId, args) {
+async function runIndexIssueValidationsForSitemap(client, sessionId, args, sitemap = null) {
   if (!args.site) throw new Error('--site is required');
-  const indexUrl = `https://search.google.com/search-console/index?resource_id=${gscResourceId(args.site)}`;
+  const sitemapUrl = normalizeSitemapUrl(args.site, sitemap);
+  const indexUrl = indexIssuesUrl(args.site, sitemapUrl);
   await navigateAndWait(client, sessionId, indexUrl);
   await waitForCondition(client, sessionId, () => {
     const hasHeading = document.body.innerText.includes('Why pages aren') || document.body.innerText.includes('Page indexing');
-    const hasRows = document.querySelectorAll('tr[data-rowid]').length > 0;
-    return { ok: hasHeading && hasRows, href: location.href };
+    const ready = hasHeading && (document.querySelectorAll('tr[data-rowid]').length > 0 || document.body.innerText.includes('Why pages aren'));
+    return { ok: ready, href: location.href };
   });
 
   const scraped = await client.evaluate(scrapeIndexIssuesPage, {}, sessionId);
@@ -608,9 +639,9 @@ async function runIndexIssueValidations(client, sessionId, args) {
   if (Number.isFinite(args.limit)) candidates = candidates.slice(0, args.limit);
 
   if (args.outputJson) {
-    console.log(JSON.stringify({ mode: 'index-issues', site: args.site, submit: args.submit, discovered: scraped.issues, candidates }, null, 2));
+    console.log(JSON.stringify({ mode: 'index-issues', site: args.site, sitemap: sitemapUrl, submit: args.submit, discovered: scraped.issues, candidates }, null, 2));
   } else {
-    printIssueReportHeader({ mode: 'browser-cdp', site: args.site, submit: args.submit, discoveredCount: scraped.issues.length, candidateCount: candidates.length });
+    printIssueReportHeader({ mode: 'browser-cdp', site: args.site, sitemap: sitemapUrl, submit: args.submit, discoveredCount: scraped.issues.length, candidateCount: candidates.length });
   }
   if (!args.submit) {
     if (!args.outputJson) {
@@ -619,12 +650,12 @@ async function runIndexIssueValidations(client, sessionId, args) {
       }
       printIssueReportSummary({ total: candidates.length });
     }
-    return;
+    return { total: candidates.length, started: 0, skipped: 0, failed: 0, sitemapOptions: scraped.sitemapOptions || [] };
   }
 
   const results = [];
   for (const [idx, issue] of candidates.entries()) {
-    const prefix = `[${idx + 1}/${candidates.length}] ${issue.reason}`;
+    const prefix = `[${idx + 1}/${candidates.length}] ${sitemapUrl ? `${sitemapUrl} | ` : ''}${issue.reason}`;
     try {
       await navigateAndWait(client, sessionId, indexUrl);
       await waitForCondition(client, sessionId, () => ({ ok: document.querySelectorAll('tr[data-rowid]').length > 0, href: location.href }));
@@ -647,7 +678,7 @@ async function runIndexIssueValidations(client, sessionId, args) {
 
       const drilldownBefore = await client.evaluate(readDrilldownValidationState, {}, sessionId);
       if (String(drilldownBefore.validationStatus || '').toLowerCase() === 'started') {
-        const result = { ...issue, itemKey, submitted: true, before: drilldownBefore, after: drilldownBefore };
+        const result = { ...issue, sitemap: sitemapUrl, itemKey, submitted: true, before: drilldownBefore, after: drilldownBefore };
         if (args.outputJson) {
           console.log(`${prefix} OK already-started`);
           console.log(JSON.stringify(result));
@@ -658,7 +689,7 @@ async function runIndexIssueValidations(client, sessionId, args) {
         continue;
       }
       if (String(drilldownBefore.validationStatus || '').toLowerCase() === 'passed') {
-        const result = { ...issue, itemKey, submitted: false, skipped: true, before: drilldownBefore };
+        const result = { ...issue, sitemap: sitemapUrl, itemKey, submitted: false, skipped: true, before: drilldownBefore };
         if (args.outputJson) {
           console.log(`${prefix} SKIP passed`);
           console.log(JSON.stringify(result));
@@ -686,7 +717,7 @@ async function runIndexIssueValidations(client, sessionId, args) {
         }, {}, 180000, 1000);
         const drilldownAfter = await client.evaluate(readDrilldownValidationState, {}, sessionId);
         const submitted = String(drilldownAfter.validationStatus || '').toLowerCase() === 'started' || !drilldownAfter.hasValidateFixButton;
-        const result = { ...issue, itemKey, submitted, before: drilldownBefore, after: drilldownAfter };
+        const result = { ...issue, sitemap: sitemapUrl, itemKey, submitted, before: drilldownBefore, after: drilldownAfter };
         if (args.outputJson) {
           console.log(`${prefix} OK ${submitted ? 'started' : 'clicked'}`);
           console.log(JSON.stringify(result));
@@ -716,7 +747,7 @@ async function runIndexIssueValidations(client, sessionId, args) {
       }, {}, 120000, 1000);
       const before = await client.evaluate(readValidationPage, {}, sessionId);
       if (!before.hasStartButton) {
-        const result = { ...issue, itemKey, submitted: false, skipped: true, before };
+        const result = { ...issue, sitemap: sitemapUrl, itemKey, submitted: false, skipped: true, before };
         if (args.outputJson) {
           console.log(`${prefix} SKIP ${before.validationStatus || 'no-start-button'}`);
           console.log(JSON.stringify(result));
@@ -735,7 +766,7 @@ async function runIndexIssueValidations(client, sessionId, args) {
       }, {}, 45000, 1000);
       const after = await client.evaluate(readValidationPage, {}, sessionId);
       const submitted = String(after.validationStatus || '').toLowerCase() === 'started' || !after.hasStartButton;
-      const result = { ...issue, itemKey, submitted, before, after };
+      const result = { ...issue, sitemap: sitemapUrl, itemKey, submitted, before, after };
       if (args.outputJson) {
         console.log(`${prefix} OK ${submitted ? 'started' : 'clicked'}`);
         console.log(JSON.stringify(result));
@@ -744,7 +775,7 @@ async function runIndexIssueValidations(client, sessionId, args) {
       }
       results.push(result);
     } catch (error) {
-      const result = { ...issue, submitted: false, error: error.message };
+      const result = { ...issue, sitemap: sitemapUrl, submitted: false, error: error.message };
       if (args.outputJson) {
         console.log(`${prefix} FAIL ${error.message}`);
       } else {
@@ -758,9 +789,45 @@ async function runIndexIssueValidations(client, sessionId, args) {
   const skipped = results.filter((r) => r.skipped).length;
   const failed = results.length - ok - skipped;
   if (args.outputJson) {
-    console.log(JSON.stringify({ summary: { total: results.length, started: ok, skipped, failed }, results }, null, 2));
+    console.log(JSON.stringify({ summary: { total: results.length, started: ok, skipped, failed, sitemap: sitemapUrl }, results }, null, 2));
   } else {
     printIssueReportSummary({ total: results.length, started: ok, skipped, failed });
+  }
+  if (failed) process.exitCode = 1;
+  return { total: results.length, started: ok, skipped, failed, sitemapOptions: scraped.sitemapOptions || [] };
+}
+
+async function runIndexIssueValidations(client, sessionId, args) {
+  if (!args.site) throw new Error('--site is required');
+  if (args.sitemap && args.allSitemaps) throw new Error('--sitemap and --all-sitemaps are mutually exclusive');
+  if (!args.allSitemaps) {
+    await runIndexIssueValidationsForSitemap(client, sessionId, args, args.sitemap);
+    return;
+  }
+
+  const unfiltered = await runIndexIssueValidationsForSitemap(client, sessionId, { ...args, submit: false, sitemap: null }, null);
+  const sitemaps = unfiltered.sitemapOptions || [];
+  if (!sitemaps.length) throw new Error('No sitemap options were found under Filter to Sitemaps on the Page indexing screen.');
+  if (!args.outputJson) {
+    console.log(`\nGSC Page indexing sitemap filter run | mode=browser-cdp | site=${args.site} | submit=${args.submit}`);
+    console.log(`sitemaps=${sitemaps.length}`);
+  }
+  const summaries = [];
+  for (const [idx, sitemap] of sitemaps.entries()) {
+    if (!args.outputJson) {
+      console.log(`\n${'='.repeat(80)}`);
+      console.log(`[sitemap ${idx + 1}/${sitemaps.length}] ${sitemap.label || sitemap.url} (${sitemap.url})`);
+      console.log(`${'='.repeat(80)}`);
+    }
+    summaries.push(await runIndexIssueValidationsForSitemap(client, sessionId, args, sitemap.url));
+    if (idx < sitemaps.length - 1) await sleep(args.siteDelayMs);
+  }
+  const failed = summaries.reduce((sum, summary) => sum + summary.failed, 0);
+  if (!args.outputJson) {
+    const total = summaries.reduce((sum, summary) => sum + summary.total, 0);
+    const started = summaries.reduce((sum, summary) => sum + summary.started, 0);
+    const skipped = summaries.reduce((sum, summary) => sum + summary.skipped, 0);
+    console.log(`\nall-sitemaps summary: sitemaps=${summaries.length} total=${total} started=${started} skipped=${skipped} failed=${failed}`);
   }
   if (failed) process.exitCode = 1;
 }
