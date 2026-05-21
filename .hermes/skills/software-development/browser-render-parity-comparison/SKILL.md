@@ -84,6 +84,17 @@ When interactive Chrome DevTools MCP is unavailable during a live visual parity 
 
 See `references/headless-chrome-cdp-style-probe.md` for a concise reusable Node/CDP recipe. Note that current Chrome requires `PUT /json/new?...`; `GET /json/new?...` can fail with `Using unsafe HTTP verb GET...`.
 
+## Responsive header/GNB breakpoint audits
+
+When a header/GNB changes behavior by viewport width, inspect the full breakpoint contract rather than only the visible hamburger threshold:
+
+- React/client hooks such as `useIsMobileHeader()` / `useIsPhoneWidth()`.
+- CSS media queries for the header container, mobile toggle, menu item layout, menu-space/mega-menu, preview/debug toggles, and global header variables.
+- Fixed-width desktop containers that become newly exposed when the mobile breakpoint is lowered. If desktop GNB remains active below the content max width, avoid `width: var(--content-max-width)` without a shrink rule; prefer `width: 100%; max-width: var(--content-max-width)` plus explicit gutters if the header needs side spacing.
+- One-pixel boundary widths around every band, e.g. `479`, `480`, `850`, `851`.
+
+See `references/responsive-header-breakpoint-audit.md` for a compact checklist.
+
 ## Evidence to keep
 
 - URLs, viewport sizes, scrollY values
