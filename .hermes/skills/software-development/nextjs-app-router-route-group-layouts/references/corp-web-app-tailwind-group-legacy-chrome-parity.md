@@ -63,8 +63,11 @@ NODE
 If browser verification is in scope, open the exact deployed stage/preview URL and compare at least the following landmarks against legacy:
 
 - header/GNB height and menu behavior
+- header tool icons: language selector should use the legacy globe `LanguageIcon`, not a rotated GNB arrow placeholder
+- header CTA: `Free Now` should match the legacy gradient button contract, including normal font weight, `10px 20px` padding, 10px text/icon gap, and 12px chevron `ButtonArrowIcon`
 - main page top offset/wrapper width
 - footer presence and spacing
+- footer social links: verify the full legacy icon set is present (LinkedIn, Youtube, X, Facebook, Instagram), not only a subset
 - cookie/banner/dimmed-layer behavior if visible
 - whether Tailwind utilities win in computed `margin`, `padding`, `background`, and `border`
 

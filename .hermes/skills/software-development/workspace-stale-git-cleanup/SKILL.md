@@ -255,6 +255,11 @@ Disposable scratch-file variant:
 - if these are clearly PR-body scratch files and the user asked for workspace cleanup, delete them even in otherwise-kept worktrees so they do not keep the worktree looking dirty
 - do not treat these files as meaningful project work unless their contents or path clearly indicate something more substantial than a temporary PR description draft
 
+User-directed untracked-file cleanup in a dirty root:
+- if the user explicitly names a repo and asks to clean its local untracked files before workspace cleanup, inspect and preview the untracked files briefly, then remove only those untracked files/directories that match the user's requested scope
+- after removal, immediately re-run `git status --short --branch`; if the root becomes clean, fast-forward the default branch as part of the same cleanup pass
+- do not generalize the permission to unrelated dirty roots: preserve other repos' modified or untracked files unless they are already covered by the normal disposable-residue rules
+
 Disposable temp/cache residue in dirty roots:
 - after the first cleanup pass, inspect dirty root checkouts for obvious local residue before giving up on default-branch fast-forward
 - safe examples include one-line generated helper lists such as `confluence-mdx/var/list.txt` and runtime caches such as `.hermes/lsp/`
@@ -468,6 +473,11 @@ Additional important workspace-root variant:
 - the workspace's immediate child directories can themselves be linked worktree checkouts, not just standalone clones or repo-internal `.worktrees/*` paths
 - these top-level sibling worktrees usually have a `.git` file, their own checkout path, and share the owning repository's `git common-dir`
 - if you only clean the owner repo's internal `.worktrees/*` paths and stop, you can miss stale top-level linked worktrees such as `<repo>-pr319-tos`
+
+Repo-internal worktree container visibility:
+- some repos keep active linked worktrees under a repo-local `.worktrees/` directory, and the root checkout may show `?? .worktrees/` even when the child worktree is active and tied to an open PR
+- before deleting or hiding that directory, inspect `git worktree list --porcelain`, the child worktree's status/branch, and the GitHub PR state for the branch
+- if the child worktree is active/open-PR work, preserve it; if the root checkout should remain clean for future scans, add `.worktrees/` to that repo's local `.git/info/exclude` rather than deleting the active child worktree or changing tracked `.gitignore`
 
 Recommended verification after each cleanup wave:
 1. re-scan immediate child directories under the workspace root for entries with `.git`
