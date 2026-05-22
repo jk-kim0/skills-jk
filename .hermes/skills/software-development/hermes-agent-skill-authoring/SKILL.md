@@ -200,7 +200,9 @@ Maintenance pitfall:
 
 1. **Using `skill_manage(action='create')` for an in-repo skill.** It writes to `~/.hermes/skills/`, not the repo tree. Use `write_file` for in-repo creation.
 
-2. **Leading whitespace before `---`.** The validator checks `content.startswith("---")`; any leading blank line or BOM fails validation.
+2. **Bulk-generating skill files without Hermes file writes.** When creating many `SKILL.md` and `references/*` files from a script, call `hermes_tools.write_file()` from `execute_code` (or the normal `write_file` tool) for every intended repository write, then verify with `read_file` / `search_files`. Do not rely on ad hoc direct filesystem writes in a helper script without an immediate tool-backed verification pass; if verification shows no files, rerun through `write_file` rather than continuing from assumed state.
+
+3. **Leading whitespace before `---`.** The validator checks `content.startswith("---")`; any leading blank line or BOM fails validation.
 
 3. **Description too generic.** Peer descriptions start with "Use when ..." and describe the *trigger class*, not the one task. "Use when debugging X" > "Debug X".
 
