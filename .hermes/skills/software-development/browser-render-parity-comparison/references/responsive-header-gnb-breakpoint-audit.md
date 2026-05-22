@@ -23,20 +23,40 @@ Use when a user asks how a site's global navigation changes around viewport widt
    - Interaction modes: e.g. desktop horizontal nav vs mobile hamburger/full-panel nav.
    - Viewport bands: e.g. desktop, tablet/narrow-desktop hamburger, compact phone hamburger.
 
-## Example finding from corp-web-app stage
+## Example findings from corp-web-app
 
-On `https://stage.querypie.com/en/t/platform/ai/aip/usage-based-llm`, the GNB has two interaction modes but three responsive visual bands:
+Treat these as examples, not durable truth for every branch. Always re-check the active worktree and exact deployed URL before applying breakpoint values; the user's correction in a later session showed that carrying an older example forward can produce the wrong implementation.
+
+### Historical stage example
+
+On one historical `https://stage.querypie.com/en/t/platform/ai/aip/usage-based-llm` snapshot, the GNB had two interaction modes but three responsive visual bands:
 
 - `> 1260px`: desktop horizontal GNB. Logo left, horizontal menu (`Solutions`, `Features`, `Company`, `Plans`) center, language/search/CTA right, hamburger hidden.
 - `769px–1260px`: mobile-style hamburger GNB with an ~88px header. Logo + language/search/hamburger are visible; opened hamburger shows a full-width vertical panel with Solutions, Features, Company, Plans and bottom Contact Us / Free Now CTAs.
 - `<= 768px`: same hamburger interaction, but compact phone header height changes to 60px and the panel starts at the shorter header offset.
 
-Source confirmation in that repo:
+Historical source confirmation in that snapshot:
 
 - `src/components/layout/header/lib/use-is-mobile-header.hook.ts`: `window.innerWidth <= 1260`
 - `src/components/layout/header/lib/use-is-phone-width.hook.ts`: `window.innerWidth <= 768`
 - `src/components/layout/header/ui/header.module.css`: `@media (max-width: 1260px)` switches desktop tools off and mobile toggle/nav panel on.
 - `src/app/globals.css`: `@media (max-width: 768px)` changes `--header-height` to `60px`.
+
+### Later corp-web-app route-group example
+
+A later corp-web-app branch used a different contract. The correct reading came only after rechecking both hooks and CSS:
+
+- `> 1260px`: desktop container, `max-width: 1200px`, no side padding.
+- `851px–1260px`: tablet/narrow band with desktop horizontal GNB still visible; only container side padding is added via `var(--layout-padding)`.
+- `<= 850px`: mobile/compact interaction band; desktop GNB/tools are hidden and hamburger/mobile menu appears.
+- `<= 479px`: phone compact band; global variables set `--header-height: 60px` and `--layout-padding: 24px`.
+
+Source confirmation in that branch:
+
+- `src/components/layout/header/lib/use-is-mobile-header.hook.ts`: `window.innerWidth <= 850`
+- `src/components/layout/header/lib/use-is-phone-width.hook.ts`: `window.innerWidth <= 479`
+- `src/components/layout/header/ui/header.module.css`: `@media (max-width: 1260px)` adds side padding only; `@media (max-width: 850px)` switches to mobile toggle/nav panel.
+- `src/app/globals.css`: `@media (max-width: 479px)` changes compact phone header/layout variables.
 
 ## Pitfalls
 

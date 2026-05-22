@@ -162,6 +162,27 @@ Compression guidance:
 - for example, several nested `.env` probe paths kept inside one existing env-probe rule do not materially pressure the Pro rule limit
 - prefer explicit exact-path and prefix conditions unless the path list becomes large enough that readability clearly improves with a carefully scoped regex
 
+## Related: Protection Bypass for Automation is not WAF rule management
+
+For E2E/browser automation blocked by Vercel Browser Verification or Bot Protection, prefer Vercel Protection Bypass for Automation instead of trying to model the case as a custom WAF rule. It is managed by a project endpoint, not by the firewall config endpoint:
+
+```bash
+PATCH https://api.vercel.com/v1/projects/{idOrName}/protection-bypass?teamId=<team_id>
+```
+
+Useful body shape for creating a named secret:
+
+```json
+{
+  "generate": {
+    "secret": "<generated-secret>",
+    "note": "GitHub Actions Playwright E2E"
+  }
+}
+```
+
+Then store the same generated value in the automation system (for GitHub Actions, a repository secret such as `VERCEL_AUTOMATION_BYPASS_SECRET`) and send it as `x-vercel-protection-bypass`; for browser tests also send `x-vercel-set-bypass-cookie: true`.
+
 ## Query / apply / inspect commands
 
 ### Query active config

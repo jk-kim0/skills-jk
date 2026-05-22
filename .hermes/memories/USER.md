@@ -100,9 +100,9 @@ In corp-web-v2 migration comparison wiki tables, the user wants memo/description
 §
 사용자는 corp-web-v2에서 CMS 관련 코드/경로와 공개 MDX 경로 분석을 완전히 별개로 취급하길 원한다. MDX 목록/공개 경로 원인 분석에서는 /features/** 등 CMS legacy 경로와 CMS 관련 코드 전체를 아예 분석 대상에서 제외하고 언급도 하지 말 것.
 §
-User prefers sitemap-style documentation to emphasize URI paths first, with nested bullet lists for page titles and translations, because it makes website structure easier to scan.
+User prefers sitemap-style docs to emphasize URI paths first; for corp-web-app sitemap E2E, keep sitemap-absent required public URLs in a separate fixture merged into checks.
 §
-User does not need local build testing or local dev servers for corp-web-japan changes and prefers relying on CI for verification; local dev servers consume too many resources in the user's environment and interfere with work unless explicitly requested.
+For corp-web-japan, user prefers CI over local builds/dev servers unless requested. For QueryPie micro-sites, user prefers monorepo and clear routing/assets over hidden middleware rewrites.
 §
 When asking to rewrite repository wiki documentation, the user wants it based on the latest main branch implementation rather than an in-progress feature branch.
 §

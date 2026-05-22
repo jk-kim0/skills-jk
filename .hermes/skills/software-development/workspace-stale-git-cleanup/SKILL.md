@@ -255,6 +255,18 @@ Disposable scratch-file variant:
 - if these are clearly PR-body scratch files and the user asked for workspace cleanup, delete them even in otherwise-kept worktrees so they do not keep the worktree looking dirty
 - do not treat these files as meaningful project work unless their contents or path clearly indicate something more substantial than a temporary PR description draft
 
+Disposable temp/cache residue in dirty roots:
+- after the first cleanup pass, inspect dirty root checkouts for obvious local residue before giving up on default-branch fast-forward
+- safe examples include one-line generated helper lists such as `confluence-mdx/var/list.txt` and runtime caches such as `.hermes/lsp/`
+- delete only after brief inspection shows they are disposable; then re-run `git status --short --branch` and fast-forward the default branch if the root becomes clean
+- preserve untracked files that look like substantive notes, plans, content edits, or skill changes; report them as intentionally preserved rather than stashing or deleting them
+- see `references/cross-repo-cleanup-temp-files-and-dirty-roots.md` for examples from a cross-repo workspace cleanup
+
+Merged-PR worktree with only local agent runtime dirt:
+- if a worktree's branch/PR is already merged or otherwise safely stale, and the only dirty state is untracked local agent runtime state such as `.hermes/`, do not preserve the worktree just for that dirt
+- treat that local runtime directory like disposable machine-local residue and remove the stale worktree with `git worktree remove --force`
+- still preserve the worktree if `.hermes/` is accompanied by real source/docs/test changes or intentional repo-local skill changes that need review
+
 Redundant branch-backed clone-of-main variant:
 - sometimes a branch-backed worktree is neither detached nor tied to an open PR, but its branch tip is exactly the current `origin/main`
 - if that worktree is clean and the branch has no open PR, it is just a redundant local clone of `main` with a leftover feature-ish branch name
@@ -520,6 +532,8 @@ Important parent-container caveat:
 - this is especially important when the nested worktrees are themselves clean leftovers from already merged PRs
 
 ## Practical stale-clone classification lessons from named workspace directories
+
+For top-level linked review worktrees whose local helper branch name may not match the GitHub PR head branch, see `references/top-level-linked-review-worktree-cleanup.md`. If the directory name includes a PR number, query the PR by number before deciding whether the worktree is stale.
 
 ### Duplicate standalone clone on `main` with canonical sibling
 

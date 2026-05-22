@@ -197,7 +197,13 @@ Report shape:
 
 Pitfall: do not add redirects or restore deleted legacy public assets just because runtime logs show 404s. For asset-shaped 404s, the default is no-action when the current site does not emit the exact URL. Restore a compatibility file only for a repeated/high-value external compatibility case with explicit evidence.
 
-## 0D. Node.js Major Upgrade Necessity Check
+## 0D. Next.js Tailwind Adoption / CSS Modules Migration Review
+
+When asked whether a Next.js/React website should adopt Tailwind CSS, or to compare Tailwind against CSS Modules for implementation efficiency and sibling-repo reuse, inspect the live repos before giving a strategic opinion. Check `package.json`, PostCSS/Tailwind entrypoints, `globals.css`, CSS Modules usage, Tailwind `className` usage, and any route inventory or migration plan docs. Then answer separately: whether Tailwind is necessary, whether it is practical/efficient for this site, and what migration shape is safe. When introducing a Tailwind route group into a legacy/CSS Modules app, prefer a truly minimal group-local `globals.css` first (often just `@import "tailwindcss";`) and add base/theme rules only when repeated need is proven; inspect sibling Tailwind repos for reference, but do not copy their shadcn tokens/imports/font/animation globals unless the target repo actually needs that class of global.
+
+See `references/tailwind-adoption-review.md` for the detailed evidence checklist, reuse lens, global CSS baseline guidance, and pitfalls from corp-web-app/corp-web-japan Tailwind review work.
+
+## 0E. Node.js Major Upgrade Necessity Check
 
 When asked whether a repo needs to upgrade to a specific Node.js major, do not answer from general lifecycle intuition alone. Inspect the live repo, CI/runtime pins, dependency engine ranges, hosting/runtime support, and the official Node release schedule.
 
