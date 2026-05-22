@@ -98,6 +98,12 @@ Special CI contract check:
 - When the intended behavior is still correct and only the source shape evolved, prefer the smallest test update that preserves the behavioral contract.
 - Example pattern: a test expected `previewModeEnabled ? [internalFooterColumn]`, but a follow-up safely evolved it to `[{ ...internalFooterColumn, mobileLayout: "single" as const }]`. The correct fix was to relax the matcher, not revert the product change.
 
+Next.js middleware/App Router rewrite regression check:
+- When a bug involves `middleware.ts` rewriting an unprefixed route to a localized App Router route, do not stop after checking the middleware unit test or `x-middleware-rewrite` header.
+- Also probe the exact deployed URL and compare unprefixed vs locale-prefixed variants on the target environment.
+- Inspect the downstream `route.ts` handler to see whether it parses `new URL(request.url).pathname`; after a middleware rewrite, that handler may still see the original unprefixed URL even though `x-matched-path` shows the localized route.
+- Treat middleware tests and route-handler direct-call tests as incomplete unless there is coverage for the real chain: unprefixed request -> middleware rewrite/redirect -> handler behavior.
+
 **Action:**
 
 ```bash
@@ -317,6 +323,20 @@ pytest tests/test_module.py::test_regression -v
 # Run full suite — no regressions
 pytest tests/ -q
 ```
+
+#### URL-source coverage for sitemap and public-route E2E
+
+When a sitemap/stage URL-health E2E passes but users report first-party 404s, first verify whether the broken URL was actually part of the test input. A test that only checks sitemap `<loc>` entries is a sitemap health check, not a whole-site dead-link check. It can miss legal/pricing aliases, app handoff routes, legacy publication URLs, and first-party MDX/TSX/JSON links omitted from the sitemap.
+
+Before changing route code, classify the URL source:
+- archived/live sitemap `<loc>` entry
+- explicit critical public entrypoint
+- repo-authored first-party content/navigation link
+- external handoff/allowlisted URL
+
+For Next.js middleware/App Router chains, do not stop at `x-middleware-rewrite`. Probe the exact deployed unprefixed URL and inspect the downstream route handler. If the handler parses locale from `new URL(request.url).pathname`, it may still see the original unprefixed path after middleware rewrite and return 404. Prefer route params or explicit support for both prefixed and unprefixed forms.
+
+Use `references/sitemap-e2e-url-source-blind-spots.md` for the full investigation checklist and test design pattern.
 
 #### Controlled failure output for aggregate E2E validations
 

@@ -68,10 +68,12 @@ Route group segment names do not appear in URLs. For example, `src/app/(tailwind
    - A moved root layout usually needs `import '../globals.css';` instead of `import './globals.css';`.
    - Prefer absolute `src/...` imports for shared components to avoid brittle `../components` shifts.
 
-6. Add the new root layout under the new group.
+6. Add or update the new root layout under the new group.
    - Root layouts must return `<html>` and `<body>`.
    - Keep global providers, analytics, cookie preference, and shared dimmed layers intentionally copied or factored.
    - Do not include legacy chrome in the new layout if the point is layout isolation.
+   - If the group contract changes from an isolated smoke page to legacy-chrome parity, update the group `layout.tsx` first: reuse the same Header/GNB/Footer/runtime wrapper primitives as legacy, pass the same preview/navigation state, and update any source-shape tests that previously asserted Header/Footer absence.
+   - For a Tailwind-owned route group, treat the legacy `globals.css` as a visual reference only, not as an implementation source. Prefer a one-line Tailwind group global (`@import "tailwindcss";`) and move all required layout/color/spacing contracts into Tailwind classes, component-local CSS, or explicit shared-component values. Do not add `@theme`, base resets, dimmed-layer rules, or legacy CSS-variable fallbacks merely to keep old components working; those components should be tested/refactored intentionally as part of the migration.
 
 7. Add only the requested smoke route or route family to the new group.
    - Ensure the same URL is not also implemented in another route group.
@@ -99,14 +101,21 @@ Run full build/test only when the user asks or the repo workflow requires it. In
 
 ## Pitfalls
 
+## Pitfalls
+
 - Do not claim endpoint-only layout isolation if a top-level `src/app/layout.tsx` still exists; it will still wrap the endpoint.
 - Do not solve parent-layout removal with only a nested `layout.tsx`; that only adds another wrapper.
 - Do not leave the same URL in two route groups; route group names are invisible in public URLs, so duplicates conflict.
+- Route groups alone are not a good model for multiple independent micro-sites that each need their own `/` on distinct domains. Route group names do not appear in URLs, so public roots collide unless host/path rewriting or multiple apps are introduced.
+- For micro-sites with independent URLs and operational ownership, prefer a monorepo with multiple independent Next.js apps (`apps/<site>`) plus shared packages over one app with hidden host-based middleware rewrites. It keeps source paths, asset paths, metadata, Vercel project roots, rollback, and local development more intuitive.
+- If the user explicitly wants one app anyway, prefer explicit source routes such as `src/app/sites/<site-slug>/**` and declarative Vercel host rewrites over custom `middleware.ts` rewrites. Keep assets root-absolute under `public/microsites/<site-slug>/**`; avoid relative image paths from nested routes like `/sites/<site>/agenda`.
 - Do not move every `src/app/**` directory blindly. Top-level route handlers and metadata endpoints may not need layout grouping.
 - Do not rewrite moved README/docs just because a broad search-and-replace touched them. Restore docs unless they are intentionally in scope.
 - If adding an unprefixed internal smoke endpoint, check middleware locale redirect behavior; otherwise `/internal/tailwind` can redirect to `/:locale/internal/tailwind` and miss the intended route.
 - If `npx next typegen` warns about multiple lockfiles in worktrees, treat it as a worktree-root inference warning unless route generation actually fails.
 
+
 ## Reference
 
 - See `references/corp-web-app-route-group-split.md` for a concrete session pattern from splitting corp-web-app into `(legacy)` and `(tailwind)` root layout groups with a `/internal/tailwind` smoke page.
+- See `references/corp-web-app-tailwind-group-legacy-chrome-parity.md` for the follow-up pattern where `(tailwind)` changed from isolated smoke layout to legacy Header/GNB/Footer parity without copying the full legacy globals/reset stack.

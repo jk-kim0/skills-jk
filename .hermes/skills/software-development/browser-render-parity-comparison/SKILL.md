@@ -55,10 +55,18 @@ Required checks before declaring the port faithful:
 5. Trace the full implementation dependency graph: component file, sibling client components, assets, route shell, layout wrappers, fonts, theme tokens, and global CSS layer contract.
 6. If the target repo has an unlayered reset but the task is a scoped page/PR migration, do not bundle a global `@layer base` reset conversion into the feature PR. Add route-scoped CSS Module overrides for the reset-invalidated spacing, verify computed styles, and leave the global reset conversion for a separate visual-risk PR.
 7. If the target repo now intentionally supports Tailwind on the migrated endpoint but still has an unlayered global reset such as `* { padding: 0; margin: 0; }` or `button { background: none; border: none; }`, Tailwind class names can be present while computed `margin`, `padding`, `border`, or `background` remain wrong. For a narrow page migration, use Tailwind important modifiers (`!mt-*`, `!px-*`, `!border`, `!bg-*`, etc.) only on the reset-affected utilities, then re-run computed-style probes. Do not treat JSX/className parity as sufficient.
-8. In corp-web-app fresh worktrees, local verification can fail before test collection if the worktree/root install is missing Tailwind PostCSS packages (for example `Cannot find module '@tailwindcss/postcss'` from `postcss.config.mjs`). If the user prefers avoiding worktree-local installs, record this as an environment-blocked local check and rely on pushed CI rather than spending time on `npm install` unless explicitly requested.
+5. Trace the full implementation dependency graph: component file, sibling client components, assets, route shell, layout wrappers, fonts, theme tokens, and global CSS layer contract.
+
+Mitigation when global reset cannot safely change in the same PR:
+- Do not immediately move unlayered `globals.css` reset into `@layer base` inside a page-migration PR; that is a global visual-risk change and should normally be a separate PR.
+- If the affected surface is an App Router route group with its own root layout (for example `src/app/(tailwind)/layout.tsx`) and the user wants it independent from legacy, prefer a route-group globals split first: add `src/app/(tailwind)/globals.css`, import it with `import './globals.css';`, include only required Tailwind/theme tokens/CSS variables/minimal base rules, and exclude legacy reset rules such as `* { padding: 0; margin: 0; }` and `button { background: none; border: none; }`.
+- If a route-group globals split is not available or is too broad for the current PR, add a route-local/stable wrapper such as `data-publication-post` and a page-specific CSS Module that reasserts only the reset-overridden computed `padding`/`margin`/spacing values.
+- Keep the Tailwind className contract visible in JSX, but verify the browser computed values are owned by the route-scoped mitigation until either the route-group globals split or a separate global reset layer migration lands.
+- After a separate global `@layer base` migration or route-group globals split is merged and validated, remove temporary `!` utilities / route-scoped spacing overrides that only existed to fight the legacy reset.
 
 See `references/corp-web-app-tailwind-port-cascade-pitfall.md` for a concrete corp-web-app/corp-web-japan failure mode and browser probe.
 See `references/corp-web-app-tailwind-route-scoped-reset-workaround.md` for the safe interim route-scoped CSS Module pattern when global reset conversion is too broad for the current PR.
+See `references/corp-web-app-tailwind-route-group-responsive-chrome.md` for the corp-web-app pattern where a `(tailwind)` route-group root layout must use Tailwind shared chrome while matching legacy desktop/tablet/compact breakpoints and accounting for unlayered global reset overrides.
 
 ## Common false positives
 
@@ -68,6 +76,12 @@ See `references/corp-web-app-tailwind-route-scoped-reset-workaround.md` for the 
 ## App Router private-folder 404 pitfall
 
 When a Preview URL 404s for a newly added Next.js App Router route, inspect the physical `src/app` folder names before assuming deployment or middleware failure. In App Router, folders prefixed with `_` are private folders and are opted out of routing, even if they contain `page.tsx` or `route.ts`. A route implemented under `src/app/_translations/...` or `src/app/[locale]/_translations/...` will not register and will 404 on Preview. If the public URL truly needs a leading underscore, use the encoded folder segment `%5Fname`; otherwise prefer a normal segment such as `translations`. Direct unit tests that import `src/app/_segment/.../page` can still pass because they bypass Next's route registration, so validate the deployed path with HTTP/browser evidence after route-segment changes.
+
+## App Router route-group chrome parity pitfall
+
+When a Next.js App Router page is moved into or tested under a separate route group such as `(tailwind)`, visual breakage may come from the group-level `layout.tsx`, not the page component. If the rendered page lacks global chrome (Header/GNB/Main wrapper/Footer) while the legacy route works, compare `src/app/(legacy)/layout.tsx` and the target group layout before editing page-level UI. Reuse the same layout primitives and pass the same preview/navigation state where the visual contract is meant to match legacy. Also inspect source-shape tests: an earlier smoke test may explicitly assert that Header/Footer are absent and must be updated when the route-group contract changes from isolated smoke page to legacy-chrome parity.
+
+For Tailwind route groups, do not fix chrome parity by copying the entire legacy global CSS into `src/app/(tailwind)/globals.css`. Keep Tailwind globals minimal, exclude legacy token/reset dumps, and remove or narrow legacy CSS-variable dependencies in the shared chrome. See `nextjs-app-router-route-group-layouts` reference `corp-web-app-tailwind-group-legacy-chrome-parity.md` for the implementation pattern.
 
 ## Visual layer pitfall
 

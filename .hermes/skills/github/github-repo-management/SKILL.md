@@ -274,7 +274,75 @@ curl -s -X PUT \
   -d '{"names": ["machine-learning", "python", "automation"]}'
 ```
 
-## 6. Branch Protection
+## 6. Branch Protection and Repository Rulesets
+
+Classic branch protection still works, but many QueryPie repositories use repository rulesets instead. When mirroring settings from an existing reference repo, first read both repos and compare before writing:
+
+```bash
+# Compare core settings
+for repo in querypie/reference-repo querypie/target-repo; do
+  gh repo view "$repo" --json \
+    nameWithOwner,description,visibility,defaultBranchRef,hasIssuesEnabled,hasWikiEnabled,hasProjectsEnabled,hasDiscussionsEnabled,deleteBranchOnMerge,mergeCommitAllowed,squashMergeAllowed,rebaseMergeAllowed,repositoryTopics
+  gh api "repos/$repo" --jq '{allow_auto_merge,allow_merge_commit,allow_rebase_merge,allow_squash_merge,delete_branch_on_merge,squash_merge_commit_title,squash_merge_commit_message,has_projects,security_and_analysis}'
+  gh api "repos/$repo/rulesets" --jq '.[] | {id,name,target,enforcement}'
+done
+```
+
+A common QueryPie web-repo baseline is:
+- squash-only merges: `allow_squash_merge=true`, `allow_merge_commit=false`, `allow_rebase_merge=false`
+- `allow_auto_merge=true`
+- `delete_branch_on_merge=true`
+- `squash_merge_commit_title=PR_TITLE`
+- `squash_merge_commit_message=PR_BODY`
+- issues/wiki enabled, projects/discussions disabled unless explicitly needed
+- topics copied only as requested by the user; do not add inferred topics without permission
+- active `protect-main` ruleset on `~DEFAULT_BRANCH`
+- rules: deletion, non-fast-forward, required linear history, pull request with 0 required approvals, and required status checks
+
+Ruleset payload shape:
+
+```json
+{
+  "name": "protect-main",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": { "ref_name": { "include": ["~DEFAULT_BRANCH"], "exclude": [] } },
+  "bypass_actors": [
+    { "actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always" }
+  ],
+  "rules": [
+    { "type": "deletion" },
+    { "type": "non_fast_forward" },
+    { "type": "required_linear_history" },
+    {
+      "type": "pull_request",
+      "parameters": {
+        "allowed_merge_methods": ["squash"],
+        "dismiss_stale_reviews_on_push": false,
+        "require_code_owner_review": false,
+        "require_last_push_approval": false,
+        "required_approving_review_count": 0,
+        "required_review_thread_resolution": false,
+        "required_reviewers": []
+      }
+    },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": false,
+        "do_not_enforce_on_create": false,
+        "required_status_checks": [
+          { "context": "test", "integration_id": 15368 }
+        ]
+      }
+    }
+  ]
+}
+```
+
+Important: choose the required status check context from the target repo's actual workflow. Do not blindly copy a reference repo's check name such as `CI result` if the target repo currently exposes `test`. For a new multi-app monorepo, start with the existing target check and later switch to an aggregate `CI result` job after the workflow exists.
+
+Classic branch protection fallback:
 
 ```bash
 # View current protection

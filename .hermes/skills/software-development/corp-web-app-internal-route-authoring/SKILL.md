@@ -115,6 +115,8 @@ Add tests that lock all three contracts:
 2. The route metadata is noindex/nofollow.
 3. The metadata has no public canonical alternate when the page is internal-only.
 
+For internal route-inventory/index pages, model the implementation after existing route index surfaces such as the archived/internal indexes: keep the data in a small route-local `*-pages.ts` module, render grouped cards with title, description, href, and source path, and add a route-mirrored test that collects the actual `src/app/**/page.tsx` files for the target route group so the displayed inventory cannot drift. For Tailwind route-group indexes, also run `npm run inventory:tailwind-pages -- --grep '/[locale]/internal/tailwind'` or the relevant route grep to confirm the page is still classified as Tailwind.
+
 For publication translation coverage pages such as `/internal/translations/blog` or `/internal/translations/news`, follow the reusable implementation and verification pattern in `references/publication-translation-coverage-endpoints.md`.
 
 Example assertion:

@@ -404,7 +404,9 @@ Practical implication:
 ## Project-specific references
 
 - `references/corp-web-japan-runtime-log-patterns.md` records observed corp-web-japan runtime-log patterns such as current-day 50-row plateaus, generic company/contact-path Python probing, and route-policy candidates from May 2026 snapshots.
+- `references/corp-web-app-runtime-404-regression.md` records the corp-web-app pattern where repeated non-noise 404s were caused by middleware default-locale rewrites plus route handlers that still parsed the original unprefixed `request.url`, and gives the stage/prod probing, git-forensics, redirect-vs-rewrite fix, and regression-test recipe.
 - `references/vercel-waf-rate-limit-investigation.md` records how to inspect active Vercel WAF rate-limit config with `vercel api`, interpret official WAF rate-limit behavior, and diagnose E2E 403/429 bursts as rate-limit/challenge behavior rather than app runtime failures.
+
 
 ## Useful one-off commands
 
@@ -606,6 +608,9 @@ When publishing a wiki snapshot from runtime logs:
 - keep multiline runtime messages one-line in markdown tables/lists where possible, so a stack frame or wrapped error does not break wiki list formatting
 
 ## Pitfalls
+
+- On this macOS Hermes setup, `VERCEL_TOKEN` may be loaded only by interactive zsh. Before concluding Vercel CLI credentials are unavailable, check `zsh -ic` in addition to the default tool env and `zsh -lc`; see `references/interactive-zsh-vercel-token.md`.
+
 
 - Assuming `--status-code 500` is sufficient in every context
 - Treating 404 counts as exact totals without dedupe

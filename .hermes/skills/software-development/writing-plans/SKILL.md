@@ -159,6 +159,20 @@ When a user asks for a plan that starts with one page, route, collection, or fea
 
 If the user corrects “this is not only X; it starts with X,” update the plan title, goal, architecture, PR labels, follow-up sections, and acceptance criteria so every part reflects the broader scope. Avoid leaving a document whose title or task headings still imply X-only scope while a small paragraph says otherwise.
 
+### Refresh living migration plans against the current repository state
+
+When updating an existing long-lived plan after several implementation PRs have landed, do not merely append new intentions. First reconcile the document against latest main and any repo inventory tooling, then rewrite stale plan structure so the document reads as the current execution source of truth.
+
+Required steps:
+
+1. **Verify the latest baseline** — update/fetch main as appropriate, create a fresh worktree, and run the repo's read-only inventory/status commands if they exist (for example route/style inventories, migration matrices, or source audits). Use those outputs as evidence for current status tables.
+2. **Promote completed work out of task mode** — if old foundation or pilot PR tasks are already merged, compress them into completed-work summaries instead of leaving them as the next implementation steps. Stale “PR 1 / PR 2” task lists confuse future agents and reviewers.
+3. **Update paths to match current structure** — if the repo introduced route groups, directory moves, or new source layout, use current file paths in future task plans and explicitly distinguish URL routes from filesystem paths.
+4. **Make the next sequence concrete** — preserve the user's requested order as explicit phases, and maintain the next several PRs with exact route/page targets, branch names, candidate files, forbidden scope, verification commands, and Preview/browser checks.
+5. **Replace obsolete acceptance criteria** — acceptance criteria should describe the current document PR plus future phases, not old foundation PRs that already landed.
+
+This is especially important for CSS framework adoption and route-by-route migrations, where foundation, inventory, layout primitives, and route-group refactors may land before the next planning refresh.
+
 ### Use clear product/reviewer terminology, not internal jargon
 
 When writing repository planning docs, especially Korean docs for UI/layout work, avoid unexplained implementation jargon in titles and section headings. If a technical term is likely to be confused with a product or vendor name, replace it with the concrete reviewer-facing meaning across the title, body, proposed file names, branch names, and PR body.

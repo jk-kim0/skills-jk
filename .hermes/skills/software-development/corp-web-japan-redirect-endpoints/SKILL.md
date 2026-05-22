@@ -34,8 +34,11 @@ Use this when adding redirect-only public endpoints in `corp-web-japan`.
 5. Export `HEAD = GET` so HEAD requests behave consistently.
 6. Add or update a single table-driven test that lists all redirect rules in one place.
 7. Do not add redirect-only endpoints to `src/app/sitemap.ts` unless the user explicitly asks for that behavior.
-8. Verify with `npm run test:ci` and `npm run build`.
-9. Push and open a Draft PR, then wait for CI to finish.
+8. For small redirect-only changes, prefer lightweight local verification over full local build/test unless the user explicitly asks for heavier checks:
+   - run the targeted redirect source test, usually `node --test tests/redirect-endpoints.test.mjs`
+   - run `git diff --check`
+   - rely on GitHub CI/Preview after push for broader validation
+9. Push and open a normal PR unless the user explicitly asks for a Draft PR. Verify fresh checks attach to the new head SHA, report their current state, and return control without passively waiting unless the user asks you to watch CI.
 
 ## Implementation pattern
 
@@ -72,6 +75,26 @@ export const HEAD = GET;
 ```
 
 Use this query-preserving pattern when local `querypie.ai` endpoints should behave as thin pass-through aliases to `querypie.com/ja` while keeping repeated params and stable prefill keys intact.
+
+For an exact-path external alias where the user provides both source and target, such as `https://querypie.ai/querypie/license/community/apply` -> `https://www.querypie.com/querypie/license/community/apply`, keep the implementation minimal and route-local:
+
+```ts
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+
+const destinationUrl = "https://www.querypie.com/querypie/license/community/apply";
+
+export function GET(request: NextRequest) {
+  const destination = new URL(destinationUrl);
+  destination.search = request.nextUrl.search;
+
+  return NextResponse.redirect(destination, 307);
+}
+
+export const HEAD = GET;
+```
+
+Add the route to `tests/redirect-endpoints.test.mjs`'s `expectedRedirectRules` table, increment the explicit table length assertion, and add route-specific assertions for `destinationUrl`, `new URL(destinationUrl)`, query-string preservation, and `HEAD = GET` when that test has per-route branches. This keeps reviewer visibility in the existing redirect registry without centralizing redirect ownership in production code.
 
 If the redirect target is a same-origin local path rather than an external absolute URL, build it from `request.url` so the current host is preserved:
 
@@ -410,7 +433,25 @@ Important nuance learned from PR #71 / Issue #72 follow-up:
 
 ## Verification checklist
 
-Run:
+For a narrow redirect-only PR, use the lightest command that proves the route/test contract and then rely on CI for broad validation:
+
+```bash
+node --test tests/redirect-endpoints.test.mjs
+git diff --check
+```
+
+After pushing, verify the remote branch and PR metadata rather than waiting silently on long-running checks:
+
+```bash
+git rev-parse HEAD
+git ls-remote origin refs/heads/<branch>
+gh pr view <branch> --json number,title,url,headRefName,baseRefName,headRefOid,files,statusCheckRollup
+gh pr checks <PR_NUMBER> || true
+```
+
+Report pending checks and return control unless the user explicitly asks you to watch CI to completion.
+
+Run broader checks only when the redirect change affects production rendering/routing beyond a small route handler, replaces an existing page, or when the user explicitly asks for local verification:
 
 ```bash
 npm run test:ci
@@ -443,12 +484,15 @@ npm run test:ci
 
 This avoids stale Next.js validator entries causing false typecheck failures after a route shape change.
 
-Then create a Draft PR and monitor CI with `gh` using the required safe invocation form:
+Then create the PR and do a one-shot CI/status attachment check:
 
 ```bash
-gh pr create --draft ...
-gh pr checks <PR_NUMBER> --watch
+gh pr create ...
+gh pr view <branch> --json number,title,url,headRefName,baseRefName,headRefOid,files,statusCheckRollup
+gh pr checks <PR_NUMBER> || true
 ```
+
+Use `gh pr checks <PR_NUMBER> --watch` only when the user explicitly asks you to wait for checks to finish.
 
 ## User preference reminder
 
