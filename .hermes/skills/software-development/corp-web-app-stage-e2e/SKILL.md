@@ -84,6 +84,16 @@ When asked to test `www.querypie.com/sitemap.xml` coverage before production dep
    ```
    Avoid asserting deep equality on the whole errors array because Playwright will print a huge object diff that hides the useful human-readable log.
 
+### Critical URL fixture pattern
+
+A sitemap-only availability test is not enough when the bug involves public entrypoints, redirects, legacy inbound routes, or content links that are intentionally absent from `sitemap.xml`. In those cases, keep the sitemap-derived checks and add a small explicit fixture such as `tests/e2e/fixtures/required-public-urls.txt`.
+
+Use this pattern for URLs like unprefixed legal/pricing entrypoints, `/chat/publication/...` redirects, and broken MDX/publication links that real traffic or runtime logs show are important. Merge the fixture URLs with archived + live sitemap URLs, dedupe, convert them to the stage origin, and require each final response to resolve to 200 after bounded redirects.
+
+When expanding the fixture from runtime logs, filter out scanner/probe/feed noise and image/icon probes first. Add only app/content/publication URLs that should resolve for real users or crawlers. Verify added fixture URLs are absent from the live sitemap so reviewers understand why the extra fixture exists.
+
+See `references/sitemap-critical-required-urls.md` for the full workflow and review checklist.
+
 ## Logging contract
 
 For URL availability checks, prefer output shaped like:
@@ -134,3 +144,4 @@ Preferred fix, when the test is meant to verify production sitemap URL availabil
 
 - `references/sitemap-stage-availability-pr-783.md`: session notes for the archived + live sitemap URL availability E2E added in corp-web-app PR #783.
 - `references/stage-sitemap-rss-404-diagnosis.md`: diagnosis checklist and fix options for stage sitemap E2E failures where production RSS is 200 but stage `/rss*.xml` is 404.
+- `references/sitemap-critical-required-urls.md`: workflow for augmenting sitemap-derived E2E coverage with an explicit required-public-URLs fixture when real 404s are absent from `sitemap.xml`.

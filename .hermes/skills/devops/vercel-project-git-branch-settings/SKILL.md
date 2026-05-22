@@ -31,7 +31,7 @@ Use this when you need to verify or change which Git branch a Vercel project tre
 
 ## Safe inspection steps
 
-Prereqs: `VERCEL_TOKEN` and `VERCEL_TEAM_ID` available in env.
+Prereqs: `VERCEL_TOKEN` and `VERCEL_TEAM_ID` available in env. If the user says these are available in an interactive shell, verify with `zsh -ic '[[ -n "$VERCEL_TOKEN" ]] && echo VERCEL_TOKEN_PRESENT; [[ -n "$VERCEL_TEAM_ID" ]] && echo VERCEL_TEAM_ID_PRESENT'` and run Vercel CLI/API commands through `zsh -ic '...'` so shell startup files populate the variables. Do not print token values.
 
 Get the project id:
 
@@ -73,6 +73,50 @@ vercel list <project-name> --environment production --status READY --format json
 Look at:
 - `meta.githubCommitRef`
 - `meta.branchAlias`
+
+## Creating a Vercel project for a monorepo app
+
+For a monorepo with independent Next.js apps (for example `apps/finance`), create the Vercel project with the app root directory and explicit framework/build settings. Use the project name, not the app path, as the Vercel project name. See `references/monorepo-project-linking.md` for a concise transcript-derived checklist and the GitHub Login Connection failure mode.
+
+```bash
+zsh -ic '
+set -euo pipefail
+PROJECT="corp-web-micro-finance"
+BODY=$(cat <<JSON
+{
+  "name": "$PROJECT",
+  "framework": "nextjs",
+  "rootDirectory": "apps/finance",
+  "installCommand": "npm install",
+  "buildCommand": "npm run build"
+}
+JSON
+)
+curl -sS -X POST "https://api.vercel.com/v10/projects?teamId=$VERCEL_TEAM_ID" \
+  -H "Authorization: Bearer $VERCEL_TOKEN" \
+  -H "Content-Type: application/json" \
+  --data "$BODY"
+'
+```
+
+Verify the created project without exposing secrets:
+
+```bash
+zsh -ic '
+PROJECT="corp-web-micro-finance"
+RESP=$(curl -sS "https://api.vercel.com/v9/projects/$PROJECT?teamId=$VERCEL_TEAM_ID" \
+  -H "Authorization: Bearer $VERCEL_TOKEN")
+RESP="$RESP" python3 - <<"PY"
+import json, os
+p=json.loads(os.environ["RESP"])
+print({k:p.get(k) for k in ["id","name","framework","rootDirectory","installCommand","buildCommand","nodeVersion","link"]})
+PY
+'
+```
+
+To link the Vercel project to a GitHub repo, use the link endpoint or `vercel git connect` after local `vercel link`. If Vercel returns `Failed to link <owner/repo>. You need to add a Login Connection to your GitHub account first`, the token is valid but the Vercel account lacks a GitHub Login Connection / Git integration authorization for that repo. Report that exact prerequisite and stop; do not keep retrying with different payloads.
+
+CLI attempts can create local `.vercel/` and a `.gitignore` under the app directory. If they were only used for inspection/link probing, remove any accidental uncommitted local artifacts before finishing.
 
 ## Failed approaches to avoid
 

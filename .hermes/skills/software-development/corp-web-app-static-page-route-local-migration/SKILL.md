@@ -59,6 +59,18 @@ If the referenced PR is already merged or closed, do not revive its branch; star
    - Use `--force-with-lease` for rewritten PR follow-up branches.
    - Verify remote head with `git ls-remote origin refs/heads/<branch>` and report CI status without long passive waits.
 
+## Tailwind route-local static-page refactors
+
+When a corp-web-app static/semistatic route-local page is converted from CSS Modules or legacy widget CSS to Tailwind, keep the route-local authoring surface readable:
+
+- Prefer semantic route-local wrapper components over exporting many implementation-only `*ClassName` constants into `page.en.tsx`, `page.ko.tsx`, and `page.ja.tsx`. Good examples: `ContactUsChecklist`, `ContactUsInfoBlock`, `ContactUsContactList`, and `ContactUsCommunityLink`.
+- Locale files should continue to read as page copy/composition. Tailwind class plumbing belongs in route-local support components or shared section primitives.
+- If a support component needs long Tailwind class strings, split them into named constants inside the support component module (for example `teamGridClassName`, `timelineClassName`, `locationsGridClassName`) so JSX remains reviewable.
+- Keep route behavior, metadata handoff, locale selection, public navigation, sitemap, canonical, redirects, and form/API behavior unchanged unless the task explicitly includes those scopes.
+- Rebase existing open PR follow-ups onto latest `origin/main`, amend the existing single scoped commit when appropriate, and force-with-lease back to the same PR branch rather than opening replacement PRs.
+
+See `references/tailwind-route-local-refactor-pattern.md` for the concrete Contact Us / About Us / Certifications follow-up pattern.
+
 ## Tailwind layout chrome planning
 
 When the user asks to add Tailwind-based layout, header, GNB, or footer while keeping the existing corp-web-app chrome, treat it as a parallel site-chrome foundation and endpoint opt-in plan, not as an immediate root layout replacement.
