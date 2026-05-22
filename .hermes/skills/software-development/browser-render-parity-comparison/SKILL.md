@@ -46,8 +46,8 @@ Trigger: user asks to compare stage and production URLs, or asks to fix UI discr
    - footer navigation columns, legal links, address text, borders, padding, background, typography, and responsive breakpoints.
    A chrome implementation can look broadly similar while still being wrong if a CTA chevron is missing, an icon is substituted (for example arrow instead of globe), or social icons are omitted.
 12. Explicitly check background visual layers for major sections, especially hero sections: compare computed `backgroundImage`, `backgroundColor`, pseudo-element backgrounds, absolutely positioned decorative images, gradient overlays, and section wrapper assets. Do not stop at text/media geometry; a page can match hero copy and screenshot sizes while still missing a production gradient background image layer.
-11. Inspect source content data for copy/description mismatches.
-12. For MDX/publication detail parity, explicitly check whether the target renders raw MDX/JSX text. Literal tags such as `<Box>`, `<ArticleFileImage>`, `<br />`, or markdown links in the visible body mean the route is a body-preview stub, not a publication renderer. In that case, inspect the route for direct `{post.body}` / `renderBodyPreview` usage and fix it by evaluating MDX with the appropriate component map and composing the full article layout (hero, body images, TOC, related/sidebar CTAs), rather than patching typography around the raw text.
+13. Inspect source content data for copy/description mismatches.
+14. For MDX/publication detail parity, explicitly check whether the target renders raw MDX/JSX text. Literal tags such as `<Box>`, `<ArticleFileImage>`, `<br />`, or markdown links in the visible body mean the route is a body-preview stub, not a publication renderer. In that case, inspect the route for direct `{post.body}` / `renderBodyPreview` usage and fix it by evaluating MDX with the appropriate component map and composing the full article layout (hero, body images, TOC, related/sidebar CTAs), rather than patching typography around the raw text.
 
 ## Cross-repo Tailwind port pitfall
 
