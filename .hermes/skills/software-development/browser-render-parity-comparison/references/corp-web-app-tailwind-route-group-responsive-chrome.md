@@ -35,8 +35,21 @@ For corp-web-app Tailwind route-group chrome parity, check these together:
    - Add a responsive contract test covering `>1260`, `851–1260`, `<=850`, `<=479`, and footer breakpoints.
    - Add a guard that the Tailwind route-group globals do not contain the legacy reset strings: `padding: 0;`, `margin: 0;`, `background: none;`, `border: none;`.
 
+## Implementation details to check for chrome parity
+
+When the requested comparison is specifically the `(tailwind)` group header/footer versus an existing legacy page such as `/company/about-us`, inspect more than the top-level layout wrapper:
+
+- Header CTA: legacy uses the shared gradient button look (`linear-gradient(100deg, #0762d4 34.93%, #875ac5 76.81%, #c55a8c 99.98%)`), square-ish `6px` radius, `16px/16px` button text, and `10px 20px` padding. A dark rounded Tailwind placeholder button is visibly wrong even if the label matches.
+- Desktop GNB dropdown: legacy is a full-width mega menu pinned below the `88px` header, not a small per-item popover. It includes a left title/description column, a middle menu column, an optional right related-article card, a top border, and page dimming behind the menu.
+- GNB menu labels should expose legacy text and related article content in source, not only simple child link arrays, so future visual parity can preserve the dropdown composition.
+- Header tools: check language/search/tool spacing and icon sizing. If the full legacy locale selector is not yet rebuilt in Tailwind, do not let a placeholder silently change the rest of the header spacing.
+- Footer: legacy uses `#141920`, white logo icon, social icons (not text links), top/nav/bottom sections, `60px` vertical footer padding, `100px` desktop column gap, explicit column widths (`210px`, `105px`), and the address/copyright block. A compact black footer with text-only social links is not parity.
+- Mobile header: preserve the `<=850px` fixed menu behavior and bottom CTA bar (`Contact Us` / `Free Now`) rather than only rendering an inline accordion list.
+- Source-shape tests for this class should assert the full-width mega-menu/gradient/footer contract, and tests may need `getAllByRole` for duplicated desktop/mobile controls such as `Search`.
+
 ## Common pitfalls
 
 - A quick fix that imports the legacy `Header`, `Main`, and `Footer` into `(tailwind)/layout.tsx` restores visible chrome but bypasses Tailwind shared chrome implementation.
 - Looking only at `useIsMobileHeader <= 850` misses the `1260px` container-padding band and the `479px` phone variable band.
 - Keeping legacy globals in the Tailwind route group forces Tailwind classes to fight legacy resets. Prefer a route-group global CSS split over scattering `!` modifiers through Tailwind chrome.
+- Treating matching header/footer presence as parity is insufficient; verify dropdown menu shape, footer section structure, CTA gradient, and social icon rendering against the reference page.

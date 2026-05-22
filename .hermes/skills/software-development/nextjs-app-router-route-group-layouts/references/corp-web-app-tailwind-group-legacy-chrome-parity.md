@@ -35,8 +35,9 @@ Implementation pattern used:
 5. For shared components still used by both route groups, prefer moving concrete values into the component/module or scheduling a focused refactor over growing the Tailwind group globals. Examples:
    - progress color: `#2f81f7` instead of `var(--color-blue-hover, #2f81f7)`
    - cookie banner spacing/background: explicit CSS module values instead of `var(--rem-*)` or `var(--bg-blue, ...)`
+   - preview navigation toggle: keep the legacy runtime behavior and position contract, but avoid importing the legacy CSS Module component directly into Tailwind-owned chrome if it pulls legacy/PostCSS/global assumptions into the minimal route group. Instead, add a Tailwind-owned toggle wrapper/component that posts to `/api/preview-navigation`, refreshes the router, and uses explicit Tailwind classes for the same absolute position (`top: calc(100% + 16px)`, `right: 20px`; mobile `top: calc(100% + 12px)`, `right: 30px`). Wire `showPreviewModeToggle` from the route-group root layout through the Tailwind layout/header props so it appears under the same condition as legacy.
    - if the old component contract is undesirable, keep the Tailwind globals minimal and let tests/visual verification drive the component refactor
-6. Update source-shape tests when the route-group contract changes. A smoke-page test may have asserted that Header/Footer are absent; replace that with assertions that the Tailwind root includes the intended chrome.
+6. Update source-shape tests when the route-group contract changes. A smoke-page test may have asserted that Header/Footer are absent; replace that with assertions that the Tailwind root includes the intended chrome and runtime toggles such as Preview Toggle when `showPreviewModeToggle` is true.
 
 Verification pattern:
 
