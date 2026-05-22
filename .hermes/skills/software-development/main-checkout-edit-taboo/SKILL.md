@@ -189,10 +189,38 @@ Why this pattern matters:
 
 Use this preservation-branch pattern when the dirty root changes are coherent and worth keeping as their own line of work. Use the patch-file migration flow above when the changes must be transplanted directly into the new task worktree instead.
 
+## Main update when dirty changes are already present upstream
+
+When the user asks to update `main` and the root checkout is dirty, first determine whether the dirt is meaningful unpublished work or merely local duplicates of changes that have already landed in `origin/main`.
+
+Recommended flow:
+
+```bash
+git fetch origin --prune
+git status --short --branch
+git diff --stat
+git diff --name-status
+git log --oneline --decorate --left-right main...origin/main
+```
+
+For each dirty tracked/untracked file that overlaps upstream changes:
+- compare the local file against `origin/main:<path>` when the path exists there
+- for untracked files that would block checkout/reset, use `cmp -s local <(git show origin/main:path)` or an equivalent byte-level comparison before removing them
+- inspect upstream excerpts for files where local text is similar but not identical; prefer the newer upstream version when it is clearly the completed form of the same change
+
+If the local dirt is confirmed to be duplicate/upstreamed rather than separate work:
+1. save a safety backup first, e.g. `git diff --binary > /tmp/<repo>-main-update-<timestamp>/local.diff`, and copy any untracked blocker files there
+2. remove only untracked files that are byte-identical to `origin/main:<path>` and would block the update
+3. reset/fast-forward root `main` to `origin/main`
+4. verify `git status --short --branch`, `git rev-parse main`, and `git rev-parse origin/main`
+5. check conflict markers with an anchored search such as `^(<{7}|>{7})`; a broad `=======` search can false-positive on markdown/comment separators
+
+Do not use this shortcut when local files differ materially from `origin/main` or their provenance is unclear. Preserve those changes onto a non-main branch/worktree instead.
+
 ## Done criteria
 
 - any discovered main-checkout pollution has been reported
-- task-related mistaken changes have been moved to a non-main worktree/branch
+- task-related mistaken changes have been moved to a non-main worktree/branch, or duplicate/upstreamed dirt has been safely backed up and removed before updating main
 - root main workspace has been restored to its pre-task clean/control state, except explicitly pre-existing unrelated changes
 - all new edits are in a non-main worktree
 - commits and pushes happen from the worktree branch, never from `main`
