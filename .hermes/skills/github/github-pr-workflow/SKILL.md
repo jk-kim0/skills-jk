@@ -649,6 +649,10 @@ gh pr view <branch-name> --json number,title,url,headRefName,baseRefName,state
      gh pr comment 123 --body-file /tmp/pr-comment.md
      ```
 
+   - When squashing an existing PR branch after a rebase, do not run `git reset --soft origin/main` while additional working-tree edits are still unstaged and then assume the next commit captured everything.
+   - Practical symptom: `git status --short --branch` shows `MM` paths after the soft reset, and the new commit includes the old PR delta but not the newest refactor/fix.
+   - Safe pattern: before the soft reset, either commit/stash the new edits or stage/amend them immediately afterward; after the commit, require `git status --short` to be clean and compare `git diff --stat origin/<head-branch>..HEAD` / `git diff --stat origin/main...HEAD` before pushing.
+   - If `git push --force-with-lease` is rejected with stale info because a parallel `fetch` or GitHub-side update moved the remote tracking ref, fetch/inspect the remote head and retry only after confirming your local branch intentionally replaces the remote PR head.
    - After rebases or force-pushes, verify remote branch refs directly before trusting PR metadata.
    - This applies both to stacked PR chains and to ordinary follow-up updates on an existing open PR.
    - If an open PR branch is stale and its diff against latest `origin/main` is polluted by many unrelated files, prefer a clean-replacement workflow over committing on top of the stale branch: create a temporary worktree from `origin/main`, apply only the intended scoped changes, run targeted checks, commit once, record the old remote tip with `git ls-remote`, force-with-lease push `HEAD` back to the same PR branch, then verify `gh pr view <pr> --json files` contains only the expected files.
