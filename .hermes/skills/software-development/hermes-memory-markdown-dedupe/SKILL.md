@@ -158,6 +158,20 @@ Good pattern:
 3. re-read the region
 4. rerun duplicate detection after each large merge pass
 
+## Repo-specific extraction-to-skill pattern
+
+When `MEMORY.md` or `USER.md` is dominated by facts for specific repositories, do not only dedupe wording. Move those entries into class-level repo-context skills and leave a short global pointer behind.
+
+Recommended shape:
+1. Cluster entries by durable repo/work area, for example `skills-jk`, `querypie-docs`, `corp-web-v2`, `corp-web-japan`, `corp-web-app`, runner ops, or Vercel ops.
+2. Prefer updating an existing umbrella skill for that repo/workflow. If none exists, create one class-level repo-context skill, not one skill per memory entry.
+3. Put the migrated raw entries in `references/migrated-memory-and-user-context.md`, separated by source section (`From MEMORY.md`, `From USER.md`).
+4. Keep `SKILL.md` as a trigger/index with instructions to read the reference and verify live repo state before acting on potentially stale facts.
+5. Rewrite global memory/user files to keep only broad user preferences plus a pointer such as: “repo-specific implementation facts and workflow constraints have been moved into repo-context skills; load the relevant skill before substantial work.”
+6. Verify with a regex scan that repo-specific names/routes remain in global memory only as the pointer, while the detailed entries exist in the skill references.
+
+Use this when the goal is to reduce global prompt pressure and make repo-specific facts load only when relevant. Do not use it for general user preferences that should apply across repos.
+
 ## Good edit patterns
 
 ### 1. Merge three repeated notes into one
