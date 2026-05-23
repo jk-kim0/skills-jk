@@ -449,6 +449,13 @@ Helpful sequence:
 
 This is especially useful when the root dirt came from untracked repo-local agent skill files. Preserve them in a reviewable worktree/branch instead of leaving `main` behind remote or hiding them in a stash.
 
+Important completion rule after preservation:
+- Once root-local changes have been copied into a fresh review branch/worktree and committed/pushed/PR'd, do not leave the same copied changes dirty in the root `main` checkout by default for workspace cleanup/main-update requests.
+- Re-check that the review branch contains the intended payload and that the remote ref matches local HEAD, then restore or clean the root copies so `main` is actually clean and aligned with `origin/main`.
+- Only leave the original root dirt in place if the user explicitly asked to preserve it there, or if verification of the review branch failed.
+- In the final report, distinguish "changes were preserved in PR/worktree" from "root workspace is clean"; do not call cleanup complete while the root still contains the same dirty files.
+- If a PR merges while the cleanup is in progress, fetch again, fast-forward root `main`, remove the merged worktree/branch if clean, and rebase any still-open follow-up PR branches onto the new `origin/main` before final reporting.
+
 ## Practical execution lesson: repeated cleanup passes can reveal new sibling helper worktrees
 
 In PR-heavy repos, a later cleanup pass can surface new worktrees that were not present in the previous pass, especially after:
