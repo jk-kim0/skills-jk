@@ -112,8 +112,12 @@ Interpret wording and turn boundaries precisely:
 - In copy-to-worktree mode, report clearly that the PR branch contains a copied payload and that the root checkout still has the original local changes.
 - Treat `.hermes/lsp/**` as local language-server/runtime installation residue by default, similar to `node_modules`; exclude it from PR payloads unless the user explicitly asks to commit that tooling state.
 - If the user repeats the same “update main + summarize local changes + PR meaningful changes” request while you are already mid-workflow, do not restart from scratch or duplicate PRs. Continue the in-progress classification/PR flow, re-check current main/PR state, and report the continuation explicitly.
-- Re-run root status after each PR/worktree creation. New tracked skill/reference edits can appear during the session after final verification; if they are meaningful and not covered by the just-created PR, split them into a narrow additional PR rather than silently leaving them unreported.
+- Re-run root status after each PR/worktree creation. New tracked skill/reference edits can appear during the session after final verification; if they are meaningful and not part of the just-created PR, split them into another narrow PR rather than silently leaving them unreported.
+- When several follow-up PRs are open in the same sweep, compare their actual `origin/main...HEAD` payloads before final reporting. If a support file or skill edit was accidentally included in the wrong/broader PR, amend that PR to remove the duplicate and keep the file only in the narrow intended PR.
 - See `references/copy-to-worktree-repeated-local-sweep.md` for the repeated-request/copy-to-worktree pattern, no-op collapse workflow, and reporting pitfalls.
+- See `references/repeated-workspace-sweep-final-clean-loop.md` for the final clean-root loop, multi-PR payload deduplication, and reporting checklist when repeated sweeps reveal additional skill/reference changes.
+- See `references/temporary-draft-worktree-cleanup.md` for the cleanup pattern when temporary draft worktree changes are consolidated into an existing open PR branch.
+- See `references/multi-pr-followup-dedup-loop.md` for the final verification loop when root status keeps revealing new skill/reference deltas and multiple open follow-up PRs must be deduplicated.
 
 1. Review all current changes first:
 - If the user says to **copy/clone** local changes into a new worktree (for example “로컬 변경사항을 복제하여 PR 작성”), keep the root checkout’s dirty state intact after creating the PR. Do not restore, reset, or delete the original root changes unless the user also asks for cleanup.

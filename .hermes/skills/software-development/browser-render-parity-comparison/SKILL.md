@@ -37,14 +37,15 @@ Trigger: user asks to compare stage and production URLs, or asks to fix UI discr
    - Before porting a Tailwind/className implementation from a sibling repo such as corp-web-japan into corp-web-app, verify the target repo actually has Tailwind in its build pipeline: `package.json` dependencies, `package-lock.json`, `postcss.config.mjs`, and `src/app/globals.css` imports. If Tailwind is absent, do not rewrite UI with Tailwind classes in the feature PR; either use the target repo's existing styling system for the immediate parity fix, or split a separate Tailwind foundation PR before a Tailwind-based page migration.
    - When parity target is an existing live querypie.com page, measure that live page directly and treat its computed values as the contract. Avoid approximate scaled values copied from corp-web-japan or inferred rem conversions if live metrics show exact values such as `60px/72px` headings, `120px` icons, or two stacked headings with a `20px` gap. See `references/corp-web-app-certifications-live-metric-parity.md`.
 10. Build a full-page landmark inventory before reporting completion: hero, lead, primary content/cards, page-local CTA, global bottom CTA, footer. Route-local rewrites can preserve the main content while silently dropping downstream layout components such as `DownloadBottom` / `Stop Thinking. Start Transforming.`.
-11. For shared chrome parity, audit header and footer as first-class UI surfaces, not just as present/absent landmarks. Compare:
-   - header logo size/position and actual SVG/icon identity;
-   - language/search/tool icons by identity, count, size, and href/action;
-   - header CTA nested structure, visible text span, chevron/icon presence, font weight, gap, padding, radius, gradient, hover background, and computed dimensions;
-   - footer logo SVG identity/size/color;
-   - footer social links by exact count, order, aria-labels, hrefs, icon components/SVG viewBox, size, color, and spacing;
-   - footer navigation columns, legal links, address text, borders, padding, background, typography, and responsive breakpoints.
-   A chrome implementation can look broadly similar while still being wrong if a CTA chevron is missing, an icon is substituted (for example arrow instead of globe), or social icons are omitted.
+   - header logo link, size/position, SVG `viewBox`, path identity, fill/color, and href;
+   - navigation labels/order, dropdown trigger behavior, mega-menu/popover geometry, dimming layer, and breakpoint-specific interaction mode;
+   - language/search/menu/tool controls by exact control count, aria-label, href/action, dimensions, SVG `viewBox`, representative path `d`, fill/stroke, and hover/focus state;
+   - header CTA href, wrapper/text/icon nested structure, chevron/icon presence, font family/size/weight/line-height, gap, padding, border radius, gradient, hover/focus/active backgrounds, and computed dimensions;
+   - footer background, section order, wrapper width, padding, borders, typography, and responsive breakpoint behavior;
+   - footer logo SVG identity, size, fill/color, position, and link behavior if clickable;
+   - footer social links by exact count, order, aria-labels, hrefs, target/rel, icon components/SVG `viewBox`, representative path `d`, size, color, spacing, hover/focus state, and mobile wrapping;
+   - footer navigation columns, legal links, address/copyright text, link wrapping, column widths, and gaps.
+   A chrome implementation can look broadly similar while still being wrong if a CTA chevron is missing, an icon is substituted (for example arrow instead of globe), social icons are omitted, hrefs differ, or desktop parity hides tablet/mobile chrome drift.
 12. Explicitly check background visual layers for major sections, especially hero sections: compare computed `backgroundImage`, `backgroundColor`, pseudo-element backgrounds, absolutely positioned decorative images, gradient overlays, and section wrapper assets. Do not stop at text/media geometry; a page can match hero copy and screenshot sizes while still missing a production gradient background image layer.
 13. Inspect source content data for copy/description mismatches.
 14. For MDX/publication detail parity, explicitly check whether the target renders raw MDX/JSX text. Literal tags such as `<Box>`, `<ArticleFileImage>`, `<br />`, or markdown links in the visible body mean the route is a body-preview stub, not a publication renderer. In that case, inspect the route for direct `{post.body}` / `renderBodyPreview` usage and fix it by evaluating MDX with the appropriate component map and composing the full article layout (hero, body images, TOC, related/sidebar CTAs), rather than patching typography around the raw text.
@@ -142,3 +143,4 @@ Reference example:
 - [Simple CTA parity lesson](references/simple-cta-parity-lesson.md) — bottom CTA landmark and nested button measurement checklist from a corp-web-app Simple CTA transfer/application follow-up.
 - [Header-to-title gap parity](references/header-to-title-gap-parity.md) — pitfall and probe for GNB/header-to-H1 spacing when one site uses a fixed overlay header and the target header occupies document flow.
 - [Root rem breakpoint parity](references/root-rem-breakpoint-parity.md) — checklist and impact math for responsive `html` root font-size differences such as corp-web-app 15px/14px breakpoints versus corp-web-japan's constant 16px root.
+- [Shared chrome parity miss](references/shared-chrome-parity-miss.md) — case note for avoiding superficial header/footer parity when CTA chevrons, language icons, or social icon inventories differ.
