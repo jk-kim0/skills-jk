@@ -805,14 +805,14 @@ async function runIndexIssueValidations(client, sessionId, args) {
     return;
   }
 
-  const unfiltered = await runIndexIssueValidationsForSitemap(client, sessionId, { ...args, submit: false, sitemap: null }, null);
-  const sitemaps = unfiltered.sitemapOptions || [];
+  const allPagesSummary = await runIndexIssueValidationsForSitemap(client, sessionId, args, null);
+  const sitemaps = allPagesSummary.sitemapOptions || [];
   if (!sitemaps.length) throw new Error('No sitemap options were found under Filter to Sitemaps on the Page indexing screen.');
   if (!args.outputJson) {
     console.log(`\nGSC Page indexing sitemap filter run | mode=browser-cdp | site=${args.site} | submit=${args.submit}`);
     console.log(`sitemaps=${sitemaps.length}`);
   }
-  const summaries = [];
+  const summaries = [allPagesSummary];
   for (const [idx, sitemap] of sitemaps.entries()) {
     if (!args.outputJson) {
       console.log(`\n${'='.repeat(80)}`);
@@ -827,7 +827,7 @@ async function runIndexIssueValidations(client, sessionId, args) {
     const total = summaries.reduce((sum, summary) => sum + summary.total, 0);
     const started = summaries.reduce((sum, summary) => sum + summary.started, 0);
     const skipped = summaries.reduce((sum, summary) => sum + summary.skipped, 0);
-    console.log(`\nall-sitemaps summary: sitemaps=${summaries.length} total=${total} started=${started} skipped=${skipped} failed=${failed}`);
+    console.log(`\nall-sitemaps summary: unfiltered=1 sitemaps=${sitemaps.length} total=${total} started=${started} skipped=${skipped} failed=${failed}`);
   }
   if (failed) process.exitCode = 1;
 }

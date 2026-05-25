@@ -622,6 +622,7 @@ async function runIndexIssuesForSitemap(args, session, sitemap = null) {
   } else {
     printIssueReportHeader({ mode: 'frontend-session', site: args.site, sitemap: sitemapUrl, submit: args.submit, discoveredCount: issues.length, candidateCount: candidates.length });
   }
+  const sitemapOptions = sitemapUrl ? [] : parseSitemapOptions(html, args.site);
   if (!args.submit) {
     if (!args.outputJson) {
       for (const [idx, issue] of candidates.entries()) {
@@ -629,7 +630,7 @@ async function runIndexIssuesForSitemap(args, session, sitemap = null) {
       }
       printIssueReportSummary({ total: candidates.length });
     }
-    return { total: candidates.length, started: 0, failed: 0, results: [] };
+    return { total: candidates.length, started: 0, failed: 0, results: [], sitemapOptions };
   }
 
   const results = [];
@@ -672,7 +673,7 @@ async function runIndexIssuesForSitemap(args, session, sitemap = null) {
   } else {
     printIssueReportSummary({ total: results.length, started: ok, failed });
   }
-  return { total: results.length, started: ok, failed, results };
+  return { total: results.length, started: ok, failed, results, sitemapOptions };
 }
 
 async function runIndexIssues(args) {
@@ -686,15 +687,14 @@ async function runIndexIssues(args) {
     return;
   }
 
-  const html = await frontendFetch(session, indexIssuesUrl(args.site));
-  refreshTokensFromHtml(session, html);
-  const sitemaps = parseSitemapOptions(html, args.site);
+  const allPagesSummary = await runIndexIssuesForSitemap(args, session, null);
+  const sitemaps = allPagesSummary.sitemapOptions || [];
   if (!sitemaps.length) throw new Error('No sitemap options were found under Filter to Sitemaps on the Page indexing screen.');
   if (!args.outputJson) {
     console.log(`GSC Page indexing sitemap filter run | mode=frontend-session | site=${args.site} | submit=${args.submit}`);
     console.log(`sitemaps=${sitemaps.length}`);
   }
-  const summaries = [];
+  const summaries = [allPagesSummary];
   for (const [idx, sitemap] of sitemaps.entries()) {
     if (!args.outputJson) {
       console.log(`\n${'='.repeat(80)}`);
@@ -708,7 +708,7 @@ async function runIndexIssues(args) {
   if (!args.outputJson) {
     const total = summaries.reduce((sum, summary) => sum + summary.total, 0);
     const started = summaries.reduce((sum, summary) => sum + summary.started, 0);
-    console.log(`\nall-sitemaps summary: sitemaps=${summaries.length} total=${total} started=${started} failed=${failed}`);
+    console.log(`\nall-sitemaps summary: unfiltered=1 sitemaps=${sitemaps.length} total=${total} started=${started} failed=${failed}`);
   }
   if (failed) process.exitCode = 1;
 }
