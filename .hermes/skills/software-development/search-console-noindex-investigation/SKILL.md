@@ -23,6 +23,7 @@ References:
 - `references/gsc-frontend-item-key-missing.md` — frontend-session direct-mode pitfall where `Failed` rows are selected as candidates but validation is not submitted because row markup lacks `item_key`.
 - `references/gsc-frontend-failed-validation-rpc.md` — current GSC bootstrap fallback for missing issue `item_key` and reconstructing the `RYZlBc` START NEW VALIDATION RPC safely.
 - `references/gsc-sitemap-filter-validation.md` — implementation notes for Page indexing `Filter to Sitemaps`, `sitemap=<absolute-url>` direct fetches, and zero-row filtered reports.
+- `references/gsc-all-sitemaps-vs-unfiltered-page-indexing.md` — diagnostic note for when the web console screenshot shows Failed rows but `--all-sitemaps` CLI reports zero because sitemap-filtered scope differs from the unfiltered Page indexing table.
 
 ## Goal
 
@@ -79,6 +80,7 @@ When the user points to `https://search.google.com/search-console/index?...`, me
    - Propagate nested per-issue failures to a non-zero process exit. Never summarize a site as OK if one of its issue validations failed.
    - Default stdout for `validate-index-issues`, `validate-index-issues-all`, and related validation helpers should be human-readable row/table output, not raw JSON. Use a stable column contract such as `SITE`, `ROW`, `VALIDATION`, `PAGES`, `OUTCOME`, `ACTION`, and `REASON`, printing one issue/result per row. Keep machine-readable JSON behind an explicit opt-in flag such as `--output-json`.
    - The Page indexing `Filter to Sitemaps` dropdown exposes sitemap options as absolute sitemap URLs and the filtered page can be fetched with `sitemap=<absolute-sitemap-url>` on `/search-console/index?resource_id=...`. A filtered sitemap may legitimately return `discovered=0 candidates=0`; treat that as “no issue rows in this sitemap scope,” not as a submit failure. See `references/gsc-sitemap-filter-validation.md`.
+   - If a screenshot/default GSC web console shows `Failed` rows but a CLI run with `--all-sitemaps` reports `discovered=0 candidates=0`, compare unfiltered vs sitemap-filtered scopes before debugging the row parser. `--all-sitemaps` means “iterate each sitemap filter,” not “all issue rows.” A plain Page indexing table with no active sitemap filter chip should be reproduced without `--all-sitemaps`. See `references/gsc-all-sitemaps-vs-unfiltered-page-indexing.md`.
    - See `references/gsc-validate-cli-regression.md` for a compact regression checklist.
 
 5. Verification.
