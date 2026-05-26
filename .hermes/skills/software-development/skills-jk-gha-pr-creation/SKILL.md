@@ -117,6 +117,7 @@ Interpret wording and turn boundaries precisely:
 - See `references/copy-to-worktree-repeated-local-sweep.md` for the repeated-request/copy-to-worktree pattern, no-op collapse workflow, and reporting pitfalls.
 - See `references/repeated-workspace-sweep-final-clean-loop.md` for the final clean-root loop, multi-PR payload deduplication, and reporting checklist when repeated sweeps reveal additional skill/reference changes.
 - See `references/temporary-draft-worktree-cleanup.md` for the cleanup pattern when temporary draft worktree changes are consolidated into an existing open PR branch.
+- See `references/behind-main-untracked-upstream-collapse.md` for cases where untracked skill/reference files are byte-identical to files already present in `origin/main`; classify them as behind-main artifacts, back them up, remove blockers/runtime WAL files, fast-forward `main`, and skip PR creation when no meaningful local payload remains.
 - See `references/multi-pr-followup-dedup-loop.md` for the final verification loop when root status keeps revealing new skill/reference deltas and multiple open follow-up PRs must be deduplicated.
 
 1. Review all current changes first:

@@ -107,6 +107,27 @@ Also migrate referenced assets into a route-aligned app-local public directory s
 
 See `references/internal-mdx-repo-local-migration.md` for the session-derived checklist and verification snippets.
 
+## Middleware locale handling for unprefixed internal routes
+
+When an internal page only exists under `src/app/[locale]/internal/**`, do not assume the unprefixed `/internal/**` URL will resolve automatically. In this app, English/default users need middleware to internally rewrite `/internal/...` to `/en/internal/...`, while Korean/Japanese users should still redirect to `/{locale}/internal/...`.
+
+For class-level internal route coverage, keep `/internal` in `DEFAULT_LOCALE_REWRITE_PREFIXES` in `src/middleware.ts` rather than adding one-off entries for individual internal tools such as `/internal/tailwind`. This preserves the intended behavior for multiple internal paths:
+
+- English/default: `/internal/tailwind` -> rewrite to `/en/internal/tailwind` without changing the visible URL.
+- Korean/Japanese: `/internal/tailwind` -> redirect to `/ko/internal/tailwind` or `/ja/internal/tailwind`.
+
+Add middleware regression tests for both a concrete reported path and a second internal subroute to prove prefix behavior, for example:
+
+```ts
+expect(response.headers.get('x-middleware-rewrite')).toBe(
+  'https://www.querypie.com/en/internal/tailwind?baseUrl=https%3A%2F%2Fwww.querypie.com',
+);
+expect(koResponse.headers.get('location')).toBe('https://www.querypie.com/ko/internal/tailwind');
+expect(jaResponse.headers.get('location')).toBe('https://www.querypie.com/ja/internal/translations/blog');
+```
+
+Before patching this class of bug, verify the exact deployed behavior with curl headers for `/internal/...`, `/en/internal/...`, `/ko/internal/...`, and `/ja/internal/...`; a signature of `404` only on the unprefixed URL with `x-matched-path: /[...slug]` means the localized route exists and middleware is the missing piece.
+
 ## Tests to add or update
 
 Add tests that lock all three contracts:
