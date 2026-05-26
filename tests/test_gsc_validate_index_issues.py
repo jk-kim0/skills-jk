@@ -185,6 +185,81 @@ def test_validate_index_issues_sitemap_filter_arguments_are_forwarded() -> None:
 
 
 
+def test_all_sitemaps_mode_processes_unfiltered_page_indexing_screen_first() -> None:
+    frontend_source = (SCRIPT_PATH.parent / "gsc-frontend-indexing").read_text()
+    browser_source = (SCRIPT_PATH.parent / "gsc-browser-indexing").read_text()
+
+    for source in (frontend_source, browser_source):
+        assert "allPagesSummary" in source
+        assert "unfiltered=1" in source
+        assert "{ ...args, submit: false, sitemap: null }" not in source
+
+
+def test_frontend_all_sitemaps_includes_unfiltered_issue_rows(tmp_path) -> None:
+    driver = tmp_path / "frontend-all-sitemaps-test.mjs"
+    driver.write_text(
+        f"""
+import fs from 'node:fs';
+import vm from 'node:vm';
+import {{ createRequire }} from 'node:module';
+
+const require = createRequire(import.meta.url);
+const helperPath = {str(SCRIPT_PATH.parent / "gsc-frontend-indexing")!r};
+let source = fs.readFileSync(helperPath, 'utf8')
+  .replace(/^#!.*\\n/, '')
+  .replace(/main\\(\\)\\.catch\\([\\s\\S]*$/, `
+loadSession = async () => ({{ tokens: {{}}, cookies: [] }});
+frontendFetch = async (_session, url) => {{
+  if (String(url).includes('sitemap=')) {{
+    return '<html><body><table></table></body></html>';
+  }}
+  return '<html><body><table><tr data-rowid="0"><td>Blocked by robots.txt</td><td>Website</td><td>Failed</td><td>trend</td><td>4</td></tr></table><div><div data-event-label="SITEMAP" data-url="/en/sitemap.xml"><span>/en/sitemap.xml</span></div></div></body></html>';
+}};
+sleep = async () => undefined;
+globalThis.__exports = {{ runIndexIssues }};
+`);
+
+const logs = [];
+const context = {{
+  require,
+  URL,
+  URLSearchParams,
+  console: {{ log: (...args) => logs.push(args.join(' ')), error: (...args) => logs.push(args.join(' ')) }},
+  process: {{ argv: [], exitCode: 0 }},
+  setTimeout,
+  clearTimeout,
+}};
+vm.createContext(context);
+vm.runInContext(source, context, {{ filename: helperPath }});
+await context.__exports.runIndexIssues({{
+  site: 'https://docs.querypie.com/',
+  allSitemaps: true,
+  sitemap: null,
+  submit: false,
+  outputJson: false,
+  onlyStatus: 'actionable',
+  includeStarted: false,
+  delayMs: 0,
+}});
+console.log(logs.join('\\n'));
+""",
+    )
+
+    completed = subprocess.run(
+        ["node", str(driver)],
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    assert "discovered=1 candidates=1" in completed.stdout
+    assert "Blocked by robots.txt" in completed.stdout
+    assert "[sitemap 1/1] /en/sitemap.xml" in completed.stdout
+    assert "all-sitemaps summary: unfiltered=1 sitemaps=1 total=1" in completed.stdout
+
+
+
 def test_validation_helpers_default_to_table_report_and_gate_json_output() -> None:
     frontend_source = (SCRIPT_PATH.parent / "gsc-frontend-indexing").read_text()
     browser_source = (SCRIPT_PATH.parent / "gsc-browser-indexing").read_text()
