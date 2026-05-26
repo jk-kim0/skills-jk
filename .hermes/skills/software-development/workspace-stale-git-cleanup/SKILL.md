@@ -512,6 +512,10 @@ At that point:
 - report that this is now an unpublished-local-work judgment call, not ordinary stale cleanup
 - only remove it if the user explicitly wants destructive cleanup of the remaining unpublished branch
 
+## Repo-local dirty-root preservation before cleanup
+
+When repo-local cleanup starts with a dirty root `main`, first decide whether the dirt is runtime residue or meaningful local work. Preserve meaningful tracked skill/docs/config changes and meaningful untracked support files on a fresh latest-`origin/main` branch/worktree, push/create the PR, then restore the same root files and continue cleanup from a clean updated `main`. See `references/repo-local-dirty-root-preserve-before-cleanup.md` for the detailed sequence and final verification checklist.
+
 ## Good final-report format
 
 - Deleted stale worktrees
