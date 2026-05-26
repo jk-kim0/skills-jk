@@ -107,26 +107,23 @@ Also migrate referenced assets into a route-aligned app-local public directory s
 
 See `references/internal-mdx-repo-local-migration.md` for the session-derived checklist and verification snippets.
 
-## Middleware locale handling for unprefixed internal routes
+## Locale middleware for unprefixed internal URLs
 
-When an internal page only exists under `src/app/[locale]/internal/**`, do not assume the unprefixed `/internal/**` URL will resolve automatically. In this app, English/default users need middleware to internally rewrite `/internal/...` to `/en/internal/...`, while Korean/Japanese users should still redirect to `/{locale}/internal/...`.
+When an internal route exists only under the localized tree, for example:
 
-For class-level internal route coverage, keep `/internal` in `DEFAULT_LOCALE_REWRITE_PREFIXES` in `src/middleware.ts` rather than adding one-off entries for individual internal tools such as `/internal/tailwind`. This preserves the intended behavior for multiple internal paths:
-
-- English/default: `/internal/tailwind` -> rewrite to `/en/internal/tailwind` without changing the visible URL.
-- Korean/Japanese: `/internal/tailwind` -> redirect to `/ko/internal/tailwind` or `/ja/internal/tailwind`.
-
-Add middleware regression tests for both a concrete reported path and a second internal subroute to prove prefix behavior, for example:
-
-```ts
-expect(response.headers.get('x-middleware-rewrite')).toBe(
-  'https://www.querypie.com/en/internal/tailwind?baseUrl=https%3A%2F%2Fwww.querypie.com',
-);
-expect(koResponse.headers.get('location')).toBe('https://www.querypie.com/ko/internal/tailwind');
-expect(jaResponse.headers.get('location')).toBe('https://www.querypie.com/ja/internal/translations/blog');
+```text
+src/app/[locale]/internal/<tool-or-family>/page.tsx
 ```
 
-Before patching this class of bug, verify the exact deployed behavior with curl headers for `/internal/...`, `/en/internal/...`, `/ko/internal/...`, and `/ja/internal/...`; a signature of `404` only on the unprefixed URL with `x-matched-path: /[...slug]` means the localized route exists and middleware is the missing piece.
+also review `src/middleware.ts` for the unprefixed URL shape. A route such as `/internal/tailwind` can 404 on stage even when `/en/internal/tailwind`, `/ko/internal/tailwind`, and `/ja/internal/tailwind` all work, because the URL owner is localized but the unprefixed path is not routed through the default-locale rewrite path.
+
+Preferred middleware shape:
+- add `/internal` to the prefix-based default-locale rewrite list rather than special-casing one page such as `/internal/tailwind`
+- English/default users: internally rewrite `/internal/...` to `/en/internal/...` without changing the public URL
+- Korean/Japanese users: redirect `/internal/...` to `/{locale}/internal/...`
+- add middleware tests for both a concrete route such as `/internal/tailwind` and at least one sibling prefix route such as `/internal/translations/blog`, covering English rewrite plus KO/JA redirect behavior
+
+Do not add public canonical alternates to internal pages just because the unprefixed URL exists; the unprefixed URL is a middleware entrypoint, not public SEO surface.
 
 ## Tests to add or update
 

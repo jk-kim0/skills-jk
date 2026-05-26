@@ -84,6 +84,11 @@ Route group segment names do not appear in URLs. For example, `src/app/(tailwind
    - Relative imports from tests into `src/app/...` may need extra path segments or should be converted to stable absolute aliases.
    - Keep README/doc prose churn out of the PR unless the task asks to update docs; moving a README does not require rewriting every mentioned source path.
 
+9. Preserve route-specific ownership when touching metadata helpers in moved or wrapped route modules.
+   - A locale-specific product page such as `src/app/(legacy)/[locale]/plans/acp/page.ja.tsx` owns only `/{locale}/plans/acp`; its default `generateMetadata()` fallback must be the product route, not a broader parent such as `/{locale}/plans`.
+   - If a wrapper passes `urlPath` into locale modules, still set each module's no-argument fallback to the route it directly serves.
+   - Add direct tests that call the locale-specific `generateMetadata()` without arguments, so the route module's own canonical/default path cannot silently drift behind wrapper behavior.
+
 ## Verification
 
 Use lightweight checks first:
