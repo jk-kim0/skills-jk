@@ -30,6 +30,7 @@ Determine whether the growth is:
 - Large app artifacts can also contribute, e.g.:
   - Claude VM bundles under `~/Library/Application Support/Claude/vm_bundles/`
   - Chrome on-device model weights under `~/Library/Application Support/Google/.../weights.bin`
+- Large HuggingFace caches on shared Mac/LLM hosts may come from local interactive ML repos/tools rather than GitHub Actions. Attribute them by model cache path, mtime cluster, shell history, candidate repo remotes, and runner `_diag` evidence before blaming CI; see `references/huggingface-cache-attribution-on-shared-mac-hosts.md`.
 - macOS free-space/System Data figures can fluctuate during inspection; a single `df` reading is not enough evidence.
 
 ## Investigation order

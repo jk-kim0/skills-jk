@@ -4,21 +4,24 @@ Session pattern: a Tailwind App Router route group used a minimal group global (
 
 Diagnosis recipe:
 
-1. Open the exact legacy reference URL and Tailwind target URL with cookie preferences unset.
+1. Open the exact legacy reference URL and Tailwind target URL with cookie preferences unset. Use the user's exact Preview URLs when supplied; do not substitute stage or an earlier deployment.
 2. Probe the cookie banner container, content, description, and buttons on both pages:
+   - select the real cookie banner by behavior/position, for example `[class*=banner_container]` with `getComputedStyle(el).position === 'fixed'`; pages can also contain a locale nudge banner whose class name includes `banner_container`, and probing the first match gives false evidence.
    - `getComputedStyle(document.documentElement).fontSize`
-   - container padding/background/boxShadow/position/width
+   - container padding/background/boxShadow/position/width/height
    - description font-size/line-height/color
    - cookie markdown links color/text-decoration (`--doc-blue-text` should resolve to the legacy blue)
    - each button background, border, border-radius, padding, gap, color, font-size, line-height, width/height, and `white-space`
-3. If the container mostly matches but nested buttons/text/links do not, inspect the nested component CSS for `var(--...)` usage and compare against `src/app/globals.css` token definitions plus global reset assumptions such as `button { white-space: nowrap; }`.
+3. Compare total banner height and button height, not only token presence. Korean labels such as `예, 동의합니다` are a good canary for missing `white-space: nowrap`; the visual symptom is a 52px button becoming a taller wrapped button.
+4. If the container mostly matches but nested buttons/text/links do not, inspect the nested component CSS for `var(--...)` usage and compare against `src/app/globals.css` token definitions plus global reset assumptions such as `button { white-space: nowrap; }`.
 
 Safe fix pattern:
 
 - Do not copy legacy globals into `src/app/(tailwind)/globals.css`; keep the Tailwind group global minimal.
-- Add only the needed legacy token values to the cookie banner CSS root/scope (for example `.container`) so CSS variable inheritance restores the nested Button/Text computed styles.
+- Add only the needed legacy token values and reset-like control values to the cookie banner CSS root/scope (for example `.container`) so CSS variable inheritance restores the nested Button/Text/Link computed styles.
 - Keep the fix in the shared component CSS only when the component is already used by both route groups and the scoped tokens preserve the legacy rendering in legacy routes too.
-- Add a source-shape test or focused assertion that the scoped banner CSS contains the needed token contract while the Tailwind globals remain minimal.
+- Before pushing, if the final Preview deployment is not ready yet, inject the candidate CSS temporarily into the target Preview page and re-run the same computed-style probe to confirm the proposed source change closes the observed deltas. This is a pre-deploy sanity check, not a substitute for final Preview verification after CI deploys.
+- Add a source-shape test or focused assertion that the scoped banner CSS contains the needed token/control contract while the Tailwind globals remain minimal.
 
 Concrete token set from the cookie banner case:
 

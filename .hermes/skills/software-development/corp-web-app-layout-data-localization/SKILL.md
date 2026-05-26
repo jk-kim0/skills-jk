@@ -121,6 +121,18 @@ Important shape preference:
    - Korean PR title/body is appropriate for this user's corp-web-app repo preference.
    - Do not wait passively for CI; verify fresh checks attached and report current status.
 
+## Tailwind footer locale-module follow-ups
+
+Use this subsection when a task targets the `(tailwind)` route-group footer or asks to verify `footer.{locale}.tsx` files.
+
+1. Check both footer implementations before editing:
+   - Legacy/layout-module footer locale files: `src/components/layout/footer.en.tsx`, `footer.ja.tsx`, `footer.ko.tsx`.
+   - Tailwind route-group footer: `src/components/layout/tailwind-footer.tsx`, which may render from shared helper-generated columns instead of the `footer.{locale}.tsx` modules.
+2. When the request says language-specific footer files are prepared, verify the files exist and then verify the actual `(tailwind)` rendered source as a separate contract. Do not assume edits to `footer.en.tsx` / `footer.ja.tsx` / `footer.ko.tsx` affect `(tailwind)` routes.
+3. For Plans footer links, prefer explicit locale-prefixed routes such as `/${locale}/plans/aip` and `/${locale}/plans/acp` over legacy query-string links such as `/plans?aip` and `/plans?acp`. If editing route-local footer TSX modules, use `/${props.currentLocale}/plans/<product>` so English also resolves to `/en/...` when the user explicitly asks for `/{locale}/...` shape.
+4. Verify locale-specific menu copy in both places. A known mismatch to guard against is Japanese AIP CTA copy: `(tailwind)` shared helper logic can accidentally fall back to English `Try AIP Now`; it should match the Japanese footer module (`AIPを試す`) when maintaining parity.
+5. Add or update source-level tests near the footer family when a fresh worktree cannot run render-based Tailwind layout tests because CSS/PostCSS dependencies are not resolved. The useful contract is: the three locale footer files exist, no `/plans?aip` / `/plans?acp` remain in footer source, Tailwind footer uses explicit locale Plans links, and locale-specific CTA labels are present.
+
 ## Header/GNB responsive breakpoint changes
 
 Use this subsection when the task is not data-localization but still targets corp-web-app header/GNB behavior, especially viewport breakpoints.
