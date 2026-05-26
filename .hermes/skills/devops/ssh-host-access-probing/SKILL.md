@@ -50,6 +50,8 @@ Interpretation:
 
 If the first probe fails due to name resolution and the user expects a local Mac, LAN/VPN device, or known workstation, actively look for the IP before asking the user for it. Check local static mappings and config first; this is often faster and more reliable than broad network discovery.
 
+If the user asks to quickly find a working SSH key for a host, do not stop at host reachability. Enumerate plausible private keys under `~/.ssh` without printing key material, then test them with `BatchMode=yes`, `IdentitiesOnly=yes`, `PreferredAuthentications=publickey`, short timeouts, and the likely accounts. Report the exact successful key path, account, host, and a copy-pasteable verified SSH command.
+
 ```sh
 # Static local mappings and SSH config are the first places to check.
 grep -nE '<host>|<host-alias>|mac.?studio|studio|llm|<expected-subnet>' /etc/hosts 2>/dev/null || true
@@ -131,6 +133,8 @@ Example concise answer:
 4. **Assuming the user's remembered environment is the runtime environment.** Always check `pwd` and local `hostname`; the agent may run on a different machine or outside the user's LAN/VPN.
 
 5. **Over-explaining before probing.** If the target host name is clear, run the probe first and then report the evidence.
+
+6. **Answering a key-finding request with only reachability details.** When the user asks which key works, the deliverable is the working private key path plus account/host and verified command, not a general SSH diagnosis. Keep failures concise and stop after the first confirmed success unless broader coverage is requested.
 
 ## Verification Checklist
 

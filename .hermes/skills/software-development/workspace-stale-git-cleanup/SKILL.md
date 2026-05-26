@@ -514,7 +514,12 @@ At that point:
 
 ## Repo-local dirty-root preservation before cleanup
 
-When repo-local cleanup starts with a dirty root `main`, first decide whether the dirt is runtime residue or meaningful local work. Preserve meaningful tracked skill/docs/config changes and meaningful untracked support files on a fresh latest-`origin/main` branch/worktree, push/create the PR, then restore the same root files and continue cleanup from a clean updated `main`. See `references/repo-local-dirty-root-preserve-before-cleanup.md` for the detailed sequence and final verification checklist.
+When repo-local cleanup or a repeated local-sweep starts with a dirty root `main`, decide whether the dirt is runtime residue or meaningful local work before deleting stale worktrees. Preserve meaningful tracked skill/docs/config changes and meaningful untracked support files on a fresh latest-`origin/main` branch/worktree, push/create the PR, then handle the root copy according to user wording:
+
+- cleanup/main-update wording: restore/remove the same root files so root `main` ends clean and aligned.
+- explicit copy/clone wording: leave the meaningful original root files dirty after PR creation and report that the PR contains a copied payload.
+
+See `references/repo-local-dirty-root-preserve-before-cleanup.md` for the detailed sequence, GitHub PR verification nuance, and final verification checklist.
 
 ## Good final-report format
 
