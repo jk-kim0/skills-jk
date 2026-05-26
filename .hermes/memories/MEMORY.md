@@ -3,3 +3,5 @@ Repo-specific implementation facts and workflow constraints for skills-jk, query
 For searching all historical file paths in a git repo and filtering by substring, the user uses the one-liner: git log --all --name-only --pretty=format: | sed '/^$/d' | sort -u | grep '<substring>'.
 §
 For this user, when they say 'repo 의 workspace 정리' or similar, interpret it as repo-local cleanup only: clean the current repository's stale worktrees/branches and local residue, not the whole ~/workspace. Keep going across follow-up turns until the repo is as clean as safely possible, including cleaning root-local residue and fast-forwarding root main to origin/main when safe.
+§
+In corp-web-app Tailwind migration planning after PR 817/841/845, the preferred implementation path is moving route subtrees from `src/app/(legacy)/**` to `src/app/(tailwind)/**` so URL routes stay unchanged while Tailwind layout/global CSS boundaries apply; per-page `TailwindLayout` wrapper opt-in inside legacy is no longer the default.
