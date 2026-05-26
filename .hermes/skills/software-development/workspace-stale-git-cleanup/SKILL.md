@@ -118,6 +118,7 @@ Important practical nuance:
 - in PR-heavy repos, another fetch or a little time passing can turn formerly active PR worktrees into stale residue because their PRs just merged and upstream refs become `[gone]`
 - on each repeated cleanup request, re-run the full discovery pass (`git fetch --prune`, `git worktree list --porcelain`, `git branch -vv`, open-PR query) before deciding there is nothing left to do
 - before creating a fresh PR for cleanup/reference residue, compare the candidate branch tree against existing open cleanup/follow-up PR branches so you do not create a duplicate open PR with identical payload; see `references/duplicate-open-pr-payloads.md`
+- when dirty root `main` contains meaningful skill/docs changes and an existing open PR is a subset of that payload, update the existing PR branch/worktree instead of creating a duplicate PR; see `references/root-dirty-open-pr-dedup-update.md`
 - expect cleanup to happen in waves: one pass removes the already-stale items, the next pass may reveal newly stale merged-PR worktrees and branches
 
 Then escalate one level further:
@@ -127,6 +128,7 @@ Important practical nuance:
 - in PR-heavy repos, another fetch or a little time passing can turn formerly active PR worktrees into stale residue because their PRs just merged and upstream refs become `[gone]`
 - on each repeated cleanup request, re-run the full discovery pass (`git fetch --prune`, `git worktree list --porcelain`, `git branch -vv`, open-PR query) before deciding there is nothing left to do
 - before creating a fresh PR for cleanup/reference residue, compare the candidate branch tree against existing open cleanup/follow-up PR branches so you do not create a duplicate open PR with identical payload; see `references/duplicate-open-pr-payloads.md`
+- when dirty root `main` contains meaningful skill/docs changes and an existing open PR is a subset of that payload, update the existing PR branch/worktree instead of creating a duplicate PR; see `references/root-dirty-open-pr-dedup-update.md`
 - expect cleanup to happen in waves: one pass removes the already-stale items, the next pass may reveal newly stale merged-PR worktrees and branches
 
 Then escalate one level further:

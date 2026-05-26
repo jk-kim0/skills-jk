@@ -17,6 +17,7 @@ Use this when the user asks to make corp-web-app shared layout data stop reading
 Important shape preference:
 - For first-pass parity migrations, JSON files may match older footer/header precedent.
 - When the user asks for route-local-style/static-page-route-local-authoring treatment of layout chrome, prefer locale-specific TSX modules or explicit JSX/TS composition over JSON blobs or central data registries. Header/footer are not page routes, but the same authoring principle applies to site-wide layout chrome.
+- For Tailwind footer/header work, do not leave visible locale copy or locale-specific routes behind ad-hoc helper variables such as `docsLocale`, `getTryAipLabel`, `getLocalePlanHref`, or central `create*Columns(locale)` builders. Use a thin selector plus `*.en.tsx`, `*.ja.tsx`, and `*.ko.tsx` authoring modules, with shared frame/link primitives only for reusable UI structure.
 
 ## Trigger phrases
 
@@ -160,8 +161,9 @@ Use this subsection when the task is not data-localization but still targets cor
 - JSON data files can be large; use `git diff --stat` plus focused tests instead of pasting full JSON into reports.
 - A PR that originally introduced JSON local layout data can become invalid if the same JSON migration lands through another PR first. If the user asks to keep the PR alive, reset/rebase the existing PR branch onto latest `origin/main` and turn it into a narrow follow-up such as JSON-to-TSX locale module authoring, then rewrite the PR title/body to match the new scope.
 
-## References
+## Task References
 
 - `references/header-gnb-local-data-pr-660.md` — session notes for the header/GNB implementation that followed footer PR #657.
 - `references/header-json-to-tsx-authoring-pr-658.md` — session notes for rewriting a superseded header JSON PR into a latest-main TSX locale-module authoring follow-up.
 - `references/footer-preview-internal-menu-mobile-nav.md` — session notes for the preview-only footer Internal menu and the mobile `.nav { display: none; }` regression.
+- `references/tailwind-footer-locale-tsx-authoring.md` — route-local-style Tailwind footer pattern: thin selector, locale-specific TSX modules, shared primitives, and tests that reject ad-hoc locale helper variables.
