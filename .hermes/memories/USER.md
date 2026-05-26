@@ -99,3 +99,5 @@ If browser interaction is needed while another agent is using the browser, the u
 User prohibits browser direct-control fallback unless explicitly permitted; direct-mode CLI/tool failures should surface rather than silently control a browser.
 §
 For skills-jk main-update/local-change sweep requests, the user expects duplicate-PR avoidance, meaningful local changes preserved in appropriate PRs/worktrees, and final reporting to explicitly state whether root main is updated and clean.
+§
+When the user corrects a misunderstood goal/scope or expresses frustration about repeated wrong implementation direction, they expect an explicit acknowledgement and corrected plan before further code changes.
