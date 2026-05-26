@@ -568,6 +568,16 @@ terminal(command="tmux new-session -d -s resumed 'hermes --resume 20260225_14305
 - **Config changes:** In gateway: `/restart`. In CLI: exit and relaunch.
 - **Code changes:** Restart the CLI or gateway process
 
+### Prompt size / context overhead diagnosis
+If a user asks why a very short prompt still sends a large request, measure the live request composition instead of guessing.
+
+Key points:
+- Hermes request size is usually dominated by **tool schemas** and the **skills index** in the system prompt, not the raw user message.
+- Memory cost has two layers: (1) MEMORY / USER PROFILE already embedded in the system prompt, and (2) per-turn recalled memory injected into the current user message via `prefetch_all()`.
+- Project context files such as `AGENTS.md` are often smaller contributors than users expect.
+- Use `agent.model_metadata.estimate_request_tokens_rough()` with a real `AIAgent(...)` instance to compare baseline vs stripped variants such as `skip_memory=True`, `skip_context_files=True`, and reduced `enabled_toolsets=[...]`.
+- See `references/prompt-size-diagnosis.md` for a reusable probe script and interpretation workflow.
+
 ### Skills not showing
 1. `hermes skills list` — verify installed
 2. `hermes skills config` — check platform enablement
