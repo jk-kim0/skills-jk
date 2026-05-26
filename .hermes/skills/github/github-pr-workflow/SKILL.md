@@ -249,6 +249,7 @@ Important temp-file safety rule:
 - Practical failure pattern: creating the PR body inside the worktree, staging broad paths, then needing an amend commit only to remove the stray temp file.
 - The same separation rule applies to repository guidance changes discovered during implementation work: if you edit AGENTS.md, checked-in skills, or other repo-operational guidance as a follow-up to feature work, prefer a separate branch and separate PR instead of silently bundling those guidance changes into the feature PR.
 - Exception: if an open PR already exists for the same guide/skill/docs source-of-truth, update that existing PR instead of opening a parallel PR. Parallel docs/skill PRs for the same workflow create competing canonical documents and should be avoided unless the user explicitly asks for a split.
+- Mid-session merge pitfall: before pushing or editing an existing PR branch that was open earlier in the session, re-check `gh pr view <number> --json state,mergedAt,headRefName,headRefOid,files,url`. If it is now `MERGED`, stop updating that branch as the PR target. Start a fresh latest-`origin/main` branch/worktree for any remaining changes, open a new PR, then clean the obsolete worktree/local branch and delete the old remote head only if no open PR uses it. See `references/merged-pr-during-followup-recovery.md`.
 
 Options: `--draft`, `--reviewer user1,user2`, `--label "enhancement"`, `--base develop`
 
