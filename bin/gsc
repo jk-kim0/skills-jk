@@ -30,7 +30,6 @@ import os
 import pickle
 import subprocess
 import sys
-from copy import deepcopy
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -47,7 +46,6 @@ except ImportError:
 
 WEBMASTERS_READONLY_SCOPE = 'https://www.googleapis.com/auth/webmasters.readonly'
 WEBMASTERS_WRITE_SCOPE = 'https://www.googleapis.com/auth/webmasters'
-DUPLICATE_WITHOUT_USER_SELECTED_CANONICAL = 'duplicate without user-selected canonical'
 
 # API 스코프 (URL Inspection API 포함)
 SCOPES = [
@@ -446,52 +444,6 @@ def run_validate_index_issues_site(cmd: list[str], timeout_ms: int | None = None
         return 124
 
 
-def run_validate_index_issues_site_capture(cmd: list[str], timeout_ms: int | None = None) -> tuple[int, str]:
-    """Run one per-site validation helper and capture stdout for wrapper decisions."""
-    try:
-        completed = subprocess.run(
-            cmd,
-            timeout=(timeout_ms / 1000) if timeout_ms else None,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-        )
-        return completed.returncode, completed.stdout
-    except subprocess.TimeoutExpired:
-        print(f"ERROR: site validation helper timed out after {timeout_ms}ms")
-        return 124, ''
-
-
-def build_duplicate_canonical_probe_cmd(args, site_url: str) -> list[str]:
-    probe_args = deepcopy(args)
-    probe_args.submit = False
-    probe_args.output_json = True
-    return build_validate_index_issues_frontend_cmd(probe_args, site_url)
-
-
-def site_requires_browser_validate_fix(args, site_url: str) -> bool:
-    """Detect issue rows that need the browser Validate Fix path before submit."""
-    if not getattr(args, 'submit', False):
-        return False
-    probe_cmd = build_duplicate_canonical_probe_cmd(args, site_url)
-    returncode, stdout = run_validate_index_issues_site_capture(
-        probe_cmd,
-        getattr(args, 'site_timeout_ms', None),
-    )
-    if returncode != 0 or not stdout.strip():
-        return False
-    try:
-        payload = json.loads(stdout)
-    except json.JSONDecodeError:
-        return False
-    candidates = payload.get('candidates', []) if isinstance(payload, dict) else []
-    for issue in candidates:
-        reason = str(issue.get('reason', '')).strip().lower()
-        if reason == DUPLICATE_WITHOUT_USER_SELECTED_CANONICAL:
-            return True
-    return False
-
-
 def select_validation_sites(site_entries: list[dict], include_domain_properties: bool = False,
                             only_sites: list[str] | None = None,
                             limit_sites: int | None = None) -> tuple[list[str], list[tuple[str, str]]]:
@@ -561,18 +513,12 @@ def validate_all_index_issues(args, browser: bool = False) -> int:
         print(f"  browser-batch: {'OK' if returncode == 0 else f'FAIL({returncode})'}")
         print("  세부 사이트별 성공/실패는 위 browser helper summary를 확인하세요.")
         return returncode
-
     for idx, site_url in enumerate(selected, 1):
         print(f"\n{'=' * 80}")
         print(f"[{idx}/{len(selected)}] {site_url}")
         print(f"{'=' * 80}")
         sys.stdout.flush()
-        if site_requires_browser_validate_fix(args, site_url):
-            print("  frontend-session preflight detected Duplicate without user-selected canonical")
-            print("  -> switching this site to browser Validate Fix automation")
-            cmd = build_validate_index_issues_browser_cmd(args, site_url)
-        else:
-            cmd = build_validate_index_issues_frontend_cmd(args, site_url)
+        cmd = build_validate_index_issues_frontend_cmd(args, site_url)
         returncode = run_validate_index_issues_site(cmd, getattr(args, 'site_timeout_ms', None))
         results.append({'siteUrl': site_url, 'returncode': returncode})
         if idx < len(selected) and args.site_delay_ms:

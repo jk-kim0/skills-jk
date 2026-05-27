@@ -300,33 +300,63 @@ def test_validate_index_issues_site_timeout_returns_process_style_124(monkeypatc
     assert "timed out after 1500ms" in capsys.readouterr().out
 
 
-def test_site_requires_browser_validate_fix_detects_duplicate_canonical(monkeypatch) -> None:
-    gsc = load_gsc_module("gsc_duplicate_canonical_browser_detection_test")
-    args = SimpleNamespace(
-        submit=True,
-        output_json=False,
-        session_file="/tmp/frontend-session.json",
-        only_status="actionable",
-        include_started=False,
-        sitemap=None,
-        all_sitemaps=False,
-        issue_limit=1,
-        limit=None,
-        delay_ms=0,
-        site_timeout_ms=180000,
+def test_frontend_helper_maps_duplicate_canonical_item_key_from_af_init_data(tmp_path) -> None:
+    driver = tmp_path / "frontend-duplicate-canonical-itemkey-test.mjs"
+    driver.write_text(
+        f"""
+import fs from 'node:fs';
+import vm from 'node:vm';
+import {{ createRequire }} from 'node:module';
+
+const require = createRequire(import.meta.url);
+const helperPath = {str(SCRIPT_PATH.parent / "gsc-frontend-indexing")!r};
+let source = fs.readFileSync(helperPath, 'utf8')
+  .replace(/^#!.*\\n/, '')
+  .replace(/main\\(\\)\\.catch\\([\\s\\S]*$/, 'globalThis.__exports = {{ parseIssueRows }};');
+const context = {{ require, URL, URLSearchParams, console, process: {{ argv: [], exitCode: 0 }}, setTimeout, clearTimeout, globalThis: {{}} }};
+context.global = context;
+vm.createContext(context);
+vm.runInContext(source, context, {{ filename: helperPath }});
+const html = `
+  <table>
+    <tr data-rowid="0">
+      <td>Duplicate without user-selected canonical</td>
+      <td>Website</td>
+      <td>Failed</td>
+      <td>trend</td>
+      <td>4</td>
+    </tr>
+  </table>
+  <script>
+    AF_initDataCallback({{
+      key: 'ds:1',
+      data: [[[
+        "https://support.google.com/webmasters/answer/7440203#duplicate_page_without_canonical_tag",
+        "CAMYDyAC"
+      ]]]
+    }});
+  </script>
+`;
+const rows = context.globalThis.__exports.parseIssueRows(html);
+console.log(JSON.stringify(rows, null, 2));
+""",
     )
 
-    monkeypatch.setattr(
-        gsc,
-        "run_validate_index_issues_site_capture",
-        lambda cmd, timeout_ms=None: (0, '{"candidates":[{"reason":"Duplicate without user-selected canonical"}]}'),
+    completed = subprocess.run(
+        ["node", str(driver)],
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
     )
 
-    assert gsc.site_requires_browser_validate_fix(args, "https://www.querypie.com/") is True
+    assert '"reason": "Duplicate without user-selected canonical"' in completed.stdout
+    assert '"itemKey": "CAMYDyAC"' in completed.stdout
+    assert '"itemKeySource": "af-init-data"' in completed.stdout
 
 
-def test_validate_all_frontend_submit_auto_uses_browser_for_duplicate_without_canonical(monkeypatch, capsys) -> None:
-    gsc = load_gsc_module("gsc_validate_all_duplicate_browser_fallback_test")
+def test_validate_all_frontend_submit_keeps_direct_helper_for_duplicate_canonical(monkeypatch, capsys) -> None:
+    gsc = load_gsc_module("gsc_validate_all_direct_duplicate_canonical_test")
     args = SimpleNamespace(
         submit=True,
         include_domain_properties=False,
@@ -343,23 +373,26 @@ def test_validate_all_frontend_submit_auto_uses_browser_for_duplicate_without_ca
         output_json=False,
         sitemap=None,
         all_sitemaps=False,
-        port=9222,
-        connect_timeout_ms=120000,
     )
 
     monkeypatch.setattr(gsc, "get_site_entries", lambda: [{"siteUrl": "https://www.querypie.com/"}])
-    monkeypatch.setattr(gsc, "site_requires_browser_validate_fix", lambda _args, site_url: site_url == "https://www.querypie.com/")
 
     def fake_run(cmd, timeout_ms=None):
-        assert cmd[0].endswith("gsc-browser-indexing")
+        assert cmd[0].endswith("gsc-frontend-indexing")
+        assert "gsc-browser-indexing" not in " ".join(cmd)
         assert "--submit" in cmd
         return 0
 
     monkeypatch.setattr(gsc, "run_validate_index_issues_site", fake_run)
 
+    def forbidden_browser_cmd(*_args, **_kwargs):
+        raise AssertionError("browser fallback must not be built for duplicate canonical submit runs")
+
+    monkeypatch.setattr(gsc, "build_validate_index_issues_browser_cmd", forbidden_browser_cmd)
+
     assert gsc.validate_all_index_issues(args, browser=False) == 0
     out = capsys.readouterr().out
-    assert "switching this site to browser Validate Fix automation" in out
+    assert "switching this site to browser Validate Fix automation" not in out
 
 
 def test_validate_all_frontend_submit_does_not_fallback_to_browser_for_ordinary_failures(monkeypatch, capsys) -> None:
@@ -383,7 +416,6 @@ def test_validate_all_frontend_submit_does_not_fallback_to_browser_for_ordinary_
     )
 
     monkeypatch.setattr(gsc, "get_site_entries", lambda: [{"siteUrl": "https://www.querypie.com/"}])
-    monkeypatch.setattr(gsc, "site_requires_browser_validate_fix", lambda *_args, **_kwargs: False)
 
     def fake_run(cmd, timeout_ms=None):
         assert cmd[0].endswith("gsc-frontend-indexing")
