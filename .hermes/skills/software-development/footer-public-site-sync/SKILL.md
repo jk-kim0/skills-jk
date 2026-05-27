@@ -21,6 +21,9 @@ Use this skill when the user asks to update the repo footer to match the live pu
 
 ## Workflow
 
+Task reference:
+- `references/footer-option-b-social-policy-and-height.md` — Option B pattern for aligning legacy Footer social links to the newer Tailwind policy, including height-remeasurement reporting and the Playwright-in-fresh-worktree pitfall.
+
 1. Inspect the live or reported footer behavior in the browser
    - Open the exact page the user reported, not just the home page
    - Check footer text, layout, and computed sizing in the browser
@@ -66,6 +69,8 @@ Use this skill when the user asks to update the repo footer to match the live pu
    - Prefer updating shared constants over hardcoding duplicates
    - If the public site uses a different English legal label, align the mapping everywhere the label is surfaced
    - Update copyright year when needed
+   - When the user chooses an explicit parity policy such as `Option B: align legacy Footer to Tailwind/Footer latest policy`, treat the newer Tailwind footer as the social-link source of truth rather than trimming Tailwind back to legacy. Inspect every locale module first; if only one locale is stale, patch only that locale and add a cross-locale source test to keep all legacy modules aligned.
+   - For Option B social-link parity, assert the concrete current social contract in tests: X uses `https://x.com/querypie`, no `twitter.com/querypie` remains, and Facebook/Instagram are present with their expected icon names. Do not use auto-closing issue keywords in the PR body.
    - For mobile footer menus, keep the section stack itself single-column if needed for safe width, and vary the link-list layout per section instead of forcing one global rule
    - If long localized labels exist, keep those sections in a single-column mobile list; use two-column mobile grids only for shorter sections that fit safely
    - If a compact two-column list is mobile-only, explicitly reset it back to the normal single-column vertical list at tablet/desktop breakpoints
@@ -81,6 +86,8 @@ Use this skill when the user asks to update the repo footer to match the live pu
    - targeted footer tests
    - `npm run build` when broad local verification is appropriate
    - for mobile layout fixes, verify in-browser at the reported device width that document `scrollWidth` no longer exceeds the viewport
+   - when reporting a footer-height delta after social-link parity work, remeasure the exact reference/target URLs and separate social-link count from vertical layout causality. On desktop, a single-row social flex list can grow from 3 to 5 items without changing footer height; if height still differs, call out typography/layout/padding primitives as the likely remaining axis rather than attributing it to the social set.
+   - if a fresh worktree cannot `require('playwright')` because dependencies are not installed/resolved there, do not install just to measure a small footer PR unless requested; use an available browser tool/MCP or state the tooling limitation and rely on targeted source tests plus CI.
 
 7. Ship via PR
    - Create a branch from the latest `main`
