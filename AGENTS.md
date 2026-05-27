@@ -57,5 +57,6 @@ Before substantial work, state one short line:
 - Default Hermes profile keeps only frequently used baseline toolsets enabled: `terminal,file,skills,code_execution,todo,memory` and disables default MCP loading with `no_mcp`.
 - For browser/render verification, suggest immediately: `hermes -p browser-check` (or `hermes -p browser-check chat -q "..."`). This profile includes the baseline toolsets plus browser, vision, and chrome-devtools MCP access.
 - For cron job setup/maintenance, suggest immediately: `hermes -p cron-config` (or `hermes -p cron-config chat -q "..."`). This profile includes the baseline toolsets plus cronjob and session_search.
+- For Kimi-specific runs, suggest immediately: `hermes -p kimi` (or `hermes -p kimi chat -q "..."`). This profile keeps the same lean defaults but uses `querypie-kimi` / `kimi-k2.6`.
 - Tool/profile changes apply to new sessions; use `/reset` or start the profile command above rather than expecting current-session hot swapping.
 - Hermes profile settings are repo-managed: keep `.hermes/profiles/<profile>/config.yaml` and `SOUL.md` tracked, while secrets/runtime files such as `.env`, sessions, logs, cron output, and DB state stay ignored.

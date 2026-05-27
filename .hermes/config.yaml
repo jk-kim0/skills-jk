@@ -1,6 +1,6 @@
 model:
-  provider: querypie-kimi
-  default: kimi-k2.6
+  provider: openai-codex
+  default: gpt-5.5
 providers:
   querypie-kimi:
     base_url: https://internal-llm.querypie.io/v1
