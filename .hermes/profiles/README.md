@@ -2,6 +2,8 @@
 
 This directory keeps repo-managed Hermes profile settings that should be reviewed in Git.
 
+Default and specialized profiles use `openai-codex` / `gpt-5.5` unless a profile explicitly overrides the model.
+
 Tracked per profile:
 - `config.yaml`: non-secret profile configuration, including CLI toolset selection.
 - `SOUL.md`: profile-specific persona/system prompt override.
@@ -58,4 +60,21 @@ platform_toolsets:
     - cronjob
     - session_search
     - no_mcp
+```
+
+## `kimi`
+
+Use when Kimi is specifically preferred:
+
+```bash
+hermes -p kimi
+hermes -p kimi chat -q "..."
+```
+
+Model configured in `.hermes/profiles/kimi/config.yaml`:
+
+```yaml
+model:
+  provider: querypie-kimi
+  default: kimi-k2.6
 ```
