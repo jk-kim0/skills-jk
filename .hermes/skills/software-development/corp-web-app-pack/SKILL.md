@@ -41,6 +41,7 @@ Then read only the specific `SKILL.md` files referenced by the index that match 
 
 - `references/introduction-deck-mdx-gating.md` — proven pattern for fixing gated introduction-deck MDX detail pages by splitting at `<GatingCut />`, rendering the post-cut content behind `GatingFormWrapper`, and using a temporary root `node_modules` symlink for fast fresh-worktree verification when appropriate.
 - `references/publication-author-data-location.md` — author/profile data placement and PR follow-up pattern for blog/whitepaper detail author cards.
+- `references/author-profile-image-validation.md` — investigation and hardening pattern for broken publication author profile images: resolve MDX `author` through locale YAML, verify the referenced `public/crew/*` asset and deployed raw/`/_next/image` URLs, and compare against corp-web-japan's `src/content/authors/ja.yaml` + `public/crew/*` + validation-test pattern.
 
 ## Common Pitfalls
 
