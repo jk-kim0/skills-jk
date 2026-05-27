@@ -530,6 +530,10 @@ See `references/repo-local-dirty-root-preserve-before-cleanup.md` for the detail
 - Verification result
 - Intentionally preserved items and why
 
+## Repo-local merged root branch cleanup reference
+
+When a repo-local cleanup starts with the root checkout itself on a clean PR branch whose upstream is `[gone]`, do not switch/delete it solely from the gone marker. Cross-check the exact head branch with GitHub PR state. If the PR is merged, switch the root checkout back to `main`, fast-forward main, then remove merged/gone worktrees and branches while preserving open-PR worktrees. See `references/repo-local-merged-root-branch-cleanup.md` for the detailed sequence and verification checklist.
+
 ## Audit-only mode: named directory stale check without deletion
 
 When the user asks only whether specific workspace directories are stale, do an audit pass without deleting anything.
