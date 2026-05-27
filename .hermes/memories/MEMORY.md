@@ -7,3 +7,7 @@ For this user, when they say 'repo 의 workspace 정리' or similar, interpret i
 In corp-web-app Tailwind migration planning after PR 817/841/845, the preferred implementation path is moving route subtrees from `src/app/(legacy)/**` to `src/app/(tailwind)/**` so URL routes stay unchanged while Tailwind layout/global CSS boundaries apply; per-page `TailwindLayout` wrapper opt-in inside legacy is no longer the default.
 §
 In the current skills-jk environment, skill_manage(action='patch') for github-pr-workflow failed on 2026-05-26 with OSError [Errno 28] No space left on device while writing .SKILL.md.tmp; future skill-library updates may need disk cleanup before patching large skills.
+§
+This user's workstation has Python3 + available subprocess scripting module for bulk git operations in large PR-heavy repos.
+§
+On this user's macOS environment, oh-my-codex (OMX) v0.18.5 is installed globally via nvm npm at `/Users/jk/.nvm/versions/node/v22.10.0/bin/omx`; `omx setup --merge-agents` configured user-scope Codex files under `/Users/jk/.codex`, preserving existing user-managed MCP servers. Codex CLI is Homebrew-owned at `/opt/homebrew/bin/codex` and authenticated via ChatGPT.
