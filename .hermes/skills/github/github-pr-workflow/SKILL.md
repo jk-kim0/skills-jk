@@ -151,6 +151,19 @@ Longer explanation if needed. Wrap at 72 characters.
 
 Types: `feat`, `fix`, `refactor`, `docs`, `test`, `ci`, `chore`, `perf`
 
+### Preserve file-specific commit-log conventions
+
+When the user explicitly asks to follow an existing commit-log convention, do not infer the message shape only from general Conventional Commits. Inspect the touched file's own history first:
+
+```bash
+git log --all --follow --date=short --pretty=format:'%h %ad %s' -- <path> | head -40
+git log --all --date=short --pretty=format:'%h %ad %s' --grep='<file-or-feature-name>' | head -60
+```
+
+Then choose the most recent matching convention for that class of change. If a later review reveals a coupled version field or release marker was missed, amend the existing PR commit rather than adding a noisy follow-up commit, then force-push with an explicit lease and refresh the PR body.
+
+For installer/script default-version bumps, also inspect nearby header/version metadata before committing. A repo may maintain both a product default version (for example `RECOMMENDED_VERSION`) and a script/self version (for example `SCRIPT_VERSION` with a `YY.MM.PATCH` contract); bump both when the file's history shows that script releases are manually versioned.
+
 ## 3. Pushing and Creating a PR
 
 ### Push the Branch (same either way)
