@@ -581,7 +581,8 @@ Key points:
 - Memory cost has two layers: (1) MEMORY / USER PROFILE already embedded in the system prompt, and (2) per-turn recalled memory injected into the current user message via `prefetch_all()`.
 - Project context files such as `AGENTS.md` are often smaller contributors than users expect.
 - Use `agent.model_metadata.estimate_request_tokens_rough()` with a real `AIAgent(...)` instance to compare baseline vs stripped variants such as `skip_memory=True`, `skip_context_files=True`, and reduced `enabled_toolsets=[...]`.
-- See `references/prompt-size-diagnosis.md` for a reusable probe script and interpretation workflow.
+- To reproduce actual CLI defaults, resolve `platform_toolsets` first with `hermes_cli.tools_config._get_platform_tools(load_config(), 'cli')`; direct `AIAgent()` construction can overstate tool schema cost by bypassing CLI toolset config.
+- See `references/prompt-size-diagnosis.md` for a reusable probe script, CLI/profile reproduction details, and interpretation workflow.
 
 ### Skills not showing
 1. `hermes skills list` — verify installed

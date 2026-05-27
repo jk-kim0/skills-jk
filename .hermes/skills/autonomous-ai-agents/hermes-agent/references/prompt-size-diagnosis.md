@@ -62,6 +62,26 @@ mem = agent._memory_manager.prefetch_all('안녕') if getattr(agent, '_memory_ma
 
 If this returns empty, dynamic recall is not contributing to that specific prompt, even if the system prompt still contains MEMORY / USER PROFILE sections.
 
+## Reproducing the real CLI toolset
+
+Do **not** assume `AIAgent()` with no `enabled_toolsets` matches the current CLI session. In current Hermes builds, `AIAgent()` direct construction can bypass `platform_toolsets` and load the broader default tool registry, producing an inflated "actual default" measurement. To measure what `hermes chat` / CLI really uses, resolve the configured CLI platform toolsets first:
+
+```python
+from hermes_cli.config import load_config
+from hermes_cli.tools_config import _get_platform_tools
+
+cfg = load_config()
+cli_toolsets = sorted(_get_platform_tools(cfg, 'cli'))
+agent = AIAgent(
+    quiet_mode=True,
+    platform='cli',
+    session_id='prompt-sizing-probe-cli',
+    enabled_toolsets=cli_toolsets,
+)
+```
+
+For profile-specific measurements, set `HERMES_HOME` to the target profile directory before running the probe, or invoke the probe through the target profile's environment. Also inspect `hermes -p <profile> tools list` and the profile-local `skills/`, `memories/MEMORY.md`, and `memories/USER.md`: a profile can have the `skills` toolset enabled but zero profile-local skills, causing the system prompt to be much smaller than the default profile.
+
 ## Minimal-profile comparisons
 
 To show users what actually matters, compare against stripped variants:
@@ -72,11 +92,24 @@ AIAgent(skip_memory=True, skip_context_files=True, enabled_toolsets=['terminal']
 AIAgent(skip_memory=True, skip_context_files=True, enabled_toolsets=[])
 ```
 
+When comparing against the user's live CLI defaults, include both:
+
+```python
+# CLI-configured default
+AIAgent(enabled_toolsets=cli_toolsets)
+
+# Explicit lean variants
+AIAgent(skip_memory=True, skip_context_files=True, enabled_toolsets=['terminal', 'file'])
+AIAgent(skip_memory=True, skip_context_files=True, enabled_toolsets=['terminal', 'file', 'code_execution'])
+AIAgent(skip_memory=True, skip_context_files=True, enabled_toolsets=['terminal', 'file', 'code_execution', 'skills', 'memory', 'session_search'])
+```
+
 This usually reveals:
 
-- tool schemas are the largest cost bucket
-- the skills index can be surprisingly large
-- AGENTS.md / project context is often smaller than expected
+- tool schemas are the largest cost bucket until the default toolsets are narrowed
+- once toolsets are narrowed, the skills index and USER profile often become the remaining largest buckets
+- profile-local skill/memory availability can dominate system prompt size
+- AGENTS.md / project context is often smaller than users expect
 - dynamic memory recall may be zero for simple prompts
 
 ## Interpretation notes
