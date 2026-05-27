@@ -54,13 +54,16 @@ Also load it when reviewing a PR that claims to publish a preview route.
 
 5. Remove preview-only route registry/index entries.
    - Internal preview indexes, route risk dashboards, preview navigation, or source/backing-file tests should no longer list a preview route whose page file was promoted.
+   - In `corp-web-app`-style repos, do not stop at GNB/Footer. Also audit resource sidebars, preview-navigation mappings, internal preview inventories, internal tailwind route inventories, and page-local legacy links that may still point at `/{locale}/t/*` or historical public endpoints.
 
 6. Audit middleware and redirect/rewrite rules for the promoted route.
    - Preview-route rollouts can leave hidden routing behavior outside `src/app/**`, especially default-locale rewrites for `/t` or production redirects for locale roots.
+   - Treat middleware work as part of the same rollout phase as the route move when the public route needs unprefixed English entry such as `/blog`; do not defer that to a separate later cleanup.
    - When promoting the locale home preview `/{locale}/t` to `/{locale}`, exact `/t` should not rewrite to a removed preview page. Redirect or rewrite it to the public locale home according to the repo's locale policy.
    - Do not accidentally break other preview subroutes such as `/t/blog`: if only the exact home preview is removed, narrow middleware matches from `/t` to `/t/` (or equivalent) so subroutes keep their intended behavior.
    - Preserve existing production redirects unless the user explicitly includes them in the rollout scope. Do not assume a locale-root redirect such as production `/ja -> external site` should be removed just because a local public route now exists; keep or change it only when the requested rollout contract requires that route to become directly reachable.
    - Keep slash-sensitive route predicates simple. If only exact `/t` is special and `/t/*` should keep default-locale rewrite behavior, prefer a direct condition such as `pathname.startsWith('/t/')` rather than introducing a separate one-off prefix collection solely for `/t/`.
+   - Do not add broad legacy catch-all exceptions before verifying real route precedence. After moving the public route into place, first check whether App Router precedence already stops the legacy catch-all from owning the canonical path; narrow legacy flow only for historical paths that still cause loops, stale redirects, or stale canonical behavior.
 
 7. Move or rewrite tests so they mirror the public route path.
    - Example: `src/__tests__/app/[locale]/t/page.test.tsx` -> `src/__tests__/app/[locale]/page.test.tsx`.
