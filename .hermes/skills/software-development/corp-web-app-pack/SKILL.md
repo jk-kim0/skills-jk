@@ -33,11 +33,16 @@ Read the pack index before selecting detailed skills:
 
 Then read only the specific `SKILL.md` files referenced by the index that match the current task.
 
+## Task References
+
+- `references/introduction-deck-mdx-gating.md` — proven pattern for fixing gated introduction-deck MDX detail pages by splitting at `<GatingCut />`, rendering the post-cut content behind `GatingFormWrapper`, and using a temporary root `node_modules` symlink for fast fresh-worktree verification when appropriate.
+
 ## Common Pitfalls
 
 1. Do not assume these detailed skills are available through `skill_view`; they are intentionally outside active skill discovery.
 2. Do not read the entire pack for narrow tasks. Use the index trigger map and load the smallest relevant subset.
 3. If this pack is needed frequently in a dedicated profile, symlink or copy `.hermes/skill-packs/corp-web-app/skills/*` into that profile's active `.hermes/skills/` instead of re-expanding the default profile.
+4. For gated introduction-deck MDX, do not render the entire body with `GatingCut: () => null`; split at the marker first so the post-cut content and download CTA stay behind the form.
 
 ## Verification Checklist
 
