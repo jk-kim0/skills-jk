@@ -300,7 +300,69 @@ def test_validate_index_issues_site_timeout_returns_process_style_124(monkeypatc
     assert "timed out after 1500ms" in capsys.readouterr().out
 
 
-def test_validate_all_frontend_submit_does_not_fallback_to_browser(monkeypatch, capsys) -> None:
+def test_site_requires_browser_validate_fix_detects_duplicate_canonical(monkeypatch) -> None:
+    gsc = load_gsc_module("gsc_duplicate_canonical_browser_detection_test")
+    args = SimpleNamespace(
+        submit=True,
+        output_json=False,
+        session_file="/tmp/frontend-session.json",
+        only_status="actionable",
+        include_started=False,
+        sitemap=None,
+        all_sitemaps=False,
+        issue_limit=1,
+        limit=None,
+        delay_ms=0,
+        site_timeout_ms=180000,
+    )
+
+    monkeypatch.setattr(
+        gsc,
+        "run_validate_index_issues_site_capture",
+        lambda cmd, timeout_ms=None: (0, '{"candidates":[{"reason":"Duplicate without user-selected canonical"}]}'),
+    )
+
+    assert gsc.site_requires_browser_validate_fix(args, "https://www.querypie.com/") is True
+
+
+def test_validate_all_frontend_submit_auto_uses_browser_for_duplicate_without_canonical(monkeypatch, capsys) -> None:
+    gsc = load_gsc_module("gsc_validate_all_duplicate_browser_fallback_test")
+    args = SimpleNamespace(
+        submit=True,
+        include_domain_properties=False,
+        site=["https://www.querypie.com/"],
+        limit_sites=None,
+        only_status="actionable",
+        include_started=False,
+        issue_limit=1,
+        limit=None,
+        delay_ms=0,
+        site_delay_ms=0,
+        session_file="/tmp/frontend-session.json",
+        site_timeout_ms=180000,
+        output_json=False,
+        sitemap=None,
+        all_sitemaps=False,
+        port=9222,
+        connect_timeout_ms=120000,
+    )
+
+    monkeypatch.setattr(gsc, "get_site_entries", lambda: [{"siteUrl": "https://www.querypie.com/"}])
+    monkeypatch.setattr(gsc, "site_requires_browser_validate_fix", lambda _args, site_url: site_url == "https://www.querypie.com/")
+
+    def fake_run(cmd, timeout_ms=None):
+        assert cmd[0].endswith("gsc-browser-indexing")
+        assert "--submit" in cmd
+        return 0
+
+    monkeypatch.setattr(gsc, "run_validate_index_issues_site", fake_run)
+
+    assert gsc.validate_all_index_issues(args, browser=False) == 0
+    out = capsys.readouterr().out
+    assert "switching this site to browser Validate Fix automation" in out
+
+
+def test_validate_all_frontend_submit_does_not_fallback_to_browser_for_ordinary_failures(monkeypatch, capsys) -> None:
     gsc = load_gsc_module("gsc_validate_all_no_browser_fallback_test")
     args = SimpleNamespace(
         submit=True,
@@ -315,9 +377,13 @@ def test_validate_all_frontend_submit_does_not_fallback_to_browser(monkeypatch, 
         site_delay_ms=0,
         session_file="/tmp/frontend-session.json",
         site_timeout_ms=180000,
+        output_json=False,
+        sitemap=None,
+        all_sitemaps=False,
     )
 
     monkeypatch.setattr(gsc, "get_site_entries", lambda: [{"siteUrl": "https://www.querypie.com/"}])
+    monkeypatch.setattr(gsc, "site_requires_browser_validate_fix", lambda *_args, **_kwargs: False)
 
     def fake_run(cmd, timeout_ms=None):
         assert cmd[0].endswith("gsc-frontend-indexing")
@@ -328,7 +394,7 @@ def test_validate_all_frontend_submit_does_not_fallback_to_browser(monkeypatch, 
     monkeypatch.setattr(gsc, "run_validate_index_issues_site", fake_run)
 
     def forbidden_browser_cmd(*_args, **_kwargs):
-        raise AssertionError("browser fallback must not be built for validate-index-issues-all")
+        raise AssertionError("browser fallback must not be built for ordinary validate-index-issues-all failures")
 
     monkeypatch.setattr(gsc, "build_validate_index_issues_browser_cmd", forbidden_browser_cmd)
 

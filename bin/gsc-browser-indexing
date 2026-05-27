@@ -500,14 +500,30 @@ function readDrilldownValidationState(input) {
   const normalize = (value) => String(value || '').replace(/\s+/g, ' ').trim();
   const body = normalize(document.body.innerText || '');
   const statusMatch = body.match(/Validation\s+(started|failed|passed|not started)/i);
-  const validateFixButton = Array.from(document.querySelectorAll('button, [role="button"]'))
-    .find((candidate) => normalize(candidate.innerText || candidate.textContent).toUpperCase() === 'VALIDATE FIX');
+  const buttonCandidates = Array.from(document.querySelectorAll('button, [role="button"], a'))
+    .map((candidate) => ({
+      text: normalize(candidate.innerText || candidate.textContent),
+      href: candidate.getAttribute && candidate.getAttribute('href'),
+      ariaLabel: candidate.getAttribute && candidate.getAttribute('aria-label'),
+    }))
+    .filter((candidate) => {
+      const haystack = `${candidate.text} ${candidate.href || ''} ${candidate.ariaLabel || ''}`.toLowerCase();
+      return haystack.includes('validate') || haystack.includes('detail');
+    })
+    .slice(0, 80);
+  const validateFixButton = Array.from(document.querySelectorAll('button, [role="button"], a'))
+    .find((candidate) => {
+      const text = normalize(candidate.innerText || candidate.textContent).toUpperCase();
+      const ariaLabel = normalize(candidate.getAttribute && candidate.getAttribute('aria-label')).toUpperCase();
+      return text === 'VALIDATE FIX' || ariaLabel === 'VALIDATE FIX';
+    });
   return {
     href: location.href,
     itemKey: new URL(location.href).searchParams.get('item_key'),
     hasValidateFixButton: Boolean(validateFixButton),
     validationStatus: statusMatch ? statusMatch[1] : null,
     bodyExcerpt: body.slice(0, 500),
+    buttonCandidates,
   };
 }
 
@@ -544,10 +560,11 @@ function clickValidateFixButton(input) {
 
 function clickSeeDetailsOnDrilldown(input) {
   const normalize = (value) => String(value || '').replace(/\s+/g, ' ').trim();
-  const target = Array.from(document.querySelectorAll('a, button')).find((candidate) => {
+  const target = Array.from(document.querySelectorAll('a, button, [role="button"]')).find((candidate) => {
     const text = normalize(candidate.innerText || candidate.textContent).toUpperCase();
     const href = candidate.getAttribute && candidate.getAttribute('href');
-    return text === 'SEE DETAILS' || (href && href.includes('/search-console/index/validation'));
+    const ariaLabel = normalize(candidate.getAttribute && candidate.getAttribute('aria-label')).toUpperCase();
+    return text === 'SEE DETAILS' || ariaLabel === 'SEE DETAILS' || (href && href.includes('/search-console/index/validation'));
   });
   if (!target) return { ok: false, href: location.href };
   target.scrollIntoView({ block: 'center', inline: 'center' });
@@ -560,11 +577,12 @@ function getSeeDetailsRect(input) {
   const normalize = (value) => String(value || '').replace(/\s+/g, ' ').trim();
   const desiredStatus = normalize(input && input.validationStatus).toLowerCase();
   const desiredReason = normalize(input && input.reason).toLowerCase();
-  const candidates = Array.from(document.querySelectorAll('a, button'))
+  const candidates = Array.from(document.querySelectorAll('a, button, [role="button"]'))
     .filter((candidate) => {
       const text = normalize(candidate.innerText || candidate.textContent).toUpperCase();
       const href = candidate.getAttribute && candidate.getAttribute('href');
-      return text === 'SEE DETAILS' || (href && href.includes('/search-console/index/validation'));
+      const ariaLabel = normalize(candidate.getAttribute && candidate.getAttribute('aria-label')).toUpperCase();
+      return text === 'SEE DETAILS' || ariaLabel === 'SEE DETAILS' || (href && href.includes('/search-console/index/validation'));
     })
     .map((candidate) => {
       let container = candidate;
@@ -662,6 +680,8 @@ async function runIndexIssueValidationsForSitemap(client, sessionId, args, sitem
       const rowTarget = await client.evaluate(getIssueRowRect, { reason: issue.reason }, sessionId);
       if (!rowTarget.ok) throw new Error(rowTarget.message || 'could not locate issue row');
       await client.clickPoint(rowTarget.x, rowTarget.y, sessionId);
+      const rowDomClick = await client.evaluate(clickIssueRow, { reason: issue.reason }, sessionId);
+      if (!rowDomClick.ok) throw new Error(rowDomClick.message || 'could not dispatch issue row click');
       await waitForCondition(client, sessionId, () => {
         const url = new URL(location.href);
         return { ok: url.pathname.includes('/index/drilldown') && Boolean(url.searchParams.get('item_key')), href: location.href, itemKey: url.searchParams.get('item_key') };
@@ -730,9 +750,11 @@ async function runIndexIssueValidationsForSitemap(client, sessionId, args, sitem
 
       const detailsTarget = await client.evaluate(getSeeDetailsRect, { reason: issue.reason, validationStatus: issue.validation }, sessionId);
       if (!detailsTarget.ok) {
-        throw new Error(detailsTarget.message || 'could not locate validation SEE DETAILS or VALIDATE FIX on drilldown page');
+        throw new Error(`${detailsTarget.message || 'could not locate validation SEE DETAILS or VALIDATE FIX on drilldown page'} | drilldown=${JSON.stringify(drilldownBefore)}`);
       }
       await client.clickPoint(detailsTarget.x, detailsTarget.y, sessionId);
+      const detailsDomClick = await client.evaluate(clickSeeDetailsOnDrilldown, {}, sessionId);
+      if (!detailsDomClick.ok) throw new Error('could not dispatch SEE DETAILS click');
       await waitForCondition(client, sessionId, () => {
         const url = new URL(location.href);
         return { ok: url.pathname.includes('/index/validation') && Boolean(url.searchParams.get('item_key')), href: location.href };
