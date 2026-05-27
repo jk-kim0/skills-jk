@@ -1,0 +1,639 @@
+#!/usr/bin/env python3
+"""
+GitHub organization runners status checker.
+
+Default target organization is querypie. The CLI lists self-hosted runners,
+shows online/busy/offline state, and optionally resolves which workflow job is
+currently occupying busy runners.
+
+Usage:
+    gh-runners [--summarized|--extended] [--show-labels] [--json]
+    gh-runners --org querypie
+    gh-runners --busy-repo querypie/querypie-mono --busy-repo querypie/querypie-docs
+    gh-runners --no-busy-jobs
+
+Authentication:
+    1. GITHUB_TOKEN environment variable
+    2. GH_TOKEN environment variable
+    3. `gh auth token`
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import subprocess
+import sys
+import urllib.error
+import urllib.request
+from datetime import datetime, timezone
+from typing import Any
+
+GITHUB_API_BASE = "https://api.github.com"
+DEFAULT_ORG = "querypie"
+PER_PAGE = 100
+USER_AGENT = "gh-runners/1.0"
+
+
+class GitHubRunnersClient:
+    """Client for querying organization runners and matching busy jobs."""
+
+    def __init__(
+        self,
+        token: str,
+        org_name: str,
+        base_url: str = GITHUB_API_BASE,
+    ) -> None:
+        self.token = token
+        self.org_name = org_name
+        self.base_url = base_url.rstrip("/")
+
+    def _build_request(self, url: str) -> urllib.request.Request:
+        req = urllib.request.Request(url)
+        req.add_header("Accept", "application/vnd.github.v3+json")
+        req.add_header("Authorization", f"token {self.token}")
+        req.add_header("User-Agent", USER_AGENT)
+        return req
+
+    @staticmethod
+    def _get_link_header(response: Any) -> dict[str, str]:
+        link_header = response.headers.get("Link", "")
+        links: dict[str, str] = {}
+
+        if not link_header:
+            return links
+
+        for link in link_header.split(","):
+            parts = link.split(";")
+            if len(parts) != 2:
+                continue
+            url = parts[0].strip().strip("<>")
+            rel = parts[1].strip()
+            if rel.startswith('rel="'):
+                rel = rel[5:-1]
+            links[rel] = url
+
+        return links
+
+    def _paginate(self, url: str, data_key: str | None = None) -> list[dict[str, Any]]:
+        items: list[dict[str, Any]] = []
+        next_url: str | None = url
+
+        while next_url:
+            req = self._build_request(next_url)
+            try:
+                with urllib.request.urlopen(req) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+                    if data_key is None:
+                        page_items = payload
+                    else:
+                        page_items = payload.get(data_key, [])
+                    if isinstance(page_items, list):
+                        items.extend(page_items)
+                    links = self._get_link_header(response)
+                    next_url = links.get("next")
+            except urllib.error.HTTPError as exc:
+                raise ValueError(self._format_http_error(exc)) from exc
+            except urllib.error.URLError as exc:
+                raise ValueError(f"Network error: {exc.reason}") from exc
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"Failed to parse GitHub API response: {exc}") from exc
+
+        return items
+
+    def _make_request(self, url: str) -> dict[str, Any]:
+        req = self._build_request(url)
+        try:
+            with urllib.request.urlopen(req) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            raise ValueError(self._format_http_error(exc)) from exc
+        except urllib.error.URLError as exc:
+            raise ValueError(f"Network error: {exc.reason}") from exc
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"Failed to parse GitHub API response: {exc}") from exc
+
+    def _format_http_error(self, exc: urllib.error.HTTPError) -> str:
+        error_body = exc.read().decode("utf-8") if exc.fp else ""
+        try:
+            error_payload = json.loads(error_body)
+            error_message = error_payload.get("message", error_body)
+        except (ValueError, json.JSONDecodeError):
+            error_message = error_body or str(exc)
+
+        if exc.code == 401:
+            return f"Authentication failed: Invalid token. ({error_message})"
+        if exc.code == 403:
+            return (
+                "Permission denied: token does not have permission to query "
+                f"organization runners for {self.org_name}. ({error_message})"
+            )
+        if exc.code == 404:
+            return f"Organization not found: {self.org_name} ({error_message})"
+        return f"API request failed (HTTP {exc.code}): {error_message}"
+
+    def list_runners(self) -> list[dict[str, Any]]:
+        url = f"{self.base_url}/orgs/{self.org_name}/actions/runners?per_page={PER_PAGE}"
+        return self._paginate(url, data_key="runners")
+
+    def list_org_repositories(self, include_archived: bool = False) -> list[str]:
+        url = f"{self.base_url}/orgs/{self.org_name}/repos?type=all&per_page={PER_PAGE}"
+        repos = self._paginate(url)
+
+        names: list[str] = []
+        for repo in repos:
+            if not isinstance(repo, dict):
+                continue
+            if repo.get("disabled"):
+                continue
+            if not include_archived and repo.get("archived"):
+                continue
+            full_name = repo.get("full_name")
+            if isinstance(full_name, str) and full_name:
+                names.append(full_name)
+        return names
+
+    def get_busy_runner_jobs(
+        self,
+        busy_runner_names: list[str],
+        repos_to_scan: list[str],
+    ) -> dict[str, dict[str, str]]:
+        if not busy_runner_names or not repos_to_scan:
+            return {}
+
+        remaining = set(busy_runner_names)
+        result: dict[str, dict[str, str]] = {}
+        now = datetime.now(timezone.utc)
+
+        for repo in repos_to_scan:
+            if not remaining:
+                break
+
+            for status in ("in_progress", "queued"):
+                if not remaining:
+                    break
+
+                runs_url = f"{self.base_url}/repos/{repo}/actions/runs?status={status}&per_page={PER_PAGE}"
+                try:
+                    runs_data = self._make_request(runs_url)
+                except ValueError:
+                    continue
+
+                for run in runs_data.get("workflow_runs", []):
+                    if not remaining:
+                        break
+
+                    run_id = run.get("id")
+                    if not run_id:
+                        continue
+
+                    jobs_url = (
+                        f"{self.base_url}/repos/{repo}/actions/runs/{run_id}"
+                        f"/jobs?filter=latest&per_page={PER_PAGE}"
+                    )
+                    try:
+                        jobs_data = self._make_request(jobs_url)
+                    except ValueError:
+                        continue
+
+                    for job in jobs_data.get("jobs", []):
+                        runner_name = job.get("runner_name")
+                        if runner_name not in remaining:
+                            continue
+                        if job.get("status") != "in_progress":
+                            continue
+
+                        result[runner_name] = {
+                            "workflow_name": str(job.get("workflow_name", run.get("name", ""))),
+                            "job_name": str(job.get("name", "")),
+                            "repo": repo.split("/", 1)[-1],
+                            "branch": str(job.get("head_branch", run.get("head_branch", ""))),
+                            "pr_number": _extract_pr_number(run),
+                            "display_title": str(run.get("display_title", "")),
+                            "event": str(run.get("event", "")),
+                            "elapsed": _elapsed_since(job.get("started_at"), now),
+                            "actor": _extract_actor(run),
+                            "job_url": str(job.get("html_url", "")),
+                            "run_url": str(run.get("html_url", "")),
+                        }
+                        remaining.discard(runner_name)
+
+        return result
+
+
+def _extract_pr_number(run: dict[str, Any]) -> str:
+    pull_requests = run.get("pull_requests", [])
+    if not pull_requests:
+        return ""
+    number = pull_requests[0].get("number")
+    if number:
+        return f"#{number}"
+    return ""
+
+
+def _extract_actor(run: dict[str, Any]) -> str:
+    actor = run.get("actor") or run.get("triggering_actor") or {}
+    if isinstance(actor, dict):
+        return str(actor.get("login", ""))
+    return ""
+
+
+def _elapsed_since(started_at: Any, now: datetime) -> str:
+    if not started_at:
+        return ""
+
+    try:
+        started = datetime.fromisoformat(str(started_at).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return str(started_at)
+
+    seconds = int((now - started).total_seconds())
+    hours, remainder = divmod(max(seconds, 0), 3600)
+    minutes, seconds = divmod(remainder, 60)
+    if hours > 0:
+        return f"{hours}h {minutes}m {seconds}s"
+    if minutes > 0:
+        return f"{minutes}m {seconds}s"
+    return f"{seconds}s"
+
+
+def _natural_sort_key(name: str) -> list[Any]:
+    parts = re.split(r"(\d+)", name)
+    key: list[Any] = []
+    for part in parts:
+        if part.isdigit():
+            key.append(int(part))
+        else:
+            key.append(part.lower())
+    return key
+
+
+def _get_runner_status(runner: dict[str, Any]) -> str:
+    status = runner.get("status", "")
+    busy = bool(runner.get("busy", False))
+
+    if status == "offline":
+        return "offline"
+    if busy:
+        return "busy"
+    return "idle"
+
+
+def _label_string(runner: dict[str, Any], include_self_hosted: bool) -> str:
+    labels = runner.get("labels", [])
+    names: list[str] = []
+    for label in labels:
+        if not isinstance(label, dict):
+            continue
+        name = str(label.get("name", ""))
+        if not include_self_hosted and name == "self-hosted":
+            continue
+        if name:
+            names.append(name)
+    return ", ".join(names)
+
+
+def format_runner_table_summarized(
+    runners: list[dict[str, Any]],
+    busy_jobs: dict[str, dict[str, str]] | None = None,
+    show_labels: bool = False,
+) -> tuple[str, int]:
+    if not runners:
+        return "No runners found.", 0
+
+    busy_jobs = busy_jobs or {}
+    rows_data: list[dict[str, str]] = []
+
+    for runner in sorted(runners, key=lambda item: _natural_sort_key(str(item.get("name", "")))):
+        name = str(runner.get("name", ""))
+        status = _get_runner_status(runner)
+        job = busy_jobs.get(name, {}) if status == "busy" else {}
+        rows_data.append(
+            {
+                "id": str(runner.get("id", "")),
+                "name": name,
+                "status": status,
+                "job_repo": str(job.get("repo", "(unknown)" if status == "busy" else "")),
+                "job_workflow": str(job.get("workflow_name", "(unknown)" if status == "busy" else "")),
+                "job_elapsed": str(job.get("elapsed", "(unknown)" if status == "busy" else "")),
+                "labels": _label_string(runner, include_self_hosted=False),
+            }
+        )
+
+    widths = {
+        "id": max(6, len("ID"), max(len(row["id"]) for row in rows_data)),
+        "name": max(20, len("Name"), max(len(row["name"]) for row in rows_data)),
+        "status": max(10, len("Status"), max(len(row["status"]) for row in rows_data)),
+        "job_repo": max(8, len("Job Repo"), max(len(row["job_repo"]) for row in rows_data)),
+        "job_workflow": max(12, len("Job Workflow"), max(len(row["job_workflow"]) for row in rows_data)),
+        "job_elapsed": max(7, len("Elapsed"), max(len(row["job_elapsed"]) for row in rows_data)),
+    }
+    if show_labels:
+        widths["labels"] = max(20, len("Labels"), max(len(row["labels"]) for row in rows_data))
+
+    header = (
+        f"{'ID':<{widths['id']}}  "
+        f"{'Name':<{widths['name']}}  "
+        f"{'Status':<{widths['status']}}  "
+        f"{'Job Repo':<{widths['job_repo']}}  "
+        f"{'Job Workflow':<{widths['job_workflow']}}  "
+        f"{'Elapsed':<{widths['job_elapsed']}}"
+    )
+    if show_labels:
+        header += f"  {'Labels':<{widths['labels']}}"
+    separator = "-" * len(header)
+
+    rendered = [header, separator]
+    for row in rows_data:
+        line = (
+            f"{row['id']:<{widths['id']}}  "
+            f"{row['name']:<{widths['name']}}  "
+            f"{row['status']:<{widths['status']}}  "
+            f"{row['job_repo']:<{widths['job_repo']}}  "
+            f"{row['job_workflow']:<{widths['job_workflow']}}  "
+            f"{row['job_elapsed']:<{widths['job_elapsed']}}"
+        )
+        if show_labels:
+            line += f"  {row['labels']:<{widths['labels']}}"
+        rendered.append(line)
+
+    total = len(runners)
+    offline_count = sum(1 for runner in runners if _get_runner_status(runner) == "offline")
+    busy_count = sum(1 for runner in runners if _get_runner_status(runner) == "busy")
+    idle_count = sum(1 for runner in runners if _get_runner_status(runner) == "idle")
+    summary = f"\n{separator}\nTotal {total} runner(s) (Offline: {offline_count}, Busy: {busy_count}, Idle: {idle_count})"
+
+    table = "\n".join(rendered) + summary
+    if busy_jobs:
+        table += _format_busy_jobs_section(busy_jobs, separator_len=len(separator))
+    return table, len(separator)
+
+
+def format_runner_table_extended(
+    runners: list[dict[str, Any]],
+    busy_jobs: dict[str, dict[str, str]] | None = None,
+    show_labels: bool = False,
+) -> tuple[str, int]:
+    if not runners:
+        return "No runners found.", 0
+
+    busy_jobs = busy_jobs or {}
+    rows_data: list[dict[str, str]] = []
+
+    for runner in sorted(runners, key=lambda item: _natural_sort_key(str(item.get("name", "")))):
+        name = str(runner.get("name", ""))
+        is_busy = runner.get("status") == "online" and bool(runner.get("busy", False))
+        job = busy_jobs.get(name, {}) if is_busy else {}
+        rows_data.append(
+            {
+                "id": str(runner.get("id", "")),
+                "name": name,
+                "os": str(runner.get("os", "")),
+                "status": str(runner.get("status", "")),
+                "busy": "Yes" if bool(runner.get("busy", False)) else "-",
+                "job_repo": str(job.get("repo", "(unknown)" if is_busy else "")),
+                "job_workflow": str(job.get("workflow_name", "(unknown)" if is_busy else "")),
+                "job_elapsed": str(job.get("elapsed", "(unknown)" if is_busy else "")),
+                "labels": _label_string(runner, include_self_hosted=True),
+            }
+        )
+
+    widths = {
+        "id": max(6, len("ID"), max(len(row["id"]) for row in rows_data)),
+        "name": max(20, len("Name"), max(len(row["name"]) for row in rows_data)),
+        "os": max(10, len("OS"), max(len(row["os"]) for row in rows_data)),
+        "status": max(10, len("Status"), max(len(row["status"]) for row in rows_data)),
+        "busy": max(5, len("Busy"), max(len(row["busy"]) for row in rows_data)),
+        "job_repo": max(8, len("Job Repo"), max(len(row["job_repo"]) for row in rows_data)),
+        "job_workflow": max(12, len("Job Workflow"), max(len(row["job_workflow"]) for row in rows_data)),
+        "job_elapsed": max(7, len("Elapsed"), max(len(row["job_elapsed"]) for row in rows_data)),
+    }
+    if show_labels:
+        widths["labels"] = max(20, len("Labels"), max(len(row["labels"]) for row in rows_data))
+
+    header = (
+        f"{'ID':<{widths['id']}}  "
+        f"{'Name':<{widths['name']}}  "
+        f"{'OS':<{widths['os']}}  "
+        f"{'Status':<{widths['status']}}  "
+        f"{'Busy':<{widths['busy']}}  "
+        f"{'Job Repo':<{widths['job_repo']}}  "
+        f"{'Job Workflow':<{widths['job_workflow']}}  "
+        f"{'Elapsed':<{widths['job_elapsed']}}"
+    )
+    if show_labels:
+        header += f"  {'Labels':<{widths['labels']}}"
+    separator = "-" * len(header)
+
+    rendered = [header, separator]
+    for row in rows_data:
+        line = (
+            f"{row['id']:<{widths['id']}}  "
+            f"{row['name']:<{widths['name']}}  "
+            f"{row['os']:<{widths['os']}}  "
+            f"{row['status']:<{widths['status']}}  "
+            f"{row['busy']:<{widths['busy']}}  "
+            f"{row['job_repo']:<{widths['job_repo']}}  "
+            f"{row['job_workflow']:<{widths['job_workflow']}}  "
+            f"{row['job_elapsed']:<{widths['job_elapsed']}}"
+        )
+        if show_labels:
+            line += f"  {row['labels']:<{widths['labels']}}"
+        rendered.append(line)
+
+    total = len(runners)
+    online = sum(1 for runner in runners if runner.get("status") == "online")
+    offline = sum(1 for runner in runners if runner.get("status") == "offline")
+    busy_count = sum(1 for runner in runners if bool(runner.get("busy", False)))
+    summary = f"\n{separator}\nTotal {total} runner(s) (Online: {online}, Offline: {offline}, Busy: {busy_count})"
+
+    table = "\n".join(rendered) + summary
+    if busy_jobs:
+        table += _format_busy_jobs_section(busy_jobs, separator_len=len(separator))
+    return table, len(separator)
+
+
+def _format_busy_jobs_section(busy_jobs: dict[str, dict[str, str]], separator_len: int) -> str:
+    if not busy_jobs:
+        return ""
+
+    separator = "-" * separator_len
+    lines = ["", "", "Busy Runner Jobs", "=" * separator_len]
+
+    for runner_name in sorted(busy_jobs.keys(), key=_natural_sort_key):
+        job = busy_jobs[runner_name]
+        title = job.get("display_title", "")
+        pr_number = job.get("pr_number", "")
+        if pr_number:
+            title = f"{pr_number} {title}".strip()
+
+        lines.append(f"  {runner_name}")
+        lines.append(f"    Workflow   : {job.get('workflow_name', '')}")
+        lines.append(f"    Job        : {job.get('job_name', '')}")
+        lines.append(f"    Repo       : {job.get('repo', '')}")
+        lines.append(f"    Branch     : {job.get('branch', '')}")
+        lines.append(f"    Event      : {job.get('event', '')}")
+        lines.append(f"    Title      : {title}")
+        lines.append(f"    Actor      : {job.get('actor', '')}")
+        lines.append(f"    Elapsed    : {job.get('elapsed', '')}")
+        lines.append(f"    Job URL    : {job.get('job_url', '')}")
+        lines.append(f"    Run URL    : {job.get('run_url', '')}")
+        lines.append(separator)
+
+    return "\n".join(lines)
+
+
+def get_token() -> str | None:
+    for env_name in ("GITHUB_TOKEN", "GH_TOKEN"):
+        token = os.environ.get(env_name)
+        if token:
+            return token
+
+    try:
+        result = subprocess.run(
+            ["gh", "auth", "token"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except FileNotFoundError:
+        return None
+
+    if result.returncode == 0 and result.stdout.strip():
+        return result.stdout.strip()
+    return None
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="GitHub organization runners status checker")
+    mode_group = parser.add_mutually_exclusive_group()
+    mode_group.add_argument(
+        "--summarized",
+        action="store_true",
+        help="show summarized table format",
+    )
+    mode_group.add_argument(
+        "--extended",
+        action="store_true",
+        help="show extended table format (default)",
+    )
+    parser.add_argument("--org", default=DEFAULT_ORG, help=f"GitHub organization name (default: {DEFAULT_ORG})")
+    parser.add_argument(
+        "--busy-repo",
+        action="append",
+        default=[],
+        metavar="OWNER/REPO",
+        help="specific repository to scan for busy runner jobs; repeatable",
+    )
+    parser.add_argument(
+        "--no-busy-jobs",
+        action="store_true",
+        help="skip busy runner job lookup and show only runner status",
+    )
+    parser.add_argument(
+        "--show-labels",
+        action="store_true",
+        help="include runner labels in the table output",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="output JSON instead of a table",
+    )
+    return parser
+
+
+def _normalize_busy_repos(org_name: str, repos: list[str]) -> list[str]:
+    normalized: list[str] = []
+    for repo in repos:
+        repo = repo.strip()
+        if not repo:
+            continue
+        normalized.append(repo if "/" in repo else f"{org_name}/{repo}")
+    return normalized
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+
+    token = get_token()
+    if not token:
+        print("Error: GitHub Personal Access Token is required.", file=sys.stderr)
+        print("", file=sys.stderr)
+        print("Authentication sources:", file=sys.stderr)
+        print("  1. export GITHUB_TOKEN=***", file=sys.stderr)
+        print("  2. export GH_TOKEN=***", file=sys.stderr)
+        print("  3. gh auth login --scopes repo,read:org", file=sys.stderr)
+        return 1
+
+    try:
+        client = GitHubRunnersClient(token=token, org_name=args.org)
+        runners = client.list_runners()
+
+        repos_to_scan: list[str] = []
+        busy_jobs: dict[str, dict[str, str]] = {}
+        if not args.no_busy_jobs:
+            busy_runner_names = [
+                str(runner.get("name", ""))
+                for runner in runners
+                if runner.get("status") == "online" and bool(runner.get("busy", False))
+            ]
+            if busy_runner_names:
+                if args.busy_repo:
+                    repos_to_scan = _normalize_busy_repos(args.org, args.busy_repo)
+                else:
+                    repos_to_scan = client.list_org_repositories(include_archived=False)
+                print(
+                    f"Scanning {len(repos_to_scan)} repo(s) for {len(busy_runner_names)} busy runner job(s)...",
+                    file=sys.stderr,
+                )
+                busy_jobs = client.get_busy_runner_jobs(busy_runner_names, repos_to_scan)
+                found = len(busy_jobs)
+                not_found = len(busy_runner_names) - found
+                if not_found > 0:
+                    print(
+                        f"  Found {found} job(s), {not_found} runner(s) not matched (may be in workflows not covered by the repo scan)",
+                        file=sys.stderr,
+                    )
+                else:
+                    print(f"  Found all {found} job(s)", file=sys.stderr)
+
+        if args.json:
+            print(
+                json.dumps(
+                    {
+                        "organization": args.org,
+                        "total": len(runners),
+                        "runners": runners,
+                        "busy_jobs": busy_jobs,
+                        "busy_job_scan_repos": repos_to_scan,
+                    },
+                    indent=2,
+                    ensure_ascii=False,
+                )
+            )
+            return 0
+
+        formatter = format_runner_table_summarized if args.summarized else format_runner_table_extended
+        table_output, separator_len = formatter(runners, busy_jobs, args.show_labels)
+        print(f"Organization: {args.org}")
+        if separator_len > 0:
+            print("=" * separator_len)
+        print(table_output)
+        return 0
+    except KeyboardInterrupt:
+        print("Interrupted.", file=sys.stderr)
+        return 130
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+    except Exception as exc:
+        print(f"Unexpected error: {exc}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
