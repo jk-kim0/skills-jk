@@ -32,6 +32,7 @@ Read `references/migrated-memory-and-user-context.md` after loading this skill. 
 1. Do not copy repo-specific facts back into global memory unless they are broadly reusable across repositories.
 2. Do not treat migrated notes as a substitute for live repo verification when code, CI, routes, or deployment state may have changed.
 3. Keep new findings in this skill or a more specific existing skill for the repo/workflow.
+4. For this repo-local Hermes setup, user-facing preferences and configuration changes are repo-managed by default. Track durable config/profile files such as `.hermes/config.yaml`, `.hermes/profiles/<profile>/config.yaml`, and `.hermes/profiles/<profile>/SOUL.md`; keep secrets and runtime state such as `.env`, sessions, logs, cron output, auth/state DBs, and process files ignored.
 
 ## Verification Checklist
 

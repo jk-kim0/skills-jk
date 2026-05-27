@@ -144,6 +144,20 @@ gh api /orgs/querypie/actions/runners --paginate \
   --jq '.runners[] | select(.name|startswith("mac-studio-llm1-linux-arm64-")) | [.name,.os,.status,.busy,([.labels[].name]|join(","))] | @tsv' | sort
 ```
 
+## Latest Verification Snapshot
+
+2026-05-27 read-only inspection of `qp-test@10.11.1.11` confirmed the QueryPie org fleet was still active at `/Users/qp-test/Workspace/github-runners-for-querypie-org`.
+
+- Host identity: `Mac-Studio-LLM1.local`; SSH user `qp-test`.
+- Docker binary in non-interactive SSH: `/usr/local/bin/docker`; Docker version observed: `29.4.3`.
+- Files present: `README.md`, `Dockerfile`, `docker-compose.yaml`, `.env`, `.env.example`, `.gitignore`, and `.env.bak.20260526134639`.
+- `docker compose ps -a` showed all six services `runner-1` through `runner-6` up; `runner-1` had been recreated more recently than `runner-2` through `runner-6`.
+- `docker inspect` showed `Restart=unless-stopped` and `RestartCount=0` for all six containers.
+- GitHub API showed all six `mac-studio-llm1-linux-arm64-*` runners `online` and `busy=false`.
+- GitHub runner group `mac-studio-llm1-linux-arm64` had id `6`, visibility `all`, and was not the default group.
+- Recent logs included many `Job ... completed with result: Failed` lines; treat those as workflow/job failures, not runner registration failures, when containers and GitHub API still show healthy online runners.
+- Keep redacting `.env` and any token-like values; report metadata such as file names, runner labels, restart counts, and GitHub API status instead.
+
 ## Pitfalls Captured
 
 - Container-image runner setup does not use GitHub UI's direct tarball install commands (`mkdir actions-runner`, `curl actions-runner-*.tar.gz`, `./config.sh`, `./run.sh`) on the host. Those commands are only useful as a source for org URL/token and OS/arch intent.

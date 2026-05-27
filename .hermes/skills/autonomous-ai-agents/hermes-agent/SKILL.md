@@ -220,6 +220,11 @@ Important current-session limitation:
 - if the user wants the *current* session to behave more like another profile, the nearest in-session substitutes are `/model <name>` and `/reasoning <level>`
 - if the user wants the actual profile changed, start a new Hermes session with `-p/--profile` or change the sticky default for the next launch
 
+Repo-local/profile-as-code pattern:
+- When `HERMES_HOME` points inside a git repository and the user wants Hermes configuration managed through review, treat durable profile settings as code: track `profiles/<name>/config.yaml` and `profiles/<name>/SOUL.md` alongside the main `config.yaml`.
+- Keep secrets and runtime state out of git: profile `.env`, sessions, logs, cron output, auth/state DBs, gateway/process files, and locks should remain ignored.
+- After creating or editing profiles, verify both the CLI-visible profile list and the expected toolset/profile behavior from the same `HERMES_HOME`; config changes apply to new sessions, not the already-running one.
+
 ### Credential Pools
 
 ```
