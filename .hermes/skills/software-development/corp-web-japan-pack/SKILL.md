@@ -33,11 +33,18 @@ Read the pack index before selecting detailed skills:
 
 Then read only the specific `SKILL.md` files referenced by the index that match the current task.
 
+If the pack index is not present in the active checkout, fall back to the repo-local skill index at `.agents/skills/README.md`, then load the narrowest checked-in skill for the task. For public MDX publication work, this usually means `.agents/skills/mdx-publication-operations/SKILL.md` followed by the matching family wrapper such as `.agents/skills/news-posting/SKILL.md`.
+
+## References
+
+- `references/news-publication-addition.md` — checklist and pitfall for adding local `src/content/news/*.mdx` records, including route-aligned assets and the news corpus test expectation.
+
 ## Common Pitfalls
 
 1. Do not assume these detailed skills are available through `skill_view`; they are intentionally outside active skill discovery.
 2. Do not read the entire pack for narrow tasks. Use the index trigger map and load the smallest relevant subset.
-3. If this pack is needed frequently in a dedicated profile, symlink or copy `.hermes/skill-packs/corp-web-japan/skills/*` into that profile's active `.hermes/skills/` instead of re-expanding the default profile.
+3. If `.hermes/skill-packs/corp-web-japan/INDEX.md` is absent in the active checkout, use `.agents/skills/README.md` as the repo-local fallback index rather than stopping.
+4. If this pack is needed frequently in a dedicated profile, symlink or copy `.hermes/skill-packs/corp-web-japan/skills/*` into that profile's active `.hermes/skills/` instead of re-expanding the default profile.
 
 ## Verification Checklist
 

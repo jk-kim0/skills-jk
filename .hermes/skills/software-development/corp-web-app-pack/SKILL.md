@@ -27,7 +27,11 @@ Keeping the detailed skills outside `.hermes/skills/` prevents their full name/d
 
 ## Required First Step
 
-Read the pack index before selecting detailed skills:
+First check whether this repository exposes repo-local checked-in skills under `.agents/skills/`.
+
+In the current `corp-web-app` setup, treat `.agents/skills/README.md` as the first local index and load only the minimum matching repo-local skills from `.agents/skills/<name>/SKILL.md`.
+
+If a future checkout instead uses the external pack layout, read the pack index before selecting detailed skills:
 
 `.hermes/skill-packs/corp-web-app/INDEX.md`
 
@@ -42,7 +46,8 @@ Then read only the specific `SKILL.md` files referenced by the index that match 
 1. Do not assume these detailed skills are available through `skill_view`; they are intentionally outside active skill discovery.
 2. Do not read the entire pack for narrow tasks. Use the index trigger map and load the smallest relevant subset.
 3. If this pack is needed frequently in a dedicated profile, symlink or copy `.hermes/skill-packs/corp-web-app/skills/*` into that profile's active `.hermes/skills/` instead of re-expanding the default profile.
-4. For gated introduction-deck MDX, do not render the entire body with `GatingCut: () => null`; split at the marker first so the post-cut content and download CTA stay behind the form.
+4. For publish/public-route conflict reviews in `corp-web-app`, do not stop at filesystem route existence. Also inspect the legacy catch-all route, preview-navigation mappings, and live production responses/redirects, because a public path can already be behaviorally occupied even when no dedicated App Router file exists.
+5. In this repo, the active skill source may be `.agents/skills/**` rather than `.hermes/skill-packs/**`; verify the real local skill root before assuming the pack layout.
 
 ## Verification Checklist
 
