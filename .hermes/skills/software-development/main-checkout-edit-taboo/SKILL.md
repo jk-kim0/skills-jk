@@ -136,6 +136,13 @@ Important variant: the user may ask for both `main` refresh and immediate PR cre
 
 Common trigger wording includes "이 repo 의 변경사항을 PR 로 작성해줘" / "create a PR from this repo's changes" when `git status` shows meaningful tracked/untracked changes on a root `main` checkout. Treat those changes as the user's intended PR payload unless inspection shows obvious unrelated runtime/cache residue.
 
+Important pitfall when root `main` is behind latest `origin/main`:
+- do not repopulate the fresh latest-main worktree by blindly copying every dirty root file over the checkout
+- a raw file copy can overwrite content that already changed upstream and effectively reintroduce stale pre-merge text
+- instead, transplant tracked changes as a diff relative to the dirty root base using `git diff --binary` plus `git apply --3way` in the fresh worktree, then copy only authored untracked files that are truly new or intentionally different from `origin/main`
+- for untracked files whose paths already exist in `origin/main`, compare the root file to `origin/main:<path>` first and skip byte-identical copies; only carry them over when they are a real follow-up edit
+- after transplant, resolve any narrow conflicts by keeping latest-main content and adding only the new local follow-up lines
+
 In that case, do not stop after merely preserving the dirty root on a branch.
 Use this exact sequence:
 1. inspect and summarize the intended payload first with `git diff --stat` and `git diff --name-status`, including untracked files that should be part of the PR
