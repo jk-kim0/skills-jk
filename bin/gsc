@@ -513,7 +513,6 @@ def validate_all_index_issues(args, browser: bool = False) -> int:
         print(f"  browser-batch: {'OK' if returncode == 0 else f'FAIL({returncode})'}")
         print("  세부 사이트별 성공/실패는 위 browser helper summary를 확인하세요.")
         return returncode
-
     for idx, site_url in enumerate(selected, 1):
         print(f"\n{'=' * 80}")
         print(f"[{idx}/{len(selected)}] {site_url}")
@@ -918,7 +917,7 @@ def main():
     validation_parser.add_argument('--port', type=int, help='Chrome remote debugging 포트')
 
     def add_validate_all_arguments(p):
-        p.add_argument('--submit', action='store_true', help='실제 START NEW VALIDATION 요청')
+        p.add_argument('--submit', action='store_true', help='실제 START NEW VALIDATION / VALIDATE FIX 요청')
         p.add_argument('--site', action='append', help='특정 사이트 URL만 처리 (여러 번 지정 가능)')
         p.add_argument('--session-file', help='GSC frontend session 파일 경로')
         p.add_argument(

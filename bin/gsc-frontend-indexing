@@ -134,6 +134,7 @@ function supportAnchorToReason(anchor) {
   const known = {
     page_with_redirect: 'Page with redirect',
     duplicate_page_with_proper_canonical_tag: 'Alternate page with proper canonical tag',
+    duplicate_page_without_canonical_tag: 'Duplicate without user-selected canonical',
     blocked_by_noindex_tag: 'Excluded by noindex tag',
     discovered__unclear_status: 'Discovered - currently not indexed',
     crawled: 'Crawled - currently not indexed',
