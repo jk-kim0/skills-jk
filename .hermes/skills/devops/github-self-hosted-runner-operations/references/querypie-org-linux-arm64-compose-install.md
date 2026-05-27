@@ -68,10 +68,19 @@ Labels verified by GitHub API immediately after initial install:
 - Runners 1-3: `self-hosted`, `Linux`, `ARM64`, `arch:arm64`, `os:ubuntu`, `build:build-arm64`, `purpose:ci`, `purpose:build`
 - Runners 4-6: `self-hosted`, `Linux`, `ARM64`, `arch:arm64`, `os:ubuntu`, `build:build-arm64`, `purpose:ci`
 
-Later config update on 2026-05-27 removed `build:build-arm64` from the active Compose `.env`, `.env.example`, `README.md`, and `.env.bak.20260526134639` label settings without restarting runners. Future restarts/re-registration should use:
+Later config update on 2026-05-27 removed `build:build-arm64` from the active Compose `.env`, `.env.example`, `README.md`, and `.env.bak.20260526134639` label settings, then each idle runner was restarted one at a time. Restarting existing configured containers did not remove the already-registered GitHub custom label, so `build:build-arm64` was also removed from each org runner via the GitHub runner label API. Future restarts/re-registration should use:
 
 - Runners 1-3: `self-hosted`, `Linux`, `ARM64`, `arch:arm64`, `os:ubuntu`, `purpose:ci`, `purpose:build`
 - Runners 4-6: `self-hosted`, `Linux`, `ARM64`, `arch:arm64`, `os:ubuntu`, `purpose:ci`
+
+If removing a label from already registered org runners without rebuilding/re-registering, use:
+
+```sh
+gh api /orgs/querypie/actions/runners --paginate \
+  --jq '.runners[] | select(.name|startswith("mac-studio-llm1-linux-arm64-")) | [.id,.name,([.labels[].name]|join(","))] | @tsv'
+
+gh api -X DELETE "/orgs/querypie/actions/runners/<runner_id>/labels/<label-name>"
+```
 
 All six were verified `online` and not busy immediately after install.
 

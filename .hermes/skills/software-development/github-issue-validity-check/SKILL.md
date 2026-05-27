@@ -240,6 +240,12 @@ When the user asks not just whether an issue is valid, but to rewrite the issue 
 - Additional fast-moving-issue pitfall: if you rewrite an issue, then the user asks again shortly after, re-check latest `origin/main` and open PR state from scratch instead of assuming your just-written issue body is still current.
   - In active repos, a couple of follow-up PRs can merge between turns and flip the correct framing from "merge pending on open PRs" to "already complete on latest main; close candidate".
   - When that happens, update both body and title accordingly so the issue stops reading like an active implementation tracker and instead becomes a completion-state record or close candidate.
+- Practical latest-main rewrite pattern when an issue already contains a baseline SHA/time:
+  - treat that recorded baseline as a stale-check boundary, not just as historical prose
+  - diff `baseline..origin/main` for the issue-owned paths and inspect the commits / PRs in that range before preserving any old "remaining work" bullets
+  - if later merged PRs explicitly targeted the last remaining scope, read the current files and rerun the lightest relevant verification (for example targeted tests) before editing
+  - if those follow-up merges remove the last concrete mismatch, rewrite the issue into a current-state completion/reference document: say the scope is resolved on latest `main`, say there is no remaining implementation work, and keep any optional browser/stage pass clearly labeled as final revalidation rather than open coding scope
+  - unless the user explicitly asks, do not close the issue automatically; a rewritten "no remaining code work" body is often the right latest-main update
 - When rewriting an issue whose remaining scope is covered by open follow-up PRs, capture each PR's current mergeability and stacking state instead of only saying "open".
   - Use `gh pr view <n> --json baseRefName,headRefName,headRefOid,mergeStateStatus,statusCheckRollup,url`.
   - If a PR is stacked on another branch, state that it is not latest-main-complete until the base PR lands or the stack is rebased.
