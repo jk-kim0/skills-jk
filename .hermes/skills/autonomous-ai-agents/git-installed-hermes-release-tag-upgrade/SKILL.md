@@ -151,6 +151,7 @@ git ls-files --others --exclude-standard
 Practical lesson:
 - in this repo, release-tag checkout can be blocked by untracked build artifacts and generated assets
 - cleaning these first is often necessary before moving from one tag to another
+- if checkout leaves an untracked directory that contains its own `.git` directory (observed: `tinker-atropos/`, previously a submodule), plain `git clean -fd` will not remove it; after confirming it is obsolete in the target tag, use `git clean -ffd <path>` and re-check `git status --short --branch`
 
 ## 4. Move to the target tag
 

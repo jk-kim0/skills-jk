@@ -63,10 +63,15 @@ GitHub runner names:
 - `mac-studio-llm1-linux-arm64-5`
 - `mac-studio-llm1-linux-arm64-6`
 
-Labels verified by GitHub API:
+Labels verified by GitHub API immediately after initial install:
 
 - Runners 1-3: `self-hosted`, `Linux`, `ARM64`, `arch:arm64`, `os:ubuntu`, `build:build-arm64`, `purpose:ci`, `purpose:build`
 - Runners 4-6: `self-hosted`, `Linux`, `ARM64`, `arch:arm64`, `os:ubuntu`, `build:build-arm64`, `purpose:ci`
+
+Later config update on 2026-05-27 removed `build:build-arm64` from the active Compose `.env`, `.env.example`, `README.md`, and `.env.bak.20260526134639` label settings without restarting runners. Future restarts/re-registration should use:
+
+- Runners 1-3: `self-hosted`, `Linux`, `ARM64`, `arch:arm64`, `os:ubuntu`, `purpose:ci`, `purpose:build`
+- Runners 4-6: `self-hosted`, `Linux`, `ARM64`, `arch:arm64`, `os:ubuntu`, `purpose:ci`
 
 All six were verified `online` and not busy immediately after install.
 

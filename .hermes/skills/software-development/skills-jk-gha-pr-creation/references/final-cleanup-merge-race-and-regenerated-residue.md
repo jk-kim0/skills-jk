@@ -44,12 +44,15 @@ After every final verification pass, run one last root cleanup check:
 git status --short --branch
 ```
 
-If only generated/runtime residue remains and it is already preserved in a PR or explicitly excluded:
+If only generated/runtime residue remains and it is already preserved in a PR or explicitly excluded, restore tracked files first and remove only untracked profile runtime state:
 
 ```bash
-git restore -- .hermes/skills .gitignore .hermes/config.yaml AGENTS.md 2>/dev/null || true
-rm -rf .hermes/profiles
+git restore -- .hermes/skills .gitignore .hermes/config.yaml AGENTS.md .hermes/profiles 2>/dev/null || true
+# Do NOT rm -rf .hermes/profiles after profile-as-code lands; durable profile files are tracked.
+git clean -fd -- .hermes/profiles 2>/dev/null || true
 ```
+
+Important transition rule: once `.hermes/profiles/README.md`, profile `config.yaml`, or profile `SOUL.md` files are tracked on `origin/main`, treating the whole directory as runtime residue will create tracked deletions. If cleanup accidentally deletes tracked profile files, immediately restore them from `origin/main` before reporting root clean.
 
 Then re-run `git status --short --branch` and report root clean only if it is actually clean.
 
