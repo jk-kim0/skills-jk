@@ -33,6 +33,8 @@ Read `references/migrated-memory-and-user-context.md` after loading this skill. 
 - `references/plans-route-local-compare-table-refactor.md` — notes for refactoring plans/pricing pages from `CompareTable rows/columns` data props to route-local JSX table authoring without visible content changes.
 - `references/tailwind-legacy-shared-ui-compatibility.md` — diagnostic and fix pattern for shared components that render differently between `(legacy)` and `(tailwind)` route groups because Tailwind globals intentionally omit legacy tokens/resets.
 - `references/blog-mdx-translation-recovery.md` — workflow for filling missing blog MDX locale files from `corp-web-contents` inventory/history without inventing unavailable translations.
+- `references/sidebar-data-change-impact.md` — impact map and checklist for changes to shared navigation/sidebar data files (e.g. `getResourceCategorySidebar`, `getDemoCategorySidebar`).
+- `references/tailwind-menu-wave-plan-refresh.md` — workflow for refreshing the Tailwind transition plan from latest `origin/main`, including menu-group inventory summaries, merged/open PR status checks, and the JSON parsing pitfall for the inventory CLI.
 
 ## Common Pitfalls
 
