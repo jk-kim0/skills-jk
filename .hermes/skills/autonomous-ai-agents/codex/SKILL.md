@@ -64,6 +64,8 @@ Codex CLI config is commonly at `~/.codex/config.toml`. For Codex CLI 0.130.0 mo
 
 For Codex CLI 0.130.0 skill discovery paths and how to expose external local skill trees such as `~/workspace/skills-jk/skills` and Hermes `.hermes/skills`, see `references/codex-cli-0.130-skill-discovery.md`. Key point: Codex discovers `$HOME/.agents/skills` and follows symlinked directories there; do not invent unsupported `skills.paths` config keys.
 
+For the currently verified local setup pattern on Codex CLI 0.133.0, see `references/codex-cli-local-skill-symlink-discovery.md`. Use `~/.agents/skills` symlinks for external skill libraries, restart Codex after changing symlinks, and verify with `codex debug prompt-input 'noop'` rather than editing `~/.codex/config.toml` with unsupported path keys.
+
 For Codex CLI 0.130.0 custom OpenAI-compatible Responses providers, see `references/codex-cli-0.130-custom-responses-provider.md`. Key point: Codex uses `model_provider` plus `[model_providers.<id>]` TOML, not Hermes `providers:` YAML; always verify with a temporary `CODEX_HOME` before changing `~/.codex/config.toml`, and if `codex exec` says `Warning: no last agent message`, inspect the provider's streaming Responses events for missing finalization events.
 
 For Codex CLI 0.130.0 `/goal`, see `references/codex-cli-0.130-goals-feature.md`. Key point: `/goal` is the experimental `goals` feature flag, not a plugin-list entry; it exposes `get_goal`, `create_goal`, and completion-only `update_goal` tools plus continuation prompts. When recreating it in Hermes, use a `name: goal` skill plus an explicit state script unless Hermes core runtime hooks are being changed.

@@ -42,6 +42,7 @@ Then read only the specific `SKILL.md` files referenced by the index that match 
 - `references/introduction-deck-mdx-gating.md` — proven pattern for fixing gated introduction-deck MDX detail pages by splitting at `<GatingCut />`, rendering the post-cut content behind `GatingFormWrapper`, and using a temporary root `node_modules` symlink for fast fresh-worktree verification when appropriate.
 - `references/publication-author-data-location.md` — author/profile data placement and PR follow-up pattern for blog/whitepaper detail author cards.
 - `references/author-profile-image-validation.md` — investigation and hardening pattern for broken publication author profile images: resolve MDX `author` through locale YAML, verify the referenced `public/crew/*` asset and deployed raw/`/_next/image` URLs, and compare against corp-web-japan's `src/content/authors/ja.yaml` + `public/crew/*` + validation-test pattern.
+- `references/blog-mdx-translation-coverage.md` — workflow for finding and filling missing blog MDX locale files from historical corp-web-contents inventories, preserving hidden redirect contracts, protecting MDX/HTML syntax during translation, and verifying EN/KO/JA coverage parity.
 
 ## Common Pitfalls
 
@@ -53,6 +54,7 @@ Then read only the specific `SKILL.md` files referenced by the index that match 
 6. For gated introduction-deck MDX, do not render the entire body with `GatingCut: () => null`; split at the marker first so the post-cut content and download CTA stay behind the form.
 7. Treat localized author/profile JSON as publication content, not utility implementation. In corp-web-app it belongs under `src/content/authors/{en,ja,ko}.json`; utilities such as `composeAuthors` should import from that content path rather than keeping data under `src/utils/**/data`.
 8. During PR follow-up on resource/publication work, expect latest `main` to have renamed `src/lib/repo-content/**` to `src/lib/resources/**`. On rebase conflicts, preserve the latest-main `src/lib/resources` import paths and reapply only the PR's scoped author/rendering changes.
+9. For blog MDX missing-locale recovery, do not invent translations when the user asked for source recovery only. First exhaust historical corp-web-contents inventories and sibling/canonical publication records; only directly translate unfound content if the user explicitly changes scope to permit direct translation.
 
 ## Verification Checklist
 
