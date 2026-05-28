@@ -24,6 +24,10 @@ This is now an orchestration checklist. Detailed logic is canonicalized in:
 
 Do not duplicate the full algorithms here. Patch the canonical detailed skill when a new lesson belongs to one of those areas.
 
+## References
+
+- `references/repeated-repo-local-cleanup-root-merged-pr.md` — repeated repo-local cleanup pattern when the root checkout is a clean PR branch that was merged and pruned since the prior cleanup pass.
+
 ## Scope interpretation for this user
 
 For wording like `workspace 정리`, `repo workspace 정리`, or `이 repo 정리`, prefer repo-local cleanup unless the user explicitly asks for all of `~/workspace`.
