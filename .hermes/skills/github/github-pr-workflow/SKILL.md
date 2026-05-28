@@ -14,7 +14,7 @@ metadata:
 
 Complete guide for managing the PR lifecycle. Each section shows the `gh` way first, then the `git` + `curl` fallback for machines without `gh`.
 
-Detailed non-bundled PR follow-up/body/validity procedures have been consolidated into the inactive pack at `.hermes/skill-packs/github-pr-workflow/INDEX.md`. For narrow follow-up, stacked rebase, body-file safety, or PR validity audit work, read that index and then only the relevant detailed file.
+Detailed non-bundled PR follow-up/body/validity procedures have been consolidated into the inactive pack at `.hermes/skill-packs/github-pr-workflow/INDEX.md`. For narrow follow-up, stacked rebase, body-file safety, or PR validity audit work, read that index and then only the relevant detailed file. Repo-specific PR creation wrappers such as `skills-jk-gha-pr-creation` own only their repository-specific dispatch mechanism; keep generic PR lifecycle and CI guidance here rather than duplicating it in those wrappers.
 
 ## Prerequisites
 
