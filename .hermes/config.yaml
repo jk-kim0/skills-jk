@@ -332,6 +332,74 @@ goals:
   max_turns: 20
 skills:
   external_dirs: []
+  disabled:
+    # Bundled skills not loaded in the last 30 days as of 2026-05-28.
+    # Keep installed, but omit from the default prompt/index to reduce baseline context.
+    - airtable
+    - apple-notes
+    - apple-reminders
+    - architecture-diagram
+    - arxiv
+    - ascii-art
+    - ascii-video
+    - audiocraft-audio-generation
+    - blogwatcher
+    - claude-code
+    - claude-design
+    - comfyui
+    - debugging-hermes-tui-commands
+    - dogfood
+    - dspy
+    - evaluating-llms-harness
+    - excalidraw
+    - findmy
+    - gif-search
+    - godmode
+    - google-workspace
+    - heartmula
+    - himalaya
+    - huggingface-hub
+    - humanizer
+    - ideation
+    - imessage
+    - jupyter-live-kernel
+    - kanban-orchestrator
+    - kanban-worker
+    - linear
+    - llama-cpp
+    - llm-wiki
+    - manim-video
+    - minecraft-modpack-server
+    - nano-pdf
+    - node-inspect-debugger
+    - notion
+    - obliteratus
+    - obsidian
+    - ocr-and-documents
+    - opencode
+    - openhue
+    - p5js
+    - pokemon-player
+    - polymarket
+    - popular-web-designs
+    - powerpoint
+    - pretext
+    - python-debugpy
+    - requesting-code-review
+    - research-paper-writing
+    - segment-anything-model
+    - serving-llms-vllm
+    - sketch
+    - songsee
+    - songwriting-and-ai-music
+    - spike
+    - subagent-driven-development
+    - teams-meeting-pipeline
+    - touchdesigner-mcp
+    - webhook-subscriptions
+    - weights-and-biases
+    - youtube-content
+    - yuanbao
   template_vars: true
   inline_shell: false
   inline_shell_timeout: 10
