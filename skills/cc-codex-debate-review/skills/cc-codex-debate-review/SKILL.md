@@ -1,6 +1,6 @@
 ---
-name: cc-codex-debate-review
-description: Debate-driven PR review orchestration where CC and Codex alternate as lead agent until consensus is reached
+name: cc-codex-debate-review-plugin-wrapper
+description: Plugin-mode wrapper for cc-codex-debate-review that forwards to the canonical skill at the plugin root without duplicating its body.
 ---
 
 > **Plugin mode:** Assets (bin, lib, config) are located at the plugin root.

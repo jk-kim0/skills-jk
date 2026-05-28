@@ -6,9 +6,16 @@ Active `.hermes/skills/` keeps only thin `<repo>-pack` entrypoint skills. When a
 
 Current packs:
 
+Repo-specific packs:
+
 - `corp-web-japan/` — Japanese public-site and querypie.ai/querypie.jp migration/parity workflows.
 - `corp-web-app/` — corp-web-app route-local, Tailwind, content, and stage E2E workflows.
 - `corp-web-v2/` — corp-web-v2 and corp-web-contents migration/parity workflows.
 - `querypie-docs/` — querypie-docs confluence/MDX translation workflows.
 
-See `INVENTORY.md` for the full pre-split classification inventory.
+Workflow consolidation packs:
+
+- `git-worktree-safety/` — local main/worktree/branch cleanup and stale-branch classification procedures.
+- `github-pr-workflow/` — detailed PR body, stacked rebase, follow-up, and validity procedures governed by the active `github-pr-workflow` skill.
+
+See `INVENTORY.md` for the original repo-specific split inventory and each pack's `INDEX.md` for current detailed contents.
