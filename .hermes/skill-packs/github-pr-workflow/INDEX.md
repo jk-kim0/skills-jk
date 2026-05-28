@@ -11,6 +11,18 @@ Active entrypoint: ``.hermes/skills/github/github-pr-workflow/SKILL.md``
 2. Read this `INDEX.md`.
 3. Read only the detailed `SKILL.md` files below that match the current task; do not bulk-load the whole pack.
 
+
+## Canonical ownership map
+
+- General PR lifecycle, branch creation, commit/push, CI/check interpretation, merging, issue-linking policy, and `gh` compatibility: `.hermes/skills/github/github-pr-workflow/SKILL.md`.
+- PR body file safety: `github-pr-body-file-safety`; stacked PR body/rebase combinations: `github-pr-body-file-and-stacked-rebase`.
+- Already merged/closed PR follow-up: `merged-pr-followup-workflow`.
+- Open PR branch follow-up via a fresh worktree: `existing-pr-followup-worktree`.
+- Open PR validity/scope audit: `github-pr-validity-check`.
+- `skills-jk` bot-authored PR creation through `.github/workflows/create-pr.yml`: `.hermes/skills/software-development/skills-jk-gha-pr-creation/SKILL.md`.
+
+When adding new lessons, patch the canonical owner above. Do not copy local workspace cleanup logic into PR creation skills; route that to `git-worktree-safety-pack`.
+
 ## Detailed skills
 
 | skill | path | when to read |
