@@ -35,6 +35,7 @@ Read `references/migrated-memory-and-user-context.md` after loading this skill. 
 - `references/blog-mdx-translation-recovery.md` — workflow for filling missing blog MDX locale files from `corp-web-contents` inventory/history without inventing unavailable translations.
 - `references/sidebar-data-change-impact.md` — impact map and checklist for changes to shared navigation/sidebar data files (e.g. `getResourceCategorySidebar`, `getDemoCategorySidebar`).
 - `references/tailwind-menu-wave-plan-refresh.md` — workflow for refreshing the Tailwind transition plan from latest `origin/main`, including menu-group inventory summaries, merged/open PR status checks, and the JSON parsing pitfall for the inventory CLI.
+- `references/content-availability-ci-after-main-advance.md` — repair workflow for routing/content availability tests that fail after a separate content PR lands on `main` and changes the expected inventory or locale fallback.
 
 ## Common Pitfalls
 
