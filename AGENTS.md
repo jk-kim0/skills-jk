@@ -30,12 +30,13 @@ At the start of every user turn:
 - Load only the specific referenced files needed (`references/`, `scripts/`, `assets/`).
 - Prefer skill-provided scripts/templates over rewriting from scratch.
 
-## Repo-Specific Skill Packs
-Some repository-specific skills are stored outside active skill discovery to keep the default prompt small.
+## Inactive Skill Packs
+Some detailed skills are stored outside active skill discovery to keep the default prompt small.
 
-- Active entrypoints live under `.hermes/skills/software-development/<repo>-pack/SKILL.md`.
-- Detailed pack contents live under `.hermes/skill-packs/<repo>/`.
-- When a task matches `corp-web-japan`, `corp-web-app`, `corp-web-v2`, or `querypie-docs`, read the corresponding active `<repo>-pack` skill, then read `.hermes/skill-packs/<repo>/INDEX.md`.
+- Repo-specific active entrypoints live under `.hermes/skills/software-development/<repo>-pack/SKILL.md`.
+- Workflow consolidation may also use active entrypoints such as `.hermes/skills/software-development/git-worktree-safety-pack/SKILL.md` or an existing umbrella skill such as `.hermes/skills/github/github-pr-workflow/SKILL.md`.
+- Detailed pack contents live under `.hermes/skill-packs/<pack>/`.
+- When a task matches `corp-web-japan`, `corp-web-app`, `corp-web-v2`, `querypie-docs`, Git/worktree cleanup, or detailed GitHub PR follow-up/body/validity work, read the corresponding active entrypoint first, then read `.hermes/skill-packs/<pack>/INDEX.md`.
 - Load only the detailed `SKILL.md` files selected by that pack index; do not bulk-load an entire pack for narrow work.
 
 ## Fallback Rules

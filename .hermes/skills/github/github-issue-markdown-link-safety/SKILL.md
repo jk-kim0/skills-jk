@@ -7,7 +7,7 @@ license: MIT
 metadata:
   hermes:
     tags: [GitHub, issues, markdown, linking]
-    related_skills: [github-issues, github-pr-body-file-safety]
+    related_skills: [github-issues, github-pr-workflow]
 ---
 
 # GitHub issue markdown link safety

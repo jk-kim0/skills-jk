@@ -27,3 +27,11 @@ The estimate uses a `name: description` line per active skill and `tiktoken` `cl
 - Active index characters after split: 33,939
 
 The absolute number differs from the live Kimi/Hermes prompt-size probe, but the relative result confirms that removing 98 repo-specific skills from active discovery materially shrinks the default skills index.
+## Follow-up consolidation: Git/worktree and PR workflow skills
+
+A later cleanup moved overlapping local, non-bundled Git/worktree and GitHub PR workflow siblings into inactive packs:
+
+- `git-worktree-safety/`: 6 detailed skills moved out of active `.hermes/skills/` and replaced by 1 active entrypoint (`git-worktree-safety-pack`).
+- `github-pr-workflow/`: 5 detailed PR workflow skills moved out of active `.hermes/skills/`; the existing active `github-pr-workflow` umbrella now points to the pack.
+- Net active `.hermes/skills/**/SKILL.md` reduction from this follow-up: 10.
+- Root `skills/` duplicate thin wrappers for five software-development workflow skills were removed because `.hermes/skills/software-development/*` is the source of truth for those names in this repo-local Hermes setup.

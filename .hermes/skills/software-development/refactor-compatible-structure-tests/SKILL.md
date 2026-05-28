@@ -7,7 +7,7 @@ license: MIT
 metadata:
   hermes:
     tags: [testing, refactor, structure-tests, regression, git, pr]
-    related_skills: [github-pr-workflow, existing-pr-followup-worktree]
+    related_skills: [github-pr-workflow, git-worktree-safety-pack]
 ---
 
 # Refactor-compatible structure tests
