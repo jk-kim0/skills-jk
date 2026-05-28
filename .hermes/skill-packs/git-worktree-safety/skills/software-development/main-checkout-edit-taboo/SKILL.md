@@ -32,19 +32,7 @@ git branch --show-current
 git status --short --branch
 ```
 
-If `git branch --show-current` returns `main`, do not edit. Create or select a linked worktree under the repo root:
-
-```bash
-git fetch origin --prune
-git worktree add .worktrees/<flat-name> -b <branch-name> origin/main
-```
-
-Then verify:
-
-```bash
-git -C .worktrees/<flat-name> branch --show-current
-git -C .worktrees/<flat-name> status --short --branch
-```
+If `git branch --show-current` returns `main`, do not edit. Create or select a linked worktree under the repo root using the canonical path and verification policy in `repo-root-worktree-path-policy`.
 
 ## File-tool safety
 
