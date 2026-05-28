@@ -11,3 +11,5 @@ In the current skills-jk environment, skill_manage(action='patch') for github-pr
 This user's workstation has Python3 + available subprocess scripting module for bulk git operations in large PR-heavy repos.
 §
 On this user's macOS environment, oh-my-codex (OMX) v0.18.5 is installed globally via nvm npm at `/Users/jk/.nvm/versions/node/v22.10.0/bin/omx`; `omx setup --merge-agents` configured user-scope Codex files under `/Users/jk/.codex`, preserving existing user-managed MCP servers. Codex CLI is Homebrew-owned at `/opt/homebrew/bin/codex` and authenticated via ChatGPT.
+§
+Local Codex on this workstation is configured to discover skills-jk via symlinks: `~/.agents/skills/skills-jk-hermes -> /Users/jk/workspace/skills-jk/.hermes/skills` and `~/.agents/skills/skills-jk -> /Users/jk/workspace/skills-jk/skills`; verify with `codex debug prompt-input 'noop'` in a new Codex session.
