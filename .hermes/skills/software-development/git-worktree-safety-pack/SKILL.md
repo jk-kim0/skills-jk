@@ -26,7 +26,7 @@ This is the active entrypoint for local Git/worktree safety workflows in this re
 
 ## Required Context
 
-Read `.hermes/skill-packs/git-worktree-safety/INDEX.md`, then load only the detailed skill file(s) selected by that index.
+Read `.hermes/skill-packs/git-worktree-safety/INDEX.md`, then load only the detailed skill file(s) selected by that index. The index includes a canonical ownership map; patch the owning detailed skill instead of duplicating the same Git/worktree procedure in another file.
 
 ## Common Pitfalls
 

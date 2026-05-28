@@ -11,6 +11,18 @@ Active entrypoint: ``.hermes/skills/software-development/git-worktree-safety-pac
 2. Read this `INDEX.md`.
 3. Read only the detailed `SKILL.md` files below that match the current task; do not bulk-load the whole pack.
 
+
+## Canonical ownership map
+
+- Main checkout protection and dirty-main recovery: `main-checkout-edit-taboo`.
+- Repo-root `.worktrees/<flat-name>` naming and verification: `repo-root-worktree-path-policy`.
+- File-tool path safety inside worktrees: `git-worktree-file-edit-safety` (thin checklist only).
+- Repo-local cleanup orchestration: `safe-git-worktree-branch-cleanup`.
+- Branch/worktree stale classification algorithm: `branch-squash-validity-and-stale-cleanup`.
+- Multi-repo or named workspace directory cleanup: `workspace-stale-git-cleanup`.
+
+When adding new lessons, patch the owning canonical skill above rather than copying the same procedure into several detailed skills.
+
 ## Detailed skills
 
 | skill | path | when to read |
