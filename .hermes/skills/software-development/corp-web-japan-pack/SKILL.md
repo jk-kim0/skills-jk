@@ -44,7 +44,8 @@ If the pack index is not present in the active checkout, fall back to the repo-l
 1. Do not assume these detailed skills are available through `skill_view`; they are intentionally outside active skill discovery.
 2. Do not read the entire pack for narrow tasks. Use the index trigger map and load the smallest relevant subset.
 3. If `.hermes/skill-packs/corp-web-japan/INDEX.md` is absent in the active checkout, use `.agents/skills/README.md` as the repo-local fallback index rather than stopping.
-4. If this pack is needed frequently in a dedicated profile, symlink or copy `.hermes/skill-packs/corp-web-japan/skills/*` into that profile's active `.hermes/skills/` instead of re-expanding the default profile.
+4. For repo-maintenance requests in `corp-web-japan` such as `workspace 정리`, the repo-local publication/migration skills are usually not needed after the index check. Treat the request as generic repo-local git cleanup: verify live cwd/repo root, fetch/prune, cross-check open/merged PRs before deleting branches or worktrees, update root `main` by fast-forward when safe, and report preserved open-PR worktrees explicitly.
+5. If this pack is needed frequently in a dedicated profile, symlink or copy `.hermes/skill-packs/corp-web-japan/skills/*` into that profile's active `.hermes/skills/` instead of re-expanding the default profile.
 
 ## Verification Checklist
 

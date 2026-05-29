@@ -134,6 +134,39 @@ Interpretation:
 - your attempted copy did NOT complete successfully
 - you cannot claim parity unless digest comparison proves it
 
+## Build tag / release metadata extraction from a pulled image
+
+Use this when the user asks to pull a Docker Hub image and confirm its build tag, version, or release metadata rather than comparing two registries.
+
+1. Pull the requested image first:
+
+```bash
+docker pull <image-ref>
+```
+
+2. Inspect Docker metadata for digest, labels, env, and architecture:
+
+```bash
+docker image inspect <image-ref>
+```
+
+3. If Docker metadata has no `Labels`, `BUILD_TAG`, or version env, inspect likely in-container metadata files. For QueryPie application images, `/app/version` is the canonical file observed for release/build metadata:
+
+```bash
+docker run --rm --entrypoint /bin/sh <image-ref> -lc 'cat /app/version'
+```
+
+Typical `/app/version` fields to report:
+- `version` — the build tag, for example `11.6.3-fc0a230`
+- `builtAt`
+- `commitDate`
+- `gitTreeState`
+- `components` commit map
+
+4. Use `docker buildx imagetools inspect <image-ref>` when the user may care about the multi-platform index digest and per-platform child manifest digests, even if the task is only build-tag confirmation.
+
+Pitfall: do not stop at Docker image `RepoTags` or `RepoDigests`; QueryPie build tags may be absent from labels/env and present only inside `/app/version`.
+
 ## Recommended reporting format
 
 Report separately for each image:
@@ -141,6 +174,7 @@ Report separately for each image:
 - whether it matches the source exactly
 - if not, whether the mismatch is top-level digest, child manifests, or attestation presence
 - whether auth prevented corrective push
+- for build-tag checks, the pulled image digest plus the in-container build tag/version source path, e.g. `/app/version`
 
 Example conclusion style:
 - `querypie-tools:11.6.2` exists on Docker Hub and matches source exactly.
