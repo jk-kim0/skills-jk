@@ -4,7 +4,7 @@ Use this when a repo-local `workspace 정리` / `main 업데이트` sweep starts
 
 ## Durable pattern
 
-`git merge --ff-only origin/main` can fail because local dirty files or untracked files would be overwritten by the fast-forward. Do not stash or discard first. Treat the dirty root as a preservation candidate.
+`git merge --ff-only origin/main` or a root `reset` can be blocked or made unsafe by dirty tracked files and untracked files. Do not stash or discard first. Treat the dirty root as a preservation candidate.
 
 1. Fetch and record state.
    ```bash
@@ -26,10 +26,9 @@ Use this when a repo-local `workspace 정리` / `main 업데이트` sweep starts
 3. Create a fresh repo-root worktree from latest `origin/main` for the preservation PR.
    ```bash
    git worktree add .worktrees/<topic> -b docs/<topic> origin/main
-   git -C .worktrees/<topic> apply --3way /tmp/<repo>-root-dirty.patch
    ```
 
-4. If `git apply --3way` leaves conflicts, keep the latest-main structure and add only the still-useful local guidance. For skill/library conflicts, this usually means combining compatible `ours` and `theirs` bullets instead of choosing one side wholesale.
+4. Do not blindly copy root files into the fresh worktree. A behind-root copy can revert files that changed on latest main. Either apply the root patch with `git apply --3way`, or selectively reapply only the meaningful additions while preserving the latest-main file shape.
 
 5. Copy only meaningful untracked payload into the preservation worktree. Exclude runtime/cache/backups such as `.hermes/lsp/`, `.hermes/pairing/`, profile caches/skills, sessions/logs, `.hermes/skills/.archive/`, and `.hermes/skills/.curator_backups/`.
 
@@ -54,7 +53,7 @@ Use this when a repo-local `workspace 정리` / `main 업데이트` sweep starts
 
 ## Pitfalls
 
-- Do not report `main` updated while the fast-forward actually failed due to dirty files.
+- Do not report `main` updated while the fast-forward actually failed or was skipped due to dirty files.
 - Do not let a behind-root copy delete guidance already present on latest `origin/main`; preserve latest main and reapply only useful local additions.
 - Do not delete untracked skill/reference files from root until the preservation branch has been pushed and the PR head SHA has been verified.
 - If all open PRs are merged but root still has new dirty skill guidance, create a new preservation PR before deleting merged branches/worktrees.

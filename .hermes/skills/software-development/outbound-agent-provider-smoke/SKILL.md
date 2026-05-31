@@ -64,6 +64,7 @@ Recommended sequence:
    - Verify the Team-scoped Gmail sender appears in the Email Senders table as active/ready.
    - Verify callback evidence when present: `gmail=connected`, returned `senderIdentityId`, connected email, and row health text.
    - Verify DB evidence without revealing tokens: `SenderIdentity(providerType = gmail)` exists, `GmailSenderCredential` exists, encrypted refresh token is present but not printed.
+   - For multi-dev-environment OAuth parity, compare each environment's OAuth start redirect URL against the authoritative environment: redacted/fingerprinted `client_id`, exact per-environment `redirect_uri`, expected Gmail send scope, and absence of Google `redirect_uri_mismatch`/`Error 400`. This proves OAuth start configuration, not callback token exchange.
    - For Vercel-backed dev environments, if using `psql` from pulled env vars, prefer `POSTGRES_URL_NON_POOLING`/`POSTGRES_URL` over `POSTGRES_PRISMA_URL`; Prisma URLs can include pooler query parameters that direct `psql` rejects.
 
 3. Sales Person persona
@@ -90,10 +91,13 @@ Recommended sequence:
 - Do not proceed with OAuth connect/send if the environment's schema repair workflow just failed; the UI may load while credential persistence or Sales Person sender selection is still broken.
 - Do not preserve old issue language that says only “Sales Person email must match Gmail account” without also checking `senderIdentityId` selection/lock.
 - When Google OAuth fails with `invalid_client`, inspect the actual OAuth URL before changing Google Cloud settings. If `client_id` contains encoded whitespace such as `%0A`, re-set the deployed OAuth env values without trailing newlines and redeploy before retrying.
+- When OAuth start succeeds in one dev environment but not another, compare the effective runtime OAuth start redirects with redacted/fingerprinted `client_id` values; a latest-code deployment and clean DB migration do not prove OAuth env parity.
+- Do not claim callback token exchange is verified from OAuth start alone. If the authoritative platform stores `GMAIL_OAUTH_CLIENT_SECRET` as encrypted/sensitive and it cannot be read, state that the matching secret must be applied from the secret source before callback readiness is fully proven.
 - When using Chrome/Google Console for OAuth setup verification, keep a persistent DevTools/CDP session alive if already attached; avoid reconnecting for every page read/action. If the user completes password/2FA manually, resume from the same CDP connection and verify the callback redirect plus Email Senders table state.
 
 ## References
 
 - `references/gmail-sales-person-sender-selection-smoke.md` — detailed notes from the Gmail OAuth setup and PR #185 sender-selection transition.
 - `references/gmail-oauth-vercel-env-and-cdp-continuation.md` — live-smoke notes for `invalid_client` caused by trailing-newline Vercel OAuth env values, plus the persistent CDP resume pattern after user-completed Google password/2FA.
+- `references/gmail-oauth-dev-env-parity.md` — parity pattern for comparing Gmail OAuth client IDs, redirect URIs, scopes, and Google authorization-page acceptance across Outbound Agent dev environments without exposing secrets.
 - `references/demo-send-ready-asset-contract.md` — documentation pattern for requiring the complete post-OAuth email-send demo asset chain instead of assuming missing seed assets.

@@ -61,6 +61,8 @@ git rev-list --left-right --count origin/main...HEAD
 
 If the result is not `0 <expected-ahead-count>`, rebase the same PR branch onto the new `origin/main` again and push again. Do not report a PR as conflict-free just because the first rebase succeeded against an older main.
 
+Before force-pushing after any delayed rebase, re-check that the PR is still open and the remote head branch still exists. If the PR was merged/closed or the remote branch was deleted while you were working, do **not** push the rebased local branch; that can accidentally resurrect a merged branch and create stale remote residue. Instead, delete the local worktree/branch and fast-forward root `main`.
+
 ## Final verification
 
 After all pushes, wait briefly for GitHub state refresh, then re-scan all open PRs:

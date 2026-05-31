@@ -144,8 +144,9 @@ If an open PR branch becomes non-clean after `origin/main` advances, treat it as
 2. Rebase the PR branch onto the latest `origin/main` instead of merging `main` into the branch.
 3. For documentation conflicts caused by a recently merged sibling PR, resolve main-side canonical structure first, then re-apply only the still-relevant PR-specific delta so stale duplicate sections do not return.
 4. Re-run `git diff origin/main...HEAD` or targeted file diffs to confirm the branch still contains its intended scope and no unrelated conflict residue.
-5. Push with `--force-with-lease`, then re-check the PR merge state and status checks.
-6. Do not merge or close the PR during cleanup unless the user explicitly asks.
+5. Immediately before force-pushing, re-check `gh pr view <n> --json state,mergedAt,headRefName,headRefOid` and `git ls-remote origin refs/heads/<branch>`. If the PR has merged/closed or the remote branch is gone, stop and clean up the local worktree/branch instead of pushing; otherwise a cleanup run can accidentally recreate a branch that GitHub already deleted after merge.
+6. Push with `--force-with-lease`, then re-check the PR merge state and status checks.
+7. Do not merge or close the PR during cleanup unless the user explicitly asks.
 
 ## Final stability loop
 

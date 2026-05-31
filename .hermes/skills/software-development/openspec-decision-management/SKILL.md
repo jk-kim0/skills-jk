@@ -38,6 +38,13 @@ Use this skill when:
    - For repo work, check the current branch/status before editing.
    - If the repo requires `.worktrees/`, perform changes there, not in the root checkout.
 
+1A. If the task is to replace or demote a long-lived `docs/**` design document with OpenSpec authority, use the doc-to-OpenSpec migration pattern.
+   - Create or update a class-level `openspec/specs/contract-<topic>/spec.md` when the old doc contains cross-cutting implementation rules.
+   - Convert normative prose into OpenSpec Requirements and Scenarios, not another long prose doc.
+   - Shrink the original docs file into a short `Superseded by OpenSpec` bridge that links to the canonical spec and preserves only background context.
+   - Update active references and OpenSpec inventory files so future agents discover the new canonical source.
+   - See `references/doc-to-openspec-contract-migration.md` for the detailed pattern and pitfalls.
+
 2. Locate the canonical decision home.
    - Prefer `openspec/changes/<change-id>/design.md` for change-specific decision logs.
    - Use `openspec/project.md` for broad project principles.
