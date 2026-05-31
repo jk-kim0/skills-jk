@@ -131,7 +131,7 @@ Use these routing rules instead of copying the old playbook here:
 - General branch/PR creation, issue-linking policy, PR body file safety, CI/check interpretation, merged PR follow-up, or existing PR updates -> `github-pr-workflow` plus the inactive `github-pr-workflow` pack.
 - Only after a clean branch has been pushed should this skill handle the `skills-jk` bot PR dispatch.
 
-Useful historical references remain under this skill's `references/` directory for repo-specific evidence. Prefer linking to those references from the owning canonical skill rather than adding long procedure text here. For example, `references/dirty-root-preserve-pr-cleanup-loop.md` records the confirmed dirty-root → bot PR → clean-root loop used during repeated `main 업데이트` / `workspace 정리` sweeps.
+Useful historical references remain under this skill's `references/` directory for repo-specific evidence. Prefer linking to those references from the owning canonical skill rather than adding long procedure text here. For example, `references/dirty-root-preserve-pr-cleanup-loop.md` records the confirmed dirty-root → bot PR → clean-root loop used during repeated `main 업데이트` / `workspace 정리` sweeps, and `references/repeated-cleanup-old-active-skill-port.md` records how to port stale active-skill residue into current `.hermes/skill-packs/**` paths.
 
 ## Completion checklist
 
