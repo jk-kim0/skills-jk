@@ -28,9 +28,11 @@ This is the active entrypoint for local Git/worktree safety workflows in this re
 
 For repo-local workspace cleanup requests such as `workspace 정리`, first read `references/repo-local-workspace-cleanup-sweep.md` from this skill.
 
-If cleanup discovers a PR-less branch/worktree with meaningful dirty content during an open-PR sweep, also read `references/pr-less-preservation-during-open-pr-sweep.md` so the work is preserved as a PR and then treated as part of the same CI/mergeability loop.
+If the cleanup starts with root `main` dirty while behind `origin/main`, also read `references/dirty-root-behind-main-preservation.md` so meaningful local skill/docs changes are preserved into a reviewable branch before root main is reset or fast-forwarded.
 
-If `.worktrees/` contains subdirectories that are not listed by `git worktree list`, read `references/unregistered-worktrees-during-cleanup.md` before deleting anything. Some of these may be standalone checkouts or accidentally nested repositories with meaningful dirty work that must be preserved first.
+If the cleanup request includes Open PR checking, CI follow-up, a wait-and-repeat pass, newly preserved PRs, or a PR-less branch/worktree with meaningful dirty content, also read `references/open-pr-cleanup-repeat-and-preservation.md` so the sweep keeps looping across merges, retargeted child PRs, stale PR metadata, and newly discovered dirty files.
+
+If `.worktrees/` contains subdirectories that are not listed by `git worktree list`, inspect them as possible standalone checkouts or accidentally nested repositories with meaningful dirty work before deleting anything.
 
 If the repository still has `.hermes/skill-packs/git-worktree-safety/INDEX.md`, read that index too, then load only the detailed skill file(s) selected by the index. The index includes a canonical ownership map; patch the owning detailed skill instead of duplicating the same Git/worktree procedure in another file.
 
@@ -57,6 +59,8 @@ If the current repository does not have that repo-local skill-pack path, proceed
 ## Verification Checklist
 
 - [ ] For workspace cleanup, `references/repo-local-workspace-cleanup-sweep.md` was read.
+- [ ] For dirty root behind latest main, `references/dirty-root-behind-main-preservation.md` was read.
+- [ ] For Open PR + cleanup repeat/preservation loops, `references/open-pr-cleanup-repeat-and-preservation.md` was read.
 - [ ] If present, `.hermes/skill-packs/git-worktree-safety/INDEX.md` was also read before detailed cleanup/refactor work.
 - [ ] Only relevant detailed files from the pack were loaded.
 - [ ] Root `main` was fetched and fast-forwarded, and final `git status --short --branch` was reported.

@@ -89,6 +89,8 @@ Recommended host layout for source/release-archive based deployments:
 
 For private-registry container deployments, prefer immutable image tags and make the VM an image consumer instead of a build host. Record current/previous image tags on the VM, keep app containers behind nginx on localhost, keep DB outside the app image, and handle DB migrations before container replacement. See `references/container-image-vm-deployment.md` for the concise pattern.
 
+For apps that integrate OAuth or other provider callbacks, verify the generated authorization URL after deployment, not just the presence of secrets. Behind nginx/container runtimes, origin inference can produce internal callbacks such as `https://localhost:3000/...`; set an explicit environment-specific callback env var when available, restart the service, and compare the generated `redirect_uri` with the provider console. See `references/oauth-callback-origin-verification.md`.
+
 Prefer an idempotent deployment sequence:
 
 1. Install or update host packages.
@@ -198,6 +200,7 @@ Summaries should include:
 - Mixing live cloud mutation, repo docs, and app implementation in one unreviewable change.
 - Assuming `/opt/<app>/repo` is a live git checkout. Some VM deployments switch to git archives or release/image layouts while retaining the same path. Before running `git fetch`/`git reset` on a VM, verify `test -d .git`, inspect `.deployed-revision`, `systemctl show <service> -p ExecStart`, and any image/current-release files. If the service unit on disk differs from the loaded unit, run `systemctl daemon-reload` before interpreting status.
 - Leaving host package PostgreSQL running after moving to Docker Compose PostgreSQL, causing port conflicts or ambiguous data source.
+- Treating OAuth secret presence as sufficient smoke coverage. For provider flows, inspect the generated authorization URL and verify the `redirect_uri` is the public environment callback, not `localhost`, an internal container origin, or another environment's FQDN.
 
 ## Verification Checklist
 
@@ -210,8 +213,10 @@ Summaries should include:
 - [ ] PostgreSQL is Docker-managed or host-managed, not ambiguous, and not public.
 - [ ] Database migration/seed commands are documented with environment scope.
 - [ ] External HTTPS smoke test documented or executed.
+- [ ] OAuth/provider callbacks, if present, generate public environment redirect URIs and match the provider console configuration.
 - [ ] Stop/disable/teardown path documented.
 
 ## References
 
 - `references/tencent-cloud-linux-vm-deployment.md` — Tencent Cloud / `tccli` patterns and VM deployment notes from a successful session.
+- `references/oauth-callback-origin-verification.md` — OAuth/provider callback redirect URI verification pattern for VM deployments behind nginx/container runtimes.
