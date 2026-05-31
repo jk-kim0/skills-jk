@@ -97,6 +97,8 @@ Special CI contract check:
 - Determine whether the product behavior/regression is real, or whether the test encoded an overly rigid implementation shape.
 - When the intended behavior is still correct and only the source shape evolved, prefer the smallest test update that preserves the behavioral contract.
 - Example pattern: a test expected `previewModeEnabled ? [internalFooterColumn]`, but a follow-up safely evolved it to `[{ ...internalFooterColumn, mobileLayout: "single" as const }]`. The correct fix was to relax the matcher, not revert the product change.
+- When CI failure comes from a test assertion around mocked function calls, read the assertion output carefully before changing product code. If the received call contains the intended data but the matcher is unstable because of nested `expect.objectContaining`, masked secret rendering, or mock-call tuple typing, prefer a test-side shape that records typed calls directly or compares a stable exact object. Do not weaken the behavioral contract to merely “called”. See `references/vitest-mock-call-verification.md` for an example pattern.
+- When a GitHub Actions failure comes from Prisma schema drift or migration status checks, distinguish unapplied migration history from app deploy success: inspect the failed job log, schema-check artifacts, deploy workflow migration steps, and any manual migration workflow before proposing fixes. See `references/github-actions-prisma-migration-status.md` for the investigation and reporting pattern.
 
 Next.js middleware/App Router rewrite regression check:
 - When a bug involves `middleware.ts` rewriting an unprefixed route to a localized App Router route, do not stop after checking the middleware unit test or `x-middleware-rewrite` header.

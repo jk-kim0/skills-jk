@@ -203,7 +203,52 @@ When asked whether a Next.js/React website should adopt Tailwind CSS, or to comp
 
 See `references/tailwind-adoption-review.md` for the detailed evidence checklist, reuse lens, global CSS baseline guidance, and pitfalls from corp-web-app/corp-web-japan Tailwind review work.
 
-## 0E. Node.js Major Upgrade Necessity Check
+## 0F. Technology Stack Decision / Reference-Repo Stack Review
+
+When asked to choose a technology stack for a repository, especially with references to sibling/internal repositories, inspect the actual reference repos before writing recommendations. Do not rely only on memory, README summaries, or generic framework preferences.
+
+Minimum evidence to collect:
+
+```bash
+pwd
+git rev-parse --show-toplevel
+git status --short --branch
+# in each reference repo
+cat AGENTS.md 2>/dev/null || true
+cat package.json 2>/dev/null || true
+find . -maxdepth 3 \( -name 'next.config.*' -o -name 'postcss.config.*' -o -name 'eslint.config.*' -o -name 'vitest.config.*' -o -name 'playwright.config.*' -o -name 'schema.prisma' \) -print
+rg -n "DATABASE_URL|POSTGRES|postgresql|provider =|Prisma|Tailwind|React|Next" . --glob '!node_modules/**' --glob '!*.svg'
+```
+
+Decision-doc shape:
+- State the inspected reference stacks explicitly.
+- Separate quick prototype, web application, backend/job pipeline, and database choices.
+- If the user prefers PostgreSQL or PostgreSQL-compatible SaaS, make PostgreSQL compatibility the durable decision and treat Supabase/Vercel Postgres/Neon/Railway/Render/RDS as interchangeable candidates unless the user selects one.
+- Prefer internal stack continuity when it does not conflict with product needs; for example, if reference repos already use Next.js/React/TypeScript/Tailwind and Prisma/PostgreSQL, start from that rather than inventing a different default.
+- Distinguish “initial scaffold” from “later extraction”: do not require a separate FastAPI service on day one if Next.js + Prisma can cover the first reviewable prototype, but document the trigger for moving AI enrichment or long-running jobs into workers.
+
+Pitfall: do not let a convenient BaaS name become the decision. Capture the underlying contract (PostgreSQL-compatible DB, pooled/direct connection handling, ORM/migration model, worker access) so the project can switch SaaS providers later.
+
+## 0E. Technology Stack Decision / Rationale Docs
+
+When asked to decide or document a repository's technology stack, inspect the actual repo and relevant sibling/reference repos before recommending. Do not answer from generic framework preference alone.
+
+1. Confirm the active repo, branch, and whether an existing PR/worktree should be updated.
+2. Inspect the target repo's existing docs first (`README.md`, `docs/**`, `AGENTS.md`) to understand product scope, MVP boundaries, and existing architecture terms.
+3. Inspect reference repos the user names by reading their `AGENTS.md`/repo guide, `package.json`, `next.config.*`, `postcss.config.*`, Prisma schema, test configs, and deployment notes. Summarize the actual stack from files, not memory.
+4. If the user states a durable technical preference (for example PostgreSQL or PostgreSQL-compatible SaaS), record it in the decision doc as a first-class constraint and shape the recommendation around it.
+5. Prefer two docs when the user wants rationale to be managed over time:
+   - `docs/technology-stack-decision.md` — concise decision, phased plan, and current recommendation.
+   - `docs/technology-stack-rationale.md` — per-technology entries with 1-3 line summary, pros, cons, and rationale/status (`Adopt`, `Adopt later`, `Evaluate`, `Avoid for MVP`).
+6. Link the rationale doc from the decision doc and README design-doc index.
+7. For repo work, commit/push the docs and update the existing PR branch rather than leaving local-only documentation.
+
+Pitfalls:
+- Do not overfit to a sibling repo's legacy stack when the new product has no legacy constraint (for example, prefer Tailwind/shadcn for a new UI even if a reference app still has CSS Modules for legacy areas).
+- Do not make Supabase the decision if the user's durable constraint is PostgreSQL compatibility; phrase Supabase as one PostgreSQL-compatible SaaS candidate among Vercel Postgres/Neon, Railway/Render Postgres, AWS RDS/Aurora, etc.
+- Do not force a separate Python backend into the first scaffold when Next.js + Prisma + PostgreSQL can validate the core entity/review UI first; document Python/FastAPI worker extraction as a later step when enrichment or long-running jobs justify it.
+
+## 0F. Node.js Major Upgrade Necessity Check
 
 When asked whether a repo needs to upgrade to a specific Node.js major, do not answer from general lifecycle intuition alone. Inspect the live repo, CI/runtime pins, dependency engine ranges, hosting/runtime support, and the official Node release schedule.
 

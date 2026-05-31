@@ -93,6 +93,8 @@ Not every section is mandatory, but `Overview` + `When to Use` + actionable body
 
 ## Directory Placement
 
+Default Hermes-agent repository shape:
+
 ```
 skills/<category>/<skill-name>/SKILL.md
 ```
@@ -100,6 +102,17 @@ skills/<category>/<skill-name>/SKILL.md
 Categories currently in repo (confirm with `ls skills/`): `autonomous-ai-agents`, `creative`, `data-science`, `devops`, `dogfood`, `email`, `gaming`, `github`, `leisure`, `mcp`, `media`, `mlops/*`, `note-taking`, `productivity`, `red-teaming`, `research`, `smart-home`, `social-media`, `software-development`.
 
 Pick the closest existing category. Don't invent new top-level categories casually.
+
+Important repo-override rule:
+- Some skill-library repositories intentionally do **not** use category directories. For example an internal `skills.sh` style repository may require `skills/<skill-name>/SKILL.md` and a `description` block containing `Trigger:` lines.
+- When working outside the Hermes-agent source tree, read the repository guidance first (for example `AGENTS.md` and `docs/skill-management.md`) and inspect 2-3 peer `skills/*/SKILL.md` files before choosing a path or frontmatter shape.
+- Treat the repository's checked-in guide and peer shape as authoritative over this skill's default category layout. If the guide says self-developed skills go directly under `skills/<name>/`, do not create `skills/devops/<name>/` just because the source skill came from a categorized Hermes library.
+
+Personal-to-shared skill promotion pattern:
+- When a user asks to move one or more personal/local skills into a shared skill repository, first preserve the original content long enough to identify reusable responsibilities, then refactor into class-level shared skills rather than mirroring a personal skill tree verbatim.
+- Split generic enabling workflows from domain-specific operations. Example: a general access/protocol workflow such as `QueryPie Multi Agent Seamless SSH` should become its own skill, while a runner-specific skill should reference it and focus on GitHub runner diagnostics, inventory, redaction, and operations.
+- Put environment- or organization-specific target lists, mappings, and snapshots in `references/*.md`; keep `SKILL.md` focused on durable procedure, trigger rules, safety rules, and links to the reference.
+- If the first draft combines a generic workflow and a domain-specific operation, treat a review request to separate them as a boundary correction: add the generic skill, narrow the original skill, remove duplicated procedure text from references, then update the same open PR branch.
 
 ## Workflow
 
@@ -127,6 +140,22 @@ Pick the closest existing category. Don't invent new top-level categories casual
 ## Cross-Referencing Other Skills
 
 `metadata.hermes.related_skills` unions both trees (`skills/` in-repo and `~/.hermes/skills/`) at load time. You CAN reference a user-local skill from an in-repo skill, but it won't resolve for other users who clone the repo fresh. Prefer referencing only in-repo skills from in-repo skills. If a frequently-referenced skill lives only in `~/.hermes/skills/`, consider promoting it to the repo.
+
+## Promoting Personal Skills into a Shared Skill Repository
+
+When moving a user-local or personal skill into a shared/internal repository, do not blindly mirror the original skill tree.
+
+Preferred workflow:
+
+1. Read the target repository's own skill-management guide first; its directory shape may differ from Hermes' category layout. For example, a repo may require `skills/<name>/SKILL.md` with no category subdirectory.
+2. Start from a latest-main branch/worktree before writing the shared skill.
+3. Preserve the original skill's intent and proven commands, but rewrite the body for the target audience and remove private/session-only dependencies.
+4. If the source skill contains concrete inventories, host mappings, incident findings, or other context that is useful but not the main procedure, move that material into `references/<topic>.md` and add a one-line pointer from `SKILL.md`.
+5. Keep secrets out of both `SKILL.md` and references. Runner tokens, PATs, `.env` values, private keys, cookies, and credential-like environment values should be described only as redacted metadata.
+6. Validate the resulting files for frontmatter, diff hygiene, accidental tool line-number prefixes, and conflict markers before committing.
+7. For a review-first handoff, create the PR as Draft and expect follow-up edits on the same branch rather than opening a second PR.
+
+Common pitfall: copying a personal skill's references verbatim can leave dangling links to private paths or session-specific files. Convert those links into shared repo-local `references/` files when the detail is still useful, or remove them when they are only historical noise.
 
 ## Canonical Docs + Thin Skill Wrapper Pattern
 
@@ -164,6 +193,24 @@ If the user reports that repo-local skills are not being referenced, or you disc
 5. Check `.gitignore`: some repositories ignore `AGENTS.md`. If the repo intentionally needs tracked agent guidance, stage it with `git add -f AGENTS.md` and mention that in the PR summary.
 
 Common pitfall: merely committing `.agents/skills/**` is not enough. Future agents need a tracked entry point that tells them to discover and read those repo-local skills.
+
+## Active-PR Repo-Local Skill Follow-Up
+
+When the user asks to save a repo-specific skill while you already have an open PR/worktree for the same operational change, update that same branch/PR if the skill documents the workflow introduced by that PR. Do not create a separate local-only skill or a separate PR unless the skill is unrelated to the active change.
+
+Required follow-up pattern:
+
+1. Add the skill under the repository's canonical skill root (for example `.agents/skills/<skill-name>/SKILL.md`) and match existing peer frontmatter/structure.
+2. If the new skill governs generated documentation or content, encode the repository-specific renderer/content contract directly in the skill: supported Markdown subset, frontmatter rules, locale completeness, labeling rules for incomplete/Mock-Up sections, and the exact static validation checks to run. Do not leave those rules only in the PR body or current chat.
+3. Validate the skill frontmatter and `git diff --check`.
+4. Commit the skill on the active branch and update the existing PR body to mention the new repo-local skill.
+5. Fetch/rebase onto latest `origin/main` before force-pushing, because main may have advanced while the PR was open and may already contain overlapping docs/script fixes.
+6. If rebase conflicts occur, preserve the already-merged main intent and keep the skill commit as the active PR's unique addition.
+7. Verify the remote head SHA, PR file list, and fresh check runs after push.
+
+Pitfalls:
+1. Adding a repo-local skill after the PR is already open can make `mergeStateStatus` turn `DIRTY` if another PR landed meanwhile. Treat this as normal PR hygiene: rebase/resolve before reporting the skill update as complete.
+2. Writing a repo-local skill that only says "read OpenSpec" or "update docs" is too thin when the session discovered concrete content-production rules. Capture the class-level workflow and validation contract so future agents do not repeat ad hoc inspection and labeling decisions.
 
 ## Skill Library Maintenance Shape
 

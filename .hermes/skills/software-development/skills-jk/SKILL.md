@@ -33,6 +33,7 @@ Read `references/migrated-memory-and-user-context.md` after loading this skill. 
 2. Do not treat migrated notes as a substitute for live repo verification when code, CI, routes, or deployment state may have changed.
 3. Keep new findings in this skill or a more specific existing skill for the repo/workflow.
 4. For this repo-local Hermes setup, user-facing preferences and configuration changes are repo-managed by default. Track durable config/profile files such as `.hermes/config.yaml`, `.hermes/profiles/<profile>/config.yaml`, and `.hermes/profiles/<profile>/SOUL.md`; keep secrets and runtime state such as `.env`, sessions, logs, cron output, auth/state DBs, and process files ignored.
+5. `skills-jk` is intentionally broad and may hold generic cross-repo skills, but do not import a repo-specific skill that already exists explicitly in that repository's own `.hermes/skills/`. Keep that repository's repo-local skill as the source of truth, and move only generalized, non-repo-dependent workflows into `skills-jk`.
 
 ## Verification Checklist
 

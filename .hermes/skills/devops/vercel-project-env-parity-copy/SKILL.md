@@ -15,10 +15,12 @@ Use this when a user wants one Vercel project to match another project's environ
 
 ## When to use
 
-- A new Vercel project should mirror an existing project's runtime env configuration
+- A new Vercel project should mirror an existing project's environment-variable setup
 - A target project has no env vars yet and needs parity with a reference project
 - Sensitive env vars must be copied without manually exposing them in chat output
 - A custom Vercel environment such as `staging` exists and must be handled separately from `preview`
+- Adjacent setup task: a user wants a new Vercel project for a monorepo/subdirectory app and env/DB setup is part of making the demo work. For this case, also read `references/new-vercel-monorepo-front-project.md`.
+- A Vercel Marketplace/storage resource such as Neon was created or connected and future CLI diagnosis must be possible from repository docs. For this case, also read `references/vercel-marketplace-storage-resource-diagnostics.md`.
 
 ## Key findings
 
@@ -44,6 +46,8 @@ Use this when a user wants one Vercel project to match another project's environ
 13. In projects where `staging` is a custom environment matched to `main`, `vercel env pull --environment preview --git-branch main` is a practical CLI verification that the staging deployment will see the preview value/override for that branch.
 14. When a user says `VERCEL_TOKEN` or `VERCEL_TEAM_ID` exists but `terminal()` shows it missing, check whether the export lives in an interactive shell startup file such as `~/.zshrc`. Hermes terminal calls may run non-interactive bash on macOS, so load the user's shell explicitly for read-only Vercel API audits: `zsh -ic 'python3 your_probe.py'`. Verify only booleans/lengths, never print secret values.
 
+15. When documenting a newly created Vercel Project and Marketplace/storage resource, do not leave durable identifiers only in the PR body. Record stable non-secret values in the environment README: Vercel project ID, team ID, storage resource ID/name, external provider ID, connection ID, current synced env var names, and copy/paste `vercel project inspect` / `vercel api /v10/storage/stores/<store-id>` diagnostic commands. See `references/vercel-marketplace-storage-resource-diagnostics.md`.
+
 ## Prerequisites
 
 Required env in the local shell:
@@ -57,6 +61,18 @@ Useful tools:
 - Python 3 for API scripting
 
 ## Safe workflow
+
+### 0) For a brand-new monorepo/subdirectory project, confirm app and DB readiness first
+
+If the task is to create a new Vercel project for a subdirectory app (for example only deploying `front/` from a larger repo), read `references/new-vercel-monorepo-front-project.md` before creating the project.
+
+Key rule: Vercel project creation and Git/root-directory settings can often be completed immediately, but a working demo for a Prisma/PostgreSQL app also needs a real deployed `DATABASE_URL` and usually a schema/seed decision. Do not imply the demo is working until the DB env has been configured and schema/seed steps have either run or been intentionally skipped.
+
+Ask only genuinely blocking questions:
+- existing DB URL vs new dev DB
+- which Vercel environments receive `DATABASE_URL`
+- whether the agent may run remote schema/seed commands
+- production branch when the app exists only on a feature branch rather than `main`
 
 ### 1) Inspect both projects
 

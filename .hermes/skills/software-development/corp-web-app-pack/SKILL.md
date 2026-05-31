@@ -43,6 +43,8 @@ Then read only the specific `SKILL.md` files referenced by the index that match 
 - `references/publication-author-data-location.md` — author/profile data placement and PR follow-up pattern for blog/whitepaper detail author cards.
 - `references/author-profile-image-validation.md` — investigation and hardening pattern for broken publication author profile images: resolve MDX `author` through locale YAML, verify the referenced `public/crew/*` asset and deployed raw/`/_next/image` URLs, and compare against corp-web-japan's `src/content/authors/ja.yaml` + `public/crew/*` + validation-test pattern.
 - `references/blog-mdx-translation-coverage.md` — workflow for finding and filling missing blog MDX locale files from historical corp-web-contents inventories, preserving hidden redirect contracts, protecting MDX/HTML syntax during translation, and verifying EN/KO/JA coverage parity.
+- `references/archived-tailwind-exclusion.md` — Tailwind migration planning rule for archived routes: keep `src/app/(legacy)/[locale]/archived/**` as legacy preservation/redirect targets, audit the archived index for IA completeness and stage 200s, and close archived Tailwind conversion PRs rather than treating them as migration backlog.
+- `references/metadata-title-brand-suffix-parity.md` — review pattern for `metadata.title` / Open Graph title changes when comparing `corp-web-app` against `corp-web-japan`; verify source implementation and live rendered title, and prefer source-site `Page Title | QueryPie AI` parity when explicitly requested.
 
 ## Common Pitfalls
 
@@ -55,6 +57,7 @@ Then read only the specific `SKILL.md` files referenced by the index that match 
 7. Treat localized author/profile JSON as publication content, not utility implementation. In corp-web-app it belongs under `src/content/authors/{en,ja,ko}.json`; utilities such as `composeAuthors` should import from that content path rather than keeping data under `src/utils/**/data`.
 8. During PR follow-up on resource/publication work, expect latest `main` to have renamed `src/lib/repo-content/**` to `src/lib/resources/**`. On rebase conflicts, preserve the latest-main `src/lib/resources` import paths and reapply only the PR's scoped author/rendering changes.
 9. For blog MDX missing-locale recovery, do not invent translations when the user asked for source recovery only. First exhaust historical corp-web-contents inventories and sibling/canonical publication records; only directly translate unfound content if the user explicitly changes scope to permit direct translation.
+10. For metadata title reviews in `corp-web-app`, apply the current app-level default first: ordinary page metadata should use `Page Title | QueryPie` across `metadata.title`, `openGraph.title`, and `twitter.title` when present. When `corp-web-japan` is cited, inspect the Japan source/live title as source evidence, but treat `Page Title | QueryPie AI` as an explicit parity exception rather than the default. Avoid slogan-like `QueryPie AI: Page Title` for ordinary subpages unless a documented page-family/product policy requires it.
 
 ## Verification Checklist
 

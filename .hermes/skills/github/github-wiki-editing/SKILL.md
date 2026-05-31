@@ -20,6 +20,15 @@ Use this skill when the user asks to update a GitHub wiki page, rewrite a wiki d
 
 ## Core workflow
 
+### Wiki pages based on external product research
+
+When the requested wiki page documents an external product or website (for example a competitor/product page named after a domain), do not treat the product repository as the source of truth. Research the live website and any linked public documentation first, then write the wiki page as a sourced product brief. See `references/external-product-briefs.md` for a reusable investigation flow and document template.
+- preserve the requested page name/slug exactly unless the user asks otherwise
+- separate observed facts from interpretation; label uncertainty explicitly
+- cover product positioning, core features, apparent workflow/operation model, and UI structure
+- include source links or a short source note so future readers can re-check the live site
+- for this user's QueryPie/outbound-agent wiki work, write the document body in Korean unless the user requests another language
+
 1. Confirm GitHub auth works.
 
 ```bash
@@ -44,6 +53,7 @@ Notes:
 Common page filename rule:
 - Wiki page `Sitemap` -> file `Sitemap.md`
 - Other pages usually follow the visible page name with `.md`
+- Wiki page names that include a slash can be represented as nested markdown paths, e.g. page `deployment/vercel` -> file `deployment/vercel.md`; create the parent directory in the wiki repo and commit it normally.
 
 4. If the wiki content depends on the app/site structure, read the live code first.
 
@@ -80,12 +90,16 @@ Typical git steps:
 ## Practical lessons
 
 - `gh repo view` helps confirm the main repo, but wiki editing itself is usually plain `git` against `.wiki.git`.
+- A repository can report `hasWikiEnabled: true` while `<owner>/<repo>.wiki.git` still returns `Repository not found` if the wiki git repository has not been materialized yet. Before assuming permissions are wrong, verify with `git ls-remote` over SSH/HTTPS and, if needed, have GitHub create the first wiki page through the web UI or retry after the user creates any wiki page; once the wiki repo exists, rebase the prepared local commit onto `origin/master` and push normally.
+- Important repo-context pitfall: once your shell cwd is inside the wiki clone, `gh` commands that infer the current repository (for example `gh pr list`, `gh pr view`, or even some `gh repo` operations) can target `<owner>/<repo>.wiki` instead of the product repository and fail with errors like `Could not resolve to a Repository with the name '<owner>/<repo>.wiki'`.
 - Important repo-context pitfall: once your shell cwd is inside the wiki clone, `gh` commands that infer the current repository (for example `gh pr list`, `gh pr view`, or even some `gh repo` operations) can target `<owner>/<repo>.wiki` instead of the product repository and fail with errors like `Could not resolve to a Repository with the name '<owner>/<repo>.wiki'`.
 - The same cwd trap can affect product-code inspection too: file reads/searches that use relative paths after you have `cd`'d into the wiki clone can silently hit the wiki repo (or fail with missing-path errors) instead of the product repo.
 - When you still need product-repo GitHub data or source inspection during wiki work, either run commands from the product repo checkout, pass `--repo <owner>/<repo>` explicitly for `gh`, use a terminal command with an explicit `workdir` pointing at the product repo, or use absolute product-repo file paths.
 - If the repository already has a local wiki clone that the user expects you to use, prefer that existing clone over making a fresh temp clone. Verify it is clean enough to work in, then edit there and push from there.
 - When using Hermes file-editing tools on a cloned wiki repository, prefer absolute paths over `~/...` paths and immediately re-read the file before committing. Path expansion can be inconsistent across tool contexts, so verify the final markdown from disk before `git add`.
 - Wiki repos can change remotely while you are editing. If `git push` is rejected with a non-fast-forward error, fetch the wiki remote, inspect the new remote commits, then `git pull --rebase origin <wiki-branch>` (commonly `master`) or equivalently rebase onto `origin/<wiki-branch>`, and push again. Do not force-push unless explicitly required.
+- If `gh repo view <owner>/<repo> --json hasWikiEnabled` says the wiki is enabled but both SSH/HTTPS `git ls-remote <owner>/<repo>.wiki.git` return `Repository not found`, treat this as an uninitialized wiki repository state, not proof that wiki publishing is impossible. Keep the local wiki commit/markdown ready, report the exact blocker, and when asked to recheck, retry `git ls-remote`, fetch/rebase onto the now-created wiki branch, then push and verify by recloning the wiki repo. GitHub web/curl checks against private wiki pages may still show 404; git clone/readback is the reliable verification path.
+- When a user wants a wiki page to remain maintainable, update the page's own `Writing guidelines` section, not just the content section.
 - When a user wants a wiki page to remain maintainable, update the page's own `Writing guidelines` section, not just the content section.
 - For sitemap-style docs, if the user cares about site structure readability, a path-first nested bullet list is clearer than a flat sentence-style bullet list.
 - If links must use a specific base URL, encode that rule in the document's guidelines and in every generated entry.

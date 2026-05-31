@@ -179,6 +179,12 @@ Expected result:
 main
 ```
 
+## Repo-managed Vercel deploy scripts and GitHub Actions
+
+When creating or reviewing repository-managed Vercel deploy scripts/workflows, make the workflow name human-readable in the GitHub Checks UI. Prefer a verb-first name that includes both the Vercel project and deployment target, for example `Deploy outbound-dev Preview` or `Deploy corp-web-japan Production`. This avoids ambiguous check names like `Vercel Deploy` when a repository has multiple Vercel projects or target environments.
+
+If adapting an existing repo's Vercel setup (for example copying the structure from another QueryPie web repo), preserve the class-level pattern but replace project-specific values explicitly: Vercel project name, Vercel org/team scope, project/root directory, target environment (`preview` vs `production`), and GitHub environment/secrets names. See `references/vercel-gha-deploy-workflows.md` for a concise checklist and naming examples.
+
 ## Release-branch retirement checklist
 
 After switching to `main`:
