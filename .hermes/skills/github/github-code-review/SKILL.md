@@ -284,6 +284,7 @@ When performing a code review (local or PR), systematically check:
 - Does the code do what it claims?
 - Edge cases handled (empty inputs, nulls, large data, concurrent access)?
 - Error paths handled gracefully?
+- When a PR adds automatic fallback/default generation for an optional user input, verify the fallback only applies to the intended implicit/default path. Explicit user-provided identifiers (slugs, names, keys, addresses) should usually keep their validation/error semantics instead of being silently rewritten to a random or adjusted value unless the spec explicitly says so.
 
 ### Security
 - No hardcoded secrets, credentials, or API keys
@@ -304,6 +305,7 @@ When performing a code review (local or PR), systematically check:
 - New code paths tested?
 - Happy path and error cases covered?
 - Tests readable and maintainable?
+- For source-level contract tests that build regexes dynamically in JavaScript/TypeScript, verify the regex string actually preserves backslashes. Prefer regex literals for static patterns and `new RegExp(String.raw`...`)` or double-escaped strings for dynamic model/path names; plain template literals like ``new RegExp(`\\s`)`` can silently become `s`/backspace-style patterns and fail only in CI.
 
 ### Performance
 - No N+1 queries or unnecessary loops

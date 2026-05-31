@@ -15,3 +15,6 @@ On this user's macOS environment, oh-my-codex (OMX) v0.18.5 is installed globall
 Local Codex on this workstation is configured to discover skills-jk via symlinks: `~/.agents/skills/skills-jk-hermes -> /Users/jk/workspace/skills-jk/.hermes/skills` and `~/.agents/skills/skills-jk -> /Users/jk/workspace/skills-jk/skills`; verify with `codex debug prompt-input 'noop'` in a new Codex session.
 §
 In the outbound-agent repo, fixture and seed input files should prefer YAML over JSON for human readability. JSON is acceptable when YAML is difficult due to loader/parser compatibility, external tool constraints, strict JSON schema validation, or preserving JSON source data; note the exception reason in spec/task/PR body.
+
+§
+In outbound-agent Tencent VM container deployments, Next.js Gmail OAuth `request.nextUrl.origin` can resolve to `https://localhost:3000` when `HOSTNAME=127.0.0.1` is present in `/etc/outbound-agent/front.env`; set environment-specific `GMAIL_OAUTH_REDIRECT_URI` explicitly (Seoul/Tokyo callback host) and restart `outbound-front` to generate the correct Google redirect URI.

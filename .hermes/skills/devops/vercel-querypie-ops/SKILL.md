@@ -33,6 +33,8 @@ For `querypie/outbound-agent` outbound-dev redeploy/reset/smoke work, also read 
 
 For `querypie/outbound-agent` Gmail OAuth / Gmail actual-send readiness setup across `dev-vercel`, `dev-seoul`, or `dev-tokyo`, also read `references/outbound-gmail-oauth-env-setup.md`. It captures the safe secret-handling pattern, Vercel preview-env API workaround, VM `/etc/outbound-agent/front.env` update sequence, and issue-evidence comment shape.
 
+For sensitive Vercel environment variable replacement, rotation, or OAuth client secret updates, read `references/vercel-sensitive-env-replacement.md`. It covers the remove/add pattern for `sensitive` env vars, post-change deployment requirements, secret-exposure rotation, and key/target/type verification without printing values.
+
 ## Common Pitfalls
 
 1. Do not copy repo-specific facts back into global memory unless they are broadly reusable across repositories.
