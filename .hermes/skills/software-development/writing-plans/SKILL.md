@@ -132,44 +132,53 @@ git commit -m "feat: add specific feature"
 
 When the user asks for a plan, planning document, migration plan, audit plan, or checklist, treat the deliverable as the plan itself unless they explicitly ask for implementation.
 
-- Do not create implementation files, helper modules, data migrations, asset renames, or production code just because the plan identifies them as future work.
+- Do not create implementation files, helper modules, data migrations, asset renames, fixture rewrites, schema changes, seed-code changes, or production code just because the plan identifies them as future work.
 - It is acceptable to inspect code, run read-only/browser verification, and update the planning document.
 - If the user resolves an open decision during planning, rewrite the plan so the resolved choice appears as a concrete directive in the relevant step/checklist, rather than leaving a separate “decision needed” section.
+- If the user asks for questions to refine the scenario, include a dedicated open-questions section in the document and repeat the questions in the final reply.
 - If implementation accidentally starts and the user corrects the scope, revert/remove the out-of-scope implementation artifacts and continue with documentation only.
 
 ### UI design documentation before implementation
 
 When the user asks for UI 구성/화면 구성 설계안을 문서로 먼저 작성하고 later implementation should follow it, keep the PR documentation-only and write manual-style Markdown under the requested docs directory before any UI code.
 
-Recommended split for product UI design docs:
+When writing such UI docs:
 
-- `README.md` in the UI docs directory — writing guidelines, Draft/status rules, doc taxonomy, scope boundaries, and common page/widget doc templates.
-- `screen-overview.md` or equivalent — whole-product layout, navigation, page groups, shared flows, and cross-screen status principles.
-- `common-widgets.md` or equivalent — reusable widgets such as user profile, workspace switcher, status badges, evidence panels, timelines, and action bars.
-- Separate page-group docs — for example `general-pages.md` for ordinary SaaS/admin screens and a domain-specific doc such as `b2b-sales-pages.md` for the product's core workflow screens.
+- Use English file names and Korean document content if that is the repository convention.
+- Focus on what the screen contains, how the user uses it, and which existing documents/source files define the current state.
+- Include current-state inventory, target structure, implementation order, acceptance criteria, and open questions.
+- Do not create code files, tests, seed data, or migrations unless explicitly asked.
 
-For each screen/widget, mark `상태: Draft` near the top or per section as requested, and write from a user's manual perspective: purpose, primary users, entry conditions, visible sections, actions, empty states, and warning/error states. Ground the chosen screens in the existing product/pipeline docs, not generic SaaS guesses. If the product has explicit MVP exclusions (for example budgets/cost management), mention them only as excluded scope rather than designing those screens.
+### Domain model / data pipeline planning
 
-### Keep iterative planning documents internally consistent
-
-When the user refines a planning document by correcting scope, workflow boundaries, or domain entities, treat that as a document-wide model change rather than a local wording edit.
-
-Update every dependent section in the same pass:
-
-- overview / goals / non-goals
-- pipeline or workflow diagrams
-- entity definitions and field lists
-- phase ordering and implementation PR sequence
-- UI screen list and review flow
-- metrics / acceptance criteria
-- open questions and final recommendation
-
-Common product-planning patterns from early MVP design work:
+For domain/data-pipeline planning documents, keep entity ownership boundaries explicit:
 
 - If the user says the short-term goal is “make a working product” or “verify functionality,” move operational features such as budget/cost management out of MVP scope unless they are necessary for the core flow. Remove stale fields like `budgetLimit` from model examples, not only prose.
 - If the user separates discovery from execution, model them as distinct pipeline segments with an explicit handoff state. For outbound products, discovery should produce a qualified lead/prospect; actual contact, response ingestion, and conversion handling should live in a separate outreach/response pipeline.
 - If the user identifies reusable domain concepts, make them independent entities before campaign/workflow setup. For example, seller-side Company, Product, and Sales Person should be configured separately and referenced by Campaign rather than embedded as campaign-only fields.
 - When renaming or splitting entities, update UI screens, job names, statuses, PR plan titles, seed data, and final “recommended flow” bullets so no stale terminology remains.
+
+### Seed/demo scenario feature documents
+
+When documenting default local/dev seed data, demo fixtures, or scenario population rules, inspect the current seed docs, fixture JSON, seed entrypoint, and relevant schema before writing. Reconcile the new scenario with existing documents rather than silently replacing them. Keep the PR documentation-only unless the user explicitly asks to change fixture/schema/seed code.
+
+For feature documents that define demo scenarios:
+
+- Preserve the distinction between canonical demo scenario requirements and implementation fixture files.
+- If the user asks to separate human/implementation fixture examples, prefer small YAML examples under an explicit examples/fixtures directory over embedding large JSON blobs in the main docs.
+- When creating future fixture file names, use `demo-<entity>.local.yaml` style names when the docs are about local/dev demo scenarios.
+- Keep test fixtures separate from app seed fixtures unless the user explicitly says the app seed should include the same data.
+- Call out whether a value is canonical customer-facing state, implementation fixture detail, or test-only helper data.
+
+### E2E planning boundaries
+
+When writing E2E plans, explicitly classify the test type before defining setup data:
+
+- **Demo scenario E2E**: should prove users can create/setup the scenario through the UI/API surfaces; do not silently pre-seed the core scenario state just to make the test pass.
+- **Feature regression E2E**: may use setup helpers or fixtures when the purpose is a narrow regression, not proving the demo setup journey.
+- **Provider integration E2E**: should remain separate when real/sandbox external credentials or delivery providers are involved.
+
+For demo scenario based E2E plans, allow fixtures only for bootstrap concerns: login users, local/test DB safety reset, deterministic run IDs, and small upload files under a test fixtures directory. State explicitly that the plan must not add the demo Team/Company/Product/Sales Person/Campaign/Audience/Message state to app seed fixtures and must not rely on direct DB inserts while the browser merely reads the result. Use a per-run team/workspace slug as the isolation boundary, include cleanup/safety guard requirements, and add OpenSpec follow-up candidates for fixture boundaries and test DB safety.
 
 ### Planning framework adoption plus first usage
 

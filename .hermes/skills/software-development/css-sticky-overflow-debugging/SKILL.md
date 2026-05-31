@@ -76,6 +76,25 @@ Prefer the smallest safe fix:
 2. if overflow is needed for some other child, move that overflow rule down to a narrower wrapper instead of the page root
 3. keep the sticky component itself unchanged if it already works on the reference page
 
+## Sticky sidebar footer pattern
+
+Use this when the user asks for a left-sidebar footer/account area to remain visible even while the main content scrolls.
+
+UI terminology:
+- call the behavior a **sticky sidebar footer**, **sticky account area**, or **viewport-pinned user account area**;
+- CSS implementation is usually `position: sticky` on the sidebar/container, not `position: fixed` on the account box, unless the sidebar is outside the normal layout flow.
+
+Implementation pattern:
+1. Make the sidebar the viewport-height sticky column:
+   - `.sidebar { position: sticky; top: 0; height: 100vh; min-height: 100vh; display: flex; flex-direction: column; }`
+2. Make the navigation/content area the scrollable region:
+   - `.sidebar > nav { min-height: 0; flex: 1 1 auto; overflow-y: auto; }`
+3. Keep the footer/account area outside the scrollable nav and non-shrinking:
+   - `.sidebar-footer { flex: 0 0 auto; margin-top: auto; }`
+4. In responsive/mobile layouts where the sidebar becomes a normal top section, explicitly reset sticky/height and restore normal overflow.
+
+Pitfall: do not put `overflow-y: auto` on the whole sidebar if the account area must stay visible. Put overflow on the nav area only, otherwise the footer scrolls away with the navigation.
+
 ## Verification
 After the fix:
 - re-check computed styles in the browser

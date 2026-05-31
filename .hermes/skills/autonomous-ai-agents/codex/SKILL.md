@@ -162,6 +162,16 @@ terminal(command="gh pr comment 86 --body '<review>'", workdir="~/project")
 2. **Git repo required** — Codex won't run outside a git directory. Use `mktemp -d && git init` for scratch
 3. **Use `exec` for one-shots** — `codex exec "prompt"` runs and exits cleanly
 4. **`--full-auto` for building** — auto-approves changes within the sandbox
-5. **Background for long tasks** — use `background=true` and monitor with `process` tool
+5. **Background for long tasks** — use `background=true` and monitor with `poll`/`log`, be patient with long-running tasks
 6. **Don't interfere** — monitor with `poll`/`log`, be patient with long-running tasks
 7. **Parallel is fine** — run multiple Codex processes at once for batch work
+
+## Large Refactor Follow-up Hygiene
+
+When using Codex as an assistant on a large existing PR branch or broad refactor:
+
+1. Treat Codex output as a candidate patch, not as final state. After Codex exits or is killed, immediately inspect `git status --short --branch`, `git log --oneline origin/main..HEAD`, and `git diff --stat` yourself before reporting success.
+2. If Codex streams a huge unified diff or appears stuck printing diffs for several minutes, stop the process and inspect the filesystem state. Do not wait passively for diff output when the useful edits may already be applied.
+3. Even if the prompt says “do not commit,” verify whether Codex created local commits. If it did, review the commit list and squash/reset/recommit as appropriate for the user's PR hygiene preferences before pushing.
+4. Before updating an existing PR branch, run `gh pr view <branch-or-number>` to detect whether a PR already exists for that branch. If it exists, update that PR rather than opening a duplicate.
+5. For broad schema/domain refactors, require a post-Codex negative scan for removed concepts (imports, helper names, old field names, UI labels) and a schema/source scan that proves the removed fields are absent from the intended model set.

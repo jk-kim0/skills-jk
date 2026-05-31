@@ -326,6 +326,21 @@ pytest tests/test_module.py::test_regression -v
 pytest tests/ -q
 ```
 
+#### Next.js + Prisma auth cookie schema-migration 500s
+
+When a deployed Next.js App Router app returns 500 only for some previously authenticated users after a user-id/schema migration, inspect stale session cookies before changing route code. If Vercel logs show Prisma `P2007` / `invalid input syntax for type uuid` from `prisma.user.findUnique({ where: { id } })`, reproduce with the exact cookie value and add a guard that rejects invalid session-cookie id formats before the typed DB query. Treat invalid session ids as unauthenticated state and verify the deployed URL redirects/renders login rather than 500. See `references/nextjs-prisma-session-cookie-schema-migration.md`.
+
+#### User-facing identifier leakage in callback/status UI
+
+When a bug report shows a UUID, database id, or opaque internal id in a toast/banner/status message after an OAuth callback or other redirect-return flow, trace both sides of the return contract before fixing copy:
+
+1. Inspect the callback/route that builds the redirect URL and identify which query parameters carry status, reason/error, and success metadata.
+2. Inspect the destination page/component that turns those query parameters into user-facing text.
+3. Do not overload a generic error-oriented parameter such as `reason` with a success identifier; add a semantic success parameter such as `senderEmail`, `accountEmail`, or another user-comprehensible label.
+4. Use the domain display identifier in the UI (email address, name, slug, label) and keep UUID/database ids for lookup, relations, logs, and audit links only.
+5. Add a regression test at the redirect boundary that asserts the success location contains the user-facing identifier and does not contain the internal id.
+6. If the product has UI guides or OpenSpec-style contracts, update them with the broader rule so future implementations do not reintroduce internal ids as labels.
+
 #### URL-source coverage for sitemap and public-route E2E
 
 When a sitemap/stage URL-health E2E passes but users report first-party 404s, first verify whether the broken URL was actually part of the test input. A test that only checks sitemap `<loc>` entries is a sitemap health check, not a whole-site dead-link check. It can miss legal/pricing aliases, app handoff routes, legacy publication URLs, and first-party MDX/TSX/JSON links omitted from the sitemap.

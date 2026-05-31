@@ -92,6 +92,18 @@ Vague name, tests mock not real code.
 - Real code, not mocks (unless truly unavoidable)
 - Name describes behavior, not implementation
 
+### Contract/documentation/UI policy changes
+
+TDD also applies when the requested change is a product policy, schema contract, OpenSpec/docs update, or UI copy rather than a new runtime function.
+
+Use a lightweight source/contract test when it is the project's established pattern:
+- Assert schema constraints that encode the policy, e.g. relation exists, field is not `@unique`, or fallback logic is absent.
+- Assert canonical docs/specs contain the accepted policy when those docs are treated as product contract.
+- Assert UI source exposes the required user-facing guidance when browser verification is unnecessary or too heavy for the change.
+- Watch the source/contract test fail first, then update docs/UI/schema.
+
+Pitfall: JSX/MDX/text formatting often inserts line breaks. Prefer regexes with `\s+` for multi-word UI copy assertions instead of exact `toContain(...)` strings that become brittle after wrapping.
+
 ### Verify RED — Watch It Fail
 
 **MANDATORY. Never skip.**
