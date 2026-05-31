@@ -170,13 +170,23 @@ Preferred shape:
   - optional pointers to related skills, without restating their procedures
 - Put reusable output formats/templates in one `references/<template-or-format>.md` file when the format is used by more than one prompt/doc/skill.
 - Do not duplicate scripts, taxonomy tables, viewport lists, reporting formats, verification checklists, done criteria, examples, or step-by-step execution rules in both the docs page and the skill.
+- For product/technical/operational decisions that include rationale, alternatives, and future implementation impact, pick one canonical decision log document for the change (for example `openspec/changes/<change-id>/design.md`, `docs/adr/<topic>.md`, or a repo-standard ADR path). Feature design docs, implementation plans, handoff docs, issues, and repo-local skills should only link to that decision log or carry a very short current-conclusion summary; do not copy the same decision table into multiple places.
 - If a prompt/runbook must remain self-contained enough for cron/autonomous execution, prefer embedding the execution procedure in the canonical runbook and making the skill point to it, rather than copying the same procedure into every required skill.
 - If the reviewer says the skill and docs are still duplicative, remove more from the skill rather than arguing that the remaining duplicate is only a summary.
 - If the skill needs session-specific or deeply technical supporting detail that is not appropriate for human-facing docs, place it under `references/` and add a one-line pointer from `SKILL.md`.
+- For status inventory documents (for example `docs/feature-status.md`) where the user wants the document to stay focused on the actual list/table, move durable authoring rules, source-discovery order, evidence checks, status definitions, and review procedures into a repo-local class-level skill. Leave the inventory doc with only a short purpose/scope plus a pointer to that skill; do not leave extracted sections behind as “related docs”, “review process”, or long definitions.
 
-Use this pattern especially after a reviewer notes duplication between a docs guide and a skill. Make the docs page complete, then reduce the skill to a durable trigger/reference layer. For repo-local cron/runbook work, explicitly document the source-of-truth split in the canonical doc (for example: runbook owns schedule/procedure; `references/` owns report template; `SKILL.md` files are thin indexes).
+Use this pattern especially after a reviewer notes duplication between a docs guide and a skill, or asks for non-inventory guidance to be split out of an inventory/status document. Make the source-of-truth split explicit, then remove the duplicated guidance from the other artifact rather than keeping a summary that still competes with the skill. For repo-local cron/runbook work, explicitly document the source-of-truth split in the canonical doc (for example: runbook owns schedule/procedure; `references/` owns report template; `SKILL.md` files are thin indexes).
 
 ## Repo-Local Skills Need Agent Guidance Entry Points
+
+When a user asks to create or update a "repo-local skill", treat it as checked-in repository source, not as a user-local runtime skill.
+
+1. Read the repository guidance first (`AGENTS.md`, `CLAUDE.md`, `.cursorrules`, etc.) to find the canonical skill root. Common patterns include `.agents/skills/<name>/SKILL.md` with `.hermes`/`.codex` symlinks pointing at `.agents`.
+2. Obey the repository's branch/worktree policy. If guidance says changes must be made under repo-local `.worktrees/`, create a fresh latest-main worktree and write the skill there instead of modifying the root checkout.
+3. Use file tools (`write_file` / `patch`) for the checked-in `SKILL.md`; do not use `skill_manage(action='create')`, because that creates a user-local skill outside the repo.
+4. Validate frontmatter and size just like bundled skills, then commit the repository change. If the repo workflow expects PRs for source changes, push and open/update a PR rather than leaving only a local commit.
+5. In the final report, include the exact skill path, branch/commit/PR URL if created, and note that the current session may not auto-discover the newly added repo-local skill until a fresh session or explicit path read.
 
 When a repository contains checked-in skills under a non-Hermes runtime path such as `.agents/skills/<name>/SKILL.md`, do not assume the current agent runtime will auto-discover or `skill_view` them.
 
@@ -241,15 +251,18 @@ Maintenance pitfall:
 - **Small fix (typo, added pitfall, tightened trigger):** `skill_manage(action='patch', name=..., old_string=..., new_string=...)` works fine on in-repo skills.
 - **Major rewrite:** `write_file` the whole SKILL.md. `skill_manage(action='edit')` also works but requires supplying the full new content.
 - **Adding supporting files:** `write_file` to `skills/<category>/<name>/references/<file>.md`, `templates/<file>`, or `scripts/<file>`. `skill_manage(action='write_file')` also works and enforces the references/templates/scripts/assets subdir allowlist.
+- **When the user cites a prior issue/PR/report as evidence that a skill output was hard to read, inspect that artifact first and patch the governing skill's reusable template/checklist, not just the one artifact. Encode the missing field as a required template column, evidence rule, pitfall, and verification checklist item when all four help prevent recurrence.
 - **Always commit** the edit — in-repo skills are source, not runtime state.
 
 ## Common Pitfalls
 
 1. **Using `skill_manage(action='create')` for an in-repo skill.** It writes to `~/.hermes/skills/`, not the repo tree. Use `write_file` for in-repo creation.
 
-2. **Bulk-generating skill files without Hermes file writes.** When creating many `SKILL.md` and `references/*` files from a script, call `hermes_tools.write_file()` from `execute_code` (or the normal `write_file` tool) for every intended repository write, then verify with `read_file` / `search_files`. Do not rely on ad hoc direct filesystem writes in a helper script without an immediate tool-backed verification pass; if verification shows no files, rerun through `write_file` rather than continuing from assumed state.
+2. **Leaving a reusable workflow trapped in one repo after the user asks to generalize it.** If a workflow was first authored as a repo-local `.agents/skills/<name>/SKILL.md` and the user says to add it to `skills-jk` or make it general-purpose, create a class-level shared skill under the appropriate `.hermes/skills/<category>/<name>/` directory, remove or rewrite repository-specific paths, product names, issue examples, and project-only assumptions, and keep only adaptable examples. Do not simply copy the repo-local skill verbatim into the shared library.
 
-3. **Leading whitespace before `---`.** The validator checks `content.startswith("---")`; any leading blank line or BOM fails validation.
+3. **Bulk-generating skill files without Hermes file writes.** When creating many `SKILL.md` and `references/*` files from a script, call `hermes_tools.write_file()` from `execute_code` (or the normal `write_file` tool) for every intended repository write, then verify with `read_file` / `search_files`. Do not rely on ad hoc direct filesystem writes in a helper script without an immediate tool-backed verification pass; if verification shows no files, rerun through `write_file` rather than continuing from assumed state.
+
+4. **Leading whitespace before `---`.** The validator checks `content.startswith("---")`; any leading blank line or BOM fails validation.
 
 3. **Description too generic.** Peer descriptions start with "Use when ..." and describe the *trigger class*, not the one task. "Use when debugging X" > "Debug X".
 

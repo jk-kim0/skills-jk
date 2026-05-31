@@ -29,6 +29,10 @@ Read `references/migrated-memory-and-user-context.md` after loading this skill. 
 
 For Vercel CLI local-link problems or command-safety questions, read `references/vercel-cli-local-link-and-command-safety.md`. It captures the durable pattern: a bare `vercel` command deploys, non-deploy operations must use explicit subcommands, and `vercel link` side effects should be kept local via `.git/info/exclude` unless the repo intentionally tracks them.
 
+For `querypie/outbound-agent` outbound-dev redeploy/reset/smoke work, also read `references/outbound-dev-db-reset-and-smoke.md` before running workflows or diagnosing smoke failures.
+
+For `querypie/outbound-agent` Gmail OAuth / Gmail actual-send readiness setup across `dev-vercel`, `dev-seoul`, or `dev-tokyo`, also read `references/outbound-gmail-oauth-env-setup.md`. It captures the safe secret-handling pattern, Vercel preview-env API workaround, VM `/etc/outbound-agent/front.env` update sequence, and issue-evidence comment shape.
+
 ## Common Pitfalls
 
 1. Do not copy repo-specific facts back into global memory unless they are broadly reusable across repositories.

@@ -103,3 +103,5 @@ For skills-jk main-update/local-change sweep requests, the user expects duplicat
 When the user corrects a misunderstood goal/scope or expresses frustration about repeated wrong implementation direction, they expect an explicit acknowledgement and corrected plan before further code changes.
 §
 For the skills-jk repo-local Hermes setup, the user wants Hermes preferences and settings changes, including profile configuration, to be tracked in git rather than left only as local runtime state.
+§
+When controlling Chrome via DevTools/CDP, user prefers keeping a single attached browser connection/session alive for continued control instead of reconnecting repeatedly for each action.

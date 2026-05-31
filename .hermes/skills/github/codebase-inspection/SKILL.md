@@ -298,6 +298,156 @@ Pitfalls:
 - Do not recommend changing CI to a major the deployment platform cannot run.
 - Do not confuse transitive dependency `engines` in lockfiles with this repo's own Node contract.
 
+## 0F. Sibling-Repo Configuration Precedent Audit
+
+When the user points to a sibling repo as precedent for provider setup, GCP/OAuth, 1Password, deployment secrets, or similar configuration, treat it as a codebase/documentation inspection task with a secret-safety boundary.
+
+1. Confirm both repo roots and branch/status before drawing conclusions.
+2. Search the sibling repo for exact provider names, account/project identifiers, setup docs, deploy env examples, and repo-local skills/context directories.
+3. Read the authoritative docs/config snippets rather than only grep output. For OAuth/GCP work, inspect consent/auth-platform docs, redirect URI patterns, scopes, env var names, and deployment examples.
+4. If a credential manager is involved, verify only accessibility and field structure unless the task explicitly requires runtime injection. Report item title/field labels/presence/length, not secret values.
+5. When documenting findings in the target repo, separate: precedent copied from the sibling repo, decisions still required for the target product, and secret retrieval procedures. Never commit credentials, refresh tokens, OAuth client secrets, or generated encryption secrets.
+6. If adding a repo-local skill, keep it class-level for the recurring procedure (for example provider credential access), and point target docs to the skill rather than embedding secret-handling commands everywhere.
+
+Useful answer shape:
+```text
+참조 근거:
+- <sibling path>: <what it proves>
+
+대상 repo 정리:
+- <target doc/skill paths>
+
+Secret safety:
+- <what was verified without revealing values>
+```
+
+Pitfalls:
+- Do not equate a sibling repo's OAuth client or consent copy with the target product's final production setup; mark reuse vs target-specific decisions explicitly.
+- Do not paste credential-manager `--reveal` output into docs, PRs, issues, or chat.
+- Do not encode an environment-specific credential item as a global memory fact; keep it in repo docs/skills.
+
+## 0G. Implementation Status Audit
+
+When the user asks to report the implementation status of a feature, do a code-backed status audit rather than summarizing design docs alone.
+
+1. Confirm the active repo and branch first:
+   ```bash
+   pwd
+   git status --short --branch
+   ```
+2. Search for the feature across code, schema, API routes, UI routes, tests, and docs. Prefer targeted searches for domain terms plus provider/library names.
+3. Read the actual implementation files, not just planning docs. For a web app feature, inspect at least:
+   - persistence schema/models
+   - service/domain logic
+   - route handlers/server actions
+   - UI entry points
+   - focused unit/API/e2e tests
+   - README or public docs that state deployment/runtime boundaries
+4. Separate status into clear buckets:
+   - implemented and reachable through product flow
+   - implemented only as lower-level service/adapter code
+   - mocked/fake-local/test-only behavior
+   - documented future/out-of-scope work
+   - missing UI/API/onboarding/configuration surface
+5. Run a narrow focused test command when it is cheap and directly relevant. Do not run repo-wide slow verification unless the user explicitly asks.
+6. If the audit is being used to refresh a GitHub issue or planning tracker, base the refresh on latest `origin/main` rather than an old local branch. A temporary detached worktree at `origin/main` is a safe pattern for read-only inspection; remove it after updating the issue/tracker. Keep the root checkout unchanged unless the user asked for workspace cleanup or branch updates.
+7. For provider-delivery features such as email sending, explicitly distinguish: configured credentials/docs, OAuth/connect routes, sender identity listing, user-selectable sender UI, approval-time sender locking, fallback/test sender paths, and actual external-provider smoke evidence. A feature can have schema/services/tests and still be incomplete if onboarding, selection, locking, or live-send evidence is missing.
+8. For docs or planning PR follow-ups that ask to make a seed/demo scenario include “all assets needed for email sending,” audit both the canonical document and the current implementation/schema/seed surface before editing. Search for domain models and fixture creation paths such as `EmailTemplate`, `EmailTemplateVersion`, `Message`, `SendRun`, `SendAttempt`, `TestEmailEventLedger`, `SuppressionEntry`, `EmailEngagementEvent`, `Response`, `HumanFollowUpTask`, recipient-preview/snapshot fields, and sender credential/status models. Then document missing assets as seed acceptance criteria, not optional backlog, and state that reviewers should not need to add fixture/DB rows manually to run the demo flow.
+9. When converting a GitHub issue / living blocker document into a feature-status doc, do not copy the issue body as-is. Re-audit latest `origin/main` and reclassify stale blockers: items that landed since the issue was written become current implementation evidence, while live provider smoke or external credential evidence can remain the conservative `In-Progress` boundary.
+9. For feature-status docs that sit beside feature plans (for example `docs/feature/status-*.md`), add or update the local feature index when one exists so the status document is discoverable, but keep the status doc focused on implementation state and promotion criteria rather than a long task narrative.
+10. If an aggregate status document already contains detailed rows for the same feature, avoid maintaining two competing sources of detail. Move or keep the detailed inventory in the per-feature status document, and replace aggregate rows with concise links/summaries that point to it.
+11. Report concise evidence with exact paths and the current behavior. Avoid overstating capability: code for an adapter is not the same as a complete user-facing production flow.
+
+See `references/feature-status-doc-authoring.md` for a reusable per-feature status-document workflow, suggested template, and duplication pitfalls.
+
+Useful answer shape:
+```text
+결론: <one-line status>
+
+구현됨:
+- <capability> — <path/evidence>
+
+부분 구현/제한:
+- <capability> — <why not complete>
+
+미완성:
+- <missing surface>
+
+검증:
+- <command> — <result>
+```
+
+Pitfalls:
+- Do not equate design/proposal documents with implementation.
+- Do not say a feature is production-ready just because unit tests cover a provider adapter.
+- For provider integrations, distinguish credential/config support, OAuth/onboarding UI, actual provider calls, and fake/test sender paths.
+
+## 0H. UI Placement / Product Rationale Audit
+
+When the user asks why a UI entry point exists in a certain product area (for example, a settings button that appears to belong under a different entity), answer from implemented code plus canonical design decisions, not from naming intuition alone.
+For provider-backed sender settings, be especially careful to separate a Team-scoped credential/sender-identity registry from the Sales Person business persona and sender selection; see `openspec-decision-management` reference `references/outbound-agent-sales-person-gmail-sender-decision.md` for the Outbound Agent pattern.
+
+1. Confirm repo/branch and inspect the exact route/page that renders the questioned UI copy.
+2. Locate the target route/action and read what it actually manages: domain entity fields, provider credentials, registry/listing, OAuth/connect flow, admin policy, etc.
+3. Search docs/specs/OpenSpec decisions for the route, copy, and domain terms. Treat accepted decisions as intent evidence, but distinguish them from current UX quality.
+4. Compare product concepts explicitly:
+   - primary domain owner (for example Sales Person decides the From persona/address)
+   - backing operational registry (for example Team-scoped Gmail credential/sender identity)
+   - actual send-time resolution/locking behavior in service code
+5. If the UI is technically intentional but product-confusing, say both: “this exists because …” and “the confusion is valid because …”. Do not defend the implementation as correct merely because tests/specs assert it.
+6. If the user's follow-up clarifies or changes the product policy, treat it as a Product Owner decision: update the canonical design/spec record first, then the UI/schema/source tests that encode the policy.
+7. When applying a small follow-up in an already-active PR worktree, check for unrelated dirty files before committing. Stage only the files that belong to the follow-up and explicitly report any unrelated local changes left uncommitted.
+8. Recommend a naming/navigation cleanup in product terms, such as moving the main CTA to the domain entity screen or renaming an admin registry to avoid conflicting with the entity setting.
+
+Useful answer shape:
+```text
+결론: <why it is there / whether it is intentional>
+
+현재 구현:
+- <route/copy> → <target and behavior>
+- <service/schema evidence> → <actual product boundary>
+
+설계 근거:
+- <doc/spec path> → <accepted decision>
+
+제품 판단:
+- <what belongs to entity screen>
+- <what belongs to team/admin registry>
+- <recommended cleanup>
+```
+
+Pitfalls:
+- Do not answer only from the live page label; inspect both route code and design/spec records.
+- Do not blur “credential/connection inventory” with “business sender persona”. If they differ, name the two layers clearly.
+- Do not overstate that all settings belong in one place when the code has separate send-time binding and OAuth/credential ownership boundaries.
+
+## 0I. Domain Ownership Boundary Audit
+
+When a user states that a domain concept or attribute must exist only on one owning entity (for example Team-only market/country/language) and asks whether other entities still expose it, treat it as a repo-wide ownership-boundary audit across implementation, docs, and UI design.
+
+1. Confirm the active repo/branch and, for PR follow-up after a merge, start from the latest main or rebase the active PR worktree before editing.
+2. Identify the canonical owner and all forbidden aliases/legacy names. Include synonyms and older field names, not just the exact current term (for example `country`, `language`, `market`, `targetMarket`, `locale`, “Market”, “국가”, “언어”).
+3. Inspect persistence/schema and API contracts first. Verify non-owner models, DTOs, form schemas, seed data, fixtures, and tests do not define or accept the forbidden fields.
+4. Inspect UI sources and design docs for non-owner display, selection, or input affordances. Remove stale copy that tells users to choose the attribute on child entities such as Campaign, Audience, Product, Sales Person, Contact List, or Template when the owner is Team.
+5. Update canonical requirements/spec docs to state the boundary positively and operationally: the concept belongs only to the owner; partitioning by that concept is achieved by creating separate owner entities, not by configuring child entities.
+6. Use targeted searches after edits to prove the remaining hits are either owner-scoped implementation or the new requirement text itself. Do not rely on a single grep; scan both code and docs/design paths.
+7. For a fuller checklist and report template, see `references/domain-ownership-boundary-audit.md`.
+8. Commit only the files relevant to the boundary cleanup and report:
+   - canonical requirement/spec paths updated
+   - implementation paths verified or changed
+   - stale UI/form/design references removed
+   - remaining search hits and why they are acceptable
+
+Useful search shape:
+```bash
+rg -n "country|language|targetMarket|\bmarket\b|Market|국가|언어" prisma src docs openspec tests
+```
+
+Pitfalls:
+- Do not stop after confirming the database schema. Stale design docs and form copy can still instruct users to configure the attribute on the wrong entity.
+- Do not replace child-entity fields with inherited child fields unless the user asked for that. For a strict ownership boundary, child entities should use the owner context implicitly.
+- Do not leave ambiguous phrasing like “Campaign market” when the actual product rule is “Campaign belongs to a Team, and Team defines market”.
+
 ## 1. Basic Summary (Most Common)
 
 Get a full language breakdown with file counts, code lines, and comment lines:
