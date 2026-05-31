@@ -21,6 +21,34 @@ tccli cvm DescribeInstances \
 
 Avoid `tccli configure list` for routine discovery because it can print SecretId and SecretKey.
 
+## Adding missing tags
+
+Tencent Cloud `tag TagResources` can associate new tag keys with a CVM resource. In the current `tccli` version used on the user's workstation, `--cli-input-json` must point to a `file://` JSON document; inline JSON is rejected.
+
+```bash
+cat >/tmp/cvm-tags.json <<'JSON'
+{
+  "ResourceList": [
+    "qcs::cvm:ap-seoul::instance/ins-..."
+  ],
+  "Tags": [
+    {"TagKey": "AutoShutdown", "TagValue": "false"},
+    {"TagKey": "Environment", "TagValue": "dev-seoul"},
+    {"TagKey": "Owner", "TagValue": "Jk"},
+    {"TagKey": "LastUpdatedAt", "TagValue": "2026-05-30T05:20:01Z"}
+  ]
+}
+JSON
+
+tccli tag TagResources \
+  --region ap-seoul \
+  --cli-input-json file:///tmp/cvm-tags.json
+```
+
+If a key is already present and only the value changes, prefer `UpdateResourceTagValue` below.
+
+Observed Tencent reserved tag-key pitfall: `Project` and `project` were rejected with `InvalidParameter.ReservedTagKey` in the outbound-agent Tencent Cloud account. Do not assume those keys are usable; verify before documenting or applying them.
+
 ## Updating an existing tag value
 
 Tencent Cloud `tag UpdateResourceTagValue` updates a tag key already associated with a resource. The resource parameter is a QCS six-segment resource string:

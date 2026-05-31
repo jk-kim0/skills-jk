@@ -10,7 +10,17 @@ Codex CLI 0.133.0 discovers skill directories exposed through symlinks under:
 $HOME/.agents/skills
 ```
 
-For the `skills-jk` repository, the default recommended setup is:
+Codex also discovers repo-local `.agents/skills` directories between the repository root and the current working directory. For repository-specific shared agent context, prefer this source-controlled layout:
+
+```bash
+mkdir -p .agents/skills/<repo-skill> .hermes .codex
+ln -sfn ../.agents/skills .hermes/skills
+ln -sfn ../.agents/skills .codex/skills
+```
+
+This lets Codex discover `.agents/skills` directly while Hermes can discover the same skills when launched with `HERMES_HOME=$PWD/.hermes`. Keep `.agents/skills` as the source root; do not copy the same skill into separate Hermes and Codex trees.
+
+For the `skills-jk` repository, the default global setup is still:
 
 ```bash
 mkdir -p ~/.agents/skills

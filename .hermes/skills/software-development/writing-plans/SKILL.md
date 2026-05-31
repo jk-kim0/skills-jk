@@ -137,6 +137,40 @@ When the user asks for a plan, planning document, migration plan, audit plan, or
 - If the user resolves an open decision during planning, rewrite the plan so the resolved choice appears as a concrete directive in the relevant step/checklist, rather than leaving a separate “decision needed” section.
 - If implementation accidentally starts and the user corrects the scope, revert/remove the out-of-scope implementation artifacts and continue with documentation only.
 
+### UI design documentation before implementation
+
+When the user asks for UI 구성/화면 구성 설계안을 문서로 먼저 작성하고 later implementation should follow it, keep the PR documentation-only and write manual-style Markdown under the requested docs directory before any UI code.
+
+Recommended split for product UI design docs:
+
+- `README.md` in the UI docs directory — writing guidelines, Draft/status rules, doc taxonomy, scope boundaries, and common page/widget doc templates.
+- `screen-overview.md` or equivalent — whole-product layout, navigation, page groups, shared flows, and cross-screen status principles.
+- `common-widgets.md` or equivalent — reusable widgets such as user profile, workspace switcher, status badges, evidence panels, timelines, and action bars.
+- Separate page-group docs — for example `general-pages.md` for ordinary SaaS/admin screens and a domain-specific doc such as `b2b-sales-pages.md` for the product's core workflow screens.
+
+For each screen/widget, mark `상태: Draft` near the top or per section as requested, and write from a user's manual perspective: purpose, primary users, entry conditions, visible sections, actions, empty states, and warning/error states. Ground the chosen screens in the existing product/pipeline docs, not generic SaaS guesses. If the product has explicit MVP exclusions (for example budgets/cost management), mention them only as excluded scope rather than designing those screens.
+
+### Keep iterative planning documents internally consistent
+
+When the user refines a planning document by correcting scope, workflow boundaries, or domain entities, treat that as a document-wide model change rather than a local wording edit.
+
+Update every dependent section in the same pass:
+
+- overview / goals / non-goals
+- pipeline or workflow diagrams
+- entity definitions and field lists
+- phase ordering and implementation PR sequence
+- UI screen list and review flow
+- metrics / acceptance criteria
+- open questions and final recommendation
+
+Common product-planning patterns from early MVP design work:
+
+- If the user says the short-term goal is “make a working product” or “verify functionality,” move operational features such as budget/cost management out of MVP scope unless they are necessary for the core flow. Remove stale fields like `budgetLimit` from model examples, not only prose.
+- If the user separates discovery from execution, model them as distinct pipeline segments with an explicit handoff state. For outbound products, discovery should produce a qualified lead/prospect; actual contact, response ingestion, and conversion handling should live in a separate outreach/response pipeline.
+- If the user identifies reusable domain concepts, make them independent entities before campaign/workflow setup. For example, seller-side Company, Product, and Sales Person should be configured separately and referenced by Campaign rather than embedded as campaign-only fields.
+- When renaming or splitting entities, update UI screens, job names, statuses, PR plan titles, seed data, and final “recommended flow” bullets so no stale terminology remains.
+
 ### Planning framework adoption plus first usage
 
 When planning a repository-wide foundation change and its first concrete usage (for example adding Tailwind CSS and then converting one page to Tailwind classes), split the plan into two PRs unless the user explicitly asks to bundle them:
@@ -158,6 +192,18 @@ When a user asks for a plan that starts with one page, route, collection, or fea
 - **Common rules** — behavior that must remain stable across all follow-up PRs, such as route/canonical/sitemap boundaries, CMS-managed surface exclusions, loader/frontmatter preservation, and whether customer-facing copy may mention internal implementation terms.
 
 If the user corrects “this is not only X; it starts with X,” update the plan title, goal, architecture, PR labels, follow-up sections, and acceptance criteria so every part reflects the broader scope. Avoid leaving a document whose title or task headings still imply X-only scope while a small paragraph says otherwise.
+
+### Separate discovery/qualification from external execution pipelines
+
+When planning an early product or data-pipeline MVP whose later stages take external action, explicitly separate the discovery/qualification pipeline from the execution/response pipeline. Discovery should find and refine candidates, attach evidence, score fit, and produce qualified targets. Execution should act only on qualified targets, then ingest responses, classify outcomes, and create follow-up work.
+
+This is especially important for outbound workflows: lead discovery, company/contact profiling, fit scoring, and lead qualification are a different product surface from outreach approval, sending, response ingestion, conversion detection, and human follow-up. Keep the phase boundary visible in the pipeline diagram, entity states, UI screens, and implementation PR sequence.
+
+For data-pipeline-heavy product design docs, do not let the main pipeline plan become the only place where every entity is defined in full. Keep the main plan's entity section as a linked overview, then split detailed entity model docs into a `docs/model/` directory by major pipeline stage (for example seller setup, audience discovery/import/profile enrichment, outreach/response/engagement tracking, and conversion/follow-up). This makes the main workflow readable while preserving implementation-ready model detail.
+
+If the user says the short-term goal is to prove the product works, defer budget/cost-management features unless they are required for safety. Prefer functional validation metrics such as candidates discovered, qualified prospects, drafts approved, messages sent, responses classified, conversions detected, and follow-up tasks completed.
+
+See `references/product-pipeline-phase-boundaries.md` for a reusable checklist and pitfalls.
 
 ### Refresh living migration plans against the current repository state
 

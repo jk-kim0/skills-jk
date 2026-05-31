@@ -222,8 +222,9 @@ Important current-session limitation:
 
 Repo-local/profile-as-code pattern:
 - When `HERMES_HOME` points inside a git repository and the user wants Hermes configuration managed through review, treat durable profile settings as code: track `profiles/<name>/config.yaml` and `profiles/<name>/SOUL.md` alongside the main `config.yaml`.
-- Keep secrets and runtime state out of git: profile `.env`, sessions, logs, cron output, auth/state DBs, gateway/process files, and locks should remain ignored.
-- After creating or editing profiles, verify both the CLI-visible profile list and the expected toolset/profile behavior from the same `HERMES_HOME`; config changes apply to new sessions, not the already-running one.
+- For repositories that should share agent guidance and skills between Hermes and Codex, prefer `.agents/` as the source-controlled, vendor-neutral source tree. Put shared skills under `.agents/skills/`, then make tool-specific compatibility paths such as `.hermes -> .agents` and `.codex -> .agents` symlinks when the repo should expose the same context to both tools. See `references/repo-local-shared-agent-context.md` for the full layout, ignore discipline, and verification commands.
+- Keep secrets and runtime state out of git, but do not add broad or speculative `.gitignore` rules for nonexistent repo-local agent runtime files. If a verification command generates concrete local residue (logs, hub metadata, SOUL files, caches, DBs, etc.), report the path to the user and get approval before adding an ignore rule; otherwise delete the residue and keep `.gitignore` limited to paths that are currently necessary.
+- After creating or editing profiles, shared skill symlinks, or repo-local context, verify both the CLI-visible Hermes state from the same `HERMES_HOME` and the expected agent discovery behavior; config and skill-root changes apply to new sessions, not the already-running one.
 
 ### Credential Pools
 
@@ -565,8 +566,9 @@ terminal(command="tmux new-session -d -s resumed 'hermes --resume 20260225_14305
 2. `hermes login` — re-authenticate OAuth providers
 3. Check `.env` has the right API key
 4. If a custom/provider-specific model is "configured but not applied", verify the top-level `model:` block, not just the provider registration. A `providers.<name>` entry only registers a backend; active selection requires `model.provider` / `model.default` to point at it at process start. Also check whether the intended config exists only on a PR/worktree branch and whether the current session/gateway started before the config change. See `references/model-config-not-applied-diagnosis.md` for the exact evidence-gathering sequence.
-5. **Copilot 403**: `gh auth login` tokens do NOT work for Copilot API. You must use the Copilot-specific OAuth device code flow via `hermes model` → GitHub Copilot.
-6. **Config changes vs running sessions**: changing `config.yaml` affects future launches; existing CLI/gateway sessions may still show the model they started with until `/model` is used or the session/gateway is restarted.
+5. When asked to confirm a named profile's OpenAI-compatible/LiteLLM provider connection, audit profile config and env paths, redact all credentials/endpoints, run a minimal real Hermes call through that profile, and optionally check `/v1/models` for model visibility. See `references/openai-compatible-profile-connectivity-audit.md` for the safe sequence and reporting format.
+6. **Copilot 403**: `gh auth login` tokens do NOT work for Copilot API. You must use the Copilot-specific OAuth device code flow via `hermes model` → GitHub Copilot.
+7. **Config changes vs running sessions**: changing `config.yaml` affects future launches; existing CLI/gateway sessions may still show the model they started with until `/model` is used or the session/gateway is restarted.
 
 ### Changes not taking effect
 - **Tools/skills:** `/reset` starts a new session with updated toolset
@@ -592,8 +594,27 @@ Key points:
 ### Gateway issues
 Check logs first:
 ```bash
-grep -i "failed to send\|error" ~/.hermes/logs/gateway.log | tail -20
+grep -i "failed to send\|error\|unauthorized" ~/.hermes/logs/gateway.log | tail -50
 ```
+
+Telegram/user authorization checklist:
+- `hermes status --all` can show Telegram as configured and the gateway as running even while an individual user is blocked by pairing/allowlist policy. If logs show `Unauthorized user: <id> (<name>) on telegram`, inspect pairing state before reconfiguring the bot token.
+- Run `hermes pairing list`. If there is a pending Telegram request, approve it with both required arguments: `hermes pairing approve telegram <CODE>` (not just the code). Then rerun `hermes pairing list` and confirm the user appears under Approved Users.
+- If the pending code is already gone/expired but the user explicitly asked to approve the observed Telegram user ID, use Hermes' own venv and `PairingStore` rather than writing guessed paths by hand; the active pairing directory may be profile/home dependent and can resolve to `$HERMES_HOME/pairing`:
+  ```bash
+  /path/to/hermes-agent/venv/bin/python - <<'PY'
+  import sys
+  sys.path.insert(0, '/path/to/hermes-agent')
+  from gateway.pairing import PairingStore, PAIRING_DIR
+  s = PairingStore()
+  with s._lock:
+      s._approve_user('telegram', '<USER_ID>', '<USER_NAME>')
+  print('PAIRING_DIR', PAIRING_DIR)
+  print('approved', s.list_approved('telegram'))
+  PY
+  hermes pairing list
+  ```
+- After authorization changes, confirm `hermes gateway status` still shows the service running. The existing gateway reads pairing files dynamically, so a restart is usually not required for approved-user checks.
 
 Common gateway problems:
 - **Gateway dies on SSH logout**: Enable linger: `sudo loginctl enable-linger $USER`

@@ -9,16 +9,7 @@ fallback_providers: []
 credential_pool_strategies:
   openai-codex: random
 toolsets:
-  - hermes-cli
-platform_toolsets:
-  cli:
-    - terminal
-    - file
-    - skills
-    - code_execution
-    - todo
-    - memory
-    - no_mcp
+- hermes-cli
 agent:
   max_turns: 90
   gateway_timeout: 1800
@@ -191,6 +182,13 @@ auxiliary:
     api_key: ''
     timeout: 120
     extra_body: {}
+  curator:
+    provider: auto
+    model: ''
+    base_url: ''
+    api_key: ''
+    timeout: 600
+    extra_body: {}
   kanban_decomposer:
     provider: auto
     model: ''
@@ -204,13 +202,6 @@ auxiliary:
     base_url: ''
     api_key: ''
     timeout: 60
-    extra_body: {}
-  curator:
-    provider: auto
-    model: ''
-    base_url: ''
-    api_key: ''
-    timeout: 600
     extra_body: {}
   flush_memories:
     provider: auto
@@ -250,9 +241,9 @@ display:
   runtime_footer:
     enabled: false
     fields:
-      - model
-      - context_pct
-      - cwd
+    - model
+    - context_pct
+    - cwd
   copy_shortcut: auto
 dashboard:
   theme: default
@@ -332,78 +323,76 @@ goals:
   max_turns: 20
 skills:
   external_dirs: []
-  disabled:
-    # Bundled skills not loaded in the last 30 days as of 2026-05-28.
-    # Keep installed, but omit from the default prompt/index to reduce baseline context.
-    - airtable
-    - apple-notes
-    - apple-reminders
-    - architecture-diagram
-    - arxiv
-    - ascii-art
-    - ascii-video
-    - audiocraft-audio-generation
-    - blogwatcher
-    - claude-code
-    - claude-design
-    - comfyui
-    - debugging-hermes-tui-commands
-    - dogfood
-    - dspy
-    - evaluating-llms-harness
-    - excalidraw
-    - findmy
-    - gif-search
-    - godmode
-    - google-workspace
-    - heartmula
-    - himalaya
-    - huggingface-hub
-    - humanizer
-    - ideation
-    - imessage
-    - jupyter-live-kernel
-    - kanban-orchestrator
-    - kanban-worker
-    - linear
-    - llama-cpp
-    - llm-wiki
-    - manim-video
-    - minecraft-modpack-server
-    - nano-pdf
-    - node-inspect-debugger
-    - notion
-    - obliteratus
-    - obsidian
-    - ocr-and-documents
-    - opencode
-    - openhue
-    - p5js
-    - pokemon-player
-    - polymarket
-    - popular-web-designs
-    - powerpoint
-    - pretext
-    - python-debugpy
-    - requesting-code-review
-    - research-paper-writing
-    - segment-anything-model
-    - serving-llms-vllm
-    - sketch
-    - songsee
-    - songwriting-and-ai-music
-    - spike
-    - subagent-driven-development
-    - teams-meeting-pipeline
-    - touchdesigner-mcp
-    - webhook-subscriptions
-    - weights-and-biases
-    - youtube-content
-    - yuanbao
   template_vars: true
   inline_shell: false
   inline_shell_timeout: 10
   guard_agent_created: false
+  disabled:
+  - airtable
+  - apple-notes
+  - apple-reminders
+  - architecture-diagram
+  - arxiv
+  - ascii-art
+  - ascii-video
+  - audiocraft-audio-generation
+  - blogwatcher
+  - claude-code
+  - claude-design
+  - comfyui
+  - debugging-hermes-tui-commands
+  - dogfood
+  - dspy
+  - evaluating-llms-harness
+  - excalidraw
+  - findmy
+  - gif-search
+  - godmode
+  - google-workspace
+  - heartmula
+  - himalaya
+  - huggingface-hub
+  - humanizer
+  - ideation
+  - imessage
+  - jupyter-live-kernel
+  - kanban-orchestrator
+  - kanban-worker
+  - linear
+  - llama-cpp
+  - llm-wiki
+  - manim-video
+  - minecraft-modpack-server
+  - nano-pdf
+  - node-inspect-debugger
+  - notion
+  - obliteratus
+  - obsidian
+  - ocr-and-documents
+  - opencode
+  - openhue
+  - p5js
+  - pokemon-player
+  - polymarket
+  - popular-web-designs
+  - powerpoint
+  - pretext
+  - python-debugpy
+  - requesting-code-review
+  - research-paper-writing
+  - segment-anything-model
+  - serving-llms-vllm
+  - sketch
+  - songsee
+  - songwriting-and-ai-music
+  - spike
+  - subagent-driven-development
+  - teams-meeting-pipeline
+  - touchdesigner-mcp
+  - webhook-subscriptions
+  - weights-and-biases
+  - youtube-content
+  - yuanbao
 curator:
   enabled: true
   interval_hours: 168
@@ -455,10 +444,10 @@ approvals:
   mcp_reload_confirm: true
   destructive_slash_confirm: false
 command_allowlist:
-  - stop/restart hermes gateway (kills running agents)
-  - git force push (rewrites remote history)
-  - recursive delete
-  - script execution via -e/-c flag
+- stop/restart hermes gateway (kills running agents)
+- git force push (rewrites remote history)
+- recursive delete
+- script execution via -e/-c flag
 quick_commands: {}
 hooks: {}
 hooks_auto_accept: false
@@ -478,7 +467,7 @@ security:
   allow_lazy_installs: true
 cron:
   wrap_response: true
-  max_parallel_jobs:
+  max_parallel_jobs: null
 kanban:
   dispatch_in_gateway: true
   dispatch_interval_seconds: 60
@@ -526,18 +515,26 @@ x_search:
   timeout_seconds: 180
   retries: 2
 _config_version: 22
+platform_toolsets:
+  cli:
+  - terminal
+  - file
+  - skills
+  - code_execution
+  - todo
+  - memory
+  - no_mcp
 mcp_servers:
   chrome-devtools:
     command: npx
     args:
-      - -y
-      - chrome-devtools-mcp@latest
-      - --autoConnect
-      - --no-usage-statistics
-      - --logFile=/tmp/chrome-devtools-mcp-hermes.log
+    - -y
+    - chrome-devtools-mcp@latest
+    - --autoConnect
+    - --no-usage-statistics
+    - --logFile=/tmp/chrome-devtools-mcp-hermes.log
     env:
-      PATH: 
-        /opt/homebrew/opt/node@20/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+      PATH: /opt/homebrew/opt/node@20/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
     timeout: 120
     connect_timeout: 60
 platforms:
@@ -570,28 +567,28 @@ secrets:
     sync_command: bin/hermes-sync-env
     materialized_path: .hermes/.env
     materialized_git_ignored: true
-    run_command: HERMES_HOME="$PWD/.hermes" bash -lc 'set -a; source 
-      .hermes/.env; set +a; hermes'
+    run_command: HERMES_HOME="$PWD/.hermes" bash -lc 'set -a; source .hermes/.env;
+      set +a; hermes'
   deferred_mode:
     name: environments
     status: revisit if 1Password Environments becomes available and useful
 memory_safety:
   prohibited_content:
-    - token values
-    - api key values
-    - session cookie values
-    - private credential values
-    - customer data
-    - personal sensitive data
+  - token values
+  - api key values
+  - session cookie values
+  - private credential values
+  - customer data
+  - personal sensitive data
   allowed_references:
-    - environment variable names
-    - .env key names
-    - config key names
-    - secret manager reference names
-    - 1Password vault names
-    - 1Password item titles
-    - 1Password secret references
-    - credential rotation instructions
+  - environment variable names
+  - .env key names
+  - config key names
+  - secret manager reference names
+  - 1Password vault names
+  - 1Password item titles
+  - 1Password secret references
+  - credential rotation instructions
 TELEGRAM_HOME_CHANNEL: '-5269320392'
 
 # ── Fallback Model ────────────────────────────────────────────────────

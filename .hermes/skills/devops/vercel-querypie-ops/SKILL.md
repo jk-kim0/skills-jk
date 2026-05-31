@@ -27,6 +27,8 @@ Load this skill before substantial work in the named repository or platform area
 
 Read `references/migrated-memory-and-user-context.md` after loading this skill. Treat entries from `USER.md` as user preferences/constraints and entries from `MEMORY.md` as repo facts or workflow lessons. If a note is stale when checked against the live repo, update this skill or its reference rather than writing the stale fact back into global memory.
 
+For Vercel CLI local-link problems or command-safety questions, read `references/vercel-cli-local-link-and-command-safety.md`. It captures the durable pattern: a bare `vercel` command deploys, non-deploy operations must use explicit subcommands, and `vercel link` side effects should be kept local via `.git/info/exclude` unless the repo intentionally tracks them.
+
 ## Common Pitfalls
 
 1. Do not copy repo-specific facts back into global memory unless they are broadly reusable across repositories.

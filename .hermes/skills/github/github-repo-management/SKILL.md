@@ -342,6 +342,12 @@ Ruleset payload shape:
 
 Important: choose the required status check context from the target repo's actual workflow. Do not blindly copy a reference repo's check name such as `CI result` if the target repo currently exposes `test`. For a new multi-app monorepo, start with the existing target check and later switch to an aggregate `CI result` job after the workflow exists.
 
+When changing repository settings by copying a reference repo, also document the defaults you changed in the target repo (for example under `docs/github-repository-settings.md`) in the same PR so the user can review and revise the settings later. The doc should include: reference repo, target repo, each changed setting, ruleset name/target/enforcement, required status check context, and any settings that could not be applied.
+
+Security setting pitfall: `security_and_analysis.secret_scanning.status=enabled` can fail with HTTP 422 if the target repo does not have GitHub Advanced Security enabled. Do not treat that as a successful parity copy and do not keep retrying the same payload. Apply the non-security repository settings separately, then record the secret-scanning mismatch and the Advanced Security prerequisite in the settings doc.
+
+See `references/repository-settings-parity.md` for a concise parity workflow and documentation checklist.
+
 Classic branch protection fallback:
 
 ```bash
