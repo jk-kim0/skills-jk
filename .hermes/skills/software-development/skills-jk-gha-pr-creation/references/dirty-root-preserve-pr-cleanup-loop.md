@@ -24,6 +24,13 @@ Use this note when a `skills-jk` cleanup/main-update request starts from root `m
    - PR file list matches the fresh worktree payload
    - absence of `statusCheckRollup` / branch runs is not itself a failure for docs/skill-only PRs
 9. Only after remote head + PR verification, restore/remove the same root-local copies and fast-forward root `main` to `origin/main`.
+   - `git reset --hard origin/main` removes tracked modifications/deletions but does **not** remove untracked skill/reference files that were copied into the PR worktree.
+   - After the PR branch is verified, remove those root-local untracked payload files explicitly. A safe scoped pattern is:
+     ```bash
+     git clean -fd -- .hermes/skills
+     rm -rf .hermes/lsp .hermes/pairing .hermes/profiles/kimi/.update_check .hermes/profiles/kimi/skills .hermes/skills/.archive .hermes/skills/.curator_backups
+     ```
+   - Do not run broad `git clean -fdx` in the repo root; keep cleanup scoped to the verified PR payload and known runtime/cache residue.
 10. Continue stale cleanup: remove merged/gone worktrees/branches only after GitHub PR state confirms `MERGED` and a two-dot/tree diff versus `origin/main` is empty.
 11. Final report should distinguish:
    - root `main` alignment and clean status
@@ -31,6 +38,7 @@ Use this note when a `skills-jk` cleanup/main-update request starts from root `m
    - deleted stale worktrees/branches
    - intentionally preserved open-PR worktrees
 
-## Pitfall
+## Pitfalls
 
-Do not report cleanup complete while the same root-local files remain dirty after their payload was safely pushed to a PR branch. For `main 업데이트 + workspace 정리`, the expected end state is clean root `main` aligned to `origin/main`, with the review payload preserved in the PR worktree/branch.
+- Do not report cleanup complete while the same root-local files remain dirty after their payload was safely pushed to a PR branch. For `main 업데이트 + workspace 정리`, the expected end state is clean root `main` aligned to `origin/main`, with the review payload preserved in the PR worktree/branch.
+- After resetting root `main`, run another `git status --short --branch` and a worktree dirty sweep. If only untracked PR-preserved `.hermes/skills/**` files remain, clean them from root; if tracked or unrelated files remain, stop and reclassify before deleting anything.
