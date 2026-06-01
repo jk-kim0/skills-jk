@@ -148,16 +148,23 @@ But config correctness alone does not prove Chrome is attachable. Always verify 
 hermes mcp list
 ```
 
-2. Confirm `npx chrome-devtools-mcp@latest --help` runs
+2. Confirm `npx chrome-devtools-mcp@latest --help` runs with a supported Node runtime. If the user's shell defaults to an unsupported Node version but Hermes MCP config uses a working PATH, reproduce the config PATH explicitly when running standalone probes, for example:
 
-3. If attach still fails, check:
+```bash
+PATH=/opt/homebrew/opt/node@20/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin \
+  npx -y chrome-devtools-mcp@latest --help
+```
+
+3. Use `hermes mcp test chrome-devtools` to distinguish MCP server discovery from browser-control readiness. A successful test proves the stdio server starts and exposes tools; still verify a real tool call such as `list_pages` or `new_page` before assuming Chrome is controllable.
+
+4. If attach still fails, check:
 - `DevToolsActivePort`
 - `lsof` on `9222`
 - Chrome process args for `--remote-debugging-port`
 - `curl http://127.0.0.1:9222/json/version`
 - if `/json/version` or `/json/list` returns 404, inspect `DevToolsActivePort` and try the browser WebSocket path directly instead of stopping at HTTP discovery failure
 
-4. If all four attachability signals fail, stop debugging MCP internals and fix the Chrome launch method first
+5. If all four attachability signals fail, stop debugging MCP internals and fix the Chrome launch method first
 
 ## Practical lesson
 
