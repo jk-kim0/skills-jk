@@ -53,6 +53,9 @@ When the task is to add or repair a GitHub Actions E2E workflow for these dev se
    - Reset is appropriate when migration/schema/runtime smoke proves incompatible data or seed drift.
    - Do not reset merely because reset is available.
    - For Tencent reset+seed, dispatch the target migration workflow with `reset_database=true`.
+   - For requested DB resets, do not report completion from the workflow conclusion alone. Verify the reset path actually ran (`migrate --reset-data`, `prisma migrate reset --force`, `Database reset successful`, `prisma db seed`, and `The seed command has been executed`), then run the schema check after the reset. When SSH is available, also verify seed row counts directly from the VM-local PostgreSQL container before declaring the DB reset complete.
+   - If `origin/main` advances while the operation is in progress, re-record the new SHA and re-check deploy/schema status against that SHA before declaring “latest” complete. If the user requested a strict sequence such as “DB reset 후 최신 배포”, rerun/reconfirm deployment after the final reset+seed, even if the same image was deployed shortly before.
+   - If the automatic Tencent main deploy is cancelled or only one VM finishes, rerun the manual `Deploy Tencent container image` workflow with the immutable image tag for the latest SHA. When Gmail OAuth config is part of the incident, set `update_gmail_oauth_config=true` so the VM-local env file and restarted container are refreshed as part of the redeploy.
 
 ## Seed-data drift checklist
 
@@ -73,6 +76,10 @@ Important Outbound Agent seed behavior:
 - `/sales-demo/email-templates` can legitimately show 0 templates even when seed is correct; verify `/querypie-jp/email-templates`, `/querypie-kr/email-templates`, and `/querypie-us/email-templates` before declaring failure.
 
 ## Gmail OAuth runtime config pitfalls
+
+For browser-based dev OAuth smoke, prefer a fresh browser context/profile when verifying a reset or config repair so cached Google sessions and stale app cookies do not mask the actual flow. Verify the product route, selected sender row, OAuth start URL, callback result, and final Email Senders table state. See `references/gmail-oauth-dev-browser-smoke.md`.
+
+For Gmail OAuth token-exchange failures, preserve provider error precedence: report safe Google error/status evidence (`invalid_client`, `invalid_grant`, `redirect_uri_mismatch`) before collapsing to app-level `refresh_token_missing`. See `references/gmail-oauth-token-exchange-diagnostics.md` and `references/gmail-oauth-sender-specific-error-precedence.md`.
 
 On Tencent container deployments, runtime Gmail OAuth config is sourced from the VM-local root-only file `/etc/outbound-agent/front.env`, not from Vercel project env. A successful main image/code deploy only replaces the container image; it does not update `GMAIL_OAUTH_CLIENT_ID`, `GMAIL_OAUTH_CLIENT_SECRET`, `GMAIL_TOKEN_ENCRYPTION_SECRET`, or state/redirect-related env values in that file. When Vercel/outbound-dev OAuth env is rotated or repaired, explicitly compare dev-seoul/dev-tokyo fingerprints, update runtime env through the dedicated GitHub Actions option if available, restart/deploy `outbound-front`, and verify authorization URLs. See `references/tencent-gmail-oauth-runtime-env-drift.md`.
 
@@ -99,3 +106,11 @@ See `references/latest-main-churn-and-dev-deploy-verification.md` for the full p
 - `references/latest-main-churn-and-dev-deploy-verification.md` — Pattern for verifying all three dev servers while `main` is moving, deploy runs are cancelled by concurrency, and migrate/schema/smoke must be repeated on the final latest SHA.
 - `references/gmail-oauth-refresh-token-missing.md` — Pattern for debugging Email Senders OAuth reconnect failures where Google omits `refresh_token` after successful authorization.
 - `references/tencent-gmail-oauth-gha-secret-sync.md` — Pattern for wiring Tencent Gmail OAuth runtime env updates through opt-in GitHub Actions repo secrets, including VM-specific token/state secrets.
+- `references/dev-vercel-reset-after-main-advance.md` — Vercel dev DB reset + latest-main redeploy verification pattern when `origin/main` advances during operations.
+- `references/gmail-oauth-dev-browser-smoke.md` — browser-based Gmail OAuth smoke pattern for dev environments after reset/config repair.
+- `references/gmail-oauth-token-exchange-diagnostics.md` — preserve Google token endpoint error/status evidence before app-level missing-refresh-token handling.
+- `references/gmail-oauth-sender-specific-error-precedence.md` — sender-specific Gmail OAuth error precedence and row/account mismatch guidance.
+- `references/gmail-refresh-token-missing-after-dev-db-reset.md` — diagnostics when DB reset removes stored Gmail credentials and Google omits a new refresh token.
+- `references/outbound-dev-supabase-seed-tls-compat.md` — Supabase seed/TLS compatibility note for outbound-dev reset workflows.
+- `references/tencent-seoul-gmail-oauth-diagnostics.md` — Tencent Seoul Gmail OAuth runtime diagnostics and evidence pattern.
+- `references/tencent-vm-ubuntu-docker-group.md` — Tencent VM docker group/user maintenance via TAT/SSH.

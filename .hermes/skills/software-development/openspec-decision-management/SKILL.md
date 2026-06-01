@@ -43,7 +43,21 @@ Use this skill when:
    - Convert normative prose into OpenSpec Requirements and Scenarios, not another long prose doc.
    - Shrink the original docs file into a short `Superseded by OpenSpec` bridge that links to the canonical spec and preserves only background context.
    - Update active references and OpenSpec inventory files so future agents discover the new canonical source.
+   - When the migration deletes or drastically shortens an existing plan/handoff doc, preserve reviewer trust with a deletion-to-canonical-source trace: compare the old doc's removed sections/line ranges against the new OpenSpec/docs surfaces, then record a mapping table in the PR body, a reviewer issue, or a companion audit note when the user asks for traceability. Explicitly call out any details that were only partially covered or moved to non-OpenSpec docs/backlog/status files.
    - See `references/doc-to-openspec-contract-migration.md` for the detailed pattern and pitfalls.
+   - See `references/deleted-plan-to-openspec-mapping.md` for a concrete mapping-table issue pattern from an Outbound Agent Sprint plan migration.
+   - Run a lightweight Markdown relative-link check after moves; `git diff --check` alone does not catch stale relative links.
+   - See `references/doc-to-openspec-contract-migration.md` for the detailed pattern and pitfalls.
+   - Update active references and OpenSpec inventory files so future agents discover the new canonical source. For example, refresh `docs/sprint-roadmap.md`, `docs/feature/README.md`, `openspec/README.md`, and `openspec/specs/README.md` when those indexes exist.
+   - After the rewrite, run lightweight Markdown hygiene: `git diff --check`, scan touched files for accidental line-number prefixes or conflict markers, and verify relative Markdown links in the touched docs.
+   - See `references/doc-to-openspec-contract-migration.md` for the detailed pattern and pitfalls.
+
+1B. If the user asks whether sprint plans or planning docs should be converted to OpenSpec, perform an authority-boundary audit before recommending edits.
+   - Inspect `docs/*sprint*`, related `docs/feature/*plan*`, `docs/product-roadmap.md`, `docs/sprint-roadmap.md`, `openspec/README.md`, `openspec/specs/README.md`, `openspec/project.md`, and any existing `openspec/changes/<sprint-or-feature>/` files.
+   - Classify each document by responsibility: product strategy/roadmap, sprint index, feature narrative, UI/UX review, historical done record, implementation checklist, user scenario, implementation contract, or decision log.
+   - Recommend OpenSpec authority for only the normative pieces: In/Out scope, accepted decisions, SHALL/SHALL NOT contracts, GIVEN/WHEN/THEN scenarios, and implementation checklists.
+   - Keep roadmap, product-value narrative, UX critique, status, and historical context in `docs/`; do not propose moving them wholesale into OpenSpec.
+   - When duplicate implementation plans already exist in both `docs/` and `openspec/changes/**`, recommend shrinking the docs file to a bridge/summary and making the OpenSpec change/spec/tasks the canonical implementation source.
 
 2. Locate the canonical decision home.
    - Prefer `openspec/changes/<change-id>/design.md` for change-specific decision logs.

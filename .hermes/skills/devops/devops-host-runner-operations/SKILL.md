@@ -66,6 +66,14 @@ grep -RniE '<host>|<host-alias>|mac.?studio|studio|llm|HostName[[:space:]]+[0-9]
 dscacheutil -q host -a name <candidate-hostname> 2>/dev/null || true
 ```
 
+For Tencent Cloud CVMs, do not stop at an SSH timeout when Security Group ingress is intentionally narrow. Check Tencent Automation Tools (TAT) agent state if `tccli` credentials are available:
+
+```sh
+tccli tat DescribeAutomationAgentStatus --region <region> --Filters '[{"Name":"instance-id","Values":["<instance-id>"]}]'
+```
+
+If TAT is `Online` and the requested operation is an explicit host-level maintenance action, `tccli tat RunCommand` can be the correct operational path even when direct SSH from the agent runtime is blocked. Query `DescribeInvocationTasks --HideOutput False` afterward and report the command exit code plus redacted output evidence.
+
 For an IP address, separate routing, port reachability, and auth:
 
 ```sh
