@@ -431,8 +431,9 @@ When a user states that a domain concept or attribute must exist only on one own
 4. Inspect UI sources and design docs for non-owner display, selection, or input affordances. Remove stale copy that tells users to choose the attribute on child entities such as Campaign, Audience, Product, Sales Person, Contact List, or Template when the owner is Team.
 5. Update canonical requirements/spec docs to state the boundary positively and operationally: the concept belongs only to the owner; partitioning by that concept is achieved by creating separate owner entities, not by configuring child entities.
 6. Use targeted searches after edits to prove the remaining hits are either owner-scoped implementation or the new requirement text itself. Do not rely on a single grep; scan both code and docs/design paths.
-7. For a fuller checklist and report template, see `references/domain-ownership-boundary-audit.md`.
-8. Commit only the files relevant to the boundary cleanup and report:
+7. For Prisma-backed TypeScript repos, field removal is not complete when the schema compiles conceptually. Also search generated-client call sites for stale `select`, `include`, `where`, and `orderBy` references to the removed field (for example `type: true` after removing `Team.type`). A Docker/cache-only build or TypeScript CI may surface the remaining issue as `Object literal may only specify known properties ... does not exist in type '<Model>Select<DefaultArgs>'`. See `references/prisma-domain-field-removal.md`.
+8. For a fuller checklist and report template, see `references/domain-ownership-boundary-audit.md`.
+9. Commit only the files relevant to the boundary cleanup and report:
    - canonical requirement/spec paths updated
    - implementation paths verified or changed
    - stale UI/form/design references removed

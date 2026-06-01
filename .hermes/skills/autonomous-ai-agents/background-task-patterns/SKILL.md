@@ -62,11 +62,18 @@ Best for:
 - run later
 - scheduled monitoring
 - a self-contained task that does not need interaction
+- explicit wait-and-repeat maintenance requests, such as “check open PRs, clean the workspace, wait 15 minutes, then repeat,” when the user does not need the current chat turn blocked for the whole delay
 
 Tradeoff:
 - runs in a fresh session
 - cannot ask follow-up questions
 - current chat context is not automatically preserved unless written into the prompt
+
+For wait-and-repeat repo maintenance:
+- prefer a one-shot `cronjob(create, schedule='15m')` over a foreground `sleep 900` when the repeated pass can be expressed as a self-contained prompt
+- include the absolute repo path, the exact sequence to repeat, and the reporting expectations in the cron prompt
+- if the task involves repo cleanup, name the relevant repo-local cleanup skill/reference in the prompt so the fresh session reloads the same workflow context
+- keep the immediate response short: state that the first pass is complete and the delayed repeat has been scheduled, then let the scheduled result deliver back to the origin thread
 
 Important delivery rule:
 - if the user expects the cron result to come back to the current chat, prefer omitting `deliver` so auto-delivery can target the origin thread
