@@ -25,12 +25,13 @@ When the task is to add or repair a GitHub Actions E2E workflow for these dev se
    - Run `git fetch origin main --prune` and record `git rev-parse origin/main`.
    - During active merge/push windows, `origin/main` may move while workflows are running. Re-fetch repeatedly and wait for the latest SHA to stay stable for about a minute before reporting “latest”.
 
-2. Prefer migrate-only first.
-   - Dispatch DB migration workflows with reset disabled:
+2. Prefer migrate-only first unless the user explicitly requests a reset.
+   - Default path: dispatch DB migration workflows with reset disabled:
      - `Apply outbound-dev DB Migration` with `reset_database=false`
      - `Apply tencent/outbound-seoul DB Migration` with `branch=main`, `reset_database=false`
      - `Apply tencent/outbound-tokyo DB Migration` with `branch=main`, `reset_database=false`
-   - Then dispatch schema checks:
+   - Explicit reset request path: if the user says to reset the dev DBs, dispatch the same workflows with `reset_database=true` immediately; do not spend time arguing for migrate-only.
+   - After either migration-only or reset+seed, dispatch schema checks:
      - `Check outbound-dev DB Schema` with `vercel_environment=production`, `check_mode=true`
      - `Check tencent/outbound-seoul DB Schema` with `branch=main`
      - `Check tencent/outbound-tokyo DB Schema` with `branch=main`
@@ -46,8 +47,9 @@ When the task is to add or repair a GitHub Actions E2E workflow for these dev se
 
 4. Smoke public and DB-backed behavior.
    - Check `/login` for all three public URLs.
-   - For Tencent, verify a DB-backed authenticated route by reading the active `sales-demo` user id from the VM-local PostgreSQL container and calling `/<teamSlug>/home` with `Cookie: outbound_session=<uuid>`.
-   - For Vercel, submit the rendered login form with `sales-demo` / `outbound-local-demo` and verify redirect to `/sales-demo/home`, session cookie creation, and deployment id in the response when available.
+   - For a full browser/runtime verification pass, dispatch `E2E - Runtime Smoke` three times with `base_url` set to each deployed dev URL; this is preferable to hand-rolling Next.js Server Action login POSTs from curl/scripts.
+   - For Tencent, verify a DB-backed authenticated route by reading the active `sales-demo` user id from the VM-local PostgreSQL container and calling `/<teamSlug>/home` with `Cookie: outbound_session=<uuid>` when VM-local access is available.
+   - For Vercel, submit the rendered login form with `sales-demo` / `outbound-local-demo` and verify redirect to `/sales-demo/home`, session cookie creation, and deployment id in the response when using browser automation or the runtime-smoke workflow.
 
 5. Escalate to reset only after evidence.
    - Reset is appropriate when migration/schema/runtime smoke proves incompatible data or seed drift.
@@ -75,22 +77,36 @@ Important Outbound Agent seed behavior:
 - After a correct seed, expected Email Template data is 9 templates and 9 versions: 3 each for QueryPie JP/KR/US.
 - `/sales-demo/email-templates` can legitimately show 0 templates even when seed is correct; verify `/querypie-jp/email-templates`, `/querypie-kr/email-templates`, and `/querypie-us/email-templates` before declaring failure.
 
+## Vercel runtime Prisma TLS pitfalls
+
+When outbound-dev Vercel Preview or Production returns runtime 500 on `/login` with Prisma `P1011` and `Error opening a TLS connection: self-signed certificate in certificate chain`, inspect whether the deployment uses a Supabase pooled `DATABASE_URL` with `sslmode=require`. With `@prisma/adapter-pg` / `pg`, `sslmode=prefer|require|verify-ca` can be treated like stricter verification unless `uselibpqcompat=true` is present. The app runtime must normalize the Prisma pg adapter connection string the same way seed/SQL scripts do; otherwise build/deploy can be green while `/login` fails at runtime. Verification pattern: compare old/new deployment IDs in `vercel logs --project outbound-dev --environment preview --level error --json --no-branch`, check the latest deployment has zero P1011 rows, and run `E2E - Runtime Smoke` against the Preview URL using `--ref <PR branch>` when validating a PR-branch smoke-test change.
+
 ## Gmail OAuth runtime config pitfalls
 
 For browser-based dev OAuth smoke, prefer a fresh browser context/profile when verifying a reset or config repair so cached Google sessions and stale app cookies do not mask the actual flow. Verify the product route, selected sender row, OAuth start URL, callback result, and final Email Senders table state. See `references/gmail-oauth-dev-browser-smoke.md`.
 
 For Gmail OAuth token-exchange failures, preserve provider error precedence: report safe Google error/status evidence (`invalid_client`, `invalid_grant`, `redirect_uri_mismatch`) before collapsing to app-level `refresh_token_missing`. See `references/gmail-oauth-token-exchange-diagnostics.md` and `references/gmail-oauth-sender-specific-error-precedence.md`.
 
+When intentionally testing a bad Gmail OAuth client secret on Tencent Seoul/Tokyo, use the same VM-local env-sync workflow path as a real repair: update the GitHub repo secret, dispatch `Deploy Tencent container image` with `update_gmail_oauth_config=true`, and verify each target job's `Upload Gmail OAuth config update` and `Run deployment` steps. To restore, pull the deployed Outbound client from 1Password item `Outbound - OAuth Client - Dev`, section `GCP OAuth Client` (not the local or Deck Dev fields), update `GMAIL_OAUTH_CLIENT_ID` / `GMAIL_OAUTH_CLIENT_SECRET`, and redeploy/restart both VMs. See `references/tencent-gmail-oauth-negative-test-and-restore.md`.
+
 On Tencent container deployments, runtime Gmail OAuth config is sourced from the VM-local root-only file `/etc/outbound-agent/front.env`, not from Vercel project env. A successful main image/code deploy only replaces the container image; it does not update `GMAIL_OAUTH_CLIENT_ID`, `GMAIL_OAUTH_CLIENT_SECRET`, `GMAIL_TOKEN_ENCRYPTION_SECRET`, or state/redirect-related env values in that file. When Vercel/outbound-dev OAuth env is rotated or repaired, explicitly compare dev-seoul/dev-tokyo fingerprints, update runtime env through the dedicated GitHub Actions option if available, restart/deploy `outbound-front`, and verify authorization URLs. See `references/tencent-gmail-oauth-runtime-env-drift.md`.
 
-For Tencent deployment workflow maintenance, keep Gmail OAuth env sync as an explicit opt-in option, not part of the default main image deploy. Prefer repo-level GitHub Actions secrets as the source consumed by the manual `Deploy Tencent container image` workflow. Keep common Google OAuth client values common only when fingerprints match; keep `GMAIL_TOKEN_ENCRYPTION_SECRET` and `GMAIL_OAUTH_STATE_SECRET` VM-specific if Seoul/Tokyo differ, otherwise one VM's existing encrypted tokens/state behavior can be broken. The workflow option must default off; dry-run should validate secret presence/syntax without changing `/etc/outbound-agent/front.env`; apply should update only Gmail OAuth keys and create a timestamped backup. See `references/tencent-gmail-oauth-gha-option.md` and `references/tencent-gmail-oauth-gha-secret-sync.md`.
+For Tencent deployment workflow maintenance, keep Gmail OAuth env sync as an explicit opt-in option, not part of the default main image deploy. Prefer repo-level GitHub Actions secrets as the source consumed by the manual `Deploy Tencent container image` workflow. Keep common Google OAuth client values common only when fingerprints match; keep `GMAIL_TOKEN_ENCRYPTION_SECRET` and `GMAIL_OAUTH_STATE_SECRET` VM-specific if Seoul/Tokyo differ, otherwise one VM's existing encrypted tokens/state behavior can be broken. The workflow option must default off; dry-run should validate secret presence/syntax without changing `/etc/outbound-agent/front.env`; apply should update only Gmail OAuth keys and create a timestamped backup. For urgent repairs, the workflow should support a target choice (`all`, `dev-seoul`, `dev-tokyo`) so one VM's runtime/deploy failure does not block the intended VM's Gmail OAuth config update and restart. See `references/tencent-gmail-oauth-gha-option.md`, `references/tencent-gmail-oauth-gha-secret-sync.md`, and `references/tencent-targeted-gmail-oauth-env-sync.md`.
+
+When `gmail_oauth_token_exchange_failed` is paired with callback diagnostics `tokenResponseStatus: 401` and `providerError: 'invalid_client'`, treat it as a Google token-exchange client credential mismatch, not as redirect URI/state/scope failure. Update `GMAIL_OAUTH_CLIENT_ID` / `GMAIL_OAUTH_CLIENT_SECRET` in GitHub Secrets, apply the Tencent Gmail OAuth env-sync workflow, then retry OAuth. If the workflow exposes a `target` input, use the intended VM directly (for example `target=dev-seoul`) for urgent repairs. If it does not, be careful: the manual `Deploy Tencent container image` workflow may run dev-tokyo before dev-seoul, so a dev-tokyo deploy/runtime failure can skip dev-seoul entirely. If the intended VM was skipped, do not claim its env was updated; verify with the diagnostic workflow. If only a dev-seoul container restart is needed after a prior successful env sync, `Deploy tencent/outbound-seoul` can restart/redeploy the app but does not apply Gmail OAuth env updates. See `references/tencent-gmail-oauth-invalid-client-and-targeted-restart.md` and `references/tencent-targeted-gmail-oauth-env-sync.md`.
+
+If the user explicitly asks to deploy an intentionally wrong `GMAIL_OAUTH_CLIENT_SECRET` for failure-path testing, treat it as a deliberate negative test rather than a repair. Set only the requested GitHub Actions secret, keep values redacted, deploy/restart the current known-good Tencent image with `update_gmail_oauth_config=true`, then verify the config-upload and deployment steps for both requested targets plus public `/login` health. See `references/tencent-gmail-oauth-negative-secret-test.md`.
 
 On Tencent container deployments, `HOSTNAME=127.0.0.1` in `/etc/outbound-agent/front.env` can make Next.js derive `https://localhost:3000` for Gmail OAuth redirects unless the app derives origin from trusted ingress headers. Verify OAuth smoke through the public FQDN, not VM-local `localhost:3000`, before judging Google `redirect_uri_mismatch` errors.
+
+When the Email Senders page returns `gmail=failed&reason=gmail_oauth_token_exchange_failed`, inspect the `gmail_oauth_callback` journal diagnostic before changing config. If the callback reached the app with a Google `code` and the log shows `tokenResponseStatus: 401` plus `providerError: 'invalid_client'`, treat it as a client id/secret mismatch at the token-exchange boundary, not a redirect URI/state/scope problem. First compare Google Console's active Outbound Web OAuth client with the repository secrets and VM-local env fingerprints, then re-apply Tencent runtime env through the opt-in `Deploy Tencent container image` workflow (`update_gmail_oauth_config=true`, dry-run first, then apply). A dry-run only proves secrets are present and shell-parseable; it does not prove the secret matches Google Console. See `references/tencent-gmail-oauth-invalid-client.md`.
 
 ## Workflow/status pitfalls
 
 - A GitHub Actions top-level run can remain `in_progress` while individual jobs have already finished or while the Tokyo deploy job is still running. Inspect job steps with `gh run view <run-id> --json jobs` before declaring failure.
 - Tencent image deployment may deploy Seoul before Tokyo; Tokyo can take longer because of registry/proxy/network path.
+- The manual `Deploy Tencent container image` workflow assumes each VM already has the current repo layout under `/opt/outbound-agent/repo`, including `infra/compose.yml`. If a container-image deploy fails on dev-tokyo with `/opt/outbound-agent/repo/infra/compose.yml is required`, first run the repo deploy workflow `Deploy tencent/outbound-tokyo` on `main` to refresh the VM checkout/runtime layout, then rerun `Deploy Tencent container image` with the same image and options. This fixes VM state; it is not a Gmail secret failure.
+- For Tencent VM diagnostic workflows, prefer a repo-tracked script that the workflow installs under `/opt/outbound-agent/tools/` and then executes with arguments, rather than keeping long SSH heredocs inline in workflow YAML. This keeps quoting, psql variable interpolation, and shell validation manageable; verify with `bash -n`, `actionlint`, `git diff --check`, and a branch-dispatched workflow run.
 - During active merge windows, `origin/main` can move while deploy/migration runs are still executing. Re-fetch before final reporting, and if an older Tencent deploy is cancelled by a newer `main` push, follow the newest run rather than treating the cancelled run as a failure.
 - Documentation-only or path-ignored changes can still move literal latest `main` without auto-deploying every environment. If the user asks for the exact latest version on all three servers, manually dispatch the missing deploy workflow and then rerun migrations/schema checks against the settled latest SHA.
 - Avoid long passive waits. Poll once or twice, then report the exact in-progress job and reason if it is still running.
@@ -101,11 +117,13 @@ See `references/latest-main-churn-and-dev-deploy-verification.md` for the full p
 
 ## References
 
+- `references/tencent-targeted-gmail-oauth-env-sync.md` — Target-aware Tencent Gmail OAuth env sync workflow pattern so Seoul/Tokyo can be updated independently when the other VM is unhealthy.
 - `references/dev-seed-drift-and-email-templates.md` — Email Template seed drift investigation and reset verification pattern from a dev-seoul incident.
 - `references/deployed-dev-e2e-workflow.md` — Pattern for manual GitHub Actions Playwright E2E against the already-deployed dev servers, including seed-user and Email Sender auth-boundary guidance.
 - `references/latest-main-churn-and-dev-deploy-verification.md` — Pattern for verifying all three dev servers while `main` is moving, deploy runs are cancelled by concurrency, and migrate/schema/smoke must be repeated on the final latest SHA.
 - `references/gmail-oauth-refresh-token-missing.md` — Pattern for debugging Email Senders OAuth reconnect failures where Google omits `refresh_token` after successful authorization.
 - `references/tencent-gmail-oauth-gha-secret-sync.md` — Pattern for wiring Tencent Gmail OAuth runtime env updates through opt-in GitHub Actions repo secrets, including VM-specific token/state secrets.
+- `references/tencent-gmail-oauth-negative-test-and-restore.md` — Pattern for intentionally deploying a bad Gmail OAuth client secret to validate token-exchange failure, then restoring the correct Outbound client secret from 1Password and redeploying Seoul/Tokyo.
 - `references/dev-vercel-reset-after-main-advance.md` — Vercel dev DB reset + latest-main redeploy verification pattern when `origin/main` advances during operations.
 - `references/gmail-oauth-dev-browser-smoke.md` — browser-based Gmail OAuth smoke pattern for dev environments after reset/config repair.
 - `references/gmail-oauth-token-exchange-diagnostics.md` — preserve Google token endpoint error/status evidence before app-level missing-refresh-token handling.
@@ -114,3 +132,4 @@ See `references/latest-main-churn-and-dev-deploy-verification.md` for the full p
 - `references/outbound-dev-supabase-seed-tls-compat.md` — Supabase seed/TLS compatibility note for outbound-dev reset workflows.
 - `references/tencent-seoul-gmail-oauth-diagnostics.md` — Tencent Seoul Gmail OAuth runtime diagnostics and evidence pattern.
 - `references/tencent-vm-ubuntu-docker-group.md` — Tencent VM docker group/user maintenance via TAT/SSH.
+- `references/tencent-gmail-oauth-negative-secret-test.md` — Pattern for intentionally deploying a wrong Gmail OAuth client secret to Tencent dev VMs for negative failure-path testing without exposing secret values.

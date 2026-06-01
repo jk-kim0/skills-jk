@@ -29,15 +29,18 @@ Use this when a repo-local `workspace 정리` / `main 업데이트` sweep starts
    ```
 
 4. Do not blindly copy root files into the fresh worktree. A behind-root copy can revert files that changed on latest main. Either apply the root patch with `git apply --3way`, or selectively reapply only the meaningful additions while preserving the latest-main file shape.
+   - If a previous preservation PR recently merged, prefer a root-vs-HEAD patch saved before cleanup (`git diff --binary > /tmp/...patch`) plus selected untracked files over an `origin/main` diff. A broad `git diff origin/main` from a stale root can include deletion hunks for files already added by the merged PR.
+   - If `git apply --3way` leaves conflicts, resolve them by keeping latest-main canonical content plus the still-relevant root payload, then `git add` the resolved files before final validation. Do not treat marker-free files as resolved until the index no longer shows `UU`.
 
 5. Copy only meaningful untracked payload into the preservation worktree. Exclude runtime/cache/backups such as `.hermes/lsp/`, `.hermes/pairing/`, profile caches/skills, sessions/logs, `.hermes/skills/.archive/`, and `.hermes/skills/.curator_backups/`.
 
 6. Verify the preservation worktree before commit.
    ```bash
-   git diff --check
    git status --short --branch
+   git diff --cached --check
+   git diff --cached --name-status --find-renames
    ```
-   Also scan changed files for real conflict markers with a narrow pattern: `^(<<<<<<<|>>>>>>>)( |$)|^=======$`. Do not broad-scan every line containing `=======`, because skill docs may intentionally contain separators or examples.
+   Also scan changed/staged files for real conflict markers with a narrow pattern: `^(<<<<<<<|>>>>>>>)( |$)|^=======$`. Do not broad-scan every line containing `=======`, because skill docs may intentionally contain separators or examples. Confirm the staged diff contains no unintended `D` deletions before commit.
 
 7. Commit, push, and create/update the PR using the repo's normal PR mechanism. Verify the PR head SHA matches the remote branch.
 

@@ -69,6 +69,7 @@ Use this skill when:
    - If the user says they will decide, identifies a decision topic, or provides alternatives but does not choose one yet, still create/update the decision record as `Status: Open` / `Decision: TBD` so the canonical OpenSpec location exists before implementation work continues.
    - Change `Status: Open` / `Decision: TBD` to `Status: Accepted` only when the user has clearly decided.
    - Write the accepted decision as one direct sentence or short paragraph.
+   - When the accepted decision removes a previously planned feature, fallback, fixture, provider, or seed row, write it as an explicit negative requirement instead of only deleting prose. Name concrete examples the user called out (for example a sender display name/email), state that the artifact does not exist, and state that it must not be seeded, shown in UI, or used as a fallback.
    - Keep rejected alternatives visible when helpful, but mark them as `Rejected` instead of leaving them as open choices.
    - Add rationale that cites the product principle, schema evidence, operational boundary, or user-stated policy.
 
@@ -82,6 +83,9 @@ Use this skill when:
    - Avoid duplicating the entire general principle; reference it and add only feature-specific behavior.
 
 6. Sweep stale docs and implementation surfaces for contradictions.
+   - If the user says to remove a feature from requirements, design, and Spec, sweep all three layers in the same PR: canonical `design.md`, user-facing/contract OpenSpec specs, feature/design docs, status inventory docs, model docs, and any setup docs that still describe the feature as active.
+   - For removed provider/fixture concepts, update status documents to `Mock`, `Removed`, or `legacy artifact` language as appropriate; do not leave `Released`/`In-Progress` rows that make the removed concept look like an active product capability.
+   - If implementation still contains the removed concept but the user requested docs/spec only, explicitly mark remaining code/fixture/test references as legacy removal targets and leave implementation cleanup as a follow-up instead of silently changing code scope.
    - If the user says to update design/docs first and then code in one PR, preserve that sequence: make the OpenSpec/domain/UI documentation edits first, then implement schema/UI/test cleanup in the same branch/PR rather than splitting the work unless asked.
    - For decisions that move a setting from child objects to a parent scope, search both names and concepts: old role names, alternatives, permission models, decision labels, schema fields, seed fixtures, UI labels, tests, implementation helpers, and user-facing copy that could still imply child-level overrides.
    - Search for old role names, alternatives, permission models, decision labels, schema fields, seed fixtures, UI labels, tests, and implementation helpers that contradict the accepted policy.
@@ -153,6 +157,8 @@ Related issue item: GitHub issue #<n> `<label>`
 - Do not treat “post-MVP” as “prepare extension points now.” If the user says they will accept the future design/development cost, keep the current OpenSpec simple and avoid future-compatible abstraction, placeholder state, compatibility layers, extra enum states, adapter hooks, provider-specific failure reasons, or UI placeholders. If useful, explicitly state that the current MVP contract does not guarantee a natural migration path for that future capability.
 - Do not add implementation code when the user asked only to record an OpenSpec/product decision. If the user explicitly asks to implement the decision to Release Ready, code/schema/test cleanup that removes the rejected policy is part of the decision follow-through, not scope creep.
 - Do not preserve a rejected restriction as a narrower “test-only” rule unless the user explicitly chose that split. When the accepted policy says the product should not consider a restriction, remove the corresponding helper, schema, seed, UI, and docs instead of leaving dormant settings that imply the old policy still exists.
+- Do not preserve a removed feature as an active status row. If the user says the feature does not exist or is unused, update feature/status/model docs so it reads as `Removed`, `Mock`, or `legacy removal target`, not `Released` or `In-Progress`.
+- Do not rely on deletion alone for removed fixtures/providers. Future agents need an explicit negative contract (`SHALL NOT`, `사용하지 않음`, `존재하지 않음`, `seed하지 않음`, `UI에 노출하지 않음`) to avoid recreating the same artifact.
 - Do not put long ownership/reuse/setup explanation on a transient create form when the user should configure the reusable dependency elsewhere; put that copy on the owning settings/configuration surface and make the create form expose a short, direct add action.
 - Do not auto-close issues from PR body text unless explicitly instructed.
 
@@ -164,4 +170,6 @@ Related issue item: GitHub issue #<n> `<label>`
 - `references/outbound-agent-sendrun-approval-lock-decision.md`: example of an approval-boundary lock decision where sender/template/recipient preview is confirmed before approval and batch-time fallback/late assignment must be prohibited.
 - `references/outbound-agent-sales-person-gmail-sender-decision.md`: example of binding a provider sender to a reusable Sales Person entity while keeping OAuth authentication owned by the actual Gmail account holder, not the current user by default.
 - `references/outbound-agent-sales-person-email-sender-selection-flow.md`: example of refining a Sales Person creation UI so a required Email Sender dependency is selected/added first, with long policy copy moved to Team Settings.
+- `references/outbound-agent-gmail-sender-disconnect-ui.md`: recipe for Team Email Senders rows where active connected Gmail senders show `Disconnect`, disconnect removes credential material while preserving `SenderIdentity.id`, and UI design/OpenSpec/code move together in one PR.
 - `references/outbound-agent-team-market-settings-decision.md`: example of moving country/language from multiple child entities to a single Team-scoped market setting, requiring OpenSpec/domain/UI docs first and then schema/UI/test cleanup in one PR.
+- `references/outbound-agent-test-sender-removal-decision.md`: example of turning a PO statement that a fake/local test sender does not exist into explicit negative requirements across design, specs, feature docs, status docs, and model docs.
