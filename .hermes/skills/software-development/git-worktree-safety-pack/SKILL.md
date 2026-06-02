@@ -52,6 +52,7 @@ If the current repository does not have that repo-local skill-pack path, proceed
 - `references/post-push-dirty-followup-and-duplicate-pr-worktrees.md` — after preserving or amending an open PR branch, rerun dirty sweeps, include same-scope follow-up files, revert out-of-scope tests, remove duplicate PR worktrees, and verify remote heads before starting a delayed wait.
 - `references/profile-config-preservation-during-cleanup.md` — when cleanup finds repo-tracked Hermes profile/config changes mixed with local guidance, update the existing preservation worktree/PR branch and reduce YAML-normalization noise to the intended scalar config changes.
 - `references/merged-preservation-pr-branch-refusal.md` — when a preservation PR is merged mid-cleanup and force-push/update is refused, do not resurrect the merged branch; create a fresh latest-main branch/PR for only the remaining authored payload.
+- `references/workflow-dispatch-pr-creation-verification.md` — when cleanup preserves local work and the repo creates PRs through a `workflow_dispatch` action, verify default-branch-dispatched runs without relying on `gh run list --branch <feature-branch>`.
 - `github-pr-workflow/references/batch-open-pr-rebase-latest-main.md` — companion GitHub PR workflow reference for rebase-all-open-PR sweeps: live open-PR list, per-branch latest-main fetch, `--force-with-lease`, and final merge-base verification.
 
 ## Common Pitfalls

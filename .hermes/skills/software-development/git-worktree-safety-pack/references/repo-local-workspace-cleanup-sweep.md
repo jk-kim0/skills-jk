@@ -122,7 +122,7 @@ If a branch has no PR but has dirty content or meaningful net diff:
 3. Rebase onto current `origin/main`.
 4. Push the branch.
 5. Create a PR with Korean title/body and no auto-closing issue keywords.
-6. Verify the PR URL and branch head.
+6. Verify the PR URL and branch head. If PR creation is done through a `workflow_dispatch` action, verify recent workflow runs without assuming `gh run list --branch <feature-branch>` will show the run; dispatch runs may appear under `headBranch: main`. See `workflow-dispatch-pr-creation-verification.md`.
 7. Continue stale cleanup.
 
 For docs splits, verify that newly referenced docs actually exist before opening the PR. If a changed document links to a new file that was not created, recover the missing content from the pre-split document or otherwise create the linked file so the PR is self-contained.

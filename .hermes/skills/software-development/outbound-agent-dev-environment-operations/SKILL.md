@@ -145,6 +145,7 @@ See `references/tencent-seoul-active-deploy-triage.md` for the command pattern a
 
 ## Workflow/status pitfalls
 
+- When editing DB migration workflow summary/copy in `.github/workflows/apply-outbound-dev-db-migration.yml`, check source-based tests that assert workflow text before pushing. In particular, `front/src/__tests__/schema-migration-artifacts.test.ts` may assert the exact run-summary wording. If CI fails in `Front app CI` after a wording-only workflow change, inspect the assertion before changing workflow behavior; update the test expectation to the new intended contract and rerun the focused test (`npm test -- --run src/__tests__/schema-migration-artifacts.test.ts`).
 - A GitHub Actions top-level run can remain `in_progress` while individual jobs have already finished or while the Tokyo deploy job is still running. Inspect job steps with `gh run view <run-id> --json jobs` before declaring failure.
 - Tencent image deployment deploys Seoul before Tokyo in the main image workflow; top-level `in_progress` can mean Seoul is already successfully updated while Tokyo is still in `Run deployment`. Report Seoul and Tokyo job states separately instead of collapsing them into one deployment status.
 - Tencent image deployment may deploy Seoul before Tokyo; Tokyo can take longer because of registry/proxy/network path.
