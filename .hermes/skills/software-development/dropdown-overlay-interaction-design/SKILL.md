@@ -90,6 +90,24 @@ Panel attributes:
 ) : null}
 ```
 
+## Adapting shadcnui-blocks Workspace Switcher patterns
+
+When the user asks to use the shadcnui-blocks `Workspace Switcher` example for a real app team/workspace switcher, treat the block as a visual and interaction pattern, not as complete product logic.
+
+- Keep the shadcn/Radix `DropdownMenu` structure.
+- Map `Workspace` to the app’s actual domain term, such as `Team`.
+- Use the trigger pattern with avatar/fallback, primary name, secondary metadata, and `ChevronsUpDown`.
+  - If the user asks for a blank profile image, render an intentionally empty/neutral `AvatarFallback`; do not invent an initial, logo, or profile image.
+- Use menu rows with avatar/fallback, primary/secondary text, and a `Check` icon for the current item.
+- Preserve authoritative app switching behavior such as server actions, form submit, routing, redirects, and session persistence; do not replace it with the demo’s client-only `useState` unless the product explicitly only needs local selection.
+- Prefer item-shaped current rows (`DropdownMenuItem disabled` or equivalent) over unrelated plain `<span>` rows when visually matching the switcher.
+- Keep real product actions only. If the user says dropdown grouping is unnecessary, remove section labels/group headings instead of preserving demo labels like `Workspaces`, `Switch Team`, or `Team actions`.
+- When pruning actions, explicitly remove stale menu items from both UI and source-level tests; for example, if only `Create Team` remains, assert that `Manage Team` and `Team settings` are absent.
+- If the user asks to introduce the Workspace Switcher as a reusable UI Widget, extract a client component such as `WorkspaceSwitcher` instead of leaving the pattern inline in `AppShell` or a page. The widget should accept generic items, `selectedWorkspaceId`, optional action link props, and the app's authoritative switch action/form behavior.
+
+See `references/shadcnui-blocks-workspace-switcher-adaptation.md` for the extracted example shape and adaptation checklist.
+See `references/reusable-workspace-switcher-widget.md` for the reusable widget extraction contract and source-level test checklist.
+
 ## Overlay placement and direction
 
 Choose the panel direction from available space and trigger location, not from the word “dropdown” alone.
@@ -98,9 +116,20 @@ Common placement contracts:
 - Top-bar/team switcher menus usually open downward: `.menu-panel { top: calc(100% + gap); }`.
 - Sidebar footer/account menus usually open upward so they remain inside the viewport: `.sidebar-user-menu .menu-panel { top: auto; bottom: calc(100% + gap); }`.
 - Right-aligned triggers should set `right: 0; left: auto;` when the panel must stay within the viewport edge.
+- With Radix/shadcn dropdowns, prefer the primitive placement props for this contract: `side="bottom" align="end"` makes a top-bar panel open below the trigger while aligning the panel’s right edge to the trigger’s right edge, so the panel expands toward the left instead of off to the right.
 - Responsive/mobile layouts often need to reset absolute placement to normal document flow: `.menu-panel { position: static; width: 100%; margin-top: gap; }`.
 
 When a shared dropdown component is used in several places, prefer a placement-specific class on the instance (`sidebar-user-menu`, `menu-right`, `feature-visibility-panel`) rather than adding one-off placement logic to the component unless dynamic collision detection is actually required.
+
+## Menu item copy and alignment
+
+For compact internal utility menus, keep the collapsed trigger terse but the panel readable:
+
+- Use a short visible trigger only when space is constrained, and keep the full purpose/current state in `aria-label`.
+- Prefer concise item labels with sentence-style capitalization unless the product term is a proper noun.
+- Keep descriptions short enough to scan in one or two lines.
+- Apply explicit left alignment and normal wrapping to option rows when using button-like menu items; centered button defaults often make dropdown option text look broken.
+- If the selected item needs emphasis, style the row state separately from the text layout so the active row does not change alignment.
 
 ## When native `<details>` is not enough
 
@@ -125,6 +154,14 @@ When a dropdown field is backed by a separate setup/registry screen (for example
 4. If the custom dropdown feeds a server action or ordinary HTML form, keep a hidden form input in sync with the selected item and make the visible trigger purely interactive.
 5. When there are no selectable items, keep the dropdown actionable: show an empty-state row plus the setup link so the user learns the recovery path at the moment they discover the missing option.
 6. Source-level tests should pin both the field order and the placement of the setup action so future edits do not regress the flow.
+
+## Viewport resize dropdowns
+
+When implementing an internal dropdown that changes the browser to standard review viewport sizes, treat the documented CSS-pixel viewport as the target for `window.innerWidth / window.innerHeight`, not as an outer window size.
+
+Use `window.resizeTo(window.outerWidth + widthDelta, window.outerHeight + heightDelta)` where the deltas are computed from the current inner viewport, then re-check and retry a bounded number of times. A single outer-size calculation can miss the target because browser chrome, toolbar changes, maximized windows, or OS clamping can change the relationship between outer and inner dimensions.
+
+Also show the current viewport using `innerWidth × innerHeight`, highlight the matching option only when the inner viewport is actually at the target, and note browser/OS limitations in PR or docs. See `references/viewport-resize-dropdown-pattern.md` for a compact implementation pattern and tests.
 
 ## Test guidance
 

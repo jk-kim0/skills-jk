@@ -211,7 +211,7 @@ auxiliary:
     timeout: 30
     extra_body: {}
 display:
-  compact: false
+  compact: true
   personality: kawaii
   resume_display: full
   busy_input_mode: interrupt

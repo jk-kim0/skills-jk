@@ -132,6 +132,7 @@ For docs splits, verify that newly referenced docs actually exist before opening
 When preserving PR-less dirty work during cleanup, keep the preservation PR reviewer-friendly and avoid creating duplicate scope:
 
 - Inspect whether the dirty branch is a previously merged PR branch before opening a new PR. If its remaining dirty files overlap a newly preserved PR or are already represented by an open preservation PR, remove the stale merged branch/worktree instead of creating another duplicate PR.
+- If an existing open preservation PR already covers the dirty root/worktree's scope, update that PR branch instead of creating a duplicate PR.
 - Use a human-readable Korean PR title/body that describes the actual scope, not a mechanical branch-name dump. Avoid shell/JSON escaping that can leak `\\uXXXX` sequences into GitHub titles.
 - After creating a preservation PR, immediately re-check the former dirty source branch/worktree. If the source branch was a merged branch used only as a temporary holding area, delete it once the preserved PR is verified.
 - If preserving multiple PR-less branches in one sweep, re-run the open PR list and targeted branch lookup after each preservation PR so later branches are classified against the new open PRs, not stale state.

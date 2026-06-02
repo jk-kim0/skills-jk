@@ -16,6 +16,7 @@ Use this when:
 - the card currently has an inner CTA link/button
 - nested interactive elements would be invalid or awkward
 - keyboard focus should make the CTA area visibly stand out
+- a placeholder / empty-slot / required-creation card needs one central CTA affordance, such as a plus-cross button
 
 ## Pattern
 
@@ -50,6 +51,31 @@ Optional image polish:
 - For an absolute overlay-link / separated-CTA pattern, also include plain focus on the overlay trigger when needed:
   - `peer-hover:scale-[1.02] peer-focus:scale-[1.02] peer-focus-visible:scale-[1.02]`
 - Practical lesson: with an overlay `Link`, relying only on `peer-focus-visible` can make the image scale feel missing in some focus flows; adding `peer-focus` restores the expected box-focus image emphasis.
+
+## Variant: required-creation plus-cross button card
+
+Use this variant when a card represents a required creation/addition slot and the user wants the center `+` mark itself to be the creation control.
+
+Pattern:
+1. Keep the card shell visually consistent with real entity cards
+   - same radius and general card proportions
+   - dashed border to signal an unfilled slot
+   - preserve the card-type eyebrow, such as `Product` or `Contact List`
+2. Make the center `+` cross the only visible creation affordance
+   - do not add a separate lower primary button such as `Create`, `Add`, or `만들기`
+   - title/description copy can explain what needs to be created, but should not introduce another button-shaped CTA
+3. Style default vs hover/focus explicitly
+   - default: low-contrast, pale `+` cross so it reads as an available empty slot
+   - hover/focus: darken the `+` cross and add a focus-visible ring or equivalent clear focus affordance
+   - keep layout and card size stable between default and focus states
+4. Decide click target deliberately
+   - the center `+` should be the semantic button/link
+   - the surrounding card may be expanded as a larger hit target only if it does not add a second visible affordance
+
+Pitfall:
+- Do not treat a low-contrast `+` marker as merely decorative if the user asked for the plus itself to perform the create/add action. In that case, the plus is the button and the design should not also show a separate blue `Create` / `만들기` button.
+
+See `references/required-creation-plus-button-card.md` for the Outbound Agent Entity Card Widget case that introduced this pattern.
 
 ## Alternate pattern: separate box-link focus from CTA focus
 

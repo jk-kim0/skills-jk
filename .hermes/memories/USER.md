@@ -105,3 +105,5 @@ When the user corrects a misunderstood goal/scope or expresses frustration about
 For the skills-jk repo-local Hermes setup, the user wants Hermes preferences and settings changes, including profile configuration, to be tracked in git rather than left only as local runtime state.
 §
 When controlling Chrome via DevTools/CDP, user prefers keeping a single attached browser connection/session alive for continued control instead of reconnecting repeatedly for each action.
+§
+For UI design/documentation PRs, user expects requested variants to be represented in both the written spec and visual design artifacts; if they ask for multiple UI types, every type should appear in the visual design, not only in text.

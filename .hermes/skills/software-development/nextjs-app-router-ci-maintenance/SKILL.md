@@ -107,6 +107,23 @@ Implementation rules:
 6. For Tailwind-owned route groups, treat legacy global CSS as a visual reference, not as an implementation source. Move layout/color/spacing contracts into Tailwind classes, component-local CSS, or shared components intentionally.
 7. Preserve route-specific metadata ownership. A locale-specific page's default `generateMetadata()` fallback should point to the route it directly serves, not a broader parent.
 
+## Route-local Demo to Reusable Widget Extraction
+
+Use this pattern when a hidden/internal App Router page already contains a concrete UI mock-up and the user asks to promote part of it into a reusable widget/component while keeping route-local authoring intact.
+
+1. Start from latest `main` in a worktree/branch and inspect the route-local page plus any repo-local authoring skill/docs before editing.
+2. Treat the route page as the owner of mock data, scenario composition, and section copy. Extract only the reusable presentation/interaction shell into `src/components/**` or the repo's equivalent shared component boundary.
+3. Write or update a lightweight source-oriented regression test before extraction:
+   - the route imports the shared widget;
+   - the page no longer defines duplicate route-local card components/styles that belong to the widget;
+   - the shared widget accepts the approved entity/card types;
+   - route-local data still includes the intended scenarios.
+4. When adding a new entity card whose attributes must follow model design, read the design docs and schema source together, then encode only safe field-name/value examples in mock UI. Do not include secrets, OAuth tokens, refresh tokens, connection strings, or real credential values.
+5. Keep domain/model semantics in route-local data, not special-case widget branches, unless the widget truly needs a new reusable rendering capability. For example, add a new `EntityCardType` union member and pass `meta`/preview entries from the page instead of hardcoding an `Email Sender` layout inside the widget.
+6. Verify with targeted tests, lint for touched files when available, `git diff --check`, then commit/push and update the PR body with the extraction boundary, model sources used, and any known broader typecheck blocker.
+
+See `references/route-local-widget-extraction-entity-card.md` for a compact example from an Outbound Agent hidden entity-card page.
+
 ## Vitest / GitHub Actions CI Scope Splitting
 
 Use this when the repository has monolithic validation and the user wants changed-scope CI narrowing.
@@ -194,7 +211,7 @@ Do not treat `npm run test:run` passing as proof that grouped CI is healthy; `te
 
 ## References
 
-Session-specific examples migrated from the absorbed skills live under `references/` with `nextjs-app-router-route-group-layouts-*` and `nextjs-vitest-ci-scope-splitting-*` prefixes. Prisma hosted DB schema drift check details live in `references/prisma-db-schema-drift-check-vercel-neon.md`; shared Vercel/Neon migration/backfill and drift recovery details live in `references/prisma-shared-db-migration-vercel-neon.md`.
+Session-specific examples migrated from the absorbed skills live under `references/` with `nextjs-app-router-route-group-layouts-*` and `nextjs-vitest-ci-scope-splitting-*` prefixes. Route-local widget extraction examples live in `references/route-local-widget-extraction-*.md`. Prisma hosted DB schema drift check details live in `references/prisma-db-schema-drift-check-vercel-neon.md`; shared Vercel/Neon migration/backfill and drift recovery details live in `references/prisma-shared-db-migration-vercel-neon.md`.
 
 ## Common Pitfalls
 
