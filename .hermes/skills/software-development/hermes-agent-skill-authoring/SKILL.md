@@ -195,14 +195,16 @@ If the user reports that repo-local skills are not being referenced, or you disc
 1. Inspect a sibling or source repository's `AGENTS.md` if the user names one.
 2. Add or update the target repo's `AGENTS.md` to define:
    - `.agents/skills/` as the canonical repo-local skill root
-   - `.agents/skills/README.md` as the local skill index
+   - `.agents/skills/README.md` or the repo's actual `.agents/README.md` as the local skill index
    - explicit trigger rules mapping task classes to skill files
    - a fallback instruction to read `.agents/skills/<name>/SKILL.md` directly when native skill loading cannot see repo-local skills
 3. Keep the guidance concise and class-level; do not paste entire skill procedures into `AGENTS.md`.
-4. Put this guidance change in a separate branch/PR before continuing feature work when the user asks for it or when it is a prerequisite to correct agent behavior.
-5. Check `.gitignore`: some repositories ignore `AGENTS.md`. If the repo intentionally needs tracked agent guidance, stage it with `git add -f AGENTS.md` and mention that in the PR summary.
+4. If the repo has `.agents/README.md` but no `.agents/skills/README.md`, update `.agents/README.md` with a short skill index instead of inventing a second index file unless the repo guidance asks for one.
+5. For a user request to create a rich repo-local skill plus reference material, use the source-of-truth split deliberately: a human-facing canonical doc when humans and agents both need the rule, a concise `SKILL.md` trigger/procedure, and `references/*.md` for detailed good/bad examples and session-specific nuance.
+6. Put this guidance change in a separate branch/PR before continuing feature work when the user asks for it or when it is a prerequisite to correct agent behavior.
+7. Check `.gitignore`: some repositories ignore `AGENTS.md`. If the repo intentionally needs tracked agent guidance, stage it with `git add -f AGENTS.md` and mention that in the PR summary.
 
-Common pitfall: merely committing `.agents/skills/**` is not enough. Future agents need a tracked entry point that tells them to discover and read those repo-local skills.
+Common pitfall: merely committing `.agents/skills/**` is not enough. Future agents need a tracked entry point that tells them to discover and read those repo-local skills. Another pitfall is creating a detailed skill but forgetting the repo's local skill index, so future agents see `AGENTS.md` yet still lack a quick trigger map.
 
 ## Active-PR Repo-Local Skill Follow-Up
 

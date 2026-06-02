@@ -357,6 +357,7 @@ When the user asks to report the implementation status of a feature, do a code-b
 9. For feature-status docs that sit beside feature plans (for example `docs/feature/status-*.md`), add or update the local feature index when one exists so the status document is discoverable, but keep the status doc focused on implementation state and promotion criteria rather than a long task narrative.
 10. If an aggregate status document already contains detailed rows for the same feature, avoid maintaining two competing sources of detail. Move or keep the detailed inventory in the per-feature status document, and replace aggregate rows with concise links/summaries that point to it.
 11. Report concise evidence with exact paths and the current behavior. Avoid overstating capability: code for an adapter is not the same as a complete user-facing production flow.
+12. When a docs/OpenSpec PR has accepted removal of a legacy feature concept and the follow-up is implementation cleanup, treat it as a repo-wide artifact removal audit: schema enums/models/defaults, migrations, seed/fixtures, fixture schemas, actions/routes, UI copy, E2E helpers, and source/contract tests must all be checked. Prefer a forward migration for Prisma enum/model removal and update tests to assert absence of the removed identifiers. See `references/legacy-feature-artifact-removal-followup.md`.
 
 See `references/feature-status-doc-authoring.md` for a reusable per-feature status-document workflow, suggested template, and duplication pitfalls.
 

@@ -98,6 +98,72 @@ When the user clarifies that MVP Front APIs should be synchronous while actual l
 4. Update technology-stack and backlog docs so they no longer say initial LLM wrappers or job stubs are adopted when actual model calls and async execution are post-MVP.
 5. Update phase plans so implementation PRs do not introduce `queued`/`processing` async job states or placeholder Job/EventLog tables merely to anticipate later backend work.
 
+## Scope reversal / docs-only reset pattern
+
+When the user initially asks to continue into code or implementation but then narrows the scope back to model design docs, OpenSpec, or ERD only:
+
+1. Acknowledge the correction explicitly and stop the implementation path immediately.
+2. Reset any active TODOs so code/schema/API/UI implementation items are cancelled or removed, not left in-progress.
+3. Continue only with Git-tracked documentation, OpenSpec, ERD, and relevant repo-local skill/context files.
+4. Before finalizing, verify the changed file list contains no source, Prisma schema, migration, fixture, generated, or test code files unless the user re-explicitly reopens implementation scope.
+5. In the final report, state that implementation/code changes were intentionally excluded.
+
+This is especially important when a product model decision affects Prisma relations: do not let the obvious next implementation step override the user's latest docs-only scope.
+
+## Read-only entity explanation pattern
+
+When the user asks to explain a domain entity or compare two attributes without explicitly requesting edits:
+
+1. Treat it as a read-only model clarification task. Inspect the current source of truth before answering, usually the canonical model docs plus the live schema/service code when implementation already exists.
+2. Distinguish conceptual fields from implementation relations. For example, in email sender models, explain that a `Sender`/`SenderIdentity.emailAddress` is the actual From identity, while a `Connected account` such as `GmailSenderCredential.connectedEmailAddress` is the OAuth-authenticated account that provides credentials.
+3. Call out current product constraints separately from future extensibility. If the current implementation requires two concepts to match, state that first, then explain why the model still stores them separately for aliases, delegation, shared mailboxes, or external providers.
+4. Walk every field one by one when the user asks for “속성 전체” or equivalent, including relation fields, enum meanings, unique constraints, and indexes that materially affect behavior.
+5. Keep the answer as an explanation, not a documentation PR, unless the user explicitly asks to update docs.
+
+## Team-rooted asset relation pattern
+
+When the user changes a domain model from user-owned or company-owned assets to Team-scoped assets:
+
+1. Treat Team as the sharing, permission, and market-boundary root.
+2. Remove direct `User` / `Owner` ownership relations from the affected reusable business asset unless the user preserves them as provenance.
+3. Replace parent-company relations with direct Team ownership when the asset should be reusable across the Team rather than under one Company.
+4. If Team has a 1:1 Company profile, document Campaign or execution entities as deriving company context from Team instead of selecting/storing `companyId` directly.
+5. Update ERD cardinality, field contract, OpenSpec requirements, UI prerequisite text, seed/demo docs, and verification searches together; otherwise old relation assumptions survive in secondary docs.
+6. Search for old FK names and prose, for example `companyId`, `ownerUserId`, `USER ||--o{ <ASSET>`, `<Asset> is owned by User`, or `Campaign selects Company/Product/Sales Person`.
+
+### Implementation follow-up checklist for Team-rooted asset changes
+
+When the user asks to turn a design-doc PR into code changes after this model decision, apply the same boundary across the implementation rather than only editing Prisma fields:
+
+1. Update Prisma schema and migration together:
+   - Remove obsolete relation fields such as `Company.ownerUserId`, `ContactList.ownerUserId`, `Product.companyId`, `SalesPerson.companyId`, and `Campaign.companyId` when the accepted model no longer stores them.
+   - Add backfill steps before `DROP COLUMN` / `SET NOT NULL` so existing rows derive `teamId` from the old owner/company relation.
+   - Replace old unique constraints such as `Product_companyId_productName_key` with Team-scoped equivalents.
+2. Update create paths and validators:
+   - Remove obsolete form/API payload fields such as Campaign `companyId` and Product/Sales Person `companyId`.
+   - Persist new rows with current Team scope and validate same-Team compatibility between remaining references such as Product and Sales Person.
+3. Update read models and UI call sites:
+   - Remove `include: { company: true }`, `campaign.company`, `product.company`, and `salesPerson.company` accesses once those relations are removed.
+   - Replace Company selectors with Team Company context text when Company is now a Team-level profile, not a per-asset choice.
+4. Update seeds/fixtures and tests:
+   - Keep old fixture `companySlug` only as a consistency check if fixtures still need to prove the Team has a Company; do not write removed `companyId` columns.
+   - Update structure/contract tests to assert the removed fields are absent, not merely that new fields exist.
+5. Verification should include at least Prisma client generation, TypeScript typecheck, targeted contract/unit tests around the changed models, lint, and `git diff --check` before commit/push.
+
+## Connected mailbox email provider feature-plan pattern
+
+When the user asks for a feature plan for an Email Sender Provider that is a user/work mailbox provider, such as Gmail/Google Workspace or Microsoft Exchange Online, treat it as a connected-mailbox provider track rather than an external bulk email provider track.
+
+Reference detail: `references/connected-mailbox-email-providers.md` summarizes the concept split, Gmail pattern, Microsoft Exchange Online pattern, and feature-plan checklist.
+
+1. Separate three concepts explicitly: `SenderIdentity.emailAddress` is the actual From identity; the provider credential's `connectedEmailAddress` or equivalent is the OAuth-authenticated mailbox/account; the provider-specific settings/ledger hold token, quota, tenant, and provider result details.
+2. State the current same-mailbox or same-address validation first when aliases/delegation are out of scope, then list alias, shared mailbox, delegated mailbox, send-as, and send-on-behalf-of as post-MVP or excluded scope unless the user explicitly asks to include them.
+3. Keep connected mailbox providers distinct from external bulk providers. Do not reuse bulk-provider domain verification, DNS warm-up, or webhook reputation models for mailbox providers unless the feature specifically requires them.
+4. For Microsoft Exchange Online plans, model it as a Microsoft Graph delegated-permission provider by default; call out tenant id, Microsoft user id, connected mailbox address, granted scopes, encrypted refresh credential, throttling, conditional access, tenant policy block, and mailbox-level soft cap/error normalization.
+5. Include Sales Person sender binding and SendRun locked-sender validation in the plan: actual send must use the selected/locked Team Email Sender and must not fall back to the current user's mailbox or another provider.
+6. Add OpenSpec, UI, `/goal`, task-breakdown, verification, and explicit out-of-scope sections so the feature plan can hand off to a later implementation without reinterpreting the provider boundary.
+7. Link the new feature plan from the feature README and sprint/roadmap independent-track list when the repo uses those index documents.
+
 ## Verification searches
 
 Run targeted content searches over docs for:
@@ -105,6 +171,7 @@ Run targeted content searches over docs for:
 - Old section labels such as `<Entity> Setup` when the new term is `<Entity> Configuration`.
 - Old grouped labels such as `A, B, C, Campaign` when Campaign is no longer part of the group.
 - UI group names that still imply the old boundary.
+- Old ownership or FK terms such as `companyId`, `ownerUserId`, `USER ||--o{ <ENTITY>`, or prose saying a Team-scoped asset is owned by a User/Owner.
 - Common misspellings from the user prompt or prior docs, e.g. `Compaign`.
 
 Report the absence of old contradictory terms separately from the positive new terms that remain valid.

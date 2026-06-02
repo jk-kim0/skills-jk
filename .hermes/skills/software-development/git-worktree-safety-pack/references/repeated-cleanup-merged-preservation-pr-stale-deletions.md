@@ -1,44 +1,47 @@
-# Repeated cleanup after merged preservation PR with stale deletion hunks
+# Repeated cleanup after a merged preservation PR: avoid stale deletion hunks
 
-Use this reference when a repeated `main 업데이트` / `workspace 정리` sweep starts right after a prior preservation PR has merged, but the root checkout is still on the pre-merge `main` and contains additional authored skill/docs changes.
+Use this when a repo-local `main 업데이트` / `workspace 정리` sweep is run shortly after a previous dirty-root preservation PR was merged, and the root checkout is both dirty and behind `origin/main`.
 
-## Symptom
+## Pattern
 
-After `git fetch --prune`, the state looks like:
+A root checkout can contain valid new local skill/docs edits while its `main` commit is still older than `origin/main`. If a prior preservation PR was just merged, a broad `git diff origin/main --` from the stale root may show many apparent deletions for files that actually exist on latest main. Those deletion hunks are usually stale-baseline artifacts, not intentional local removals.
 
-- root `main` is behind `origin/main` by the just-merged preservation PR;
-- the previous preservation worktree branch tracks a deleted remote head and its PR is `MERGED`;
-- root is dirty with new authored changes;
-- `git diff origin/main --stat` shows a mix of useful additions plus many apparent deletions of files that now exist on `origin/main`.
+## Safe preservation sequence
 
-Those deletion hunks are usually stale root-baseline artifacts, not intended removals.
-
-## Safe preservation pattern
-
-1. Verify the prior PR state before deleting anything:
-   - `gh pr view <prior-pr> --json state,mergedAt,headRefName,url`
-   - targeted `gh pr list --state all --head <branch>` for each local branch.
-2. Save a repo-external backup of the dirty root:
-   - `git diff --binary > /tmp/<repo>-preserve/local.diff`
-   - `git ls-files --others --exclude-standard > /tmp/<repo>-preserve/untracked.txt`.
-3. Create a fresh repo-root worktree from latest `origin/main` on a new preservation branch.
-4. Do not apply the dirty root as a whole patch when the diff includes deletion hunks for files that exist on latest `origin/main`.
-5. Instead, copy only root paths that currently exist and are authored payload into the fresh worktree:
-   - modified tracked files that carry real new guidance;
-   - untracked authored skill/reference directories;
-   - exclude runtime/cache paths such as `.hermes/lsp/`, `.hermes/pairing/`, sessions/logs, profile caches, and curator backups.
-6. Do not delete files from the fresh worktree just because they are absent in the stale root checkout. Keep `origin/main` as the source of truth for already-merged files.
-7. Run lightweight checks in the fresh worktree:
+1. Fetch first: `git fetch origin --prune`.
+2. Record live state before cleanup:
+   - `git status --short --branch`
+   - `git rev-parse main origin/main`
+   - `git diff --name-status origin/main --`
+   - untracked file list
+3. Back up the dirty root patch and untracked list outside the repo, for example under `/tmp/<repo>-preserve-<date>/`.
+4. Do not apply the entire `git diff origin/main` patch onto a new branch when the root is behind. Instead, classify paths:
+   - keep authored skill/docs/reference additions and modifications;
+   - exclude runtime residue such as `.hermes/lsp/`, `node_modules`, caches, logs, or generated local state;
+   - exclude deletion hunks for files that exist on `origin/main` unless the user explicitly requested those deletions and they still make sense against latest main.
+5. Create a fresh worktree from latest `origin/main` and copy only the selected authored payload into it.
+6. Validate before committing:
    - `git diff --check`
-   - changed-file conflict-marker scan using `^(<<<<<<<|>>>>>>>)( |$)|^=======$`
-   - `git diff --name-status origin/main --` to confirm there are no unintended deletions.
-8. Commit, push, and create/update the PR through the repository’s normal PR mechanism.
-9. After verifying remote head and PR head, reset root to `origin/main`, remove only the now-preserved untracked root payload/runtimes, then delete the merged prior worktree/branch.
-10. Re-run the full dirty sweep and targeted PR lookup until only clean root `main` plus clean open-PR worktrees remain.
+   - conflict-marker scan for `<<<<<<<`, `=======`, `>>>>>>>`
+   - inspect staged file list and stat for unintended mass deletions.
+7. Commit, push, create/update the PR through the repository's standard PR path, then verify local head, remote head, and PR head SHA match.
+8. Only after the PR branch is verified, reset/clean the root checkout to latest `origin/main`, remove runtime residue, and delete merged/gone prior preservation worktrees or branches.
+9. Finish with a repeated sweep: root status, remaining worktrees, targeted PR lookup for retained branches, and unregistered `.worktrees/` child check.
 
 ## Pitfalls
 
-- Do not open a PR from the stale root branch or stale previous preservation branch; it can reintroduce old deletions.
-- Do not use `git clean -fd -- .hermes/skills` before the new preservation PR is verified; untracked authored references may be lost.
-- Do not push a rebased local branch whose remote head was deleted after merge. Treat the merged branch as local residue and create a fresh follow-up branch from `origin/main` for any new payload.
-- In the final report, distinguish: prior PR merged and local residue removed; new PR opened for additional payload; root `main` reset/updated to latest `origin/main` and clean.
+- Do not treat apparent mass deletions from `git diff origin/main` as real intent when root `main` is stale.
+- Do not delete root untracked authored files until the preservation PR head is verified.
+- Do not reuse or force-push a branch from a merged preservation PR; create a fresh branch from latest main for the new preservation payload.
+- Do not include local runtime directories such as `.hermes/lsp/` in docs/skill preservation PRs.
+
+## Reporting
+
+The final report should explicitly distinguish:
+
+- root `main` SHA and `origin/main` SHA;
+- root cleanliness;
+- the new preservation PR URL, branch, author, and head SHA verification;
+- stale deletion/runtime residue that was excluded;
+- merged/gone worktrees and local branches removed;
+- intentionally retained open-PR worktrees.

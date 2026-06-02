@@ -21,10 +21,11 @@ This is a class-level workflow. Apply environment-specific details from reposito
    - If the branch is actively moving, wait for the same SHA to remain stable for about one minute before calling it “latest”.
    - If the branch moves during the task, restart the verification sequence for the new final SHA.
 
-2. Prefer migrate-only before reset.
-   - Run migrations without reset first.
+2. Prefer migrate-only before reset unless reset is the user's explicit requested operation.
+   - Run migrations without reset first by default.
    - Run schema drift checks after migrations.
-   - Only use database reset when migration, schema check, or runtime smoke proves the environment is incompatible or broken.
+   - Only use database reset by default when migration, schema check, or runtime smoke proves the environment is incompatible or broken.
+   - If the user explicitly asks to reset dev/test databases, treat reset as authorized scope and run the reset workflow directly; still run schema checks and runtime smoke afterward.
    - Do not reset merely because reset is available.
 
 3. Verify exact deployment separately from public HTTP health.
