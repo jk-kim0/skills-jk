@@ -48,6 +48,7 @@ When the task is to add or repair a GitHub Actions E2E workflow for these dev se
      - `Check outbound-dev DB Schema` with `vercel_environment=production`, `check_mode=true`
      - `Check tencent/outbound-seoul DB Schema` with `branch=main`
      - `Check tencent/outbound-tokyo DB Schema` with `branch=main`
+   - Current baseline-only migration policy: clean installs should be reproducible from the single committed current-schema baseline plus seed. Do not reintroduce one-off repair/backfill workflow steps for the normal path; if an existing shared dev DB diverges from the baseline, use the explicit reset path and then schema-check. See `references/baseline-only-db-migration-cleanup.md`.
 
 3. Verify exact deployed versions.
    - Vercel/Incheon: use the successful `Deploy outbound-dev Production` run, deployment ID, `vercel inspect <deployment-url> --scope querypie`, aliases, and runtime region.
@@ -107,6 +108,8 @@ Important Outbound Agent seed behavior:
 
 When outbound-dev Vercel Preview or Production returns runtime 500 on `/login` with Prisma `P1011` and `Error opening a TLS connection: self-signed certificate in certificate chain`, inspect whether the deployment uses a Supabase pooled `DATABASE_URL` with `sslmode=require`. With `@prisma/adapter-pg` / `pg`, `sslmode=prefer|require|verify-ca` can be treated like stricter verification unless `uselibpqcompat=true` is present. The app runtime must normalize the Prisma pg adapter connection string the same way seed/SQL scripts do; otherwise build/deploy can be green while `/login` fails at runtime. Verification pattern: compare old/new deployment IDs in `vercel logs --project outbound-dev --environment preview --level error --json --no-branch`, check the latest deployment has zero P1011 rows, and run `E2E - Runtime Smoke` against the Preview URL using `--ref <PR branch>` when validating a PR-branch smoke-test change.
 
+When querying a specific Vercel deployment URL with filters such as `--limit`, `--since`, or `--level`, add `--no-follow`. The Vercel CLI implicitly enables follow mode for deployment URL/ID arguments, and follow mode rejects filters.
+
 ## Gmail OAuth runtime config pitfalls
 
 For browser-based dev OAuth smoke, prefer a fresh browser context/profile when verifying a reset or config repair so cached Google sessions and stale app cookies do not mask the actual flow. Verify the product route, selected sender row, OAuth start URL, callback result, and final Email Senders table state. See `references/gmail-oauth-dev-browser-smoke.md`.
@@ -158,12 +161,15 @@ See `references/tencent-seoul-active-deploy-triage.md` for the command pattern a
 - Public HTTP 200 is not exact-version proof. Always pair runtime smoke with deployment metadata checks.
 - For deployed Tencent runtime smoke from `front/playwright.runtime-smoke.config.ts`, use `E2E_BASE_URL` or `PLAYWRIGHT_BASE_URL`; `BASE_URL` is ignored by that config and will fail before tests run.
 - Do not trust arbitrary hashes in rendered HTML as deployed git revision unless the app explicitly exposes them as build metadata.
+- When simplifying outbound-agent DB migration workflows to a single baseline, keep workflow summaries current and operation-oriented. Avoid carrying stale feature-track wording such as `UUID v7 ID migration` after that migration has been completed/archived; prefer wording like `Schema mode: single baseline migration; reset_database=true runs a clean reset and seed`. Also avoid phrasing like `then rerun seed` when the workflow itself already runs seed.
+- When a feature-track plan is verified complete during a migration/schema cleanup PR, move the planning document from `docs/feature/` to `docs/done/`, change its status to `Done`, add concise completion evidence, remove it from active feature indexes, and update `docs/feature-status.md` counts/status rows so stale `In-Progress` entries do not remain.
 
 See `references/latest-main-churn-and-dev-deploy-verification.md` for the full pattern from a session where several PRs moved `main`, cancelling older Tencent deploy runs and requiring a final latest-SHA deploy/migrate/schema/smoke pass.
 
 ## References
 
 - `references/tencent-targeted-gmail-oauth-env-sync.md` — Target-aware Tencent Gmail OAuth env sync workflow pattern so Seoul/Tokyo can be updated independently when the other VM is unhealthy.
+- `references/baseline-only-db-migration-cleanup.md` — Baseline-only Prisma migration cleanup pattern: keep one current-schema baseline, remove intermediate migration/backfill/repair artifacts, and verify clean reset+seed installs.
 - `references/dev-seed-drift-and-email-templates.md` — Email Template seed drift investigation and reset verification pattern from a dev-seoul incident.
 - `references/deployed-dev-e2e-workflow.md` — Pattern for manual GitHub Actions Playwright E2E against the already-deployed dev servers, including seed-user and Email Sender auth-boundary guidance.
 - `references/latest-main-churn-and-dev-deploy-verification.md` — Pattern for verifying all three dev servers while `main` is moving, deploy runs are cancelled by concurrency, and migrate/schema/smoke must be repeated on the final latest SHA.

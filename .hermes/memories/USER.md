@@ -115,3 +115,7 @@ User wants any external command expected to take more than 30 seconds to run as 
 For deployment/operations tasks, the user requires frequent, clearly visible intermediate progress reports in ordinary user-facing chat messages; tool calls/tool logs/commentary are not considered progress reports. Do not run through multiple steps and then provide only a completion summary; stop between steps with visible status, rationale, and next-step updates.
 §
 When the user asks to check and fix open PRs, they expect a full open-PR sweep: inspect every open PR for failing checks and merge conflicts, fix/rebase/push as needed, and report only after all relevant PRs are CLEAN/pass or remaining blockers are explicit.
+§
+Reverse-sync workflows are repository-dependent and should not be kept as global/user-scope skills or global AGENTS.md gates; keep them in the owning repository context instead.
+§
+GitHub/PR/CI workflow skills are maintained under `~/workspace/skills-jk/`; user-scope `~/AGENTS.md` should not carry global GitHub/PR/CI gates or references to `~/.codex/skills/github-cli-safety-governed/`.
