@@ -19,3 +19,5 @@ In the outbound-agent repo, fixture and seed input files should prefer YAML over
 In outbound-agent Tencent VM container deployments, Next.js Gmail OAuth `request.nextUrl.origin` can resolve to `https://localhost:3000` when `HOSTNAME=127.0.0.1` is present in `/etc/outbound-agent/front.env`; set environment-specific `GMAIL_OAUTH_REDIRECT_URI` explicitly (Seoul/Tokyo callback host) and restart `outbound-front` to generate the correct Google redirect URI.
 §
 In outbound-agent fixtures and Gmail sender/Sales Person demo data, jk must use `jk@chequer.io` only; `jk@querypie.com` fails authentication, and fixture people should not be represented with both chequer.io and querypie.com domains.
+§
+In outbound-agent, local Prisma 7 CLI commands should be run with Node 24 (e.g. `source ~/.nvm/nvm.sh && nvm use 24`); Node 22 can fail with `ERR_REQUIRE_ESM` from `@prisma/dev` requiring `zeptomatch`.

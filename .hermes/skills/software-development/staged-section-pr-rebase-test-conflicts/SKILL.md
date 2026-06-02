@@ -65,6 +65,10 @@ node --test tests/ai-dashi-page-structure.test.mjs tests/ai-dashi-cta-links.test
 
 Then confirm the PR head moved and CI restarted.
 
+For GitHub PR cleanup sweeps, checks passing is not enough if `gh pr view --json mergeStateStatus` reports `DIRTY`.
+Rebase the PR, resolve the conflict, push with `--force-with-lease`, then re-check both `mergeStateStatus` and CI on the new head SHA.
+When the conflict is in a source-based test, preserve the behavioral contract rather than one branch's exact implementation text; for example, a Docker image test should ban `outbound-front:latest` without banning valid runner labels like `ubuntu-latest`.
+
 ## Anti-patterns
 
 - taking only the PR side and dropping already-merged sibling tests
