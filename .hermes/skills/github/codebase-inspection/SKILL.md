@@ -388,6 +388,16 @@ Pitfalls:
 When the user asks why a UI entry point exists in a certain product area (for example, a settings button that appears to belong under a different entity), answer from implemented code plus canonical design decisions, not from naming intuition alone.
 For provider-backed sender settings, be especially careful to separate a Team-scoped credential/sender-identity registry from the Sales Person business persona and sender selection; see `openspec-decision-management` reference `references/outbound-agent-sales-person-gmail-sender-decision.md` for the Outbound Agent pattern.
 
+### Hidden/mock-up route visibility triage
+
+When a user says a UI element added in a PR “does not show,” and the diff touches hidden/mock-up/example routes, do not assume a product regression. Inspect the PR files and answer from route reachability plus render position:
+
+1. Confirm the PR state, changed files, and exact route/component paths (`gh pr view <n> --json files,state,headRefName,mergedAt` and targeted reads).
+2. Identify whether the added UI is in a product route, navigation-linked route, or hidden/authenticated mock-up route such as `/hidden/...`.
+3. Check access gates (`requireUser`, middleware, redirects) and verify with a simple HEAD/curl probe when a preview URL exists; unauthenticated hidden routes can redirect to `/login`, making the card appear missing.
+4. Inspect the map/render order and responsive grid classes. A card appended late in an array may require scrolling or a wider viewport (for example sixth card in a 1/2/3-column grid with fixed-height cards).
+5. Distinguish “component/type support exists” from “the card is surfaced in product UI.” If the PR only updates a mock-up/example page, say that plainly and point to the actual product route if different.
+
 1. Confirm repo/branch and inspect the exact route/page that renders the questioned UI copy.
 2. Locate the target route/action and read what it actually manages: domain entity fields, provider credentials, registry/listing, OAuth/connect flow, admin policy, etc.
 3. Search docs/specs/OpenSpec decisions for the route, copy, and domain terms. Treat accepted decisions as intent evidence, but distinguish them from current UX quality.

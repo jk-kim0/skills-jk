@@ -33,6 +33,10 @@ diffs versions for regressions, and exports to Tailwind or W3C DTCG JSON.
 For purely visual inspiration or layout examples, use `popular-web-designs`
 instead. This skill is for the *formal spec file* itself.
 
+When the user asks to add a static visual-design mock-up image to a repository design document or PR, keep the asset repo-tracked and colocated with the design doc images. A lightweight dependency-free pattern is to author an SVG mock-up, render it to PNG with platform tooling such as macOS `qlmanage -t -s <size>`, normalize dimensions with `sips`, link the PNG from Markdown, and commit the PNG with the docs change. See `github-pr-workflow` reference `references/docs-pr-visual-design-assets.md` for the PR-oriented checklist.
+
+When the requested visual design introduces multiple component variants, the mock-up set must represent every requested variant, not just the more action-oriented one. Compare the variants side by side against the existing/base component visual design so reviewers can see what stays consistent and what changes. Preserve the base component's shell/footprint first — size, radius, padding, typography, eyebrow position, preview-slot position, shadow, and grid alignment — and express the variant only through the intended visual deltas. For state-only/empty variants, show a neutral non-interactive state treatment with no CTA/pointer/focus affordance; if using a minus/no-item icon, avoid extra button-like wrappers unless requested. For required-creation variants, show the creation affordance explicitly and remove any alternate CTA the user rejected; if the user says the center plus is the button, do not also add a bottom “create/make” button. Render a plus/cross affordance as a single glyph or single vector shape when uniform color matters — overlapping horizontal/vertical shapes make the intersection darker; on hover/focus, darken the whole glyph uniformly rather than adding a circular background or layered fills. See `references/component-state-variant-mockups.md` for a compact checklist and icon-rendering pitfalls.
+
 ## File anatomy
 
 ```md

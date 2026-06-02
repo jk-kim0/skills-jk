@@ -97,12 +97,18 @@ Vague name, tests mock not real code.
 TDD also applies when the requested change is a product policy, schema contract, OpenSpec/docs update, or UI copy rather than a new runtime function.
 
 Use a lightweight source/contract test when it is the project's established pattern:
-- Assert schema constraints that encode the policy, e.g. relation exists, field is not `@unique`, or fallback logic is absent.
+- Assert schema constraints that encode the policy, e.g. relation exists, field is not `@unique`, a field is non-null, or fallback logic is absent.
+- For required columns added to existing tables, assert the migration is existing-row-safe: add nullable column, backfill existing rows, then apply `SET NOT NULL` or the ORM equivalent.
+- For generated/default values, assert both the helper behavior and the creation path that writes the value, including boundaries for random/default selection when applicable.
 - Assert canonical docs/specs contain the accepted policy when those docs are treated as product contract.
 - Assert UI source exposes the required user-facing guidance when browser verification is unnecessary or too heavy for the change.
 - Watch the source/contract test fail first, then update docs/UI/schema.
 
+See `references/schema-and-source-contract-tests.md` for concrete examples covering required schema fields, safe backfill migrations, random default assignment, and source-level UI/asset contracts.
+
 Pitfall: JSX/MDX/text formatting often inserts line breaks. Prefer regexes with `\s+` for multi-word UI copy assertions instead of exact `toContain(...)` strings that become brittle after wrapping.
+
+Pitfall: environment-specific local validation failures (Node/package-manager incompatibilities, symlinked dependency quirks, missing binaries) are not durable TDD rules. Preserve the focused RED/GREEN test evidence, document the local verification blocker precisely, and use CI or a fresh-install environment for final validation when available.
 
 ### Verify RED — Watch It Fail
 

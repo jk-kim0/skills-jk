@@ -14,7 +14,33 @@ metadata:
 
 Complete guide for managing the PR lifecycle. Each section shows the `gh` way first, then the `git` + `curl` fallback for machines without `gh`.
 
+## CI watch after amend / force-push
+
+When a PR branch is amended or force-pushed after checks have already started, any existing `gh pr checks --watch` or background watch may finish against the previous head SHA. After every amend, rebase, force-push, or branch replacement:
+
+1. Verify the pushed branch tip: `git rev-parse HEAD origin/<branch>`.
+2. Re-query the PR head SHA: `gh pr view <pr> --json headRefOid,statusCheckRollup`.
+3. Treat old completed check output as evidence only for the old SHA.
+4. Start a fresh watch for the new SHA, or explicitly report that the new checks are still pending.
+
+Pitfall: do not say “CI passed” for the PR after a force-push just because a previous background watch completed successfully. Name whether the pass belongs to the old or current head SHA.
+
+## Stacked PRs on top of an open PR
+
+When the user asks to create a new PR "on top of" an existing open PR, treat it as a stacked PR workflow rather than branching from `main`.
+
+1. Inspect the base PR first: `gh pr view <number> --json state,headRefName,baseRefName,url,title` and verify it is still open.
+2. Fetch the base PR head or use its existing clean worktree/branch if one is already present.
+3. Create the new branch from the base PR head and create the new PR with `--base <base-pr-head-branch>`, not `--base main`.
+4. Before editing, verify the actual worktree with both `git status --short --branch` and `git rev-parse --show-toplevel`. Do not trust a newly created path until these commands show the intended branch and repository root.
+5. If an attempted extra worktree under a repo-local `.worktrees/` path is missing, resolves to the root checkout, or otherwise does not show the intended branch, stop using that path. Prefer switching an existing clean base-PR worktree to the child branch, or create a sibling worktree and re-verify before writing files.
+6. After pushing, confirm the new PR metadata shows `baseRefName` equal to the base PR's head branch and `headRefName` equal to the new branch.
+
+Pitfall: a path existing under `.worktrees/` is not enough evidence that edits are happening in the desired git worktree. Always verify with `git rev-parse --show-toplevel` from inside the path before creating files.
+
 ## PR body safety for markdown with shell-sensitive characters
+
+Before any `gh` command, read active repo/local guidance such as `AGENTS.md`, `.agents/`, `.hermes/`, or user-scope rules that may constrain GitHub CLI invocation. If the active guidance requires unsetting token environment variables, run every GitHub CLI command as `env -u GITHUB_TOKEN gh ...`, including read-only calls like `gh pr view`, `gh pr checks`, `gh run list`, and `gh api`. This avoids accidentally using a stale or lower-priority token from the environment and keeps final PR reports consistent with the user's GitHub Gate expectations.
 
 When creating or editing a PR body that contains backticks, `$()`, shell variables, or multiline markdown, prefer a temporary markdown file plus `gh pr create --body-file <file>` or `gh pr edit --body-file <file>` instead of passing the body through a double-quoted `--body "..."` argument. Double-quoted shell strings can execute command substitution inside PR prose, corrupt the PR body, and trigger unrelated commands. If this happens, immediately rewrite the PR body via `--body-file` and verify with `gh pr view --json body`.
 

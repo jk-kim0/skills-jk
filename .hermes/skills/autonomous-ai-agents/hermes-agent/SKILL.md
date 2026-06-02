@@ -225,6 +225,7 @@ Repo-local/profile-as-code pattern:
 - For repositories that should share agent guidance and skills between Hermes and Codex, prefer `.agents/` as the source-controlled, vendor-neutral source tree. Put shared skills under `.agents/skills/`, then make tool-specific compatibility paths such as `.hermes -> .agents` and `.codex -> .agents` symlinks when the repo should expose the same context to both tools. See `references/repo-local-shared-agent-context.md` for the full layout, ignore discipline, and verification commands.
 - Keep secrets and runtime state out of git, but do not add broad or speculative `.gitignore` rules for nonexistent repo-local agent runtime files. If a verification command generates concrete local residue (logs, hub metadata, SOUL files, caches, DBs, etc.), report the path to the user and get approval before adding an ignore rule; otherwise delete the residue and keep `.gitignore` limited to paths that are currently necessary.
 - After creating or editing profiles, shared skill symlinks, or repo-local context, verify both the CLI-visible Hermes state from the same `HERMES_HOME` and the expected agent discovery behavior; config and skill-root changes apply to new sessions, not the already-running one.
+- When changing repo-tracked config/profile YAML, be aware that `hermes config set ...` can rewrite or normalize the entire YAML file (indentation, comments, nulls, wrapped strings), not just the target key. For review-friendly changes, either inspect the diff immediately and restore unrelated formatting, or patch the YAML key directly when the desired change is a simple scalar such as `display.compact: true`. Always verify the loaded YAML value afterward.
 
 ### Credential Pools
 
@@ -360,7 +361,7 @@ Edit with `hermes config edit` or `hermes config set section.key value`.
 | `agent` | `max_turns` (90), `tool_use_enforcement` |
 | `terminal` | `backend` (local/docker/ssh/modal), `cwd`, `timeout` (180) |
 | `compression` | `enabled`, `threshold` (0.50), `target_ratio` (0.20) |
-| `display` | `skin`, `tool_progress`, `show_reasoning`, `show_cost` |
+| `display` | `skin`, `compact`, `tool_progress`, `show_reasoning`, `show_cost` |
 | `stt` | `enabled`, `provider` (local/groq/openai/mistral) |
 | `tts` | `provider` (edge/elevenlabs/openai/minimax/mistral/neutts) |
 | `memory` | `memory_enabled`, `user_profile_enabled`, `provider` |
@@ -574,6 +575,17 @@ terminal(command="tmux new-session -d -s resumed 'hermes --resume 20260225_14305
 - **Tools/skills:** `/reset` starts a new session with updated toolset
 - **Config changes:** In gateway: `/restart`. In CLI: exit and relaunch.
 - **Code changes:** Restart the CLI or gateway process
+
+### CLI startup screen / banner too noisy
+If the user asks to reduce the Hermes startup screen, start with the persistent display config rather than code changes:
+```bash
+hermes config set display.compact true
+```
+This switches the full startup banner (large logo, caduceus, Available Tools, MCP Servers, Available Skills) to the compact banner. For reducing ongoing execution noise, separately suggest:
+```bash
+hermes config set display.tool_progress off
+```
+For one-shot/programmatic invocations, use `hermes chat -Q` / `hermes chat --quiet`, which suppresses banner, spinner, and tool previews for that run. Config changes apply to new CLI sessions, so exit and relaunch after changing display settings.
 
 ### Prompt size / context overhead diagnosis
 If a user asks why a very short prompt still sends a large request, measure the live request composition instead of guessing.

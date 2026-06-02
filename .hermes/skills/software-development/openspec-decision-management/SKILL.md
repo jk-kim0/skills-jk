@@ -26,10 +26,11 @@ Role boundary:
 
 Use this skill when:
 
-- The user says they are making a decision for a GitHub issue, OpenSpec change, product policy, provider policy, Team/permission boundary, ownership model, or integration flow.
+- The user says they are making a decision for a GitHub issue, OpenSpec change, product policy, provider policy, Team/permission boundary, ownership model, UI design rule, or integration flow.
 - A previously open decision in `openspec/changes/<change-id>/design.md` is now accepted or rejected.
 - A user clarifies a broad product principle that affects more than one feature.
-- A decision changes the interpretation of existing schema fields, roles, permissions, route boundaries, or integration ownership.
+- A user directly states how a UI state, empty state, placeholder, card variant, creation prompt, or setup affordance should behave.
+- A decision changes the interpretation of existing schema fields, roles, permissions, route boundaries, UI state semantics, or integration ownership.
 - Existing docs/specs contain stale alternatives, old role models, or contradictory wording after the new decision.
 
 ## Workflow
@@ -63,7 +64,8 @@ Use this skill when:
    - Prefer `openspec/changes/<change-id>/design.md` for change-specific decision logs.
    - Use `openspec/project.md` for broad project principles.
    - Use `openspec/specs/**/spec.md` for durable implementation requirements and scenarios.
-   - Use feature docs only as secondary consistency surfaces; do not make them the only source of truth.
+   - For UI design decisions where a `docs/ui/**` design document is already the canonical surface and no OpenSpec change exists, update that UI document directly instead of forcing a new OpenSpec change.
+   - Use feature docs only as secondary consistency surfaces unless the repository's guidance or existing doc structure makes a specific feature/UI doc the canonical source for that design rule; if so, record the decision there with `Status: Accepted`, rationale, interactions, state/API impact, and non-goals.
 
 3. Update the decision log.
    - If the user says they will decide, identifies a decision topic, or provides alternatives but does not choose one yet, still create/update the decision record as `Status: Open` / `Decision: TBD` so the canonical OpenSpec location exists before implementation work continues.
@@ -106,6 +108,7 @@ Use this skill when:
 8. Verify and report.
    - Run lightweight docs verification such as `git diff --check`.
    - For docs-only PRs, CI scope detection plus skipped app CI can be sufficient if repository norms prefer avoiding local builds.
+   - For user-provided UI design decisions, report the canonical document path, the newly accepted UI variants/states, and any explicit non-goals so reviewers see the semantic boundary.
    - Report PR URL, issue comment URL, commit SHA, and CI state.
 
 ## Decision record shape
@@ -156,6 +159,8 @@ Related issue item: GitHub issue #<n> `<label>`
 - Do not leave old docs saying `Viewer`, per-asset permission, or user-scoped ownership if the accepted policy removed those concepts.
 - Do not treat “post-MVP” as “prepare extension points now.” If the user says they will accept the future design/development cost, keep the current OpenSpec simple and avoid future-compatible abstraction, placeholder state, compatibility layers, extra enum states, adapter hooks, provider-specific failure reasons, or UI placeholders. If useful, explicitly state that the current MVP contract does not guarantee a natural migration path for that future capability.
 - Do not add implementation code when the user asked only to record an OpenSpec/product decision. If the user explicitly asks to implement the decision to Release Ready, code/schema/test cleanup that removes the rejected policy is part of the decision follow-through, not scope creep.
+- Do not force every accepted UI design decision into OpenSpec when the repository already has a canonical `docs/ui/**` design document for that component; update the canonical UI doc and keep the PR docs-only unless implementation was explicitly requested.
+- Do not collapse passive absence and required setup into one generic empty card. State-only/no-item UI must avoid CTA affordances, while required-creation UI should make the missing entity and create/add action prominent. See `references/outbound-agent-entity-card-empty-vs-required-creation.md`.
 - Do not preserve a rejected restriction as a narrower “test-only” rule unless the user explicitly chose that split. When the accepted policy says the product should not consider a restriction, remove the corresponding helper, schema, seed, UI, and docs instead of leaving dormant settings that imply the old policy still exists.
 - Do not preserve a removed feature as an active status row. If the user says the feature does not exist or is unused, update feature/status/model docs so it reads as `Removed`, `Mock`, or `legacy removal target`, not `Released` or `In-Progress`.
 - Do not rely on deletion alone for removed fixtures/providers. Future agents need an explicit negative contract (`SHALL NOT`, `사용하지 않음`, `존재하지 않음`, `seed하지 않음`, `UI에 노출하지 않음`) to avoid recreating the same artifact.
@@ -173,3 +178,4 @@ Related issue item: GitHub issue #<n> `<label>`
 - `references/outbound-agent-gmail-sender-disconnect-ui.md`: recipe for Team Email Senders rows where active connected Gmail senders show `Disconnect`, disconnect removes credential material while preserving `SenderIdentity.id`, and UI design/OpenSpec/code move together in one PR.
 - `references/outbound-agent-team-market-settings-decision.md`: example of moving country/language from multiple child entities to a single Team-scoped market setting, requiring OpenSpec/domain/UI docs first and then schema/UI/test cleanup in one PR.
 - `references/outbound-agent-test-sender-removal-decision.md`: example of turning a PO statement that a fake/local test sender does not exist into explicit negative requirements across design, specs, feature docs, status docs, and model docs.
+- `references/outbound-agent-entity-card-empty-vs-required-creation.md`: concise UI decision pattern for distinguishing passive no-item/empty cards from required creation/add cards in Outbound Agent Entity Card design docs.

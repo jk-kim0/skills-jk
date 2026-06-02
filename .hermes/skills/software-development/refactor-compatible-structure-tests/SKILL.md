@@ -285,6 +285,31 @@ Preferred rewrite pattern:
   - the shared helper itself still contains the required contract implementation
   - both, if you want stronger coverage
 
+### F. When route-local UI is extracted into a shared widget, test both narrative and component boundary
+Practical lesson from `outbound-agent` route-local widget refactors:
+- a route-local page can legitimately move repeated card/list/widget presentation into `src/components/**`, but the page should still own mock data, section headings/order, visible labels, and route-level interaction explanation
+- source-based tests that previously read only `page.tsx` become falsely red or too weak after extraction: some assertions still belong on the page source, while presentation/class/component-export assertions belong on the shared widget source
+- do not update the test to treat the shared component as the page narrative owner; instead, split the assertions by responsibility
+
+Recommended source-test shape:
+- read both files, e.g. `pageSource` and `widgetSource`
+- assert route/page narrative markers in `pageSource`:
+  - authentication/shell wiring when relevant
+  - page title and section headings
+  - route-level interaction labels such as drag/detail/select guidance
+  - grid or section composition owned by the page
+- assert reusable widget boundary in `widgetSource`:
+  - exported prop/type/component names
+  - density variants such as `compact` when that is the shared UI contract
+  - preview/status/tone branches that are component presentation concerns
+  - absence of legacy bespoke class hooks if the refactor intentionally uses Tailwind/utilities
+- assert the page imports and invokes the shared widget, and no longer defines old local component functions or local style registries such as `function StandardEntityCard`, `function CompactEntityCard`, or `const toneStyles`
+
+Why this matters:
+- keeps route-local authoring readable while still allowing reusable widget extraction
+- prevents tests from either clinging to the old inline implementation or hiding page-specific narrative inside a shared renderer
+- works well with strict TDD: add the source-boundary test first, watch it fail because the widget file/export is absent, then extract the component
+
 Example shape:
 
 ```js
