@@ -121,3 +121,13 @@ This usually reveals:
 ## Report session-history overhead separately
 
 For prompt-size diagnosis sessions, distinguish the reusable baseline from the current conversation after the diagnosis work itself. Loading `hermes-agent`, repo-context skills, and prompt-size reference files can add many thousands of tokens to the active conversation history. If the user asks about "this session" or practical next steps, measure or estimate loaded skill/reference files as a separate "diagnosis overhead" bucket and recommend `/reset` or a fresh session after the report when that overhead is material. Do not mix this temporary history growth into the baseline CLI/profile request size.
+
+## User/home AGENTS.md slimming
+
+When reducing prompt overhead from user-scope `AGENTS.md` files, do not assume full deletion is best. Classify each section into:
+
+1. global hard gates that should remain as a short router,
+2. detailed procedures that belong in class-level skills,
+3. repo-dependent workflows that should be removed from global/user-scope guidance and kept only in the owning repository context.
+
+A good slim user-scope `AGENTS.md` keeps only stable triggers and invariants, such as which skill to load, `env -u GITHUB_TOKEN gh ...` wrappers, KST reporting defaults, PR/CI follow-through expectations, and branch safety reminders. Move command sequences, gate stage details, and output contracts into the relevant skill. If a workflow is repository-specific (for example reverse-sync), remove the global `~/AGENTS.md` trigger and global skill copy instead of preserving it as a user-wide rule.
