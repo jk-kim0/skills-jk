@@ -107,3 +107,11 @@ For the skills-jk repo-local Hermes setup, the user wants Hermes preferences and
 When controlling Chrome via DevTools/CDP, user prefers keeping a single attached browser connection/session alive for continued control instead of reconnecting repeatedly for each action.
 §
 For UI design/documentation PRs, user expects requested variants to be represented in both the written spec and visual design artifacts; if they ask for multiple UI types, every type should appear in the visual design, not only in text.
+§
+User does not want long-running external commands to leave the session unresponsive; for potentially long commands, user expects background execution or short polling with prompt status updates rather than blocking silently.
+§
+User wants any external command expected to take more than 30 seconds to run as a background job with notify_on_complete, so the assistant remains responsive to instructions/questions and checks `/queue` messages quickly.
+§
+For deployment/operations tasks, the user requires frequent, clearly visible intermediate progress reports in ordinary user-facing chat messages; tool calls/tool logs/commentary are not considered progress reports. Do not run through multiple steps and then provide only a completion summary; stop between steps with visible status, rationale, and next-step updates.
+§
+When the user asks to check and fix open PRs, they expect a full open-PR sweep: inspect every open PR for failing checks and merge conflicts, fix/rebase/push as needed, and report only after all relevant PRs are CLEAN/pass or remaining blockers are explicit.

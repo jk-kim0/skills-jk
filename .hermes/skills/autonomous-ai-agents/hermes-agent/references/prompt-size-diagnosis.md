@@ -117,3 +117,7 @@ This usually reveals:
 - `estimate_request_tokens_rough()` is a sizing estimator, not exact provider billing.
 - It is still good enough for relative attribution: which bucket is large and what a profile change would save.
 - When users want practical optimization advice, prioritize toolset reduction first, then skills/system-prompt reduction, then memory/profile cleanup.
+
+## Report session-history overhead separately
+
+For prompt-size diagnosis sessions, distinguish the reusable baseline from the current conversation after the diagnosis work itself. Loading `hermes-agent`, repo-context skills, and prompt-size reference files can add many thousands of tokens to the active conversation history. If the user asks about "this session" or practical next steps, measure or estimate loaded skill/reference files as a separate "diagnosis overhead" bucket and recommend `/reset` or a fresh session after the report when that overhead is material. Do not mix this temporary history growth into the baseline CLI/profile request size.

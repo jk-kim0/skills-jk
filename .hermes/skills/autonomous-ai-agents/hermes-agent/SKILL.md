@@ -213,6 +213,12 @@ hermes profile export NAME  Export to tar.gz
 hermes profile import FILE  Import from archive
 ```
 
+Applying one config setting across all profiles:
+- Start by listing profiles with `hermes profile list`, then include the base/default Hermes home plus every named profile unless the user explicitly scopes the request.
+- For scalar display/profile preferences such as `display.compact: true`, prefer review-friendly direct YAML patching in repo-managed profile config files when `HERMES_HOME` is inside a git repo. `hermes config set ...` is still the canonical command, but it may rewrite/normalize whole YAML files; avoid large formatting-only diffs when the user asks for a simple profile-wide setting.
+- If using the CLI instead of direct YAML edits, run the equivalent command once for the base config and once per profile, with the profile selected at process start (for example `hermes -p <profile> config set display.compact true`). Do not assume changing the sticky default profile updates all profile config files.
+- Verify by reading the effective config path/value for the base config and each profile, then report any missing config files or intentionally skipped profiles. Profile config changes affect new sessions only.
+
 Important current-session limitation:
 - profiles are selected at process/session start (for example `hermes -p deep`) or changed as the sticky default for future launches with `hermes profile use <name>`
 - the currently running session does **not** support hot-swapping its active profile in place

@@ -17,6 +17,19 @@ Use this skill when the user asks to verify, deploy, migrate, reset, seed, or sm
 
 This skill is for environment operations, not feature implementation. Keep secrets out of chat, logs, docs, PR bodies, and skills.
 
+## Required user-visible progress reporting
+
+For Dev Seoul/Tokyo/Vercel deployment or operations work, progress reporting must be visible to the user as normal chat messages. Tool calls, tool-call labels, hidden commentary, and a detailed final summary do not count as intermediate progress reports.
+
+Use a strict one-step loop:
+
+1. Send a short visible progress message before the operation step: what will be checked or changed, why it matters, expected wait, and whether it is read-only or has side effects.
+2. Run only that single step, or a very small group of inseparable commands.
+3. Stop and send a visible result message before any next tool call: outcome, evidence handle/run ID/URL/SHA/status, and the next proposed step.
+4. Continue only by sending the next visible progress message first.
+
+This is mandatory for deploy dispatches, migration/reset/schema workflows, SSH/TAT commands, service restarts, workflow polling, Vercel inspect/log queries, and smoke tests. Avoid “완료 보고” as the primary reporting pattern; final summaries are allowed only after the visible step-by-step reports have already happened. If a step is likely to wait or poll, state the expected wait, poll once or twice, then report status rather than leaving the user in a black-box wait.
+
 When the task is to add or repair a GitHub Actions E2E workflow for these dev servers, treat “the three dev servers” as already-deployed targets unless the user explicitly asks to deploy or start servers. Use `workflow_dispatch`, a target choice input, deployed base URLs, and browser-only black-box checks by default; do not add PostgreSQL services, Next dev-server startup, Prisma setup, SSH tunnels, or DB secrets for that class of workflow. If the E2E needs authentication, prefer a pre-seeded E2E account and stop/skip at the Email Sender / Gmail OAuth boundary until a non-interactive sender-auth path exists. See `references/deployed-dev-e2e-workflow.md`.
 
 ## Core workflow
@@ -58,6 +71,19 @@ When the task is to add or repair a GitHub Actions E2E workflow for these dev se
    - For requested DB resets, do not report completion from the workflow conclusion alone. Verify the reset path actually ran (`migrate --reset-data`, `prisma migrate reset --force`, `Database reset successful`, `prisma db seed`, and `The seed command has been executed`), then run the schema check after the reset. When SSH is available, also verify seed row counts directly from the VM-local PostgreSQL container before declaring the DB reset complete.
    - If `origin/main` advances while the operation is in progress, re-record the new SHA and re-check deploy/schema status against that SHA before declaring “latest” complete. If the user requested a strict sequence such as “DB reset 후 최신 배포”, rerun/reconfirm deployment after the final reset+seed, even if the same image was deployed shortly before.
    - If the automatic Tencent main deploy is cancelled or only one VM finishes, rerun the manual `Deploy Tencent container image` workflow with the immutable image tag for the latest SHA. When Gmail OAuth config is part of the incident, set `update_gmail_oauth_config=true` so the VM-local env file and restarted container are refreshed as part of the redeploy.
+
+## Baseline-only clean DB install cleanup
+
+When the user asks to remove DB migration/backfill history and leave only a clean baseline install path, treat it as a repository artifact cleanup plus workflow simplification task, not as a shared-DB repair task.
+
+- Keep only the current-schema Prisma baseline migration and `migration_lock.toml` under `front/prisma/migrations/`.
+- Regenerate the baseline from `prisma/schema.prisma`, but preserve the repo-specific PostgreSQL 17-compatible `public.uuidv7()` helper that Prisma diff does not emit.
+- Remove intermediate migration directories, one-off `front/prisma/repairs/**`, obsolete backfill SQL, and any SQL-file runner whose only remaining purpose was repair/backfill execution.
+- Simplify DB mutation workflows so clean install/reset does not execute repair/backfill SQL: `prisma migrate deploy` for non-reset, `db:reset` + `db:seed` for approved reset, followed by schema drift check.
+- Update tests from intermediate-migration assertions to baseline-contract assertions.
+- In PR/docs, explicitly state that existing shared DBs that diverge from the baseline should use the approved `reset_database=true` reset/seed path instead of accumulating new repair/backfill artifacts.
+
+See `references/baseline-only-db-install.md` for the exact implementation and verification pattern.
 
 ## Seed-data drift checklist
 

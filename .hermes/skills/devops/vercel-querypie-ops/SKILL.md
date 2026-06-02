@@ -40,6 +40,7 @@ For sensitive Vercel environment variable replacement, rotation, or OAuth client
 1. Do not copy repo-specific facts back into global memory unless they are broadly reusable across repositories.
 2. Do not treat migrated notes as a substitute for live repo verification when code, CI, routes, or deployment state may have changed.
 3. Keep new findings in this skill or a more specific existing skill for the repo/workflow.
+4. For user-facing Vercel/outbound-dev operations, do not treat tool-call output or a final summary as progress reporting. The user expects visible normal-chat updates between operational steps: state what will be checked and why, run one step, then report the result before the next tool call.
 
 ## Verification Checklist
 

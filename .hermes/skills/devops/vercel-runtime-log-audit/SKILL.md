@@ -559,6 +559,8 @@ Be explicit about measurement quality:
 - if a query hit 1000 lines, report `>=1000`
 - if you added a runtime catch-all fix, distinguish `runtime-visible 404s after fix` from prior `edge/static 404s outside runtime visibility`
 
+For interactive operational audits, progress updates must be visible user-facing chat messages, not just tool-call labels or a final report. Before each Vercel inspect/log/smoke step, say what is being checked, why, and the expected wait; after the command, report the result before running the next query. Avoid a “final report only” flow when the user asked for diagnosis with ongoing visibility.
+
 ## When Vercel auth is unavailable or invalid
 
 A practical failure mode: the local environment can have `VERCEL_TOKEN` / `VERCEL_TEAM_ID` set but the token is expired or invalid, and newer CLI flows may fail with errors such as:
