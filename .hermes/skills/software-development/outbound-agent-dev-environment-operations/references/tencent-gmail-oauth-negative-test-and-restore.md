@@ -38,6 +38,10 @@ Use this reference when intentionally validating Gmail OAuth token-exchange fail
    - Check `/login` health for dev-seoul and dev-tokyo.
    - Have the user/product smoke confirm Gmail OAuth connection succeeds from the Team Email Sender screen.
 
+## Negative-test-only variant
+
+When the user asks only to deploy the intentionally wrong `GMAIL_OAUTH_CLIENT_SECRET`, stop after the negative runtime update and availability checks. Report the GitHub Actions run URL, target, image, `update_gmail_oauth_config=true`, `dry_run=false`, per-target config upload/deploy status, public `/login` health, and that secret values were not exposed. Treat restore as the next operational step, not as already completed.
+
 ## Documentation pattern
 
 When recording the result in docs/OpenSpec:

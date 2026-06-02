@@ -1,44 +1,50 @@
-# Dirty root preserve → bot PR → clean root loop
+# skills-jk cleanup quirks for bot-authored preservation PRs
 
-Use this note when a `skills-jk` cleanup/main-update request starts from root `main` with meaningful `.hermes/skills/**` tracked/untracked changes while `main` is behind `origin/main`.
+Use this note only after the generic cleanup procedure has been selected from `git-worktree-safety-pack`.
+This file records `skills-jk`-specific quirks that are not owned by the generic cleanup references.
 
-## Pattern confirmed
+## Canonical owner map
 
-1. Fetch/prune and inspect root first:
-   - `git status --short --branch`
-   - `git diff --stat`
-   - `git diff --name-status`
-   - `git ls-files --others --exclude-standard`
-2. Treat meaningful skill/reference changes as PR candidates, but do not commit from root `main`.
-3. Save a safety copy under `/tmp`, create a fresh repo-local worktree from latest `origin/main`, and apply the tracked root diff there.
-4. If `git apply --3way` conflicts in append-style skill files, preserve latest-main guidance and add only the real local additions. Do not let a behind-root copy delete newly merged lines.
-5. Copy only meaningful untracked support files into the fresh worktree.
-6. Run lightweight verification before commit:
-   - `git diff --check`
-   - targeted conflict-marker scan: `^(<<<<<<<|>>>>>>>)( |$)|^=======$`
-   - final payload list with `git diff --name-only origin/main...HEAD | sort`
-7. Commit and push the fresh branch, then create the PR through `.github/workflows/create-pr.yml`.
-8. Verify the PR object and branch separately:
-   - PR author is `app/github-actions`
-   - PR `headRefOid` equals `git ls-remote origin refs/heads/<branch>`
-   - PR file list matches the fresh worktree payload
-   - absence of `statusCheckRollup` / branch runs is not itself a failure for docs/skill-only PRs
-9. Only after remote head + PR verification, restore/remove the same root-local copies and fast-forward root `main` to `origin/main`.
-   - `git reset --hard origin/main` removes tracked modifications/deletions but does **not** remove untracked skill/reference files that were copied into the PR worktree.
-   - After the PR branch is verified, remove those root-local untracked payload files explicitly. A safe scoped pattern is:
-     ```bash
-     git clean -fd -- .hermes/skills
-     rm -rf .hermes/lsp .hermes/pairing .hermes/profiles/kimi/.update_check .hermes/profiles/kimi/skills .hermes/skills/.archive .hermes/skills/.curator_backups
-     ```
-   - Do not run broad `git clean -fdx` in the repo root; keep cleanup scoped to the verified PR payload and known runtime/cache residue.
-10. Continue stale cleanup: remove merged/gone worktrees/branches only after GitHub PR state confirms `MERGED` and a two-dot/tree diff versus `origin/main` is empty.
-11. Final report should distinguish:
-   - root `main` alignment and clean status
-   - the new PR URL/head/payload
-   - deleted stale worktrees/branches
-   - intentionally preserved open-PR worktrees
+| Topic keyword | Canonical owner |
+| --- | --- |
+| `dirty-root`, `behind-main`, `stale-deletion-hunks`, `workspace-sweep` | `git-worktree-safety-pack/references/dirty-root-behind-main-preservation.md` and `git-worktree-safety-pack/references/repeated-cleanup-merged-preservation-pr-stale-deletions.md` |
+| `open-pr-followup`, `duplicate-payload`, `dirty-pr-less-worktree` | `git-worktree-safety-pack/references/open-pr-cleanup-repeat-and-preservation.md` and `git-worktree-safety-pack/references/cleanup-preserve-dirty-payload-into-open-pr.md` |
+| `final-root-clean`, `merged-preservation-pr`, `regenerated-residue` | `git-worktree-safety-pack/references/final-sweep-after-preserve-pr.md` and `git-worktree-safety-pack/references/merged-preservation-pr-branch-refusal.md` |
+| `workflow-dispatch`, `bot-pr`, `body-input` | `git-worktree-safety-pack/references/workflow-dispatch-pr-creation-verification.md` and this skill's `create-pr.yml` procedure |
 
-## Pitfalls
+Do not recreate one incident reference per cleanup session.
+Add new generic rules to the owning `git-worktree-safety-pack` reference, and add only repo-specific `skills-jk` workflow quirks here.
 
-- Do not report cleanup complete while the same root-local files remain dirty after their payload was safely pushed to a PR branch. For `main 업데이트 + workspace 정리`, the expected end state is clean root `main` aligned to `origin/main`, with the review payload preserved in the PR worktree/branch.
-- After resetting root `main`, run another `git status --short --branch` and a worktree dirty sweep. If only untracked PR-preserved `.hermes/skills/**` files remain, clean them from root; if tracked or unrelated files remain, stop and reclassify before deleting anything.
+## Repo-specific quirks
+
+- `skills-jk` opens normal review PRs through `.github/workflows/create-pr.yml`; do not commit from root `main` and do not use direct `gh pr create` for normal review PRs.
+- `create-pr.yml` runs can appear under `headBranch: main` because the workflow is dispatched from the default branch.
+  Verify the remote branch head and `gh pr list --head <branch>` instead of relying on `gh run list --branch <feature-branch>`.
+- For PR bodies, pass the Markdown body through the workflow's defined `body` input.
+  Do not invent `body-file` unless the workflow defines that input.
+- Fresh docs/skill PRs may show `mergeStateStatus: BLOCKED` with no attached checks.
+  Treat this as unconfirmed policy/check state until a check rollup, `gh pr checks`, or workflow run proves a current-head failure.
+- If the named scoped files, such as `.hermes/config.yaml` or `.hermes/memories/*.md`, are byte-identical to latest `origin/main`, do not create a fake scoped PR.
+  Preserve only the surviving skill/reference residue, and say which scoped files collapsed to no-op.
+- Generated `.hermes/skills/**` residue can be stale bundle churn.
+  Exclude manifest churn, deleted support files, or old-bundle downgrades unless representative diffs prove the change is authored and current.
+
+## Verification add-ons
+
+After the generic cleanup checks pass, verify the repo-specific PR path:
+
+```bash
+branch=$(git branch --show-current)
+git rev-parse HEAD
+git ls-remote origin "refs/heads/$branch"
+env -u GITHUB_TOKEN gh pr list --head "$branch" --state open --json number,url,title,author,headRefOid
+git diff --name-only origin/main...HEAD | sort
+```
+
+Final reports for `skills-jk` cleanup should distinguish:
+
+- root `main` alignment and clean status;
+- the bot-authored PR URL, head SHA, and payload file list;
+- scoped files that collapsed to no-op against latest `origin/main`;
+- stale generated residue excluded from the PR;
+- intentionally retained open-PR worktrees and deleted merged/stale worktrees.
