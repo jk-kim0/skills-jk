@@ -284,6 +284,7 @@ When performing a code review (local or PR), systematically check:
 - Does the code do what it claims?
 - Edge cases handled (empty inputs, nulls, large data, concurrent access)?
 - Error paths handled gracefully?
+- When UI copy, helper text, input attributes, or tests introduce a concrete user-facing constraint (for example `maxLength`, allowed formats, required fields, or "use N characters at maximum"), verify the server-side action/service enforces the same constraint. Treat client-only validation as insufficient unless the PR explicitly frames it as a non-binding hint.
 - When a PR adds automatic fallback/default generation for an optional user input, verify the fallback only applies to the intended implicit/default path. Explicit user-provided identifiers (slugs, names, keys, addresses) should usually keep their validation/error semantics instead of being silently rewritten to a random or adjusted value unless the spec explicitly says so.
 
 ### Security
@@ -346,6 +347,8 @@ source "${HERMES_HOME:-$HOME/.hermes}/skills/github/github-auth/scripts/gh-env.s
 ### Step 2: Gather PR context
 
 Get the PR metadata, description, and list of changed files to understand scope before diving into code.
+
+When the review or PR-body update involves deployment impact, runtime secrets, or repository secrets, verify the actual CI/CD wiring before stating whether deployment is possible. Do not infer runtime readiness from `gh secret list` or from secret names alone. Inspect the relevant `.github/workflows/*deploy*` files, reusable `workflow_call` mappings, workflow inputs/defaults, and called scripts/runbooks to confirm whether secrets are merely registered, validated as non-empty, or actually written/passed into runtime env such as Vercel env, VM `/etc/.../*.env`, Docker `--env-file`, systemd, or Compose. If secret injection is gated by an input such as `update_*_config=true`, state the exact workflow and inputs required for dry-run validation and actual apply, and distinguish ordinary code/image deploys that do not mutate runtime secrets.
 
 **With gh:**
 ```bash
@@ -445,6 +448,10 @@ curl -s -X POST \
 
 In addition to inline comments, leave a top-level summary so the PR author gets the full picture at a glance. Use the review output format from `references/review-output-template.md`.
 
+### UI Screenshot Comparison for PR Descriptions
+
+When a PR description has a dedicated UI-change section (for example `UI 변경`, `UI Changes`, or a repository-specific equivalent), treat that section as review input before normal code-review findings. Parse the listed paths, capture matching Before/After evidence, and post a PR comment or blocker note before moving on. See `references/ui-screenshot-evidence.md` for the full workflow, comment format, and upload guidance.
+
 **With gh:**
 ```bash
 gh pr comment $PR_NUMBER --body "$(cat <<'EOF'
@@ -483,3 +490,4 @@ git branch -D pr-$PR_NUMBER
 - **Approve** — no critical or warning-level issues, only minor suggestions or all clear
 - **Request Changes** — any critical or warning-level issue that should be fixed before merge
 - **Comment** — observations and suggestions, but nothing blocking (use when you're unsure or the PR is a draft)
+- **Own-PR limitation fallback** — GitHub refuses `REQUEST_CHANGES` when the authenticated user is the PR author (`Review Can not request changes on your own pull request`). If a blocker is found on your own PR, submit a formal `COMMENT` review with the blocker clearly labeled in the body and inline comment, and mention that request-changes was unavailable because of author identity.

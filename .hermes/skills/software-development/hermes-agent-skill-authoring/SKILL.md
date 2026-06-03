@@ -225,6 +225,7 @@ Pitfalls:
 2. Writing a repo-local skill that only says "read OpenSpec" or "update docs" is too thin when the session discovered concrete content-production rules. Capture the class-level workflow and validation contract so future agents do not repeat ad hoc inspection and labeling decisions.
 3. When the user corrects a newly-authored repo-local skill's trigger or scope, update the skill itself immediately on the same PR branch. If the correction broadens a narrow environment/task skill into a class-level skill, rename the directory and frontmatter `name` to the broader class instead of only appending trigger phrases to the old narrow skill. Also update the PR title/body so reviewers see the new class-level scope.
 4. When editing PR bodies that contain backticks or shell-sensitive text, write the body to a temporary file and use `gh pr edit --body-file <file>` instead of embedding the body in a shell-quoted command. This avoids accidental command substitution and corrupted PR descriptions.
+5. In a git worktree, `.git` may be a pointer file rather than a directory. Do not write PR body files or other temporary review artifacts to `<worktree>/.git/<name>` unless you first resolve the actual git dir. Prefer `mktemp` or `/tmp/<repo>-<purpose>.md` for `gh pr create --body-file` / `gh pr edit --body-file` inputs.
 
 ## Skill Library Maintenance Shape
 

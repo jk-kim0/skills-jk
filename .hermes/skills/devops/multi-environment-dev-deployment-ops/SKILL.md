@@ -40,7 +40,13 @@ This is a class-level workflow. Apply environment-specific details from reposito
    - For seeded dev apps, prefer a fixture user/session and a lightweight page that exercises database reads.
    - Keep secrets out of logs and responses.
 
-5. Escalate in order.
+5. Verify runtime secret injection from the deployment workflow, not from secret existence alone.
+   - Treat `gh secret list` as presence-only evidence: it proves names exist, not that the app runtime receives them.
+   - Inspect the exact deploy workflow inputs, reusable workflow calls, default values, and skipped/successful steps to confirm whether secrets are written to Vercel env, VM env files, container env files, or runtime config.
+   - When a workflow has an opt-in secret-sync flag, run the safest available dry-run with that flag enabled before claiming the injection path works.
+   - Distinguish “code/image deploy succeeds with existing runtime env” from “this deploy also updates runtime secrets.” Report them separately.
+
+6. Escalate in order.
    - migration failure -> inspect logs -> reset only if data/schema state is the cause.
    - schema drift -> inspect diff/artifact -> reset only if intentional destructive dev reset is appropriate.
    - deployment revision mismatch -> trigger the canonical deploy workflow before touching DB reset.

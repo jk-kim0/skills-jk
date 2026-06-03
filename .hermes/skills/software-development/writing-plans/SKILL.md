@@ -138,6 +138,10 @@ When the user asks for a plan, planning document, migration plan, audit plan, or
 - If the user asks for questions to refine the scenario, include a dedicated open-questions section in the document and repeat the questions in the final reply.
 - If implementation accidentally starts and the user corrects the scope, revert/remove the out-of-scope implementation artifacts and continue with documentation only.
 
+When the Product Owner corrects a plan's behavior or scope after the first draft, update every dependent section, not just the paragraph they mentioned: title/goal, In Scope, Out of Scope, user flows, data/API model, OpenSpec requirement/scenario candidates, `/goal` handoff, task breakdown, risks, current recommendation, and PR body. Then search the plan for stale opposite assumptions using the old wording (for example `existing users only`, `autoProvisionUsers: false`, `unmatched email is rejected`, or `self-sign-up 없이`).
+
+For SSO/auth account-linking plans, use `references/auth-sso-account-linking-plans.md` to separate provider settings from identity schema, capture auto-provisioning vs existing-user-only decisions, and keep verified-email linking rules consistent.
+
 ### UI design documentation before implementation
 
 When the user asks for UI 구성/화면 구성 설계안을 문서로 먼저 작성하고 later implementation should follow it, keep the PR documentation-only and write manual-style Markdown under the requested docs directory before any UI code.

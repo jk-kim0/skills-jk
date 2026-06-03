@@ -98,6 +98,20 @@ When the user clarifies that MVP Front APIs should be synchronous while actual l
 4. Update technology-stack and backlog docs so they no longer say initial LLM wrappers or job stubs are adopted when actual model calls and async execution are post-MVP.
 5. Update phase plans so implementation PRs do not introduce `queued`/`processing` async job states or placeholder Job/EventLog tables merely to anticipate later backend work.
 
+## Credential reference and Secret Manager feature-plan pattern
+
+When the user asks for a feature plan involving provider credentials, Secret Manager, credential references, runtime secret loading, user OAuth token custody, or key rotation, treat it as a security/infra feature boundary rather than only a provider implementation detail.
+
+Canonical detail lives in `references/credential-encryption-key-management.md`. Keep this SKILL.md section as a trigger only: do not repeat the full storage table, incident-response sequence, or environment-specific recommendations here.
+
+Quick reminders:
+
+- Prefer `Credential Reference` / `secretRef` for the final design; use CEK/KEK terminology only for encryption internals.
+- Git-tracked files should contain metadata only, never plaintext or encrypted credential blobs by default when Secret Manager/1Password/Vercel Sensitive Env exists.
+- Separate system-operation credentials from user/team dynamic OAuth credentials.
+- Get explicit user approval before creating or modifying any secret store, env var, KMS key, CAM role, GitHub secret, or VM env file.
+- When the user asks direct review questions about credential storage, add an explicit `Q/A` section to the feature doc and link the canonical reference for rationale.
+
 ## Scope reversal / docs-only reset pattern
 
 When the user initially asks to continue into code or implementation but then narrows the scope back to model design docs, OpenSpec, or ERD only:
