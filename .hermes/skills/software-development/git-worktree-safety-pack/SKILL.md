@@ -59,9 +59,10 @@ If the current repository does not have that repo-local skill-pack path, proceed
 
 0. When creating or using repo-root `.worktrees/<name>` worktrees for Node/Next.js repositories, avoid duplicating large dependency directories inside every worktree. If the root checkout already has the needed dependencies, prefer a worktree-local symlink from the package directory to the root checkout's `node_modules` (for example, from `.worktrees/<name>/front`: `ln -s ../../../front/node_modules node_modules`). Only reinstall in the root checkout when the shared dependency tree is missing or the lockfile requires it.
 
-1. Do not recreate a narrow active skill for a one-off branch/worktree cleanup incident; add a reference under this pack instead.
-2. Do not bulk-load every detailed skill in the pack. Pick the relevant detailed file from the index.
-3. Keep repo-specific cleanup learnings in the governing detailed file or a reference, not as a new top-level active skill.
+1. Do not recreate a narrow active skill for a one-off branch/worktree cleanup incident; update the canonical existing reference in this pack instead.
+2. Before adding a new cleanup reference, check `skills-jk/references/reference-dedupe-preflight.md` and search this pack's references for the durable topic. Repeated cleanup incidents should usually patch an existing reference, not create a new session-named file.
+3. Do not bulk-load every detailed skill in the pack. Pick the relevant detailed file from the index.
+4. Keep repo-specific cleanup learnings in the governing detailed file or a reference, not as a new top-level active skill.
 4. After preserving meaningful dirty-root changes in a PR, do one final root-state sweep before reporting completion. Restore duplicate inspection/copy artifacts from the root checkout only after verifying the PR branch contains the intended payload; then remove merged/stale worktrees and branches while keeping the open PR worktree. See `references/final-sweep-after-preserve-pr.md`.
 5. In repeated cleanup after a preservation PR has merged, treat apparent deletions from stale root-vs-latest-main diffs as suspicious. Preserve additional work by creating a fresh latest-main worktree and copying only existing authored payload; do not let an old root baseline delete files that the merged PR already added. See `references/repeated-cleanup-merged-preservation-pr-stale-deletions.md`.
 6. Do not rely only on a single broad `gh pr list --state open` result before deleting local worktrees/branches. For any remaining dirty, ambiguous, recently touched, or otherwise suspicious branch, run a targeted PR lookup such as `gh pr list --state all --head <branch> --json number,state,title,url,mergedAt,closedAt` and preserve the worktree if it has an open PR.

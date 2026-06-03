@@ -140,6 +140,7 @@ The remaining references under this skill are intentionally narrow:
 - `references/squash-merged-pr-worktree-cleanup.md` — tree-diff rule for squash-merged PR worktree cleanup.
 
 Do not add another local-sweep incident note here.
+Before adding any new reference under this skill, check `skills-jk/references/reference-dedupe-preflight.md` and patch the canonical owner instead when the lesson is generic cleanup or PR lifecycle.
 If the lesson is generic cleanup, update `git-worktree-safety-pack`; if it is generic PR lifecycle, update `github-pr-workflow`.
 
 ## Completion checklist

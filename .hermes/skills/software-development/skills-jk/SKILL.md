@@ -34,10 +34,12 @@ Read `references/migrated-memory-and-user-context.md` after loading this skill. 
 3. Keep new findings in this skill or a more specific existing skill for the repo/workflow.
 4. For this repo-local Hermes setup, user-facing preferences and configuration changes are repo-managed by default. Track durable config/profile files such as `.hermes/config.yaml`, `.hermes/profiles/<profile>/config.yaml`, and `.hermes/profiles/<profile>/SOUL.md`; keep secrets and runtime state such as `.env`, sessions, logs, cron output, auth/state DBs, and process files ignored.
 5. When curating or migrating skills into `skills-jk`, keep the library class-level: prefer rich umbrella skills plus `references/` detail over many narrow one-session skills. Do not duplicate a repo-local skill that already exists in another repository's `.hermes/skills`; leave that repo-specific source of truth in its owning repo and only keep genuinely reusable cross-repo procedures here.
-6. Repo-dependent workflow skills and gates do not belong in global/user-scope agent guidance. If a workflow is tied to one repository (for example reverse-sync), keep its detailed SKILL.md and AGENTS.md trigger in the owning repository context, and remove global `~/AGENTS.md` / `~/.codex/skills/` copies rather than preserving them as user-wide constraints.
+6. Before adding any new `.hermes/skills/**/references/*.md` file, run the reference dedupe preflight in `references/reference-dedupe-preflight.md`. Patch the canonical owner reference when the lesson is a repeated incident or clarification rather than a new durable topic.
+7. Repo-dependent workflow skills and gates do not belong in global/user-scope agent guidance. If a workflow is tied to one repository (for example reverse-sync), keep its detailed SKILL.md and AGENTS.md trigger in the owning repository context, and remove global `~/AGENTS.md` / `~/.codex/skills/` copies rather than preserving them as user-wide constraints.
 
 ## Verification Checklist
 
 - [ ] Skill loaded because the task matches `skills-jk`.
 - [ ] Migrated context reference reviewed when repo-specific history matters.
+- [ ] `references/reference-dedupe-preflight.md` reviewed before adding a new skill reference file.
 - [ ] Live repo/source checked before acting on potentially stale implementation details.
