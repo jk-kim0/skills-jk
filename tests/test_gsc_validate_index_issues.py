@@ -52,6 +52,54 @@ def load_gsc_module(module_name: str = "gsc_cli_under_test"):
     return module
 
 
+def test_get_credentials_reauthenticates_when_required_scope_is_missing(tmp_path, monkeypatch) -> None:
+    gsc = load_gsc_module("gsc_required_scope_reauth_test")
+    token_file = tmp_path / "token.pickle"
+    client_secret = tmp_path / "client_secret.json"
+    client_secret.write_text("{}")
+
+    readonly_creds = SimpleNamespace(
+        valid=True,
+        expired=False,
+        refresh_token="refresh-token",
+        scopes=[gsc.WEBMASTERS_READONLY_SCOPE],
+        granted_scopes=[gsc.WEBMASTERS_READONLY_SCOPE],
+    )
+    write_creds = SimpleNamespace(
+        valid=True,
+        expired=False,
+        refresh_token="refresh-token",
+        scopes=[gsc.WEBMASTERS_WRITE_SCOPE],
+        granted_scopes=[gsc.WEBMASTERS_WRITE_SCOPE],
+    )
+    import pickle
+    token_file.write_bytes(pickle.dumps(readonly_creds))
+    monkeypatch.setattr(gsc, "TOKEN_FILE", str(token_file))
+    monkeypatch.setattr(gsc, "CLIENT_SECRET_FILE", str(client_secret))
+
+    calls = []
+
+    class FakeFlow:
+        def run_local_server(self, port=0):
+            calls.append(port)
+            return write_creds
+
+    class FakeInstalledAppFlow:
+        @staticmethod
+        def from_client_secrets_file(path, scopes):
+            assert path == str(client_secret)
+            assert scopes == [gsc.WEBMASTERS_WRITE_SCOPE]
+            return FakeFlow()
+
+    monkeypatch.setattr(gsc, "InstalledAppFlow", FakeInstalledAppFlow)
+
+    creds = gsc.get_credentials(required_scopes=[gsc.WEBMASTERS_WRITE_SCOPE])
+
+    assert creds is write_creds
+    assert calls == [0]
+    assert pickle.loads(token_file.read_bytes()) == write_creds
+
+
 def test_select_validation_sites_skips_domain_properties_by_default() -> None:
     gsc = load_gsc_module("gsc_select_validation_sites_test")
 

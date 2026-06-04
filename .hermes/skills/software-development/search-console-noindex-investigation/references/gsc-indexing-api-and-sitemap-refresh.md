@@ -69,14 +69,10 @@ Observed issue rows for `https://docs.querypie.com/` after applying this workflo
   - `https://www.googleapis.com/auth/webmasters.readonly`
 - `sitemaps.submit` requires write scope:
   - `https://www.googleapis.com/auth/webmasters`
-- A stored OAuth token originally granted only readonly scope will continue to fail `sitemaps.submit` with HTTP 403 `Request had insufficient authentication scopes`, even if the CLI source code now requests both scopes.
-- Fix by backing up/removing the old token and re-running OAuth so Google grants the write scope.
-
-Example user-safe wording before changing tokens:
-
-```text
-현재 저장된 GSC 토큰은 조회 전용이라 사이트맵 재제출이 403으로 차단됩니다. 기존 조회용 토큰을 백업하고 쓰기 scope로 재인증해도 될까요?
-```
+- A stored OAuth token originally granted only readonly scope is still `valid=True` for read commands, but it is insufficient for `sitemaps.submit`.
+- Write commands such as `submit-sitemap` and `refresh-sitemaps` should call the shared credential loader with an explicit required scope (`https://www.googleapis.com/auth/webmasters`) so the CLI automatically starts OAuth re-auth when a valid readonly token is present.
+- Do not rely on a separate local preflight that only prints “move/delete token and rerun”; that blocks a fixable command before OAuth has a chance to request the required write scope.
+- If Google still returns HTTP 403 `Request had insufficient authentication scopes` after automatic re-auth, then report the exact scope requirement and ask before manually backing up/removing the token.
 
 ## CLI UX recommendation
 
@@ -86,6 +82,5 @@ A GSC CLI that supports indexing refresh workflows should:
 - expose explicit `submit-sitemap <site_url> <sitemap_url>` and bulk `refresh-sitemaps` commands;
 - expose a browser-session command for Page indexing issue validation, e.g. `validate-index-issues-browser <site_url> [--submit]`;
 - default issue validation to `Failed` rows and require explicit flags for `Started` or all statuses;
-- preflight OAuth token scopes before attempting bulk sitemap submit;
-- print the required write scope and token backup/re-auth command when scope is missing;
+- request the write OAuth scope automatically for sitemap submit commands and only surface manual token recovery instructions if re-auth/submit still fails with insufficient-scope errors;
 - avoid deleting or moving existing OAuth tokens without user approval.
