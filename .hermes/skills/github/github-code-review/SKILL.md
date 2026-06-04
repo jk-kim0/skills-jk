@@ -286,6 +286,8 @@ When performing a code review (local or PR), systematically check:
 - Error paths handled gracefully?
 - When UI copy, helper text, input attributes, or tests introduce a concrete user-facing constraint (for example `maxLength`, allowed formats, required fields, or "use N characters at maximum"), verify the server-side action/service enforces the same constraint. Treat client-only validation as insufficient unless the PR explicitly frames it as a non-binding hint.
 - When a PR adds automatic fallback/default generation for an optional user input, verify the fallback only applies to the intended implicit/default path. Explicit user-provided identifiers (slugs, names, keys, addresses) should usually keep their validation/error semantics instead of being silently rewritten to a random or adjusted value unless the spec explicitly says so.
+- When visible brand/logo/text is replaced with an SVG, `next/image`, icon, or other non-text asset, verify the accessible name source too: `alt`, `aria-label`, locale label objects, and any tests that pin them. The old visible copy can remain exposed to screen readers even after it disappears visually.
+- When a PR adds or tightens a design/spec/skill rule, review the changed implementation and tests against the new rule in the same diff. Treat self-contradictions as blockers: for example, a PR may add an OpenSpec `SHALL NOT` for a wrapper/container pattern while route files or source-structure tests still require that exact forbidden pattern.
 
 ### Security
 - No hardcoded secrets, credentials, or API keys
@@ -452,6 +454,8 @@ In addition to inline comments, leave a top-level summary so the PR author gets 
 
 When a PR description has a dedicated UI-change section (for example `UI 변경`, `UI Changes`, or a repository-specific equivalent), treat that section as review input before normal code-review findings. Parse the listed paths, capture matching Before/After evidence, and post a PR comment or blocker note before moving on. See `references/ui-screenshot-evidence.md` for the full workflow, comment format, and upload guidance.
 
+Also run the same screenshot-evidence workflow when the user explicitly asks for screenshots in the PR review comment (for example “스크린샷 포함 댓글 달아줘”), even if the PR body’s UI-change section is missing, incomplete, or only implicit. In that case, infer the smallest relevant changed UI paths from the PR diff/body, capture evidence, and post it as a GitHub PR comment before reporting completion locally.
+
 **With gh:**
 ```bash
 gh pr comment $PR_NUMBER --body "$(cat <<'EOF'
@@ -596,4 +600,5 @@ git branch -D pr-$PR_NUMBER
 - **Approve** — no critical or warning-level issues, only minor suggestions or all clear
 - **Request Changes** — any critical or warning-level issue that should be fixed before merge
 - **Comment** — observations and suggestions, but nothing blocking (use when you're unsure or the PR is a draft)
-- **Own-PR limitation fallback** — GitHub refuses `REQUEST_CHANGES` when the authenticated user is the PR author (`Review Can not request changes on your own pull request`). If a blocker is found on your own PR, submit a formal `COMMENT` review with the blocker clearly labeled in the body and inline comment, and mention that request-changes was unavailable because of author identity.
+- **Own-PR limitation fallback** — GitHub refuses `REQUEST_CHANGES` when the authenticated user is the PR author (`Review Can not request changes on your own pull request`). If a blocker is found on your own PR, submit a formal `COMMENT` review with the blocker clearly labeled in the body and inline comment, and mention that request-changes was unavailable because of author identity. If you need to verify that an own-PR `COMMENT` review was submitted, query `gh api repos/$OWNER/$REPO/pulls/$PR_NUMBER/reviews` directly; `gh pr view --comments --json latestReviews` can omit the just-submitted self comment review even when the review exists.
+- **Merged-PR fallback** — if the requested PR is already `MERGED`, do not pretend to approve/request changes. Still review the merged diff and related landed files when useful, then leave a normal PR comment (for example `gh pr comment <pr> --body-file ...`) labeled as a post-merge or retrospective review. UI screenshot evidence is only required if the PR body actually lists UI changes; `UI 변경: 없음` is not screenshot work.

@@ -119,3 +119,11 @@ When the user asks to check and fix open PRs, they expect a full open-PR sweep: 
 Reverse-sync workflows are repository-dependent and should not be kept as global/user-scope skills or global AGENTS.md gates; keep them in the owning repository context instead.
 §
 GitHub/PR/CI workflow skills are maintained under `~/workspace/skills-jk/`; user-scope `~/AGENTS.md` should not carry global GitHub/PR/CI gates or references to `~/.codex/skills/github-cli-safety-governed/`.
+§
+For GitHub PR reviews, when the PR body has a `UI 변경` section, the user expects the review workflow to generate screenshots for the listed paths and post them as PR comments with visual evidence, not just code review comments.
+§
+For PR UI screenshot review comments, the user wants `Before:` and `After:` entries to include the full URL with path, so the links are directly clickable to the exact reviewed page.
+§
+User expects feature-design documents to include explicit terminology review and deployment/operations suitability opinions when they ask about naming or operational fit, not just implementation steps.
+§
+For outbound-agent UI reviews, Component Name Debug label overlap in debug modes is acceptable as long as labels remain identifiable; review focus should be normal behavior with Component Name Debug Off, and debug label overlap should not be treated as a blocker by itself.

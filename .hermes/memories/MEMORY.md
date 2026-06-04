@@ -21,3 +21,7 @@ In outbound-agent Tencent VM container deployments, Next.js Gmail OAuth `request
 In outbound-agent fixtures and Gmail sender/Sales Person demo data, jk must use `jk@chequer.io` only; `jk@querypie.com` fails authentication, and fixture people should not be represented with both chequer.io and querypie.com domains.
 §
 In outbound-agent, local Prisma 7 CLI commands should be run with Node 24 (e.g. `source ~/.nvm/nvm.sh && nvm use 24`); Node 22 can fail with `ERR_REQUIRE_ESM` from `@prisma/dev` requiring `zeptomatch`.
+§
+In outbound-agent worktrees, `front/node_modules` symlinked to the root checkout can cause local Next dev server/Turbopack to fail with “Symlink [project]/node_modules is invalid, it points out of the filesystem root”; for deployed URL screenshot E2E use `E2E_SKIP_WEB_SERVER=true`, and avoid worktree-local `npm install` unless dependencies are actually missing/incompatible.
+§
+In outbound-agent, Prisma schema changes are folded into the single baseline migration `front/prisma/migrations/20260530000100_baseline_main_schema`; CI test `schema-migration-artifacts.test.ts` rejects additional migration directories.

@@ -1,33 +1,39 @@
-# Three-environment deploy verification pattern
+# Three-environment post-merge deploy verification
 
-Use this as a concise example for verifying a freshly merged `main` deployment across outbound-dev Vercel and Tencent Seoul/Tokyo.
+Use this reference when checking `querypie/outbound-agent` after a merged PR moves `main`, especially when the user asks for Vercel/outbound-dev plus Tencent dev-seoul/dev-tokyo status.
 
-## Durable lessons
+## Sequence
 
-- Establish the exact `origin/main` SHA first and re-fetch once before final reporting.
-- Vercel deploy workflow logs may not print the deployment URL. When the workflow succeeds but no URL is visible, query Vercel deployments by commit metadata:
-  - `vercel ls outbound-dev --scope querypie --prod --meta githubCommitSha=<full-sha> --no-color`
-  - Then run `vercel inspect <deployment-url> --scope querypie --no-color`.
-- For latest Vercel deployment logs with filters, use `vercel logs <deployment-url> --scope querypie --no-follow --since 15m --level error --json`.
-- `gh run view ... --json jobs` can be slow or hang during active runs, and `gh run view --job <id> --log` may refuse logs while a job is still in progress. Prefer the REST API for lightweight polling:
-  - `gh api repos/querypie/outbound-agent/actions/runs/<run-id> --jq '{id,status,conclusion,head_sha,updated_at,html_url}'`
-  - `gh api repos/querypie/outbound-agent/actions/runs/<run-id>/jobs --paginate --jq '.jobs[] | {id,name,status,conclusion,started_at,completed_at}'`
-- The Tencent main deploy workflow may automatically smoke dev-seoul after deploy while dev-tokyo only proceeds through deploy/cleanup/result jobs. If Tokyo exact deploy succeeds but no Tokyo smoke job appears, dispatch `E2E - Runtime Smoke` manually with `base_url=https://outbound-tokyo.dev.querypie.io`.
-- Separate exact-version proof from health proof:
-  - workflow SHA and deploy job success prove deployment target/version;
-  - `/login` 200 proves public availability;
-  - runtime smoke proves login/authenticated DB-backed behavior.
+1. Establish the latest remote main SHA.
+   - `git fetch origin main --prune`
+   - `git rev-parse origin/main`
+   - Do not rely on the root checkout branch being current; it may be `main...origin/main [behind N]`.
+2. List recent main runs and separate the three concerns:
+   - `Deploy outbound-dev Production` for Vercel.
+   - `CI` for source/build checks.
+   - `PR Cache-Only Build Validation / Main Deploy outbound-front image` for Tencent image build, Seoul/Tokyo deploy, cleanup, and post-deploy smoke.
+3. For active or large workflow runs, prefer REST polling when `gh run view` is slow or blocks:
+   - `gh api repos/querypie/outbound-agent/actions/runs/<run-id> --jq '{id,status,conclusion,head_sha,updated_at,html_url}'`
+   - `gh api repos/querypie/outbound-agent/actions/runs/<run-id>/jobs --paginate --jq '.jobs[] | {id,name,status,conclusion,started_at,completed_at}'`
+4. For Vercel exact deployment proof, if the workflow log does not print a URL, use commit metadata:
+   - `vercel ls outbound-dev --scope querypie --prod --meta githubCommitSha=<full-sha> --no-color`
+   - `vercel inspect <deployment-url> --scope querypie --no-color`
+   - `vercel logs <deployment-url> --scope querypie --no-follow --since 20m --level error --json`
+5. Check public `/login` for all three environments, but report it only as health evidence, not exact-version proof.
+6. Confirm runtime smoke for every environment that should be considered ready. If the main Tencent deploy workflow only smokes Seoul, manually dispatch `E2E - Runtime Smoke` for Tokyo after Tokyo deploy completes.
 
-## Evidence shape used in the session
+## Important classification rules
 
-- Vercel:
-  - `Deploy outbound-dev Production` succeeded for the exact SHA.
-  - `vercel ls ... --meta githubCommitSha=<sha>` found the production deployment.
-  - `vercel inspect` verified status `Ready`, aliases, target `production`, and region `icn1`.
-  - `/login` returned 200 and recent error logs were empty.
-  - A separate `E2E - Runtime Smoke` run succeeded against `https://outbound-dev.vercel.app`.
-- Tencent Seoul:
-  - image build/publish, deploy, cleanup, and workflow smoke all succeeded for the exact SHA.
-- Tencent Tokyo:
-  - deploy and cleanup succeeded for the exact SHA;
-  - because no Tokyo smoke job appeared in the main deploy workflow, a manual `E2E - Runtime Smoke` run was dispatched and succeeded.
+- A successful Vercel `Deploy outbound-dev Production` plus `vercel inspect` Ready means the deployment/alias is healthy, but it does not mean DB-backed smoke passed.
+- A Tencent deploy job can succeed for dev-seoul and then fail in the dev-seoul smoke job. In that case downstream dev-tokyo deploy jobs may be skipped. Classify Tokyo as "service health may be OK, but latest SHA was not deployed" even if `/login` returns 200.
+- If Vercel and dev-seoul runtime smoke fail with the same assertion after login reaches `/.../home`, treat it as likely smoke-test/UI-data assertion drift before resetting DB or redeploying.
+- Example drift observed: `front/tests/runtime-smoke.spec.ts` expected `getByRole('heading', { name: 'Setup checklist' })`; after a later main update, Vercel and Seoul both reached the Home route and showed an H1, but the `Setup checklist` heading was absent. That is not evidence of a Vercel/Tencent server 500 by itself.
+- Do not let the top-level Tencent workflow conclusion hide per-target facts. Report image build, Seoul deploy, Seoul smoke, Tokyo deploy, Tokyo cleanup, and Tokyo smoke separately.
+
+## Concise report shape
+
+- 기준 SHA: `<full-sha>`
+- Vercel/outbound-dev: deploy run, deployment ID/URL, alias, Ready/error logs, `/login`, smoke result.
+- Dev Seoul: image/deploy/cleanup status, `/login`, smoke result and failure reason if any.
+- Dev Tokyo: exact latest deployed or skipped, `/login`, smoke result if run.
+- Diagnosis: distinguish deployment failure, runtime server error, smoke assertion drift, and exact-version mismatch.
