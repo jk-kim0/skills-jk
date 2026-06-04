@@ -389,6 +389,20 @@ Pitfalls:
 When the user asks why a UI entry point exists in a certain product area (for example, a settings button that appears to belong under a different entity), answer from implemented code plus canonical design decisions, not from naming intuition alone.
 For provider-backed sender settings, be especially careful to separate a Team-scoped credential/sender-identity registry from the Sales Person business persona and sender selection; see `openspec-decision-management` reference `references/outbound-agent-sales-person-gmail-sender-decision.md` for the Outbound Agent pattern.
 
+### App Shell account/sidebar area design-doc audit
+
+When the user asks what should appear in a sidebar footer/account area, Team switcher, account dropdown, or similar App Shell region, treat it as an IA/design-doc lookup rather than a code-only question.
+
+1. Confirm repo/branch status, then search both design docs and implementation for the exact region names and likely synonyms (`User Account Area`, `User Account Menu`, `Sidebar Footer`, `Account settings`, `Sign out`, `/my-account`, `System Settings`, `Team Switcher`).
+2. Read the canonical UI overview and common-widget docs before summarizing. In Outbound Agent-like repos, the relevant docs are often `docs/ui/screen-overview.md`, `docs/ui/common-widgets.md`, `docs/ui/auth-account-terminology.md`, and any sidebar IA plan.
+3. Distinguish these boundaries explicitly in the answer:
+   - personal account actions (`Account settings` → Team-independent `/my-account`, `Sign out`)
+   - privileged/admin-only account-menu entries (for example `System Settings`, only when guarded by system-admin checks)
+   - Team context switching/settings (Team Switcher or Team `Settings`, not personal account settings)
+   - help/docs utilities (usually Top Bar, not Sidebar Footer)
+4. If local main is behind, fetch and check whether the relevant docs or implementation changed on `origin/main`; when answering a design question, prefer the latest design docs and mention if only implementation differs.
+5. Report a concise “should expose / should not expose” list with exact doc paths and line ranges when possible. Avoid over-inferencing future fields: mark richer display info as “design candidate/extension” when current implementation only shows a compact trigger.
+
 ### Hidden/mock-up route visibility triage
 
 When a user says a UI element added in a PR “does not show,” and the diff touches hidden/mock-up/example routes, do not assume a product regression. Inspect the PR files and answer from route reachability plus render position:

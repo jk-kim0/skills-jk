@@ -137,6 +137,10 @@ Personal-to-shared skill promotion pattern:
 5. **Git add + commit** on the active branch.
 6. **Note:** the CURRENT session's skill loader is cached — `skill_view` / `skills_list` will not see the new skill until a new session. This is expected, not a bug.
 
+Validation/commit safety:
+- When combining validation, `git diff --check`, commit, and push in one shell command, start the command with `set -e` or split validation into a separate tool call. A failed Python assertion or validation command must stop the commit path; otherwise the shell can continue to `git add` / `git commit` and leave a pushed change whose validation actually failed.
+- If a validation assertion fails because it was too broad for the existing skill body, rerun a narrower validation that checks only the changed section before creating or updating the PR, and mention both the initial failure and corrected validation in the report.
+
 ## Cross-Referencing Other Skills
 
 `metadata.hermes.related_skills` unions both trees (`skills/` in-repo and `~/.hermes/skills/`) at load time. You CAN reference a user-local skill from an in-repo skill, but it won't resolve for other users who clone the repo fresh. Prefer referencing only in-repo skills from in-repo skills. If a frequently-referenced skill lives only in `~/.hermes/skills/`, consider promoting it to the repo.
@@ -230,6 +234,18 @@ Pitfalls:
 ## Skill Library Maintenance Shape
 
 When updating the skill library after a session, prefer class-level umbrella skills over one-session-one-skill entries.
+
+### Reference dedupe / refactor workflow
+
+When the user asks to review skill `references/` docs or remove duplication across the skill library:
+
+1. Treat the work as class-level source curation, not as one more session-note capture pass.
+2. Scan existing `references/*.md` files for exact repeated paragraphs and topic clusters before writing new support files.
+3. Pick one canonical owner for each repeated decision/workflow, then convert sibling files into short adapters that link to the canonical reference and add only skill-specific application notes.
+4. Keep `SKILL.md` bodies as triggers, routing rules, pitfalls, and short reminders; move long checklists, example formats, and session evidence into `references/`.
+5. Remove session/PR-number-specific names from reusable references when the lesson is durable, e.g. rename `pr123-...` into a class-level pattern name.
+6. Before committing, run a changed-reference duplicate scan and a stale session-name/PR-number scan, then include those verification results in the PR body.
+7. If unrelated local dirty files exist, preserve them outside the commit scope while rebasing/PR-creating; do not accidentally stage runtime or memory residue just because it was present during the curation task.
 
 Be active by default:
 - Treat "review the conversation and update the skill library" as an instruction to find and encode at least one reusable lesson when the session had any non-trivial workflow, correction, or repeated pattern.

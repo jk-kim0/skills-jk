@@ -88,6 +88,16 @@ When the user makes a repository-wide primary key or ID generation decision, tre
 7. Document allowed exceptions narrowly: deterministic fixtures/seeds, bulk workflows that require pre-insert IDs, pure join-table composite primary keys, or later high-volume log/event exceptions.
 8. For an existing all-ID conversion where the user explicitly says to ignore backward compatibility, classify it as a `비호환 migration`, list all affected models, and specify migrate-first then app deploy/redeploy ordering.
 
+## Provider-type replacement and default asset documentation pattern
+
+When the user asks to replace a fake/test/local artifact with an explicit provider/type or default Team asset, treat it as a source-of-truth model change, not only feature prose.
+
+1. Update the canonical schema/model contract with the root entity, provider enum value, optional provider-specific settings/result entity, and the bootstrap/default-asset rule.
+2. Update ERD diagrams and relationship notes so old fake/test entities are renamed, replaced, or removed rather than left as parallel concepts.
+3. State the distinction between an explicit selectable provider/type and a hidden fallback. Default assets may be auto-created, but runtime fallback or late assignment must be called out separately and usually rejected unless the user explicitly wants it.
+4. Sweep docs that commonly preserve stale negative requirements: OpenSpec decision entries, contract scenarios, user-facing UC specs, feature status tables, seed/demo scenario docs, E2E scenario docs, UI settings docs, and feature bridge docs.
+5. If the PR is docs-only, leave implementation/schema/migration/fixture changes out and mark Team bootstrap, provider adapter/result handling, UI list rendering, and legacy artifact cleanup as follow-up implementation tasks.
+
 ## Sync Front API / async backend boundary pattern
 
 When the user clarifies that MVP Front APIs should be synchronous while actual long-running execution will be handled by a later async backend, treat it as a source-of-truth scope boundary, not a prose-only preference.
@@ -97,6 +107,19 @@ When the user clarifies that MVP Front APIs should be synchronous while actual l
 3. Keep MVP timeline/event UI as a display layer over entity status, timestamps, and manual/fixture engagement rows unless the user explicitly asks for a canonical event table now.
 4. Update technology-stack and backlog docs so they no longer say initial LLM wrappers or job stubs are adopted when actual model calls and async execution are post-MVP.
 5. Update phase plans so implementation PRs do not introduce `queued`/`processing` async job states or placeholder Job/EventLog tables merely to anticipate later backend work.
+
+## Use-case facade over existing entity graph pattern
+
+When the user asks for a backend-centered feature design derived from a use-case/UI draft, and explicitly wants to minimize Entity Model or relation changes, design the feature as a facade/read-model/service layer over the existing domain graph before proposing new relations.
+
+1. Start by reading the UI/use-case draft, then inspect the current canonical model docs, Prisma schema, and existing services/actions that already create or transition the relevant entities.
+2. Build a mapping table from UI components/actions to backend entities and operations. For example, `Contact List Card` may map to `ContactList` selection plus internal `Audience` creation, while a `Start` control may map to `SendRun` approval/chunk-send transitions.
+3. Distinguish user-facing capability names from persistence classifications. If the UI hides internal terms like Campaign/Audience/SendRun, keep those backend entities when they remain the correct aggregate/execution boundaries.
+4. Prefer reusing existing enum values or modes when the behavior is the same; present a new enum value as a classification-only alternative only when lifecycle, approval policy, caps, analytics, or filtering materially diverge.
+5. Treat auto-created internal records as a model-preserving technique, not a shortcut: when a user selects a reusable source list, backend may create the campaign-scoped execution entity at that moment to preserve the source-list vs execution-audience boundary.
+6. Avoid creating UI-term entities such as `MessageExample` when an existing domain entity or immutable snapshot already represents the concept. Document whether the UI term maps to a reusable asset, a per-run snapshot, or both.
+7. Include explicit alternatives and selection conditions: recommended no-schema-change facade, enum/classification addition, metadata/provenance addition, and any small preference/metadata model that is optional rather than core.
+8. Add a self-review section to the feature doc that challenges the main recommendation against the UI draft, current model intent, current implementation caps, and out-of-scope execution constraints.
 
 ## Credential reference and Secret Manager feature-plan pattern
 
@@ -130,9 +153,11 @@ When the user asks to explain a domain entity or compare two attributes without 
 
 1. Treat it as a read-only model clarification task. Inspect the current source of truth before answering, usually the canonical model docs plus the live schema/service code when implementation already exists.
 2. Distinguish conceptual fields from implementation relations. For example, in email sender models, explain that a `Sender`/`SenderIdentity.emailAddress` is the actual From identity, while a `Connected account` such as `GmailSenderCredential.connectedEmailAddress` is the OAuth-authenticated account that provides credentials.
-3. Call out current product constraints separately from future extensibility. If the current implementation requires two concepts to match, state that first, then explain why the model still stores them separately for aliases, delegation, shared mailboxes, or external providers.
-4. Walk every field one by one when the user asks for “속성 전체” or equivalent, including relation fields, enum meanings, unique constraints, and indexes that materially affect behavior.
-5. Keep the answer as an explanation, not a documentation PR, unless the user explicitly asks to update docs.
+3. When the question is “why does creation of X require Y?”, verify both the model contract and the actual create/read UI path. Separate a true persistence dependency such as an FK or required relation from a UX/readiness prerequisite such as “Team Company context must exist before showing a form.”
+4. Call out current product constraints separately from future extensibility. If the current implementation requires two concepts to match, state that first, then explain why the model still stores them separately for aliases, delegation, shared mailboxes, or external providers.
+5. If docs say an entity is not directly related but UI blocks creation until another entity exists, explain that as a product-flow or setup-readiness guard, not as a data-model dependency. Mention whether the action/service layer itself enforces the prerequisite.
+6. Walk every field one by one when the user asks for “속성 전체” or equivalent, including relation fields, enum meanings, unique constraints, and indexes that materially affect behavior.
+7. Keep the answer as an explanation, not a documentation PR, unless the user explicitly asks to update docs.
 
 ## Team-rooted asset relation pattern
 
@@ -142,8 +167,9 @@ When the user changes a domain model from user-owned or company-owned assets to 
 2. Remove direct `User` / `Owner` ownership relations from the affected reusable business asset unless the user preserves them as provenance.
 3. Replace parent-company relations with direct Team ownership when the asset should be reusable across the Team rather than under one Company.
 4. If Team has a 1:1 Company profile, document Campaign or execution entities as deriving company context from Team instead of selecting/storing `companyId` directly.
-5. Update ERD cardinality, field contract, OpenSpec requirements, UI prerequisite text, seed/demo docs, and verification searches together; otherwise old relation assumptions survive in secondary docs.
-6. Search for old FK names and prose, for example `companyId`, `ownerUserId`, `USER ||--o{ <ASSET>`, `<Asset> is owned by User`, or `Campaign selects Company/Product/Sales Person`.
+5. Distinguish creation blockers from execution/readiness blockers. In outbound-agent's Team-rooted model, a missing Team Company can block Campaign readiness/submission, but it must not become a hard blocker for creating Team-scoped reusable assets such as Product or Sales Person.
+6. Update ERD cardinality, field contract, OpenSpec requirements, UI prerequisite text, seed/demo docs, and verification searches together; otherwise old relation assumptions survive in secondary docs.
+7. Search for old FK names and prose, for example `companyId`, `ownerUserId`, `USER ||--o{ <ASSET>`, prose saying a Team-scoped asset is owned by a User/Owner, or UI copy that says to create Team Company before adding Product/Sales Person.
 
 ### Implementation follow-up checklist for Team-rooted asset changes
 
