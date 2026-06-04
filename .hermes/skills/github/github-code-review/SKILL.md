@@ -478,6 +478,112 @@ EOF
 )"
 ```
 
+### Ready-for-Review UI Screenshot Comment Sweep
+
+When an open PR is not a draft (`isDraft == false`, i.e. Ready for Review), inspect the PR body before ordinary review work. If the body contains a dedicated `UI 변경` section, run the UI screenshot evidence workflow and post a PR comment with screenshots or a blocker note.
+
+Use this for manual PR review and for scheduled sweeps. Do not run it for draft PRs, closed PRs, merged PRs, or PRs whose `UI 변경` section is absent or explicitly says there is no UI change.
+
+Required behavior:
+
+1. List open PRs and filter to Ready for Review only:
+
+```bash
+gh pr list --state open --json number,title,isDraft,body,headRefName,headRefOid,url
+```
+
+2. For each filtered PR, parse the body for a Markdown heading whose text is exactly or clearly `UI 변경`.
+   - Accept common heading forms such as `## UI 변경`, `### UI 변경`, or a repository-specific section title that begins with `UI 변경`.
+   - Only use paths and instructions inside that section; do not infer unrelated routes unless the user explicitly requested that.
+   - If the section says `없음`, `N/A`, `No UI changes`, or equivalent, skip the PR.
+3. Avoid duplicate work by keying comments to the exact PR head commit.
+   - Before any screenshot capture, inspect existing PR comments with `gh pr view <number> --json comments` or `gh api repos/$OWNER/$REPO/issues/<number>/comments`.
+   - Treat a prior comment as automation-owned only when it contains the stable marker `Hermes UI Screenshot Evidence` and a machine-readable `Head: <sha>` line.
+   - If an automation-owned comment already has `Head: <current headRefOid>`, skip the PR entirely: do not recapture screenshots, do not upload attachments, and do not post another comment.
+   - If automation-owned comments exist but all of them reference older head SHAs, the PR has changed since the last screenshot pass. Re-run capture for the current head and post a new comment. Do not edit or delete the old comment; the new comment supersedes it by naming the current head SHA.
+   - If the PR body `UI 변경` section changed but the head SHA did not change, skip by default because GitHub PR body edits do not create a new renderable deployment. Only rerun in that case when the user explicitly asks for a recapture or when the previous automation-owned comment was a blocker caused by missing/ambiguous body instructions that are now fixed.
+   - Include both `Head: <headRefOid>` and `Evidence-Key: ui-screenshot:<PR number>:<headRefOid>` in every posted comment so future runs can make an idempotent decision.
+4. Capture screenshot evidence for every listed path that is reasonably reviewable.
+   - Resolve `Before:` to the stable/base deployment and `After:` to the PR preview deployment.
+   - Include full clickable URLs with scheme, host, and path for every `Before:` and `After:` entry.
+   - Use the same viewport, authentication/session state, and wait strategy for before/after screenshots.
+   - For auth-protected or stateful pages, either authenticate with the repo-approved demo account or post a blocker note describing exactly what prevented capture.
+5. Upload/attach screenshots through the repository-approved GitHub attachment path, then post a top-level PR comment.
+6. If capture fails, still post a short blocker/evidence comment instead of silently skipping a PR whose Ready-for-Review body requested UI evidence.
+7. Never merge, close, mark ready, approve, or request changes as part of this screenshot sweep. The sweep only posts screenshot evidence comments or blocker comments.
+
+Suggested comment shape:
+
+```md
+## Hermes UI Screenshot Evidence
+
+Head: <headRefOid>
+Evidence-Key: ui-screenshot:<PR number>:<headRefOid>
+Source: Ready-for-Review PR body `UI 변경` section
+
+### `<path>`
+Before: https://stable.example.com/<path>
+After: https://preview.example.com/<path>
+
+![Before](...)
+![After](...)
+
+Notes:
+- <visible result, blocker, auth redirect, server error, or DOM/style verification>
+```
+
+#### 30-minute Hermes cron registration
+
+Use Hermes cron for an autonomous sweep. Prefer a Hermes profile that has cron configuration plus the browser/screenshot-capable toolsets needed by the evidence workflow. On this user's `skills-jk` setup, start from `hermes -p cron-config`; if screenshots require browser automation, ensure the created cron job also has browser-capable toolsets/profile configuration rather than relying on the default lean CLI profile.
+
+Create the job from the target repository root, using the repository path as `--workdir` and this skill as an explicit preload:
+
+```bash
+REPO_DIR="/absolute/path/to/repo"
+
+prompt=$(cat <<'EOF'
+Open PR UI screenshot sweep:
+
+1. Work in the configured repository.
+2. List all open pull requests.
+3. Process only PRs that are Ready for Review (`isDraft == false`). Skip draft, closed, and merged PRs.
+4. For each Ready for Review PR, inspect the body for a dedicated `UI 변경` section.
+5. If the section is absent or explicitly says no UI changes, skip and do not comment.
+6. Before any screenshot capture, inspect existing comments for `Hermes UI Screenshot Evidence` and `Evidence-Key: ui-screenshot:<PR number>:<current head SHA>`.
+7. If that exact evidence key already exists, skip the PR without recapturing, uploading, or commenting.
+8. If older `Hermes UI Screenshot Evidence` comments exist for older head SHAs, treat the PR as changed: capture fresh Before/After evidence for the current head and post a new superseding comment. Do not edit or delete older evidence comments.
+9. If the section exists and lists UI paths/states, capture Before/After screenshot evidence for the listed paths using the repository's stable/base deployment and the PR preview deployment.
+10. Post a top-level PR comment with marker `Hermes UI Screenshot Evidence`, `Head: <current head SHA>`, `Evidence-Key: ui-screenshot:<PR number>:<current head SHA>`, full Before/After URLs, uploaded screenshot links, and any blocker notes.
+11. Do not approve, request changes, merge, close, mark ready, edit PR bodies, or modify repository files.
+EOF
+)
+
+hermes -p cron-config cron create \
+  --name "ready-pr-ui-screenshot-sweep" \
+  --deliver local \
+  --skill github-code-review \
+  --workdir "$REPO_DIR" \
+  "30m" \
+  "$prompt"
+```
+
+After creation, verify the scheduler record:
+
+```bash
+hermes -p cron-config cron list --all
+hermes -p cron-config cron status
+```
+
+If the CLI-created job does not expose or persist required toolsets for screenshot capture, edit the job through the cron UI/tooling and verify these fields before relying on it:
+
+- `enabled: true`
+- `schedule: 30m`
+- `skills` includes `github-code-review`
+- `workdir` is the target repo root
+- `deliver` is the intended destination (`local` unless a messaging channel is required)
+- browser/screenshot-capable toolsets are enabled for the cron execution context
+- GitHub auth and any attachment/upload helper required by the repository are available in that execution context
+
 ### Step 9: Clean up
 
 ```bash
