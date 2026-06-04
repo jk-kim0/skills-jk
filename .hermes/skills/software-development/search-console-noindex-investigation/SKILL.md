@@ -120,8 +120,10 @@ When the user asks to “request indexing”, “update indexing requests”, or
    - If an existing token was granted readonly only, code changes that request broader scopes will not upgrade it automatically. Back up/remove the token and re-auth, but ask before moving/deleting an existing working token.
 
 5. CLI UX expectations.
+   - When the user asks for concrete `gsc` command usage, inspect the repo-local CLI first (`./bin/gsc --help` and the relevant subcommand `--help`) before answering from generic Search Console API knowledge. If the CLI already has commands such as `refresh-sitemaps`, `frontend-session export`, or `validate-index-issues-all`, answer with those exact commands.
    - Provide an explicit explanation command or message for unsupported general Request Indexing API.
    - Add/write commands such as `submit-sitemap` and `refresh-sitemaps` when maintaining a repo-local GSC CLI.
+   - For sitemap submit/refresh commands, prefer automatic OAuth re-auth with the required write scope (`https://www.googleapis.com/auth/webmasters`) over telling the user to manually move/delete a valid readonly token. Only surface manual token recovery instructions if re-auth or the submit call still fails with an insufficient-scope error.
    - Fail fast with a clear scope error rather than attempting many sitemap submissions that all return 403.
 
 See `references/gsc-indexing-api-and-sitemap-refresh.md` for condensed session notes and exact pitfalls.

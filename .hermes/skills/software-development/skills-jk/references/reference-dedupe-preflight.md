@@ -27,7 +27,9 @@ rg -n "<topic keyword>|<error phrase>|<workflow name>" .hermes/skills .hermes/sk
    - the content is reusable beyond the current session transcript;
    - the filename names the class of problem, not the incident date, PR number, branch name, or temporary symptom;
    - the owning `SKILL.md` gains a short pointer to the new reference.
-6. If the new lesson belongs to another repository, keep it in that repository's `.hermes/skills` instead of duplicating it here.
+6. For very thin migrated-memory references, prefer inlining the one or two durable rules into the owning `SKILL.md` and deleting the reference file. This is especially appropriate when the file mostly contains migration boilerplate plus a single user preference or inventory note.
+7. If deleting or moving a reference file, update repo-local inventories and reports that list reference paths (for example `docs/reports/*reference*.tsv`) so stale deleted paths do not remain as apparent live references.
+8. If the new lesson belongs to another repository, keep it in that repository's `.hermes/skills` instead of duplicating it here.
 
 ## Canonical owner map
 

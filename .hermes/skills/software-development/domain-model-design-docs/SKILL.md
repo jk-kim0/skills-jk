@@ -75,6 +75,17 @@ When the user clarifies locale/market constraints for domain-model docs:
 7. Keep country default timezones as system constants or configuration defaults, not as a replacement for the Campaign-level timezone. The UI should propose the country default but require one Campaign timezone to be set.
 8. Update outreach/response and conversion/follow-up docs when timezone affects scheduled messages, response deadlines, or meeting scheduling; do not leave timezone only in the campaign setup doc.
 
+## Slug uniqueness and generated-route-code verification pattern
+
+When the user asks to verify whether Entity Model design and implementation support a slug uniqueness rule, treat it as a schema-contract audit.
+
+1. Identify the route/business identifier separately from the internal primary key.
+2. Determine the intended uniqueness scope in words first: global, Team + entity type, parent aggregate + entity type, or another owning boundary.
+3. Inspect the canonical model/OpenSpec contract and the Prisma schema together; do not infer the rule from route code alone.
+4. For Team-scoped root business entities, look for `@@unique([teamId, slug])` on that model and avoid requiring uniqueness against other entity tables in the same Team unless the user explicitly asks for a shared namespace.
+5. For generated short slugs, verify both the generator contract and collision path: allowed alphabet/length regex, candidate lookup in the same scope as the schema constraint, retry on collision, bounded failure behavior, and tests that force at least one collision.
+6. Update feature/UI docs when a generated slug appears in user-facing routes, because URL behavior is part of the UX contract even when the slug is system-generated.
+
 ## Primary key / ID policy documentation pattern
 
 When the user makes a repository-wide primary key or ID generation decision, treat it as a cross-cutting contract, not as a local field-note in one model document.
