@@ -104,3 +104,15 @@ Also verify OAuth client configuration parity separately from latest-code deploy
 - verify the per-environment callback `redirect_uri`, Gmail send scope, and absence of Google `redirect_uri_mismatch` / `Error 400`;
 - if a VM has stale `GMAIL_OAUTH_CLIENT_ID`, back up the runtime env file, update the client id from the authoritative dev source, restart the app service, and re-check the effective redirect;
 - do not claim callback token exchange is fully verified unless the matching `GMAIL_OAUTH_CLIENT_SECRET` is known to be deployed or a real callback completed.
+
+## GitHub Actions OAuth secret injection verification
+
+When asked whether the current GitHub repository secrets make a deployment possible, verify the workflow path rather than answering conditionally from secret presence.
+For Outbound Agent Tencent VM container deployments:
+
+- `gh secret list --repo querypie/outbound-agent` can confirm names such as `GMAIL_OAUTH_CLIENT_ID`, `GMAIL_OAUTH_CLIENT_SECRET`, per-environment token encryption secrets, and per-environment OAuth state secrets exist, but it does not prove runtime injection.
+- Inspect `.github/workflows/build-outbound-front-image.yml`, `.github/workflows/deploy-tencent-container-image.yml`, and `.github/workflows/reusable-deploy-tencent-container-image.yml`.
+- Main push image deploy uses the reusable Tencent deploy workflow but does not pass `update_gmail_oauth_config`; the reusable workflow default is false. Therefore normal code/image deploy keeps existing VM runtime env and skips the Gmail OAuth config upload step.
+- The manual `Deploy Tencent container image` workflow has an opt-in `update_gmail_oauth_config` input. With `dry_run=true` and `update_gmail_oauth_config=true`, it validates required secret values are non-empty and uploads a temporary env file, then prints `DRY-RUN would update Gmail OAuth config in /etc/outbound-agent/front.env` without mutating the VM env file.
+- To actually update VM runtime env, run the same manual workflow with `dry_run=false`, `confirm_apply=APPLY`, and `update_gmail_oauth_config=true`; it rewrites only the Gmail OAuth keys in `/etc/outbound-agent/front.env` and creates a timestamped backup.
+- Report deployment as two separate claims: (1) latest code/image deploy and smoke succeeded, and (2) OAuth runtime env update path was dry-run validated or actually applied.

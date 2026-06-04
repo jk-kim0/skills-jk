@@ -157,10 +157,16 @@ THEN investigate that specific component.
 
 ### 6. For browser layout bugs, measure document overflow before changing CSS
 
-**WHEN the symptom is mobile right-side blank space, horizontal scrolling, clipped sticky behavior, or "there is empty space on one side":**
+**WHEN the symptom is mobile right-side blank space, horizontal scrolling, clipped sticky behavior, clipped modal/dialog content, a popup extending beyond the viewport, or "there is empty space on one side":**
 
 Do not guess from screenshots or visible content alone.
 Measure the actual overflow first and identify the exact offending element.
+
+For modal/dialog overflow specifically, check both the dialog primitive defaults and the option/content layout:
+- default max width may be too narrow for selection grids, creating unnecessary vertical height;
+- missing `max-height` lets the popup extend beyond the viewport;
+- missing internal `overflow-y-auto` prevents users from reaching all options/actions;
+- fix the dialog surface contract first, e.g. wider content for grids plus `max-h-[calc(100dvh-2rem)] overflow-y-auto`, instead of only shrinking child items.
 
 Useful browser-console probe:
 

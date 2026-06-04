@@ -98,6 +98,9 @@ Use this skill when:
    - When an issue-driven implementation PR advances one concrete OpenSpec contract gap, it is acceptable to update the related `tasks.md` checkbox and short feature-doc status in the same PR if the user explicitly asked for implementation plus documentation updates. Mark only the exact regression/evidence now covered; leave broader snapshot/approval-lock tasks open if they are not fully proven by the patch.
    - If the user asks to implement the decision to Release Ready, do not stop at OpenSpec/docs: remove or update stale product guards, schema/fixture fields, baseline migration definitions, UI copy, and regression tests that still enforce the rejected policy.
    - It is acceptable to include small doc consistency edits in the same OpenSpec decision PR when the user asked for the decision/spec update and those docs would otherwise contradict the new source of truth.
+   - For auth/SSO decisions, separate application product policy from external provider platform configuration. If the Product Owner says app-level SSO scope is all verified email addresses, remove stale domain/workspace restrictions from docs/specs/config examples and treat Google OAuth Client organization/test-user/domain restrictions as external platform setup constraints, not Outbound App authorization logic.
+   - For account-linking decisions, distinguish rarely changed SSO settings storage from user identity modeling. YAML/code config may be right for read-only System settings, while multiple SSO/auth methods and same-verified-email linking usually require a `UserIdentity`/`AuthIdentity` table or equivalent.
+   - When the user corrects a feature plan in follow-up turns, sweep every derived surface in the same PR: accepted decision text, In/Out scope, user flow, config sample, UI summary, Requirement candidates, Scenarios, `/goal` criteria, task checklist, risks/trade-offs, open questions, and PR body. Do not leave the old assumption as an unresolved open question.
 
 7. Create or update the PR and tracking surfaces.
    - The required deliverable is a branch/PR carrying the canonical decision record; do not stop at an issue comment or chat summary.
@@ -166,6 +169,9 @@ Related issue item: GitHub issue #<n> `<label>`
 - Do not rely on deletion alone for removed fixtures/providers. Future agents need an explicit negative contract (`SHALL NOT`, `사용하지 않음`, `존재하지 않음`, `seed하지 않음`, `UI에 노출하지 않음`) to avoid recreating the same artifact.
 - Do not put long ownership/reuse/setup explanation on a transient create form when the user should configure the reusable dependency elsewhere; put that copy on the owning settings/configuration surface and make the create form expose a short, direct add action.
 - Do not auto-close issues from PR body text unless explicitly instructed.
+- Do not confuse SSO app policy with OAuth provider console constraints. If the accepted app policy is all verified email addresses, do not leave `workspaceDomain`, allowed-domain, or organization-only wording in the app feature plan/spec; mention provider-console restrictions only as external setup constraints.
+- Do not treat “SSO settings do not need a DB table” as “auth identities do not need a table.” Read-only settings storage and multi-provider account-linking data are separate design decisions.
+- Do not keep a superseded assumption in `Open Questions` after the Product Owner has decided it in a follow-up turn; update all downstream requirement/scenario/task text in the same pass.
 
 ## References
 
@@ -175,7 +181,9 @@ Related issue item: GitHub issue #<n> `<label>`
 - `references/outbound-agent-sendrun-approval-lock-decision.md`: example of an approval-boundary lock decision where sender/template/recipient preview is confirmed before approval and batch-time fallback/late assignment must be prohibited.
 - `references/outbound-agent-sales-person-gmail-sender-decision.md`: example of binding a provider sender to a reusable Sales Person entity while keeping OAuth authentication owned by the actual Gmail account holder, not the current user by default.
 - `references/outbound-agent-sales-person-email-sender-selection-flow.md`: example of refining a Sales Person creation UI so a required Email Sender dependency is selected/added first, with long policy copy moved to Team Settings.
+- `references/outbound-agent-team-email-senders-settings-ui-order.md`: pattern for Team Email Senders settings UI decisions: wrapper-free card grid, Page Header-level help, API-owned default card order, current-user sender stable partition, and required-creation card when no current-user sender exists.
 - `references/outbound-agent-gmail-sender-disconnect-ui.md`: recipe for Team Email Senders rows where active connected Gmail senders show `Disconnect`, disconnect removes credential material while preserving `SenderIdentity.id`, and UI design/OpenSpec/code move together in one PR.
 - `references/outbound-agent-team-market-settings-decision.md`: example of moving country/language from multiple child entities to a single Team-scoped market setting, requiring OpenSpec/domain/UI docs first and then schema/UI/test cleanup in one PR.
 - `references/outbound-agent-test-sender-removal-decision.md`: example of turning a PO statement that a fake/local test sender does not exist into explicit negative requirements across design, specs, feature docs, status docs, and model docs.
+- `references/outbound-agent-google-sso-account-linking-decision.md`: pattern for Google SSO as general-user sign-in, auto-provisioning on verified email, same-email multi-SSO account linking, username/password email verification backlog, and separating app policy from Google OAuth Client platform constraints.
 - `references/outbound-agent-entity-card-empty-vs-required-creation.md`: concise UI decision pattern for distinguishing passive no-item/empty cards from required creation/add cards in Outbound Agent Entity Card design docs.

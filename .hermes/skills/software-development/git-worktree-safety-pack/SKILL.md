@@ -54,6 +54,7 @@ If the current repository does not have that repo-local skill-pack path, proceed
 - `references/merged-preservation-pr-branch-refusal.md` — when a preservation PR is merged mid-cleanup and force-push/update is refused, do not resurrect the merged branch; create a fresh latest-main branch/PR for only the remaining authored payload.
 - `references/workflow-dispatch-pr-creation-verification.md` — when cleanup preserves local work and the repo creates PRs through a `workflow_dispatch` action, verify default-branch-dispatched runs without relying on `gh run list --branch <feature-branch>`; pass body content to `-f body=...`, not `-f body-file=...`, unless the workflow defines that input.
 - `github-pr-workflow/references/batch-open-pr-rebase-latest-main.md` — companion GitHub PR workflow reference for rebase-all-open-PR sweeps: live open-PR list, per-branch latest-main fetch, `--force-with-lease`, and final merge-base verification.
+- When a single PR is rebased onto latest `main`, re-query `gh pr view <pr> --json headRefOid,baseRefOid,mergeStateStatus,statusCheckRollup` after push. If `origin/main` advanced during the rebase/push window and the PR `baseRefOid` no longer matches the freshly fetched `origin/main`, fetch/rebase/push again before reporting the PR as current.
 
 ## Common Pitfalls
 

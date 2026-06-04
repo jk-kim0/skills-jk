@@ -123,7 +123,12 @@ hermes skills update        Update outdated skills
 hermes skills uninstall N   Remove a hub skill
 hermes skills publish PATH  Publish to registry
 hermes skills browse        Browse all available skills
-hermes skills tap add REPO  Add a GitHub repo as skill source
+```
+
+Skill-library update hygiene:
+- Before adding a new `references/<topic>.md` support file, inspect the owning skill's existing linked files and prefer patching the canonical reference when the new lesson is another instance of the same workflow.
+- Do not let the self-improvement review pattern become one incident reference per session; generic lessons should update the class-level umbrella, while repo-specific wrappers should keep only their distinct workflow quirks.
+- `skill_manage(write_file)` validates path/size/security but does not perform semantic deduplication, so the agent must do the canonical-owner check before writing a new support file.
 ```
 
 ### MCP Servers
