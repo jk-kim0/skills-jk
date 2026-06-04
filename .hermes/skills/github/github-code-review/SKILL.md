@@ -489,10 +489,13 @@ gh pr list --state open --json number,title,isDraft,body,headRefName,headRefOid,
    - Accept common heading forms such as `## UI 변경`, `### UI 변경`, or a repository-specific section title that begins with `UI 변경`.
    - Only use paths and instructions inside that section; do not infer unrelated routes unless the user explicitly requested that.
    - If the section says `없음`, `N/A`, `No UI changes`, or equivalent, skip the PR.
-3. Avoid duplicate comments.
-   - Before posting, inspect recent PR comments.
-   - If a comment from the same automation already covers the current `headRefOid`, skip.
-   - Include a stable marker such as `Hermes UI Screenshot Evidence` and the reviewed head SHA in every posted comment.
+3. Avoid duplicate work by keying comments to the exact PR head commit.
+   - Before any screenshot capture, inspect existing PR comments with `gh pr view <number> --json comments` or `gh api repos/$OWNER/$REPO/issues/<number>/comments`.
+   - Treat a prior comment as automation-owned only when it contains the stable marker `Hermes UI Screenshot Evidence` and a machine-readable `Head: <sha>` line.
+   - If an automation-owned comment already has `Head: <current headRefOid>`, skip the PR entirely: do not recapture screenshots, do not upload attachments, and do not post another comment.
+   - If automation-owned comments exist but all of them reference older head SHAs, the PR has changed since the last screenshot pass. Re-run capture for the current head and post a new comment. Do not edit or delete the old comment; the new comment supersedes it by naming the current head SHA.
+   - If the PR body `UI 변경` section changed but the head SHA did not change, skip by default because GitHub PR body edits do not create a new renderable deployment. Only rerun in that case when the user explicitly asks for a recapture or when the previous automation-owned comment was a blocker caused by missing/ambiguous body instructions that are now fixed.
+   - Include both `Head: <headRefOid>` and `Evidence-Key: ui-screenshot:<PR number>:<headRefOid>` in every posted comment so future runs can make an idempotent decision.
 4. Capture screenshot evidence for every listed path that is reasonably reviewable.
    - Resolve `Before:` to the stable/base deployment and `After:` to the PR preview deployment.
    - Include full clickable URLs with scheme, host, and path for every `Before:` and `After:` entry.
@@ -508,6 +511,7 @@ Suggested comment shape:
 ## Hermes UI Screenshot Evidence
 
 Head: <headRefOid>
+Evidence-Key: ui-screenshot:<PR number>:<headRefOid>
 Source: Ready-for-Review PR body `UI 변경` section
 
 ### `<path>`
@@ -538,10 +542,12 @@ Open PR UI screenshot sweep:
 3. Process only PRs that are Ready for Review (`isDraft == false`). Skip draft, closed, and merged PRs.
 4. For each Ready for Review PR, inspect the body for a dedicated `UI 변경` section.
 5. If the section is absent or explicitly says no UI changes, skip and do not comment.
-6. If the section exists and lists UI paths/states, capture Before/After screenshot evidence for the listed paths using the repository's stable/base deployment and the PR preview deployment.
-7. Before posting, check existing comments and skip if a `Hermes UI Screenshot Evidence` comment already covers the current PR head SHA.
-8. Post a top-level PR comment with marker `Hermes UI Screenshot Evidence`, the reviewed head SHA, full Before/After URLs, uploaded screenshot links, and any blocker notes.
-9. Do not approve, request changes, merge, close, mark ready, edit PR bodies, or modify repository files.
+6. Before any screenshot capture, inspect existing comments for `Hermes UI Screenshot Evidence` and `Evidence-Key: ui-screenshot:<PR number>:<current head SHA>`.
+7. If that exact evidence key already exists, skip the PR without recapturing, uploading, or commenting.
+8. If older `Hermes UI Screenshot Evidence` comments exist for older head SHAs, treat the PR as changed: capture fresh Before/After evidence for the current head and post a new superseding comment. Do not edit or delete older evidence comments.
+9. If the section exists and lists UI paths/states, capture Before/After screenshot evidence for the listed paths using the repository's stable/base deployment and the PR preview deployment.
+10. Post a top-level PR comment with marker `Hermes UI Screenshot Evidence`, `Head: <current head SHA>`, `Evidence-Key: ui-screenshot:<PR number>:<current head SHA>`, full Before/After URLs, uploaded screenshot links, and any blocker notes.
+11. Do not approve, request changes, merge, close, mark ready, edit PR bodies, or modify repository files.
 EOF
 )
 
