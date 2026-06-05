@@ -61,27 +61,37 @@ CLIENT_SECRET_FILE = os.environ.get(
 TOKEN_FILE = os.path.expanduser('~/.config/gsc/token.pickle')
 
 
-def get_credentials():
-    """OAuth 2.0 인증을 수행하고 credentials를 반환합니다."""
+def get_credentials(required_scopes: list[str] | None = None):
+    """OAuth 2.0 인증을 수행하고 credentials를 반환합니다.
+
+    required_scopes가 주어지면, 저장된 토큰이 valid=True여도 해당 scope를
+    갖고 있지 않을 때 자동으로 OAuth 재인증을 수행합니다. 예를 들어 기존
+    readonly 토큰은 sites/query에는 충분하지만 sitemap submit에는 부족합니다.
+    """
     creds = None
     token_path = Path(TOKEN_FILE)
+    auth_scopes = required_scopes or SCOPES
+    required_scope_set = set(required_scopes or [])
 
     # 저장된 토큰이 있으면 먼저 로드 시도
     if token_path.exists():
         with open(token_path, 'rb') as token:
             creds = pickle.load(token)
 
-    # 토큰이 유효하면 바로 반환
-    if creds and creds.valid:
+    # 토큰이 유효하고 필요한 scope를 만족하면 바로 반환
+    if creds and creds.valid and (
+        not required_scope_set or required_scope_set.issubset(credential_scopes(creds))
+    ):
         return creds
 
     # 토큰이 만료되었지만 refresh 가능하면 갱신
     if creds and creds.expired and creds.refresh_token:
         try:
             creds.refresh(Request())
-            with open(token_path, 'wb') as token:
-                pickle.dump(creds, token)
-            return creds
+            if not required_scope_set or required_scope_set.issubset(credential_scopes(creds)):
+                with open(token_path, 'wb') as token:
+                    pickle.dump(creds, token)
+                return creds
         except Exception as e:
             print(f"토큰 갱신 실패: {e}")
 
@@ -96,7 +106,7 @@ def get_credentials():
         print("     또는 GOOGLE_CLIENT_SECRET 환경변수로 경로 지정")
         sys.exit(1)
 
-    flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRET_FILE, SCOPES)
+    flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRET_FILE, auth_scopes)
     creds = flow.run_local_server(port=0)
 
     # 토큰 저장
@@ -114,22 +124,15 @@ def credential_scopes(creds) -> set[str]:
     return scopes
 
 
-def credential_has_write_scope(creds) -> bool:
-    """사이트맵 제출에 필요한 Search Console 쓰기 scope가 있는지 확인합니다."""
-    return WEBMASTERS_WRITE_SCOPE in credential_scopes(creds)
-
-
-def print_write_scope_error() -> None:
-    print("오류: 현재 GSC OAuth 토큰에 사이트맵 제출 쓰기 권한이 없습니다.")
-    print(f"필요 scope: {WEBMASTERS_WRITE_SCOPE}")
-    print("현재 토큰을 백업/삭제한 뒤 재인증해야 합니다:")
-    print(f"  mv {TOKEN_FILE} {TOKEN_FILE}.readonly-backup")
-    print("  gsc sites")
-
-
 def get_service():
     """Search Console API 서비스 객체를 반환합니다."""
     creds = get_credentials()
+    return build('searchconsole', 'v1', credentials=creds)
+
+
+def get_write_service():
+    """사이트맵 제출 등 쓰기 scope가 필요한 Search Console API 서비스 객체를 반환합니다."""
+    creds = get_credentials(required_scopes=[WEBMASTERS_WRITE_SCOPE])
     return build('searchconsole', 'v1', credentials=creds)
 
 
@@ -222,11 +225,7 @@ def list_sitemaps(site_url: str):
 def submit_sitemap(site_url: str, sitemap_url: str, service=None) -> bool:
     """Search Console API로 사이트맵을 제출/재제출합니다."""
     if service is None:
-        creds = get_credentials()
-        if not credential_has_write_scope(creds):
-            print_write_scope_error()
-            return False
-        service = build('searchconsole', 'v1', credentials=creds)
+        service = get_write_service()
     try:
         service.sitemaps().submit(siteUrl=site_url, feedpath=sitemap_url).execute()
     except Exception as e:
@@ -244,11 +243,7 @@ def refresh_sitemaps(site_urls: list[str] | None = None,
     공개 API로 제공하지 않습니다. 이 명령은 API로 가능한 대체 작업인
     등록 사이트맵 재제출을 수행합니다.
     """
-    creds = get_credentials()
-    if not credential_has_write_scope(creds):
-        print_write_scope_error()
-        return
-    service = build('searchconsole', 'v1', credentials=creds)
+    service = get_write_service()
     if site_urls:
         sites = [{'siteUrl': url, 'permissionLevel': ''} for url in site_urls]
     else:
