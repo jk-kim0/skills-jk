@@ -12,6 +12,7 @@ metadata:
 # OpenSpec Decision Management
 
 Use this skill when a user makes or updates a product, technical, permission, ownership, provider, or workflow decision in a repository that uses `openspec/` as a durable specification source.
+Also use it when the user asks to document an already-implemented repository feature or UI behavior under `openspec/` as durable requirements and scenarios.
 
 The goal is not just to write down the latest sentence from the chat.
 The goal is to keep the decision traceable, accepted/rejected alternatives explicit, and active specs/docs consistent enough that future implementation agents do not reopen settled policy questions.
@@ -32,8 +33,14 @@ Use this skill when:
 - A user directly states how a UI state, empty state, placeholder, card variant, creation prompt, or setup affordance should behave.
 - A decision changes the interpretation of existing schema fields, roles, permissions, route boundaries, UI state semantics, or integration ownership.
 - Existing docs/specs contain stale alternatives, old role models, or contradictory wording after the new decision.
+- The user asks to turn current implementation behavior into OpenSpec Requirements and Scenarios without changing code.
 
 ## Workflow
+
+0. If the task is to document an existing implemented feature rather than record a new decision, follow `references/existing-implemented-feature-to-openspec.md` first.
+   - Inspect current source and tests before writing specs.
+   - Keep the change docs-only unless the user explicitly asks for implementation.
+   - Convert concrete controls, state cycles, rendering rules, copy/clipboard behavior, persistence, and environment availability into explicit Requirements and GIVEN/WHEN/THEN Scenarios.
 
 1. Confirm the repository guidance and worktree rule.
    - For repo work, check the current branch/status before editing.
@@ -177,6 +184,7 @@ Related issue item: GitHub issue #<n> `<label>`
 
 ## References
 
+- `references/existing-implemented-feature-to-openspec.md`: pattern for documenting already-implemented repository/UI behavior as OpenSpec Requirements and Scenarios without making code changes.
 - `references/outbound-agent-team-shared-sender-decision.md`: concrete example of turning a Gmail OAuth sender decision into a broad Team shared-workspace product spec and sweeping stale docs.
 - `references/outbound-agent-recipient-range-decision.md`: example of a decision that removed a recipient allowlist policy and therefore required OpenSpec, docs, schema, seed, UI, helper, and regression-test cleanup.
 - `references/outbound-agent-oauth-shared-callback-decision.md`: example of recording a Team-scoped OAuth entry + shared callback route decision across design, UC spec, contract spec, GCP/OAuth setup docs, and tasks.

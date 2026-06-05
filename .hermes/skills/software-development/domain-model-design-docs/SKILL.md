@@ -215,6 +215,17 @@ Reference detail: `references/connected-mailbox-email-providers.md` summarizes t
 6. Add OpenSpec, UI, `/goal`, task-breakdown, verification, and explicit out-of-scope sections so the feature plan can hand off to a later implementation without reinterpreting the provider boundary.
 7. Link the new feature plan from the feature README and sprint/roadmap independent-track list when the repo uses those index documents.
 
+## Repository dictionary / glossary docs pattern
+
+When the user asks for a repository dictionary, glossary, terms list, or domain-language document, treat it as documentation architecture work adjacent to domain modeling. The detailed former standalone workflow is preserved in `references/repository-domain-dictionary-docs.md`.
+
+1. Separate general industry terminology from repo-specific product concepts, entity names, implementation terms, and OpenSpec decisions.
+2. Put repo-defined entities and boundary decisions in model/design/OpenSpec docs; keep the dictionary focused on common language that helps reviewers and future agents communicate.
+3. Use a clear English filename such as `docs/dictionary.md`, `docs/glossary.md`, or a domain-scoped variant.
+4. Include a compact contribution guide near the top so future agents add neutral, general terms instead of implementation-specific names.
+5. Organize terms by stable domain categories and use consistent columns such as original term, localized expression, and short neutral explanation.
+6. Verify that overloaded translations are clarified and that speculative or repo-only terms were not added just because they are adjacent.
+
 ## Verification searches
 
 Run targeted content searches over docs for:

@@ -38,6 +38,7 @@ If the pack index is not present in the active checkout, fall back to the repo-l
 ## References
 
 - `references/news-publication-addition.md` — checklist and pitfall for adding local `src/content/news/*.mdx` records, including route-aligned assets and the news corpus test expectation.
+- `references/openspec-platform-feature-documentation.md` — pattern for documenting already-implemented corp-web-japan platform/reviewer/test capabilities as OpenSpec, including the minimal `openspec/` tree when absent and the Preview Toggle evidence map.
 
 ## Common Pitfalls
 
@@ -46,6 +47,7 @@ If the pack index is not present in the active checkout, fall back to the repo-l
 3. If `.hermes/skill-packs/corp-web-japan/INDEX.md` is absent in the active checkout, use `.agents/skills/README.md` as the repo-local fallback index rather than stopping.
 4. For repo-maintenance requests in `corp-web-japan` such as `workspace 정리`, the repo-local publication/migration skills are usually not needed after the index check. Treat the request as generic repo-local git cleanup: verify live cwd/repo root, fetch/prune, cross-check open/merged PRs before deleting branches or worktrees, update root `main` by fast-forward when safe, and report preserved open-PR worktrees explicitly.
 5. If this pack is needed frequently in a dedicated profile, symlink or copy `.hermes/skill-packs/corp-web-japan/skills/*` into that profile's active `.hermes/skills/` instead of re-expanding the default profile.
+6. For docs-only OpenSpec feature documentation, do not skip implementation inspection and do not assume an `openspec/` tree already exists; use `references/openspec-platform-feature-documentation.md` for the minimal structure and evidence-first flow.
 
 ## Verification Checklist
 
