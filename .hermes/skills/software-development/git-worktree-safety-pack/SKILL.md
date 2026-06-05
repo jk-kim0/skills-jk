@@ -30,6 +30,8 @@ For repo-local workspace cleanup requests such as `workspace 정리`, first read
 
 If the cleanup starts with root `main` dirty while behind `origin/main`, also read `references/dirty-root-behind-main-preservation.md` so meaningful local skill/docs changes are preserved into a reviewable branch before root main is reset or fast-forwarded.
 
+If the root checkout is not on `main`, the root branch's PR is already merged/closed, and the root still has dirty authored skill/docs/config changes, also read `references/root-stale-merged-branch-dirty-preservation.md`; preserve the authored payload on a fresh latest-main PR branch before resetting/cleaning root and switching back to `main`.
+
 If a previous dirty-root preservation PR was recently merged and the stale root diff against `origin/main` shows apparent mass deletions, read `references/repeated-cleanup-merged-preservation-pr-stale-deletions.md`; preserve only selected authored skill/docs payload on a fresh latest-main worktree, not the whole stale patch.
 
 If the cleanup request includes Open PR checking, CI follow-up, a wait-and-repeat pass, newly preserved PRs, or a PR-less branch/worktree with meaningful dirty content, also read `references/open-pr-cleanup-repeat-and-preservation.md` so the sweep keeps looping across merges, retargeted child PRs, stale PR metadata, and newly discovered dirty files.
@@ -47,6 +49,7 @@ If the current repository does not have that repo-local skill-pack path, proceed
 ## References
 
 - `references/root-dirty-followup-into-existing-pr.md` — when root `main` is up to date but dirty again with authored guidance and an existing open preservation PR covers the same bucket, apply the root authored diff into that PR branch with a 3-way patch, exclude runtime residue such as `.hermes/lsp/**`, amend/force-push, then reset/clean root.
+- `references/root-stale-merged-branch-dirty-preservation.md` — when the root checkout is on a stale merged/closed branch rather than `main` but still has dirty authored guidance, preserve the payload on a fresh latest-main PR branch before resetting root, switching to `main`, and deleting stale branches/worktrees.
 - `references/repo-local-workspace-cleanup-sweep.md` — canonical repo-local `workspace 정리` sweep: update root `main`, inspect dirty payloads, targeted PR lookup, preserve open-PR worktrees, delete clean merged/stale branches, and report final root/worktree state.
 - `references/cleanup-preserve-dirty-payload-into-open-pr.md` — when cleanup finds a dirty PR-less worktree whose payload belongs to an existing open PR, copy/commit or push it into the correct PR branch, verify equality, then remove the redundant source worktree.
 - `references/post-push-dirty-followup-and-duplicate-pr-worktrees.md` — after preserving or amending an open PR branch, rerun dirty sweeps, include same-scope follow-up files, revert out-of-scope tests, remove duplicate PR worktrees, and verify remote heads before starting a delayed wait.
@@ -82,6 +85,7 @@ If the current repository does not have that repo-local skill-pack path, proceed
 
 - [ ] For workspace cleanup, `references/repo-local-workspace-cleanup-sweep.md` was read.
 - [ ] For dirty root behind latest main, `references/dirty-root-behind-main-preservation.md` was read.
+- [ ] If root is on a stale merged/closed non-main branch with dirty authored payload, `references/root-stale-merged-branch-dirty-preservation.md` was read and payload was preserved on a fresh latest-main PR branch before resetting root.
 - [ ] If a prior preservation PR was recently merged or the stale root diff shows apparent mass deletions, `references/repeated-cleanup-merged-preservation-pr-stale-deletions.md` was read and stale deletion/runtime hunks were excluded from the new preservation PR.
 - [ ] For Open PR + cleanup repeat/preservation loops, `references/open-pr-cleanup-repeat-and-preservation.md` was read.
 - [ ] If present, `.hermes/skill-packs/git-worktree-safety/INDEX.md` was also read before detailed cleanup/refactor work.
