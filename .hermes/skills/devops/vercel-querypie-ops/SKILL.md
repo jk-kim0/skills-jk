@@ -33,6 +33,8 @@ For `querypie/outbound-agent` Gmail OAuth / Gmail actual-send readiness setup ac
 
 For sensitive Vercel environment variable replacement, rotation, or OAuth client secret updates, read `references/vercel-sensitive-env-replacement.md`. It covers the remove/add pattern for `sensitive` env vars, post-change deployment requirements, secret-exposure rotation, and key/target/type verification without printing values.
 
+For `corp-web-app` GitHub Actions staging/production/preview deploy workflows that fail even though Vercel later shows the deployment as `Ready`, read `references/corp-web-app-deploy-polling-transient-failures.md`. It captures the pattern where `scripts/deploy/index.js` status polling hits transient `TypeError: fetch failed`, how to prove the app deploy is healthy with `vercel inspect` and route probes, and how to add bounded retry without masking real cancelled/terminal deployment failures.
+
 ## Common Pitfalls
 
 1. Do not copy repo-specific facts back into global memory unless they are broadly reusable across repositories.

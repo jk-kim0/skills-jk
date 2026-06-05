@@ -127,3 +127,9 @@ For PR UI screenshot review comments, the user wants `Before:` and `After:` entr
 User expects feature-design documents to include explicit terminology review and deployment/operations suitability opinions when they ask about naming or operational fit, not just implementation steps.
 §
 For outbound-agent UI reviews, Component Name Debug label overlap in debug modes is acceptable as long as labels remain identifiable; review focus should be normal behavior with Component Name Debug Off, and debug label overlap should not be treated as a blocker by itself.
+§
+For reusable Component Name Debug/OpenSpec work, user does not want app-specific prefixes such as OUTBOUND in skill docs, OpenSpec docs, or config names; use app-neutral naming instead.
+§
+For reusable Component Name Debug/OpenSpec work, user wants feature availability controlled by a build-time implementation code constant, not runtime environment variables or same-build operational toggles.
+§
+For reusable Component Name Debug/OpenSpec work, Outbound Agent's Help menu placement is only an app-specific implementation example; other apps such as corp-web-japan may attach the same mode selector to different components, so platform specs should use app-specific control surface language.

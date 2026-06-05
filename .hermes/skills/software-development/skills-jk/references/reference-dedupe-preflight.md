@@ -67,9 +67,45 @@ for root in roots:
             groups[hashlib.sha256(path.read_bytes().strip()).hexdigest()].append(path.as_posix())
 for files in groups.values():
     if len(files) > 1:
-        print('
-'.join(files), end='
+        print('\n'.join(files), end='\n\n')
+PY
+```
 
-')
+Suggested normalized duplicate scan:
+
+```bash
+python3 - <<'PY'
+from pathlib import Path
+from collections import defaultdict
+import hashlib, re
+roots = [Path('.hermes/skills'), Path('.hermes/skill-packs'), Path('skills')]
+groups = defaultdict(list)
+for root in roots:
+    if not root.exists():
+        continue
+    for path in root.rglob('*'):
+        if path.is_file() and '/references/' in path.as_posix() and path.suffix in {'.md', '.txt'}:
+            text = path.read_text(errors='ignore')
+            normalized = re.sub(r'\s+', ' ', text).strip()
+            groups[hashlib.sha256(normalized.encode()).hexdigest()].append(path.as_posix())
+for files in groups.values():
+    if len(files) > 1:
+        print('\n'.join(files), end='\n\n')
+PY
+```
+
+Suggested stale session-name / PR-number filename scan:
+
+```bash
+python3 - <<'PY'
+from pathlib import Path
+import re
+roots = [Path('.hermes/skills'), Path('.hermes/skill-packs'), Path('skills')]
+pattern = re.compile(r'(^|[-_/])(pr-?\d+|issue-?\d+|\d{8}|\d{4}-\d{2}-\d{2})([-_.]|$)', re.I)
+for root in roots:
+    if root.exists():
+        for path in root.rglob('*'):
+            if path.is_file() and '/references/' in path.as_posix() and pattern.search(path.as_posix()):
+                print(path.as_posix())
 PY
 ```
