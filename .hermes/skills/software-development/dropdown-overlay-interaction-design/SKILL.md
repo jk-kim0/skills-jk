@@ -172,6 +172,7 @@ For source-level UI contracts, add focused tests that assert:
 - outside-click listener is present;
 - contextual keep-open markers are recognized;
 - the shared component is used by each target menu;
+- when a migration has multiple active implementations of the same control (for example legacy CSS Modules and Tailwind variants), every active variant exposes the same dropdown trigger/menu semantics or the out-of-scope variant is explicitly documented;
 - form-flow dropdowns that can redirect users away appear before later form fields whose values would otherwise be lost;
 - missing-option setup actions live inside the dropdown panel rather than as detached explanatory buttons below the field.
 

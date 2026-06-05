@@ -68,9 +68,16 @@ Use this when a repo-local `main 업데이트` / `workspace 정리` sweep starts
      git clean -fd -- .hermes/lsp .hermes/memories .hermes/skills
      ```
 
+7. Final report verification should prove both preservation and cleanup.
+   - Re-query the PR with at least `number,state,title,url,headRefName,headRefOid,baseRefName,baseRefOid,mergeStateStatus,statusCheckRollup,files`.
+   - If `statusCheckRollup` is empty, report it explicitly as "checks: none" rather than implying pending or green checks.
+   - Run a final registered-worktree and residue sweep: `git status --short --branch`, `git worktree list --porcelain`, direct children of `.worktrees/`, and root untracked files.
+   - Keep the open PR worktree intentionally; cleanup is complete when root `main` is clean/up to date and only retained open-PR worktrees remain.
+
 ## Pitfalls
 
 - A dirty root at `origin/main` can still contain meaningful authored guidance; do not discard it just because main is not behind.
 - Do not preserve `.hermes/lsp/node_modules/**` or similar runtime residue in a docs/skill PR.
 - Do not use direct copy as the first strategy when the existing open PR branch has already modified overlapping files; it can silently delete earlier PR-only additions.
 - A successful force-push is not enough: re-query the PR head SHA and run one more retained-worktree dirty sweep before reporting cleanup complete.
+- Do not delete a clean retained worktree just because workspace cleanup is requested if it is the live worktree for an open preservation PR; report it as intentionally retained.

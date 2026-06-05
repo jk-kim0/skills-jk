@@ -132,6 +132,17 @@ When the user asks for a backend-centered feature design derived from a use-case
 7. Include explicit alternatives and selection conditions: recommended no-schema-change facade, enum/classification addition, metadata/provenance addition, and any small preference/metadata model that is optional rather than core.
 8. Add a self-review section to the feature doc that challenges the main recommendation against the UI draft, current model intent, current implementation caps, and out-of-scope execution constraints.
 
+## Verified email and auth identity contract pattern
+
+When the user is clarifying account linking, SSO, username/password email verification, canonical user email, or provider identity boundaries, treat it as an auth identity model contract before implementation.
+
+1. Separate the internal application account from provider-specific identities: `User` is the app account; `UserIdentity` or equivalent rows own provider type, provider subject, email claim, normalized email, and verification state.
+2. If the Product Owner decides that `User.email` is a verified canonical primary email, document the invariant explicitly: unverified email input must not be written to `User.email`; username/password signup/account creation should store the submitted email on the `username_password` identity as an unverified claim with `emailVerified=false` until verification completes.
+3. For Google SSO or other provider linking, prefer provider subject first, then verified `UserIdentity.normalizedEmail`; do not preserve a raw `User.email` fallback unless the contract explicitly proves `User.email` is verified and the PO accepts it as a linking key.
+4. Record the decision in the canonical OpenSpec `design.md` first when an active change exists, then mirror the result into active delta specs, durable baseline specs, model docs, feature docs, and implementation task lists. Keep rationale/alternatives in the decision log rather than duplicating them across docs.
+5. If the user initially asks for implementation but then says the main decisions are done and asks for 설계/계약 PR first, stop the implementation path immediately and produce a docs-only/OpenSpec-only PR. State in the PR body that code, schema, migration, fixture, and test changes are intentionally deferred to follow-up implementation PRs.
+6. Add follow-up implementation tasks for removing stale fallback code and changing tests that currently assert the old behavior; do not silently leave tests as the contract source when they conflict with the accepted OpenSpec decision.
+
 ## Credential reference and Secret Manager feature-plan pattern
 
 When the user asks for a feature plan involving provider credentials, Secret Manager, credential references, runtime secret loading, user OAuth token custody, or key rotation, treat it as a security/infra feature boundary rather than only a provider implementation detail.

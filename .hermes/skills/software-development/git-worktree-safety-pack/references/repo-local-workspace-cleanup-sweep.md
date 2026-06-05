@@ -165,6 +165,10 @@ Cleanup can race with other agents or merges. After deleting stale worktrees/bra
 8. Remove empty `.worktrees/` residue directories.
 9. Inspect direct child directories under `.worktrees/` that are not registered by `git worktree list`. If one is a standalone checkout with dirty or ahead work, preserve it by committing/pushing/opening a PR before deleting the directory; see `references/unregistered-worktrees-during-cleanup.md`.
 
+When an open PR branch is rebased and force-pushed during cleanup, GitHub's PR API can briefly return the previous `headRefOid` or stale `baseRefOid`. Do not rely on the immediate post-push `gh pr view` alone. Re-fetch and re-query after a short delay, or use separate short `gh pr view` / `gh pr checks` calls, before reporting the PR as updated and clean.
+
+For final verification, avoid wrapping many `git` and `gh` probes inside one large multi-command `execute_code` script. In cleanup sessions this can create a long black-box wait if one subprocess stalls. Prefer individual short `terminal` calls, optionally in parallel, for `git fetch/status`, `gh pr view`, dirty sweep, branch list, and unregistered `.worktrees` checks so timeout/failure scope is visible and the user gets prompt status.
+
 When the user asks to wait and repeat the open-PR/cleanup sweep, the post-wait run must still perform cleanup actions, not merely print a classification report. After the delayed pass finishes, immediately follow up on any newly merged PR branches, newly opened PR branches, and newly discovered PR-less dirty worktrees before giving the final answer.
 
 Final report should include root path/branch, whether `main` is up to date, root clean status, stale items removed, intentionally retained worktrees with PR numbers, newly preserved PR-less work if any, and the final `git status --short --branch`.

@@ -67,10 +67,19 @@ Use this skill when:
    - Keep roadmap, product-value narrative, UX critique, status, and historical context in `docs/`; do not propose moving them wholesale into OpenSpec.
    - When duplicate implementation plans already exist in both `docs/` and `openspec/changes/**`, recommend shrinking the docs file to a bridge/summary and making the OpenSpec change/spec/tasks the canonical implementation source.
 
+1C. If an active OpenSpec change is invalid because its change spec uses base-spec `## Requirements` instead of delta headers, decide whether it is really still an active change.
+   - If the content is now a durable implementation contract, promote it into `openspec/specs/<contract-topic>/spec.md` instead of merely renaming headings to `## ADDED Requirements`.
+   - Remove duplicated detailed requirements from any broad base spec and leave a short delegation Requirement or Reference to the focused base spec.
+   - Preserve the old active change under `openspec/archive/<yyyymmdd>-<change-id>/` with a short archive note, then remove it from `openspec/changes/` so `openspec list` no longer reports an invalid active change.
+   - Verify the new base spec and the delegating spec directly. If `openspec validate --all` still fails on unrelated pre-existing OpenSpec debt, report target validation separately rather than expanding scope.
+   - See `references/invalid-change-to-base-spec-promotion.md` for the detailed pattern.
+
 2. Locate the canonical decision home.
    - Prefer `openspec/changes/<change-id>/design.md` for change-specific decision logs.
    - Use `openspec/project.md` for broad project principles.
    - Use `openspec/specs/**/spec.md` for durable implementation requirements and scenarios.
+   - Treat `<change-id>` as the change/PR/history unit and `specs/<spec-id>/spec.md` as the long-lived canonical contract area; they do not need to match.
+   - When choosing a new spec id, inspect the repository's OpenSpec README/inventory first and pick the long-term responsibility category, not the event name. Common class-level prefixes include `uc-*` for user journeys, `entity-*` for domain entities, `contract-*` for implementation contracts, `integration-*` for external providers, and `policy-*` for product/permission rules; use repo-specific deprecated-prefix guidance before creating new specs.
    - For UI design decisions where a `docs/ui/**` design document is already the canonical surface and no OpenSpec change exists, update that UI document directly instead of forcing a new OpenSpec change.
    - Use feature docs only as secondary consistency surfaces unless the repository's guidance or existing doc structure makes a specific feature/UI doc the canonical source for that design rule; if so, record the decision there with `Status: Accepted`, rationale, interactions, state/API impact, and non-goals.
 
@@ -105,6 +114,7 @@ Use this skill when:
     - When a new accepted decision reverses a prior explicit negative requirement, replace the earlier decision entry in-place instead of simply appending an opposite entry. Keep the old concept visible only as a `Rejected`/`legacy artifact` alternative, then sweep secondary specs/docs/status/model/seed/e2e surfaces for stale negative wording so reviewers do not see two competing policies.
     - For docs-only reversals from “artifact must not exist” to “artifact exists under a new explicit provider/type,” update both positive contracts and leftover negative language: requirement prose, scenarios, status tables, feature bridge docs, seed/demo scenario docs, UI docs, entity model docs, and future implementation follow-up checklists.
     - When an issue-driven implementation PR advances one concrete OpenSpec contract gap, it is acceptable to update the related `tasks.md` checkbox and short feature-doc status in the same PR if the user explicitly asked for implementation plus documentation updates. Mark only the exact regression/evidence now covered; leave broader snapshot/approval-lock tasks open if they are not fully proven by the patch.
+   - When the user asks to add an OpenSpec contract after a UI implementation fix is already in a PR, update that same PR branch unless they ask for a separate docs PR. Prefer a class-level `uc-*` spec for user-facing UI behavior, update `openspec/specs/README.md` and `openspec/project.md`, keep OpenSpec text in English, and verify with `git diff --check` plus the focused implementation test when available. See `references/corp-web-app-ui-implementation-openspec-followup.md`.
    - If the user asks to implement the decision to Release Ready, do not stop at OpenSpec/docs: remove or update stale product guards, schema/fixture fields, baseline migration definitions, UI copy, and regression tests that still enforce the rejected policy.
    - It is acceptable to include small doc consistency edits in the same OpenSpec decision PR when the user asked for the decision/spec update and those docs would otherwise contradict the new source of truth.
    - For auth/SSO decisions, separate application product policy from external provider platform configuration. If the Product Owner says app-level SSO scope is all verified email addresses, remove stale domain/workspace restrictions from docs/specs/config examples and treat Google OAuth Client organization/test-user/domain restrictions as external platform setup constraints, not Outbound App authorization logic.
@@ -185,6 +195,8 @@ Related issue item: GitHub issue #<n> `<label>`
 ## References
 
 - `references/existing-implemented-feature-to-openspec.md`: pattern for documenting already-implemented repository/UI behavior as OpenSpec Requirements and Scenarios without making code changes.
+- `references/corp-web-app-ui-implementation-openspec-followup.md`: pattern for recording a user-facing corp-web-app UI implementation fix in OpenSpec on the same PR branch, using a class-level `uc-*` spec, updating inventory/project discovery surfaces, and verifying with focused tests.
+- `references/invalid-change-to-base-spec-promotion.md`: pattern for promoting an invalid active OpenSpec change into a durable base spec, archiving the stale change, and reporting targeted validation separately from unrelated `--all` debt.
 - `references/outbound-agent-team-shared-sender-decision.md`: concrete example of turning a Gmail OAuth sender decision into a broad Team shared-workspace product spec and sweeping stale docs.
 - `references/outbound-agent-recipient-range-decision.md`: example of a decision that removed a recipient allowlist policy and therefore required OpenSpec, docs, schema, seed, UI, helper, and regression-test cleanup.
 - `references/outbound-agent-oauth-shared-callback-decision.md`: example of recording a Team-scoped OAuth entry + shared callback route decision across design, UC spec, contract spec, GCP/OAuth setup docs, and tasks.
@@ -195,5 +207,6 @@ Related issue item: GitHub issue #<n> `<label>`
 - `references/outbound-agent-gmail-sender-disconnect-ui.md`: recipe for Team Email Senders rows where active connected Gmail senders show `Disconnect`, disconnect removes credential material while preserving `SenderIdentity.id`, and UI design/OpenSpec/code move together in one PR.
 - `references/outbound-agent-team-market-settings-decision.md`: example of moving country/language from multiple child entities to a single Team-scoped market setting, requiring OpenSpec/domain/UI docs first and then schema/UI/test cleanup in one PR.
 - `references/outbound-agent-test-sender-removal-decision.md`: example of turning a PO statement that a fake/local test sender does not exist into explicit negative requirements across design, specs, feature docs, status docs, and model docs.
+- `references/cross-repo-platform-spec-migration.md`: pattern for migrating an accepted platform/contract spec from one repository into another app repo, including minimal OpenSpec scaffold, target-specific path/control adaptation, source-app residue search, and changed-scope link verification.
 - `references/outbound-agent-google-sso-account-linking-decision.md`: pattern for Google SSO as general-user sign-in, auto-provisioning on verified email, same-email multi-SSO account linking, username/password email verification backlog, and separating app policy from Google OAuth Client platform constraints.
 - `references/outbound-agent-entity-card-empty-vs-required-creation.md`: concise UI decision pattern for distinguishing passive no-item/empty cards from required creation/add cards in Outbound Agent Entity Card design docs.
