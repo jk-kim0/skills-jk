@@ -37,6 +37,7 @@ Read `references/migrated-memory-and-user-context.md` after loading this skill. 
 6. Before adding any new `.hermes/skills/**/references/*.md` file, run the reference dedupe preflight in `references/reference-dedupe-preflight.md`. Patch the canonical owner reference when the lesson is a repeated incident or clarification rather than a new durable topic.
 7. When turning analysis or improvement recommendations into PRs, split work by allowed surface. If the user excludes Hermes Agent source-code changes, do not touch `~/.hermes/hermes-agent` code; create only repo-local skills/docs/config/profile changes under `skills-jk`, using separate PRs for distinct improvements.
 8. Repo-dependent workflow skills and gates do not belong in global/user-scope agent guidance. If a workflow is tied to one repository (for example reverse-sync), keep its detailed SKILL.md and AGENTS.md trigger in the owning repository context, and remove global `~/AGENTS.md` / `~/.codex/skills/` copies rather than preserving them as user-wide constraints.
+9. During skill-library/refactor work, Hermes may generate same-session repo-managed residue such as `.hermes/config.yaml` `skills.disabled` edits, new skill references, or one-line pointers in loaded skills. Treat those as a separate scope unless the user asked for that config/skill-index change. Back them up, restore or split them into their own PR, and loop `git status --short --branch` until root `main` is clean before reporting completion.
 
 ## Verification Checklist
 

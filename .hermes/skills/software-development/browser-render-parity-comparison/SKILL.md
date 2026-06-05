@@ -79,6 +79,7 @@ Mitigation when global reset cannot safely change in the same PR:
 See `references/corp-web-app-tailwind-port-cascade-pitfall.md` for a concrete corp-web-app/corp-web-japan failure mode and browser probe.
 See `references/corp-web-app-tailwind-route-scoped-reset-workaround.md` for the safe interim route-scoped CSS Module pattern when global reset conversion is too broad for the current PR.
 See `references/corp-web-app-tailwind-route-group-responsive-chrome.md` for the corp-web-app pattern where a `(tailwind)` route-group root layout must use Tailwind shared chrome while matching legacy desktop/tablet/compact breakpoints and accounting for unlayered global reset overrides.
+See `references/corp-web-app-tailwind-route-legacy-variable-components.md` for the failure mode where a migrated Tailwind route still imports legacy CSS-variable visual/form components, causing headings, spacing, and inputs to collapse despite route/source tests passing.
 
 ## Common false positives
 
