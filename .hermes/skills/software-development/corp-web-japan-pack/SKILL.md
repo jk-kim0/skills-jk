@@ -38,7 +38,10 @@ If the pack index is not present in the active checkout, fall back to the repo-l
 ## References
 
 - `references/news-publication-addition.md` — checklist and pitfall for adding local `src/content/news/*.mdx` records, including route-aligned assets and the news corpus test expectation.
-- `references/openspec-platform-feature-documentation.md` — pattern for documenting already-implemented corp-web-japan platform/reviewer/test capabilities as OpenSpec, including the minimal `openspec/` tree when absent and the Preview Toggle evidence map.
+- `references/og-preview-image-authoring.md` — durable rule for route-aligned PNG Open Graph preview images in public MDX authoring guidance, including how to port equivalent rules from `corp-web-app` without documenting unsupported frontmatter as active contract.
+- `references/lingo-web-sibling-migration.md` — workflow for refreshing `corp-web-japan/src/app/lingo/**` from sibling `../lingo-web`, including import/path rewriting, `/lingo` namespace policy, same-site `querypie.ai` link normalization, and conflict-safe PR verification.
+- `references/component-name-debug-marker-authoring.md` — follow-up workflow for adding `componentNameDebugProps()` marker coverage after the Component Name Debug infrastructure exists, including no-wrapper authoring rules and source-level verification.
+- `references/component-name-debug-followups.md` — durable workflow for Component Name Debug follow-up marker authoring when the overlay exists but most pages do not expose component names.
 
 ## Common Pitfalls
 
@@ -47,7 +50,6 @@ If the pack index is not present in the active checkout, fall back to the repo-l
 3. If `.hermes/skill-packs/corp-web-japan/INDEX.md` is absent in the active checkout, use `.agents/skills/README.md` as the repo-local fallback index rather than stopping.
 4. For repo-maintenance requests in `corp-web-japan` such as `workspace 정리`, the repo-local publication/migration skills are usually not needed after the index check. Treat the request as generic repo-local git cleanup: verify live cwd/repo root, fetch/prune, cross-check open/merged PRs before deleting branches or worktrees, update root `main` by fast-forward when safe, and report preserved open-PR worktrees explicitly.
 5. If this pack is needed frequently in a dedicated profile, symlink or copy `.hermes/skill-packs/corp-web-japan/skills/*` into that profile's active `.hermes/skills/` instead of re-expanding the default profile.
-6. For docs-only OpenSpec feature documentation, do not skip implementation inspection and do not assume an `openspec/` tree already exists; use `references/openspec-platform-feature-documentation.md` for the minimal structure and evidence-first flow.
 
 ## Verification Checklist
 
