@@ -43,7 +43,7 @@ Use this skill when the user asks whether a Next.js site has Google Analytics / 
 
 ## Recommended hardcoded gtag pattern for App Router
 
-Prefer a small component rendered once from the root layout rather than inline snippets scattered through pages.
+Prefer a small component rendered once from the root layout rather than inline snippets scattered through pages. For App Router sites where client-side navigation page views matter, use the route-change tracker pattern in `references/app-router-route-change-tracking.md` instead of relying only on a one-time static snippet.
 
 1. Add a component such as `src/components/analytics/google-analytics.tsx`.
 2. Put the hardcoded measurement ID near the top as a constant:
