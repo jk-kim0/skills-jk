@@ -156,8 +156,10 @@ Session-specific details, host examples, and workflow snippets migrated from the
 - Assuming the current Hermes runtime is on the user's LAN/VPN.
 - Stopping after `ps` and missing Docker Compose runner fleets.
 - Treating `State=running` as healthy without checking restart counts and logs.
+- Treating a plain container restart as sufficient for a runner that is in a fast `Configuration failed. Retrying` loop; for corrupt runner-local anonymous volumes, recreate only the affected Compose service with `rm -sfv`, `create`, and `start`, using a fresh registration token.
 - Printing `.env`, `.credentials`, `.runner` secret-like fields, or registration tokens.
 - Treating compose files as active without checking `docker compose ps` or `docker ps -a`.
+- Running Docker Compose from a helper-container mount path without `-p <original-project-name>`; Compose will derive a new project name from the mount directory (for example `/proj` -> `proj-*` containers), which can create duplicate runners that make GitHub look healthy while the original project remains broken.
 - Assuming every Linux runner uses `ubuntu` or `/home/ubuntu/actions-runner`; verify account/path per host.
 - Assuming `prisma migrate deploy` means seed data was populated. For reviewer/dev apps, verify seed rows directly and ensure automation runs the seed command when that is the expected contract.
 - Resetting a deployed Prisma database to fix migration-history drift. If the actual schema already matches, prefer `prisma migrate resolve --applied` after schema verification and report any retained failed/rolled-back row.
@@ -169,6 +171,7 @@ Session-specific details, host examples, and workflow snippets migrated from the
 - [ ] Host access classified by layer: alias/config, DNS, network, auth, or remote command execution.
 - [ ] SSH probes used short non-interactive timeouts.
 - [ ] Native and Docker runner mechanisms both checked when runner operations are in scope.
+- [ ] For offline Compose runners, GitHub API status was paired with container restart counts/log signals before declaring recovery complete.
 - [ ] Secrets and token-like values redacted.
 - [ ] Destructive operations avoided unless explicitly requested.
 - [ ] Runner labels/groups/workdirs/log evidence reported with active vs stale sources separated.
