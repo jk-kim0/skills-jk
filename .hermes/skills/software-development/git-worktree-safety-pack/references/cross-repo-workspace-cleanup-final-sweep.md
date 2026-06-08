@@ -54,4 +54,6 @@ Before reporting completion, run a final workspace-level scan that reports:
 - remaining duplicate-origin sibling groups;
 - intentional open-PR worktrees that remain.
 
+If the sweep preserved dirty root/worktree payload by creating or updating a PR, do not reuse an earlier scan as the final result. First verify the PR branch/head SHA and payload file list, then reset/clean the duplicate root copy, then rerun the workspace-level scan and duplicate-origin grouping. The final report should distinguish deleted stale residue from intentionally retained PR worktrees.
+
 A clean final state means all owner repo roots are clean and aligned with their remote defaults, duplicate standalone clones have been removed or explicitly preserved, and remaining worktrees correspond to open PRs or meaningful unpublished work.
