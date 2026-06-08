@@ -237,7 +237,13 @@ In practice, this can return quickly and cleanly for one-project verification ev
 
 ### D. Direct single-project 5xx verification
 
-When the user asks only about one project and wants a quick answer, prefer these bounded direct checks before attempting any expensive full export:
+When the user asks only about one project and wants a quick answer, prefer these bounded direct checks before attempting any expensive full export.
+If a live `curl` clearly returns HTTP 500 but `--status-code 500` returns no rows, immediately try the same deployment/project with `--level error --json`; runtime exceptions can be present as error-level rows even when the status-code filter misses them.
+For PR Preview incidents, also check the stable production alias before blaming the PR diff: if production and preview share the same exception signature, classify the issue as a shared runtime/deployment problem unless code diff evidence says otherwise.
+
+Use `references/next-esm-cjs-launcher-runtime-500.md` when the message mentions `___next_launcher.cjs`, `.next/server/app/page.js`, `ERR_REQUIRE_ESM`, or an app `package.json` with `"type": "module"`.
+
+
 
 ```bash
 vercel logs --project <project> --environment production --since 24h --status-code 500 --json --no-branch --limit 1000
@@ -268,6 +274,22 @@ For each project report:
   - first line of message
   - source
   - deploymentId
+
+### E.0 Find the PR that introduced a runtime regression
+
+When the user asks which PR caused a Vercel runtime failure, do not infer from the currently failing preview alone.
+Use deployment history as evidence:
+
+1. Inspect the failing alias to get deployment id, branch, commit, target, and aliases.
+2. Confirm whether the same error exists on the production/main alias.
+3. Query `vercel list <project> --format json --status READY` and read deployment metadata such as `githubPrId`, `githubCommitSha`, `githubCommitRef`, `githubCommitMessage`, and `bundler`.
+4. Probe recent deployment URLs with `curl` for a few stable paths (`/`, `/login`, and a known app route) and find the chronological transition from normal responses (`200`/`307`) to `500`.
+5. Map the first failing deployment back to its PR/commit, then inspect the diff for that PR.
+6. Report separately:
+   - the latent compatibility condition PR, if an older config/package setting contributed
+   - the first failing Vercel deployment / triggering PR
+
+For the `ERR_REQUIRE_ESM` serverless launcher pattern, see `references/nextjs-vercel-esm-launcher-regression.md`.
 
 ### E. Separate scanner noise from likely real app failures
 
@@ -406,6 +428,8 @@ Practical implication:
 - `references/corp-web-japan-runtime-log-patterns.md` records observed corp-web-japan runtime-log patterns such as current-day 50-row plateaus, generic company/contact-path Python probing, and route-policy candidates from May 2026 snapshots.
 - `references/corp-web-app-runtime-404-regression.md` records the corp-web-app pattern where repeated non-noise 404s were caused by middleware default-locale rewrites plus route handlers that still parsed the original unprefixed `request.url`, and gives the stage/prod probing, git-forensics, redirect-vs-rewrite fix, and regression-test recipe.
 - `references/vercel-waf-rate-limit-investigation.md` records how to inspect active Vercel WAF rate-limit config with `vercel api`, interpret official WAF rate-limit behavior, and diagnose E2E 403/429 bursts as rate-limit/challenge behavior rather than app runtime failures.
+- `references/nextjs-vercel-esm-launcher-regression.md` records the Next.js/Vercel `ERR_REQUIRE_ESM` serverless launcher failure pattern and the deployment-history method for finding the first triggering PR while separating it from older latent package-scope conditions.
+- `references/next-esm-cjs-launcher-runtime-500.md` records the Next.js/Vercel runtime signature where a `READY` deployment serves HTTP 500 because `___next_launcher.cjs` tries to `require()` an ES Module page output under an app `package.json` with `"type": "module"`; use it when deploy checks are green but live routes fail.
 
 
 ## Useful one-off commands
@@ -558,6 +582,7 @@ Be explicit about measurement quality:
 - `404` counts from `status:404` are best treated as sampled/distinct entries after dedupe unless you have confirmed the requests are runtime-visible
 - if a query hit 1000 lines, report `>=1000`
 - if you added a runtime catch-all fix, distinguish `runtime-visible 404s after fix` from prior `edge/static 404s outside runtime visibility`
+- when asked which PR broke a previously working deployment, name the first PR/deployment where immutable deployment HTTP smoke changed from healthy to failing; report older latent preconditions separately instead of calling them the culprit
 
 For interactive operational audits, progress updates must be visible user-facing chat messages, not just tool-call labels or a final report. Before each Vercel inspect/log/smoke step, say what is being checked, why, and the expected wait; after the command, report the result before running the next query. Avoid a “final report only” flow when the user asked for diagnosis with ongoing visibility.
 

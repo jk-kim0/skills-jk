@@ -118,6 +118,22 @@ Use this to summarize the actual intent, for example:
 - old CLI examples replaced with new tool names
 - stale references deleted while core guide was kept
 
+### 5.5 Use deployment/runtime history when the question is about a deployed regression
+
+If the user asks which PR caused a live deployment failure, git diff alone can identify candidates but may miss the actual trigger.
+Combine provenance with deployment evidence:
+
+```bash
+vercel list <project> --format json --status READY
+```
+
+Then probe recent deployment URLs in chronological order with representative paths such as `/`, `/login`, and a known app route.
+Find the first transition from normal responses (`200`/`307`) to the failing status (`500`, etc.), then map that deployment's metadata back to `githubPrId`, `githubCommitSha`, `githubCommitRef`, and commit message.
+
+Report latent and triggering causes separately.
+For example, an older PR may have introduced a latent package setting such as `"type": "module"`, while a later PR is the first deployment where Vercel actually starts returning 500.
+Do not blame the currently open preview PR until production/main and earlier deployments have been checked.
+
 ### 6. Distinguish historical main changes from current local dirty changes
 
 Do not assume the user is asking only about what is on `main`.

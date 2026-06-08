@@ -25,3 +25,5 @@ In outbound-agent, local Prisma 7 CLI commands should be run with Node 24 (e.g. 
 In outbound-agent worktrees, `front/node_modules` symlinked to the root checkout can cause local Next dev server/Turbopack to fail with “Symlink [project]/node_modules is invalid, it points out of the filesystem root”; for deployed URL screenshot E2E use `E2E_SKIP_WEB_SERVER=true`, and avoid worktree-local `npm install` unless dependencies are actually missing/incompatible.
 §
 In outbound-agent, Prisma schema changes are folded into the single baseline migration `front/prisma/migrations/20260530000100_baseline_main_schema`; CI test `schema-migration-artifacts.test.ts` rejects additional migration directories.
+§
+On this user's macOS Chrome install, the Chrome profile named `Test-Korean` is uniquely identified by user data directory `~/Library/Application Support/Google/Chrome/Profile 8`; Local State metadata shows `gaia_name` Team QueryPie, `user_name` outbound@querypie.com, `gaia_id` 100943889886594233762, hosted domain querypie.com.
