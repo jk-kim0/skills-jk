@@ -63,6 +63,10 @@ env -u GITHUB_TOKEN gh pr checks <number> || true
 env -u GITHUB_TOKEN gh run list --branch <new-followup-branch> --limit 5 --json headSha,status,conclusion,workflowName,url
 ```
 
+## Content localization follow-up
+
+For MDX content repos with mirrored `src/content/{ko,en,ja}/...` files, if the local KO change comes from Confluence Space synchronization and the user asks for a PR, check sibling EN/JA files before finalizing. Apply equivalent build-tag/date/product-name changes and translate short list labels consistently rather than opening a KO-only PR.
+
 ## Pitfalls
 
 - `git apply --3way` labels sides from the current branch perspective; inspect the file content before choosing `ours` or `theirs`.

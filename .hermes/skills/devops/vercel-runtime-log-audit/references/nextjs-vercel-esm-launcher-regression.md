@@ -54,3 +54,9 @@ Report two layers separately:
 - `first failing Vercel deployment / triggering PR`: the first deployment where status probes changed to 500
 
 Also state whether CI/Vercel checks were green despite runtime 500, and recommend a post-deploy HTTP smoke check if deploy checks only validate build success.
+
+## Remediation directions
+
+- Review whether the app-level `package.json` must keep `"type": "module"`; if not required, test removing it or switching to CommonJS semantics while preserving explicit `.mjs` config files.
+- Add a post-deploy smoke check for `/`, `/login`, or another guaranteed route so runtime 500s fail the deployment check instead of passing as green.
+- Treat the fix as deploy/runtime infrastructure work when production and preview are both affected, even if the first report came from a PR Preview URL.

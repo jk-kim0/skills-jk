@@ -52,8 +52,16 @@ Before reporting completion, run a final workspace-level scan that reports:
 - any repo not on its remote default branch;
 - any repo whose local default branch does not equal the remote default head;
 - remaining duplicate-origin sibling groups;
-- intentional open-PR worktrees that remain.
+- every remaining linked worktree under each owner repo, including whether it is clean and whether its branch maps to an open PR.
 
-If the sweep preserved dirty root/worktree payload by creating or updating a PR, do not reuse an earlier scan as the final result. First verify the PR branch/head SHA and payload file list, then reset/clean the duplicate root copy, then rerun the workspace-level scan and duplicate-origin grouping. The final report should distinguish deleted stale residue from intentionally retained PR worktrees.
+Do not treat clean/latest owner roots as a complete workspace cleanup by themselves. A final independent `git worktree list --porcelain` pass can still reveal dirty PR-less worktrees or clean PR-less branches with meaningful ahead diffs. For each remaining linked worktree:
 
-A clean final state means all owner repo roots are clean and aligned with their remote defaults, duplicate standalone clones have been removed or explicitly preserved, and remaining worktrees correspond to open PRs or meaningful unpublished work.
+1. Run `git status --porcelain` in the worktree.
+2. Query `gh pr list --state open --head <branch>` for the branch.
+3. If no open PR exists, inspect `git rev-list --left-right --count origin/<default>...HEAD`, `git diff --stat origin/<default>...HEAD`, and dirty/untracked files before deletion.
+4. Delete only clean no-op/merged residue; preserve meaningful dirty or ahead payload by pushing/opening a PR, then rerun the final scan.
+5. Treat protected operational branches such as `release` conservatively: if they are clean but meaningfully ahead and not obviously stale residue, preserve/report rather than deleting.
+
+If the sweep preserved dirty root/worktree payload by creating or updating a PR, do not reuse an earlier scan as the final result. First verify the PR branch/head SHA and payload file list, then reset/clean the duplicate root copy, then rerun the workspace-level scan, linked-worktree PR mapping, and duplicate-origin grouping. The final report should distinguish deleted stale residue from intentionally retained PR worktrees.
+
+A clean final state means all owner repo roots are clean and aligned with their remote defaults, duplicate standalone clones have been removed or explicitly preserved, and remaining worktrees correspond to open PRs, protected operational branches, or meaningful unpublished work that is explicitly reported.
