@@ -30,6 +30,30 @@ if git -C "$wt" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
 fi
 ```
 
+If the direct child is not itself a Git checkout, inspect one level deeper before treating it as disposable. A prior cleanup found `.worktrees/fix/article-inline-link-style` inside an unregistered `.worktrees/fix/` directory: the nested directory had a `.git` file pointing to a missing root metadata path (`.git/worktrees/article-inline-link-style`), so `git -C` failed even though it contained a full stale checkout copy. In that case:
+
+```bash
+find "$wt" -maxdepth 2 \( -name .git -o -name HEAD -o -name config \) -print
+find "$wt" -maxdepth 2 -type d -print | sed -n '1,80p'
+```
+
+For a broken linked-worktree pointer, read the `.git` file, derive the likely original branch from the path, then do targeted PR lookups before deletion:
+
+```bash
+cat "$nested/.git"  # often: gitdir: <root>/.git/worktrees/<name>
+for b in "$name" "fix/$name" "fix-$name"; do
+  gh pr list --state all --head "$b" --json number,state,title,url,mergedAt,closedAt,headRefName --limit 20
+done
+```
+
+If Git metadata is gone but the directory is large, compare file contents against current root while excluding generated and Git directories. If differences are mostly old source structure from a merged PR and the path-derived PR is merged, it is stale residue, not preservation work:
+
+```bash
+rsync --dry-run --checksum --recursive --delete \
+  --exclude='.git' --exclude='.next' --exclude='node_modules' --exclude='.vercel' --exclude='.turbo' \
+  "$nested/" "$root/" | head -200
+```
+
 ## Preservation path
 
 If the unregistered checkout has meaningful dirty changes or ahead commits:
