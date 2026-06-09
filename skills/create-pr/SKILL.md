@@ -108,6 +108,20 @@ env -u GITHUB_TOKEN gh <subcommand>
 - 저장소 전역 GitHub CLI 안전 규칙과 일치시킨다.
 - 읽기 전용 조회와 PR/Actions 조작 모두 같은 호출 형식을 유지해 실수를 줄인다.
 
+## PR 본문 작성 정책
+
+- JK 사용자 대상 PR 제목과 본문은 기본적으로 한국어로 작성합니다.
+- 기능 구현 PR은 `Why`/`What`/`Impact` 또는 `기존 문제`/`구현 내용`/`기대 효과` 관점이 드러나야 합니다.
+- 버그 수정 PR은 `문제 현상`과 `구현 내용`을 분리해 적습니다.
+- 단순 변경 요약만 남기지 말고, 왜 PR을 만들었는지와 리뷰어가 기대할 효과를 포함합니다.
+
+## PR 생성/업데이트 후 CI 확인
+
+- PR을 생성하거나 branch를 push한 뒤 CI 확인이 필요한지 다시 묻지 않고 먼저 확인합니다.
+- 첫 확인은 `env -u GITHUB_TOKEN gh pr checks <pr-or-branch>` 또는 동등한 명령으로 합니다.
+- `gh pr checks`가 `no checks reported`를 반환하거나 아직 비어 있으면, 최신 head SHA를 확인한 뒤 `env -u GITHUB_TOKEN gh run list --branch <branch>`로 run 생성 여부를 추가 확인합니다.
+- CI가 진행 중이면 완료 전 성공을 암시하지 말고 `in_progress` 또는 `no checks yet`로 보고합니다.
+- 실패가 나오면 로그를 확인하고, 범위 내에서 수정 가능한 실패는 같은 PR branch에 고쳐 push합니다.
 
 `python3 script.py` 대신, 스크립트에 실행권한을 부여해 직접 실행합니다.
 
