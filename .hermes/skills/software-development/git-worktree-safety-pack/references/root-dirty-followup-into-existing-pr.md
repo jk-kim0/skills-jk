@@ -76,6 +76,7 @@ Use this when a repo-local `main 업데이트` / `workspace 정리` sweep starts
 
 ## Pitfalls
 
+- A dirty root at `origin/main` can contain multiple valid scopes at once. Partition the dirty paths before resetting root: apply files that match an existing open PR into that PR worktree and amend/force-push it, then preserve any remaining valid authored paths on a separate latest-main branch/PR. Do not either dump all root dirty files into the existing PR or create a duplicate PR for a same-scope follow-up file.
 - A dirty root at `origin/main` can still contain meaningful authored guidance; do not discard it just because main is not behind.
 - Do not preserve `.hermes/lsp/node_modules/**` or similar runtime residue in a docs/skill PR.
 - Do not use direct copy as the first strategy when the existing open PR branch has already modified overlapping files; it can silently delete earlier PR-only additions.
