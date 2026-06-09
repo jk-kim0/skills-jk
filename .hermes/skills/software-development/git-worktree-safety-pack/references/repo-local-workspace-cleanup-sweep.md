@@ -125,6 +125,10 @@ If a branch has no PR but has dirty content or meaningful net diff:
 6. Verify the PR URL and branch head. If PR creation is done through a `workflow_dispatch` action, verify recent workflow runs without assuming `gh run list --branch <feature-branch>` will show the run; dispatch runs may appear under `headBranch: main`. See `workflow-dispatch-pr-creation-verification.md`.
 7. Continue stale cleanup.
 
+If the root checkout is on a PR-less non-`main` branch with meaningful committed work, treat it as a preservation branch before switching root back to `main`: commit any related dirty follow-up, rebase onto `origin/main`, push/create the PR, then add a retained repo-root `.worktrees/<topic>` for that branch. Only after the PR branch is verified and clean should the root checkout switch to `main` and fast-forward/reset to `origin/main`. This avoids leaving the only working copy of an open PR branch in the root checkout while performing workspace cleanup.
+
+During final root alignment, avoid combining diagnostic multi-revision commands that can fail before cleanup commands run (for example `git rev-parse --short HEAD origin/main` may abort in some Git versions). Print each revision separately, then run the intended `git reset --hard origin/main` / verification commands so a formatting mistake does not skip the actual cleanup action.
+
 For docs splits, verify that newly referenced docs actually exist before opening the PR. If a changed document links to a new file that was not created, recover the missing content from the pre-split document or otherwise create the linked file so the PR is self-contained.
 
 ## Preservation PR hygiene
