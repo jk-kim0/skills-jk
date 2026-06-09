@@ -133,3 +133,5 @@ For reusable Component Name Debug/OpenSpec work, user does not want app-specific
 For reusable Component Name Debug/OpenSpec work, user wants feature availability controlled by a build-time implementation code constant, not runtime environment variables or same-build operational toggles.
 §
 For reusable Component Name Debug/OpenSpec work, Outbound Agent's Help menu placement is only an app-specific implementation example; other apps such as corp-web-japan may attach the same mode selector to different components, so platform specs should use app-specific control surface language.
+§
+When working in the staff-fde repo, specifically the staff-fde/partner-release-dashboard app, the user wants PRs created with the direct `gh pr create` command instead of a GitHub Actions workflow-based PR creation flow.
