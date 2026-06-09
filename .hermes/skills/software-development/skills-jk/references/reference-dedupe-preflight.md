@@ -128,8 +128,10 @@ Use this when the user asks to reduce duplicate `references/` files across the s
 2. Run exact/normalized duplicate scans across `.hermes/skills`, `.hermes/skill-packs`, and `skills`. Exact duplicates under `.hermes/skills/.archive/**/references/` that have an active non-archive copy can usually be deleted from the archive; keep the active copy.
 3. Pairwise near-duplicate scans over hundreds of reference files can time out. Use a clustered pass instead: group by owner directory and high-value tokens such as `worktree`, `cleanup`, `dirty`, `preservation`, `rebase`, `github`, `workflow`, `vercel`, `nextjs`, `mdx`, `wiki`, and compare only within those clusters.
 4. For active near-duplicates, prefer one canonical owner reference plus deletion of the narrower duplicate. Before deleting, merge any unique durable section into the canonical file. Examples: a repo-specific PR-DIRTY rebase note can defer to the general GitHub PR workflow reference; two Vercel ESM/CJS runtime-500 notes can become one canonical runtime-forensics reference with remediation bullets.
-5. When deleting or moving references, update repo-local inventory/report files such as `docs/reports/*reference*.tsv`; stale rows make deleted paths look live.
-6. Verify after refactoring:
+5. If exact/normalized duplicate scans return zero, do not stop automatically. Inspect the clustered near-duplicate output and choose a narrow, high-confidence owner cluster (for example one active umbrella's `references/<topic>/` directory) rather than attempting a risky global consolidation across unrelated owners in one PR.
+6. When deleting or moving references, update repo-local inventory/report files such as `docs/reports/*reference*.tsv`; stale rows make deleted paths look live. Search by deleted basename as well as exact path because older reports can contain pre-migration skill paths that no longer match the current filesystem path.
+7. After the PR is pushed, rerun root/worktree cleanup for same-session generated residue: skill loading can regenerate `.hermes/skills/.bundled_manifest` and bundled skill script style churn in the root checkout. If the authored payload is already preserved in the PR, reset root `main` back to `origin/main` and remove any merged prior preservation worktree before final reporting.
+8. Verify after refactoring:
    - exact duplicate group count is zero for the chosen roots;
    - deleted reference paths have no remaining hits in `.hermes`, `docs`, or `skills` text files;
    - anchored conflict-marker scan is clean;

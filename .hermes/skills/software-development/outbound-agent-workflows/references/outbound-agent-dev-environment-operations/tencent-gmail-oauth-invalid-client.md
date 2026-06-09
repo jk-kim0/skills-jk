@@ -61,3 +61,12 @@ Common causes:
 ## Important distinction
 
 A successful dry-run proves GitHub Secrets are present and shell-parseable; it does not prove the secret matches the Google OAuth client. If `invalid_client` persists after a fresh env sync, treat the source secret or Google Console client state as the next source of truth.
+
+## Targeted restart / all-target workflow pitfall
+
+`Deploy Tencent container image` may run dev-tokyo before dev-seoul. A dev-tokyo deploy/runtime failure can prevent the dev-seoul job from running, even if the user only needs dev-seoul Gmail OAuth config repair.
+
+- Do not report that the intended VM was updated until job order, skipped jobs, diagnostics, and VM-local env/container state prove it.
+- If only a restart/redeploy is needed after a prior successful env sync, the target-specific `Deploy tencent/outbound-seoul` or Tokyo workflow can restart the app, but it does not apply Gmail OAuth env updates.
+- After a restart workflow shows an immediate public `/login` 502, run diagnostics and a fresh public `/login` probe before declaring the environment broken; it may be a transient readiness gap.
+- Prefer a target input or target-specific env-sync path so one VM's deploy drift cannot block the intended VM's config repair.

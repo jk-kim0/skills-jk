@@ -41,6 +41,9 @@ Intermediate migration directories, one-off backfill SQL, and shared-DB repair S
   - compare the suffixes exactly
 - Run `npm run prisma:validate`.
 - Run focused tests that cover schema migration artifacts, ID contract, and features whose assertions used to read intermediate migration files.
+- Confirm `front/prisma/backfills` and `front/prisma/repairs` do not exist and the normal workflows no longer iterate `prisma/repairs/*.sql`.
+- Search for legacy ID defaults in `front/prisma`, `front/src`, and fixtures: `@default(cuid())`, `cuid(`, `autoincrement(`, and `@default(uuid())`; remaining hits should be absence assertions or deliberate external IDs only.
+- Check independent model `id` fields use `@default(dbgenerated("uuidv7()")) @db.Uuid` and internal relation scalar `*Id String` fields include `@db.Uuid`, excluding external provider/message/correlation IDs.
 - `prisma migrate diff --from-migrations ...` may require `shadowDatabaseUrl` in Prisma 7; do not treat that as a product failure if local shadow DB is not configured.
 
 ## PR / operations note

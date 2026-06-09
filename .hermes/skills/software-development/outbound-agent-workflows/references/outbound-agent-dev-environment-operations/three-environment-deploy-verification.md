@@ -29,6 +29,8 @@ Use this reference when checking `querypie/outbound-agent` after a merged PR mov
 - If Vercel and dev-seoul runtime smoke fail with the same assertion after login reaches `/.../home`, treat it as likely smoke-test/UI-data assertion drift before resetting DB or redeploying.
 - Example drift observed: `front/tests/runtime-smoke.spec.ts` expected `getByRole('heading', { name: 'Setup checklist' })`; after a later main update, Vercel and Seoul both reached the Home route and showed an H1, but the `Setup checklist` heading was absent. That is not evidence of a Vercel/Tencent server 500 by itself.
 - Do not let the top-level Tencent workflow conclusion hide per-target facts. Report image build, Seoul deploy, Seoul smoke, Tokyo deploy, Tokyo cleanup, and Tokyo smoke separately.
+- Local root `main` may be behind; do not treat it as the deploy target when `origin/main` advanced.
+- If GitHub run state looks stuck while public service is healthy, inspect job steps and VM state before declaring failure. For Tencent, read `/opt/outbound-agent/deployments/current-image`, `/opt/outbound-agent/deployments/current-revision`, service state, and public `/login`; rendered HTML hashes are not authoritative deployed revisions.
 
 ## Concise report shape
 
