@@ -50,6 +50,16 @@ rg -n "<topic keyword>|<error phrase>|<workflow name>" .hermes/skills .hermes/sk
 - [ ] `SKILL.md` links to the reference if the file should be discoverable by future agents.
 - [ ] Exact duplicate scan is clean when the PR adds or moves multiple reference files.
 
+## Refactor checklist for reducing existing references
+
+When the user asks to inspect and reduce duplicate reference documents, treat active content and archived content differently:
+
+1. Run exact/normalized duplicate scans across `.hermes/skills`, `.hermes/skill-packs`, and `skills`, but do not rely on a full all-pairs similarity scan for the whole tree. It can be slow on large libraries. First group by owner skill and high-signal keywords, then run near-duplicate review only inside those smaller clusters.
+2. If `.hermes/skills/.archive/**/references/*` is byte-for-byte or normalized-identical to an active reference, delete the archive duplicate and keep the active copy. Archive references should not keep exact duplicate payloads that already exist under the canonical active owner.
+3. For active near-duplicates, merge only the unique durable content into the stronger class-level canonical reference, then delete the narrower reference. Do not delete both, and do not leave stale discoverability paths.
+4. After deleting references, scan docs and reports such as `docs/reports/*reference*.tsv` for deleted paths and remove or update stale rows so inventory reports do not make deleted files look live.
+5. Before committing, verify: exact duplicate groups are zero, deleted-path stale hits are zero, narrow conflict-marker scan is clean, and `git diff --check` passes.
+
 Suggested exact duplicate scan:
 
 ```bash
