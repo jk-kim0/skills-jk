@@ -17,18 +17,20 @@ Use when the user asks to clean a workspace containing multiple repository direc
    - cleanly align root default branch to `origin/<default>` after preserving any dirty authored payload;
    - enumerate `git worktree list --porcelain` and inspect every linked worktree status before deletion.
 3. For every retained worktree branch, run a targeted open-PR lookup by head branch. Preserve clean open-PR worktrees even when they look stale locally.
-4. Before deleting duplicate worktrees that point at the same commit under different branch names, check for dirty uncommitted payload. If one duplicate branch is tied to a clean docs/spec PR and another worktree at the same HEAD has dirty follow-up implementation files, do not remove the dirty duplicate as residue. Treat the clean/open-PR branch as the base, commit the dirty payload on its own branch, and open a stacked PR against the docs/spec branch before rerunning the final dirty sweep.
-5. For PR-less clean worktrees, classify carefully:
+4. Prefer visible, bounded probes over one large black-box cleanup script. If a cross-repo script with fetch/`gh pr list` calls runs longer than the user's responsiveness threshold, stop it and switch to short per-repo or per-category scans; then re-scan live state because the interrupted job may have already fast-forwarded roots or deleted some stale worktrees.
+5. Before deleting duplicate worktrees that point at the same commit under different branch names, check for dirty uncommitted payload. If one duplicate branch is tied to a clean docs/spec PR and another worktree at the same HEAD has dirty follow-up implementation files, do not remove the dirty duplicate as residue. Treat the clean/open-PR branch as the base, commit the dirty payload on its own branch, and open a stacked PR against the docs/spec branch before rerunning the final dirty sweep.
+6. For PR-less clean worktrees, classify carefully:
    - protected long-lived branches such as `release` can remain if intentionally retained;
    - merged/equivalent/no-upstream residue can be removed after targeted PR lookup and dirty check;
    - meaningful PR-less diffs should be promoted to a PR/worktree before root cleanup.
-6. After creating or amending a preservation PR, verify both the remote ref (`git ls-remote origin refs/heads/<branch>`) and GitHub PR metadata (`gh pr list/view --json headRefOid`). GitHub can briefly return stale `headRefOid`; retry a few short times before treating it as a failure.
-7. Run a final all-repo verification sweep:
+7. After creating or amending a preservation PR, verify both the remote ref (`git ls-remote origin refs/heads/<branch>`) and GitHub PR metadata (`gh pr list/view --json headRefOid`). GitHub can briefly return stale `headRefOid`; retry a few short times before treating it as a failure.
+8. Run a final all-repo verification sweep:
    - every root is on its default branch;
    - every root `git status --porcelain` is empty;
    - every root HEAD equals `origin/<default>`;
    - no duplicate-origin standalone clone remains;
    - every retained worktree is clean and either tied to an open PR or explicitly justified (for example protected `release`).
+9. If a clean/no-op worktree reappears as dirty only because of untracked `tmp/` or extraction artifacts, inspect the files before removal. For generated document/image extraction residue with no repo references and no tracked diff, `git clean -fd -- <tmp-path>` first, then remove the no-op worktree/branch and rerun the final sweep.
 
 ## Final report shape
 

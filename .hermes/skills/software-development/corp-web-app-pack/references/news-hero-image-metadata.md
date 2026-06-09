@@ -43,6 +43,14 @@ For detail pages:
 - Asset validation should enforce that the effective preview image (`openGraphImageSrc ?? heroImageSrc`) exists under `public/**` and is `.png`.
 - `heroImageSrc` may remain non-PNG, including `.svg`, when a separate `.png` `openGraphImageSrc` is authored for social previews.
 
+## Cross-repo/source-image checks
+
+When a review asks whether a news hero should instead use an image from the referenced product repository, inspect that repository's actual metadata and assets before changing the news item:
+
+- Check App Router metadata sources such as `app/layout.tsx`, route-level `metadata`, `generateMetadata`, `opengraph-image.*`, and `twitter-image.*`.
+- Search public assets for plausible social-preview candidates and compare dimensions/format against the expected 1200/1280×630/720-style Open Graph shape; small logos and square icons are usually not replacement hero candidates.
+- If the current news hero came from a DOCX press-release source, compare hashes/dimensions against embedded `word/media/*` images before treating a sibling repo screenshot or product asset as more authoritative.
+
 ## Verification
 
 Add or update focused Vitest contracts under `src/__tests__/app/[locale]/news/metadata.test.ts` that import route `generateMetadata` functions directly and assert:
