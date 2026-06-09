@@ -26,7 +26,14 @@ tags: [coding, bash, shell, automation]
 - 외부 명령을 호출하는 자동화 스크립트
 - CLI 도구 또는 인스톨러 작성
 - 다단계 배치 처리
+- CI helper, docker/compose wrapper, script refactor
 - 가시성이 중요한 모든 스크립트
+
+## 기존 구현 참조
+
+새 bash 스크립트를 작성하거나 수정할 때는 존재하는 repo-local guidance와 사용자가 관리하는 참조 구현을 먼저 확인합니다. 예: `~/workspace/deck/scripts/ci-e2e`, `~/workspace/tpm/compose/` 아래 스크립트들. 없는 경로를 필수 파일처럼 가정하지 말고, 저장소 규칙과 충돌하면 저장소 규칙이 우선입니다.
+
+불필요한 방어 로직, 설명용 trace 출력, 과도한 추상화는 피하고 기존 구현의 로그 함수, usage 출력, 인수 파싱, cleanup/trap 패턴과 일관되게 유지합니다.
 
 ## 핵심 원칙
 

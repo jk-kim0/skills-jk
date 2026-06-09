@@ -24,9 +24,11 @@ description: Record and maintain persistent user "remember this" instructions. U
 
 ## Preferred location
 
-1. 전역 운영 규칙이면 `~/.codex/skills/` 아래 skill 로 남긴다.
-2. 저장소 고유 워크플로우면 해당 저장소 맥락에 맞는 skill 로 남긴다.
-3. 단순 교차 참조가 필요하면 전역 `~/AGENTS.md` 에 한 줄 정책을 추가할 수 있다.
+1. 이 skill은 Hermes와 Codex 모두를 위한 지속 지시 관리 기준이다. 한쪽 agent 전용 표현으로 작성하지 않는다.
+2. 사용자 선호나 반복 correction은 Hermes에서는 `memory` 도구로 짧게 저장하고, Hermes/Codex가 함께 써야 하는 지속 규칙은 repo-managed skill로 기록한다.
+3. 공용 skill/메모리 지시 저장 위치는 사용자 홈 기준 `~/workspace/skills-jk/skills/`이며, repo root 기준으로는 `skills/` 아래 적절한 기존 skill이다.
+4. 절차/워크플로우는 `~/workspace/skills-jk/skills/` 아래 맞는 owner skill, 즉 이 repo의 `skills/` 디렉터리 아래에 추가한다.
+5. 맞는 owner가 없을 때만 `~/workspace/skills-jk/skills/` 아래 새 skill을 만들고, 전역 `~/AGENTS.md`나 user-scope skill은 repo-local 규칙과 충돌하지 않는 경우에만 사용한다.
 
 ## Examples
 

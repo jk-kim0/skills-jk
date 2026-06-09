@@ -46,14 +46,40 @@ PY
 
 ## When using gh in this environment
 
-If repository or global policy requires unsetting `GITHUB_TOKEN`, use:
+For this repo-local environment, do not run raw `gh` commands. Use `env -u GITHUB_TOKEN gh ...` from the first GitHub CLI call, including read-only issue/PR/API lookups.
+
+Allowed:
 
 ```bash
 env -u GITHUB_TOKEN gh auth status -h github.com
 env -u GITHUB_TOKEN gh pr view <PR_NUMBER>
+env -u GITHUB_TOKEN gh api <path>
 ```
+
+Avoid:
+
+```bash
+gh ...
+GITHUB_TOKEN=... gh ...
+```
+
+If authentication or permission output is surprising, first run:
+
+```bash
+env -u GITHUB_TOKEN gh auth status -h github.com
+env -u GITHUB_TOKEN gh <same command>
+```
+
+For CI/run verification, confirm the PR head SHA before concluding a run is absent:
+
+```bash
+env -u GITHUB_TOKEN gh pr view <pr> --repo <owner>/<repo> --json headRefOid,headRefName
+env -u GITHUB_TOKEN gh run list --repo <owner>/<repo> --branch <head-branch> --limit 30 --json databaseId,workflowName,event,headSha,status,conclusion,createdAt
+```
+
+Treat immediate lookup gaps as `미확인`, not proof of absence, until the exact head SHA has been checked.
 
 ## Practical lesson
 
 A masked output string is not proof that a token exists.
-Verify presence with `printenv`, parameter-expansion checks, or Python before concluding that `gh` is authenticating via `GITHUB_TOKEN`.
+Verify presence with `printenv`, parameter-expansion checks, or Python before concluding that `gh` is authenticating via `GITHUB_TOKEN`. Prefer `env -u GITHUB_TOKEN gh ...` for all GitHub CLI calls in this repo-local workflow.

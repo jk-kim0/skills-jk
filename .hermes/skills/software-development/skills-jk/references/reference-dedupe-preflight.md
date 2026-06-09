@@ -52,9 +52,10 @@ rg -n "<topic keyword>|<error phrase>|<workflow name>" .hermes/skills .hermes/sk
 
 ## Refactor checklist for reducing existing references
 
-When the user asks to inspect and reduce duplicate reference documents, treat active content and archived content differently:
+When the user asks to inspect and reduce duplicate reference documents or newly migrated repo-managed skills, treat active content and archived content differently:
 
 1. Run exact/normalized duplicate scans across `.hermes/skills`, `.hermes/skill-packs`, and `skills`, but do not rely on a full all-pairs similarity scan for the whole tree. It can be slow on large libraries. First group by owner skill and high-signal keywords, then run near-duplicate review only inside those smaller clusters.
+1a. When reviewing newly migrated root-level governed skills, compare each new `skills/<name>/SKILL.md` against existing root-level skills before keeping it as a standalone trigger. If the new file is mostly a policy wrapper around an existing class-level skill, absorb the unique durable rules into the canonical owner and delete the narrow governed skill. Common owners in this repo include `skills/create-pr/SKILL.md` for PR body/CI follow-through policy, `skills/github-cli-env-diagnostics/SKILL.md` for `env -u GITHUB_TOKEN gh ...` and exact-head run verification, and `skills/bash-scripting/SKILL.md` for bash style/reference implementation rules. Keep a newly migrated governed skill only when it has a distinct trigger class that is not already owned elsewhere.
 2. If `.hermes/skills/.archive/**/references/*` is byte-for-byte or normalized-identical to an active reference, delete the archive duplicate and keep the active copy. Archive references should not keep exact duplicate payloads that already exist under the canonical active owner.
 3. For active near-duplicates, merge only the unique durable content into the stronger class-level canonical reference, then delete the narrower reference. Do not delete both, and do not leave stale discoverability paths.
 4. After deleting references, scan docs and reports such as `docs/reports/*reference*.tsv` for deleted paths and remove or update stale rows so inventory reports do not make deleted files look live.
