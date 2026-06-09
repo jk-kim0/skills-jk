@@ -91,6 +91,8 @@ Live verification:
 
 ## Pitfalls
 
-- Do not assume a small historical busy-repo allowlist still covers current runner usage; QueryPie runner occupancy can shift to a different active repo family such as `corp-web-app`.
+- Do not assume a small historical busy-repo allowlist still covers current runner usage; QueryPie runner occupancy can shift to a different active repo family such as `corp-web-app` or `outbound-agent`.
 - When a narrow `--busy-repo` scan finds zero matches for clearly busy runners, treat that as a scope miss, not proof that the busy-job lookup logic is broken.
+- For live org-wide busy-job scans in Hermes, avoid pulling full `actions/runs` JSON into `execute_code` or a terminal output buffer; large run payloads can hit output caps or contain control characters that break `json.loads`. Use `gh api '<path?query=...>' --jq '.workflow_runs[] | {small_fields}'` and then fetch jobs with another reduced `--jq '.jobs[] | select(.runner_name != null) | {small_fields}'` line-by-line.
+- Quote the full GitHub API path containing `?status=...&per_page=...` before passing it through a shell. Do not use `gh api ... -f status=...` for read-only GET queries unless you have verified the method remains GET; URL query strings plus shell quoting are less ambiguous for Actions list endpoints.
 - For JSON validation commands, avoid piping producer output straight into an inline Python heredoc reader in a way that can trigger broken-pipe / empty-stdin confusion; writing JSON to a temp file first is more reliable for verification.

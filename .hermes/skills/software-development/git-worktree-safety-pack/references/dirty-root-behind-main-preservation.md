@@ -44,6 +44,8 @@ Use this when a repo-local `workspace 정리` / `main 업데이트` sweep starts
    ```
    Also scan changed/staged files for real conflict markers with a narrow pattern: `^(<<<<<<<|>>>>>>>)( |$)|^=======$`. Do not broad-scan every line containing `=======`, because skill docs may intentionally contain separators or examples. Confirm the staged diff contains no unintended `D` deletions before commit.
 
+   When manually reapplying selected SKILL.md pointer changes from a stale dirty root into a fresh latest-main worktree, inspect the resulting diff before staging for adjacent-line regressions and numbering collisions. A narrow patch can still carry stale surrounding text from the dirty root; keep the latest-main wording, add only the new pointer/reference line, then renumber nearby ordered-list items if needed. Remember that newly written untracked reference files will not appear in `git diff --stat` until staged, so use `git status --short` before staging and `git diff --cached --stat --name-status` after staging to verify the full self-contained payload.
+
 7. Commit, push, and create/update the PR using the repo's normal PR mechanism. Verify the PR head SHA matches the remote branch.
 
 8. Only after PR/remote verification, clean the root checkout:
