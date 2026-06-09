@@ -23,7 +23,7 @@ This skill is a compact trigger/index for QueryPie self-hosted runner operations
 
 ## Required Context
 
-Known runner inventory context: Mac Studio LLM1 is reachable as `qp-test@10.11.1.11` (`Mac-Studio-LLM1.local`). QueryPie runners live at `/Users/qp-test/Workspace/github-runners-for-querypie-org`: 6 Linux ARM64 Compose runners, group `mac-studio-llm1-linux-arm64`, purpose ci/build. Verify the live host state before relying on this inventory.
+Known runner inventory context: Mac Studio LLM1 is reachable as `qp-test@10.11.1.11` (`Mac-Studio-LLM1.local`). QueryPie runners live at `/Users/qp-test/Workspace/github-runners-for-querypie-org`: 12 Linux ARM64 Compose runners, group `mac-studio-llm1-linux-arm64`, purpose ci/build. Verify the live host state before relying on this inventory.
 
 For sensitive infrastructure setup such as GitHub self-hosted runners, use step-by-step guided execution and do not proceed ahead of explicit user guidance.
 
