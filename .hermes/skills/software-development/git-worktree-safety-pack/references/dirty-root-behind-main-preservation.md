@@ -30,9 +30,11 @@ Use this when a repo-local `workspace 정리` / `main 업데이트` sweep starts
 
 4. Do not blindly copy root files into the fresh worktree. A behind-root copy can revert files that changed on latest main. Either apply the root patch with `git apply --3way`, or selectively reapply only the meaningful additions while preserving the latest-main file shape.
    - If a previous preservation PR recently merged, prefer a root-vs-HEAD patch saved before cleanup (`git diff --binary > /tmp/...patch`) plus selected untracked files over an `origin/main` diff. A broad `git diff origin/main` from a stale root can include deletion hunks for files already added by the merged PR.
+   - Compare both `git diff HEAD` and `git diff origin/main` before deciding what to preserve. If latest main already contains a related skill/reference change, rebuild the preservation branch from `origin/main` and apply only the still-missing incremental guidance; do not carry forward stale deletions or revert main-side additions.
+   - Separate authored guidance/config changes from generated residue. In `skills-jk`, `.hermes/skills/.bundled_manifest` hash churn and bundled-skill script/test style-only rewrites (for example tuple-to-set literal churn) are usually generator/format residue; exclude them unless the user explicitly asked to preserve that generator output.
    - If `git apply --3way` leaves conflicts, resolve them by keeping latest-main canonical content plus the still-relevant root payload, then `git add` the resolved files before final validation. Do not treat marker-free files as resolved until the index no longer shows `UU`.
 
-5. Copy only meaningful untracked payload into the preservation worktree. Exclude runtime/cache/backups such as `.hermes/lsp/`, `.hermes/pairing/`, profile caches/skills, sessions/logs, `.hermes/skills/.archive/`, and `.hermes/skills/.curator_backups/`.
+5. Copy only meaningful untracked payload into the preservation worktree. Exclude runtime/cache/backups such as `.hermes/lsp/`, `.hermes/pairing/`, profile caches/skills, sessions/logs, `.hermes/skills/.archive/`, `.hermes/skills/.curator_backups/`, and generated bundled-skill residue that was not intentionally authored.
 
 6. Verify the preservation worktree before commit.
    ```bash

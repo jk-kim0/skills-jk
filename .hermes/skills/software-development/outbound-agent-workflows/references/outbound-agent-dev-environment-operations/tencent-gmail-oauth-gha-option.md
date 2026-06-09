@@ -23,19 +23,19 @@ When true:
 - upload a temporary env file over SSH
 - replace only the Gmail OAuth keys in `/etc/outbound-agent/front.env`
 - create a timestamped backup before replacement, e.g. `/etc/outbound-agent/front.env.bak-gmail-oauth-<timestamp>`
+- upload any temporary dotenv file over SSH/SCP, remove it after use, and generate shell-readable values with safe quoting such as `printf '%s=%q\n' NAME VALUE`
 - restart/redeploy the app so the container reads the new env values
 
-Required secret names used by the current workflow pattern:
+Required secret shape used by the current workflow pattern:
 
-- `GMAIL_OAUTH_CLIENT_ID`
-- `GMAIL_OAUTH_CLIENT_SECRET`
-- `GMAIL_TOKEN_ENCRYPTION_SECRET`
-- `GMAIL_OAUTH_STATE_SECRET`
+- common repo secrets when Seoul/Tokyo share the same Google OAuth client: `GMAIL_OAUTH_CLIENT_ID`, `GMAIL_OAUTH_CLIENT_SECRET`;
+- VM-specific token/state secrets when fingerprints differ: `SEOUL_GMAIL_TOKEN_ENCRYPTION_SECRET`, `SEOUL_GMAIL_OAUTH_STATE_SECRET`, `TOKYO_GMAIL_TOKEN_ENCRYPTION_SECRET`, `TOKYO_GMAIL_OAUTH_STATE_SECRET`;
+- avoid `secrets: inherit` for this path when explicit mapping can document which secret reaches which VM.
 
 ## Dry-run behavior
 
 A dry-run with the option enabled should validate secret presence and the uploaded env syntax, but must not mutate VM files.
-This gives operators a safe way to prove the secret path is ready before applying.
+This gives operators a safe way to prove the secret path is ready before applying. Validate workflow YAML with `actionlint`, extracted shell with `bash -n`, and the final patch with `git diff --check`.
 
 ## Security notes
 
