@@ -47,3 +47,4 @@ description: Record and maintain persistent user "remember this" instructions. U
 - JK 사용자의 `/goal` 기반 장기 작업 중에는 각 주요 step 전후로 계획 문서 변경 여부와 세부 목표/완료 조건 변경 여부를 다시 확인한다.
 - JK 사용자와 git 저장소에서 작업할 때는 항상 별도 git worktree에서만 파일 변경을 만들고, root checkout/main repository workspace는 main branch 추종용으로만 취급하며 어떤 변경도 만들지 않는다.
 - JK 사용자의 corp-web-app 작업에서는 사용자가 명시적으로 요청하지 않는 한 로컬에서 `npm run build`를 실행하지 않는다. PR 검증은 로컬 단위 테스트/포맷/응답 확인 후 CI에서 확인한다.
+- JK 사용자와 모든 git/GitHub PR 작업에서, 사용자의 명시적 승인 없이 PR을 merge하거나 close하거나 `main`에 push하지 않는다. "mergeable 상태" 요청은 conflict/CI 수정, PR branch push, mergeability/check 상태 확인과 보고까지만 의미하며 실제 병합 승인이 아니다.

@@ -246,12 +246,15 @@ When the user asks to review skill `references/` docs or remove duplication acro
 5. Remove session/PR-number-specific names from reusable references when the lesson is durable, e.g. rename `pr123-...` into a class-level pattern name.
 6. Before committing, run a changed-reference duplicate scan and a stale session-name/PR-number scan, then include those verification results in the PR body.
 7. If unrelated local dirty files exist, preserve them outside the commit scope while rebasing/PR-creating; do not accidentally stage runtime or memory residue just because it was present during the curation task.
+8. If an existing helper/reference such as a repo-local dedupe preflight already covers part of the requested procedure, do not simply duplicate it verbatim in a new skill. Create a new class-level umbrella only when the requested class is broader (for example duplicate `SKILL.md` responsibilities plus duplicate `references/` docs), and cross-link or summarize the narrower owner instead of copying all of its text.
+9. For `skills-jk` itself, a requested library-curation workflow skill should normally be an active repo-local skill under `.hermes/skills/software-development/<class-name>/SKILL.md`, not a root-level governed policy under `skills/`, unless the guidance is meant to constrain both Hermes and Codex globally.
 
 Be active by default:
 - Treat "review the conversation and update the skill library" as an instruction to find and encode at least one reusable lesson when the session had any non-trivial workflow, correction, or repeated pattern.
 - Do not default to `Nothing to save.` just because the task ended successfully; first look for a small governing-skill patch, pitfall, or concise `references/` note.
 - User workflow/style corrections belong in the governing `SKILL.md`, not only in memory, so future sessions start with the corrected workflow.
 - If a skill was loaded or consulted during the session and the new lesson fits it, update that currently-loaded skill first instead of creating a narrow session-specific skill.
+- If the user explicitly restricts the skill-library update pass to memory/skill-management tools, do not attempt repository reads, Git commands, PR creation, or file-tool edits. Use `skill_manage(action='patch'|'write_file')` on the loaded or existing umbrella skill that owns the lesson, then report the exact skill updated and any overlap noticed.
 
 Default update order:
 1. Patch a skill that was actually loaded or used in the session if it governs the same task class.
