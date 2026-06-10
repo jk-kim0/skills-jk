@@ -42,6 +42,7 @@ def test_build_parser_defaults_to_querypie_and_supports_busy_repo_flags() -> Non
     assert args.summarized is True
     assert args.show_labels is True
     assert args.busy_repo == ["querypie/querypie-mono", "corp-web-app"]
+    assert args.scan_all_repos is False
     assert args.no_busy_jobs is False
 
 
@@ -57,6 +58,18 @@ def test_normalize_busy_repos_prefixes_bare_repo_names() -> None:
         "querypie/querypie-docs",
         "querypie/corp-web-app",
         "querypie/corp-web-japan",
+    ]
+
+
+def test_default_busy_repos_are_top_runner_usage_repos() -> None:
+    gh_runners = load_module("gh_runners_default_busy_repos_test")
+
+    assert gh_runners._default_busy_repos("querypie") == [
+        "querypie/corp-web-app",
+        "querypie/corp-web-japan",
+        "querypie/outbound-agent",
+        "querypie/corp-web-contents",
+        "querypie/payroll",
     ]
 
 
@@ -131,7 +144,7 @@ def test_format_runner_table_summarized_uses_busy_job_details() -> None:
     assert "#123 Build main" in output
 
 
-def test_main_json_output_uses_auto_repo_scan_when_busy_repo_not_given(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_main_json_output_uses_default_top_busy_repos_when_busy_repo_not_given(monkeypatch: pytest.MonkeyPatch) -> None:
     gh_runners = load_module("gh_runners_main_json_test")
 
     class FakeClient:
@@ -146,12 +159,17 @@ def test_main_json_output_uses_auto_repo_scan_when_busy_repo_not_given(monkeypat
             ]
 
         def list_org_repositories(self, include_archived: bool = False):
-            assert include_archived is False
-            return ["querypie/querypie-mono", "querypie/querypie-docs"]
+            raise AssertionError("default scan should not list every org repository")
 
         def get_busy_runner_jobs(self, busy_runner_names, repos_to_scan):
             assert busy_runner_names == ["runner-1"]
-            assert repos_to_scan == ["querypie/querypie-mono", "querypie/querypie-docs"]
+            assert repos_to_scan == [
+                "querypie/corp-web-app",
+                "querypie/corp-web-japan",
+                "querypie/outbound-agent",
+                "querypie/corp-web-contents",
+                "querypie/payroll",
+            ]
             return {
                 "runner-1": {
                     "repo": "querypie-mono",
@@ -179,6 +197,12 @@ def test_main_json_output_uses_auto_repo_scan_when_busy_repo_not_given(monkeypat
     payload = json.loads(stdout.getvalue())
     assert exit_code == 0
     assert payload["organization"] == "querypie"
-    assert payload["busy_job_scan_repos"] == ["querypie/querypie-mono", "querypie/querypie-docs"]
+    assert payload["busy_job_scan_repos"] == [
+        "querypie/corp-web-app",
+        "querypie/corp-web-japan",
+        "querypie/outbound-agent",
+        "querypie/corp-web-contents",
+        "querypie/payroll",
+    ]
     assert payload["busy_jobs"]["runner-1"]["workflow_name"] == "CI"
-    assert "Scanning 2 repo(s)" in stderr.getvalue()
+    assert "Scanning 5 repo(s)" in stderr.getvalue()
