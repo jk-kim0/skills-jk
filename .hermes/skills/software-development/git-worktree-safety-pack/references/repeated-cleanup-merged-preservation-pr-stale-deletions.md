@@ -19,6 +19,7 @@ A root checkout can contain valid new local skill/docs edits while its `main` co
    - keep authored skill/docs/reference additions and modifications;
    - exclude runtime residue such as `.hermes/lsp/`, `node_modules`, caches, logs, or generated local state;
    - exclude deletion hunks for files that exist on `origin/main` unless the user explicitly requested those deletions and they still make sense against latest main.
+   - if a same-session feature/preservation PR has just merged, compare each dirty skill/reference path against latest `origin/main` before preserving it. Wording-only or same-concept edits already present on latest main should be discarded, while genuinely missing repo-local pointers or new `references/*.md` files should be preserved on a fresh branch.
 5. Create a fresh worktree from latest `origin/main` and copy only the selected authored payload into it.
 6. Validate before committing:
    - `git diff --check`
