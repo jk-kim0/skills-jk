@@ -13,7 +13,7 @@ tags: [pr, git, github, workflow, bot]
 | PR 작성자 | 모든 저장소 | `github-actions[bot]` | 개인 계정 |
 | Co-Author | 모든 저장소 | `Atlas <atlas@jk.agent>` | `Claude ...` |
 | PR 생성 | `skills-jk` 저장소 | `gh workflow run create-pr.yml` | `gh pr create` |
-| PR 생성 | `skills-jk` 외 저장소 | 저장소 지침이 허용하는 `gh pr create` 또는 `gh cr create` | `skills-jk` 전용 금지 규칙의 전파 적용 |
+| PR 생성 | `skills-jk` 외 저장소 | 저장소 지침이 허용하는 `gh pr create` | `skills-jk` 전용 금지 규칙의 전파 적용 |
 
 ## ⛔ 절대 금지 사항
 
@@ -53,7 +53,6 @@ env -u GITHUB_TOKEN gh workflow run create-pr.yml -f branch="<branch>" -f title=
 
 ```bash
 env -u GITHUB_TOKEN gh pr create <repo-approved flags>
-env -u GITHUB_TOKEN gh cr create <repo-approved flags>
 ```
 
 ## PR Scope Gate (필수)
