@@ -8,11 +8,12 @@ tags: [pr, git, github, workflow, bot]
 
 ## 핵심 규칙
 
-| 항목 | O | X |
-|------|---|---|
-| PR 작성자 | `github-actions[bot]` | 개인 계정 |
-| Co-Author | `Atlas <atlas@jk.agent>` | `Claude ...` |
-| PR 생성 | `gh workflow run create-pr.yml` | `gh pr create` |
+| 항목 | 적용 범위 | O | X |
+|------|-----------|---|---|
+| PR 작성자 | 모든 저장소 | `github-actions[bot]` | 개인 계정 |
+| Co-Author | 모든 저장소 | `Atlas <atlas@jk.agent>` | `Claude ...` |
+| PR 생성 | `skills-jk` 저장소 | `gh workflow run create-pr.yml` | `gh pr create` |
+| PR 생성 | `skills-jk` 외 저장소 | 저장소 지침이 허용하는 `gh pr create` 또는 `gh cr create` | `skills-jk` 전용 금지 규칙의 전파 적용 |
 
 ## ⛔ 절대 금지 사항
 
@@ -35,12 +36,24 @@ tags: [pr, git, github, workflow, bot]
 
 ## 명령어
 
+### `skills-jk` 저장소
+
 ```bash
 git commit -m "feat: ..." --trailer "Co-Authored-By: Atlas <atlas@jk.agent>"
 git push -u origin <branch>
 
 # PR 생성
 env -u GITHUB_TOKEN gh workflow run create-pr.yml -f branch="<branch>" -f title="<type>: ..."
+```
+
+### `skills-jk` 외 저장소
+
+`skills-jk` 밖에서는 `gh pr create` 직접 실행 금지 규칙을 적용하지 않습니다.
+해당 저장소의 `AGENTS.md` 또는 Skill 지침이 허용하면 아래 형태의 PR 생성 명령을 사용할 수 있습니다.
+
+```bash
+env -u GITHUB_TOKEN gh pr create <repo-approved flags>
+env -u GITHUB_TOKEN gh cr create <repo-approved flags>
 ```
 
 ## PR Scope Gate (필수)
@@ -163,5 +176,5 @@ Hook이 검사하는 항목:
 
 ## 관련 문서
 
-- [branch-workflow](./branch-workflow.md) - 전체 워크플로우
+- [branch-workflow](../branch-workflow/SKILL.md) - 전체 워크플로우
 - [bot-authorship](../../docs/bot-authorship.md) - Bot 작성자 상세
