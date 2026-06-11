@@ -136,9 +136,9 @@ git checkout -b <prefix>/<descriptive-name> origin/main
 
 ## PR 생성
 
-작업 완료 후 [create-pr](./create-pr.md) 규칙에 따라 PR을 생성합니다.
+작업 완료 후 [create-pr](../create-pr/SKILL.md) 규칙에 따라 PR을 생성합니다.
 
-**핵심:** `gh pr create` 직접 실행 금지 → `gh workflow run create-pr.yml` 사용
+**핵심:** `skills-jk`에서는 `gh pr create` 직접 실행 금지 → `gh workflow run create-pr.yml` 사용. `skills-jk` 외 저장소는 [create-pr](../create-pr/SKILL.md) 규칙에 따라 저장소 지침이 허용하는 `gh pr create` 사용 가능.
 
 ## 워크플로우 다이어그램
 
