@@ -163,13 +163,14 @@ Cleanup can race with other agents or merges. After deleting stale worktrees/bra
 
 1. `git fetch --prune origin`
 2. `git merge --ff-only origin/main` in the root checkout if root is `main` and clean.
-3. Re-run open PR list and targeted branch lookup.
-4. Re-run dirty sweep for every remaining worktree.
-5. If a retained open-PR worktree has related dirty files, amend/commit and push to that same PR, then repeat.
-6. If `origin/main` advanced and formerly open PRs are now merged, remove their clean worktrees/branches.
-7. If a branch has no PR but a dirty worktree or meaningful ahead diff, do not stop at classification. Inspect the diff and either preserve it by committing/pushing/opening a PR, or explicitly delete it only when it is clean and equivalent to `origin/main`.
-8. Remove empty `.worktrees/` residue directories.
-9. Inspect direct child directories under `.worktrees/` that are not registered by `git worktree list`. If one is a standalone checkout with dirty or ahead work, preserve it by committing/pushing/opening a PR before deleting the directory; see `references/unregistered-worktrees-during-cleanup.md`.
+3. If `origin/main` advanced after a preservation PR was created or updated, immediately rebase that retained PR worktree onto the new `origin/main`, push with `--force-with-lease`, and re-query the PR `baseRefOid/headRefOid` before reporting completion.
+4. Re-run open PR list and targeted branch lookup.
+5. Re-run dirty sweep for every remaining worktree.
+6. If a retained open-PR worktree has related dirty files, amend/commit and push to that same PR, then repeat.
+7. If `origin/main` advanced and formerly open PRs are now merged, remove their clean worktrees/branches.
+8. If a branch has no PR but a dirty worktree or meaningful ahead diff, do not stop at classification. Inspect the diff and either preserve it by committing/pushing/opening a PR, or explicitly delete it only when it is clean and equivalent to `origin/main`.
+9. Remove empty `.worktrees/` residue directories.
+10. Inspect direct child directories under `.worktrees/` that are not registered by `git worktree list`. If one is a standalone checkout with dirty or ahead work, preserve it by committing/pushing/opening a PR before deleting the directory; see `references/unregistered-worktrees-during-cleanup.md`.
 
 When an open PR branch is rebased and force-pushed during cleanup, GitHub's PR API can briefly return the previous `headRefOid` or stale `baseRefOid`. Do not rely on the immediate post-push `gh pr view` alone. Re-fetch and re-query after a short delay, or use separate short `gh pr view` / `gh pr checks` calls, before reporting the PR as updated and clean.
 
