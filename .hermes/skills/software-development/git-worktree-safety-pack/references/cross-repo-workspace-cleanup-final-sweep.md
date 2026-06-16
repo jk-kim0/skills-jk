@@ -4,7 +4,7 @@ Use this reference when the user asks to clean every repository under a workspac
 
 ## Durable workflow
 
-1. Deduplicate immediate child directories by `git rev-parse --git-common-dir` so linked worktrees are not processed as independent owner repos.
+1. Deduplicate immediate child directories by `git rev-parse --git-common-dir` so linked worktrees are not processed as independent owner repos. This must include sibling registered worktrees whose `.git` is a file, such as `/workspace/repo-feature` pointing into `/workspace/repo/.git/worktrees/...`; keep them in the owning repo's retained-worktree list rather than reporting them as duplicate standalone clones.
 2. For each owner repo, fetch/prune, detect the remote default branch, and fast-forward the root checkout only when the root worktree is clean.
 3. Remove only conservative stale residue automatically:
    - clean worktrees whose branch has merged PR evidence;
