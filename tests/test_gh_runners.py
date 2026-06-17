@@ -23,13 +23,11 @@ def load_module(module_name: str = "gh_runners_under_test"):
     return module
 
 
-def test_build_parser_defaults_to_querypie_and_supports_busy_repo_flags() -> None:
+def test_build_parser_defaults_to_querypie_when_org_is_omitted() -> None:
     gh_runners = load_module("gh_runners_parser_test")
 
     parser = gh_runners.build_parser()
     args = parser.parse_args([
-        "--org",
-        "querypie",
         "--summarized",
         "--show-labels",
         "--busy-repo",
@@ -44,6 +42,36 @@ def test_build_parser_defaults_to_querypie_and_supports_busy_repo_flags() -> Non
     assert args.busy_repo == ["querypie/querypie-mono", "corp-web-app"]
     assert args.scan_all_repos is False
     assert args.no_busy_jobs is False
+
+
+def test_build_parser_uses_first_argument_as_org_name() -> None:
+    gh_runners = load_module("gh_runners_positional_org_parser_test")
+
+    parser = gh_runners.build_parser()
+    args = parser.parse_args(["chequer-io", "--extended"])
+
+    assert args.org == "chequer-io"
+    assert args.extended is True
+
+
+def test_main_rejects_unsupported_org_before_auth(monkeypatch: pytest.MonkeyPatch) -> None:
+    gh_runners = load_module("gh_runners_invalid_org_test")
+
+    monkeypatch.setattr(
+        gh_runners,
+        "get_token",
+        lambda: pytest.fail("unsupported org should fail before token lookup"),
+    )
+
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    with redirect_stdout(stdout), redirect_stderr(stderr):
+        exit_code = gh_runners.main(["unknown-org"])
+
+    assert exit_code == 2
+    assert stdout.getvalue() == ""
+    assert "Unsupported GitHub organization: unknown-org" in stderr.getvalue()
+    assert "querypie, chequer-io" in stderr.getvalue()
 
 
 def test_normalize_busy_repos_prefixes_bare_repo_names() -> None:
@@ -71,6 +99,12 @@ def test_default_busy_repos_are_top_runner_usage_repos() -> None:
         "querypie/corp-web-contents",
         "querypie/payroll",
     ]
+
+
+def test_default_busy_repos_are_empty_for_chequer_io() -> None:
+    gh_runners = load_module("gh_runners_chequer_default_busy_repos_test")
+
+    assert gh_runners._default_busy_repos("chequer-io") == []
 
 
 def test_list_org_repositories_skips_archived_and_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -206,3 +240,39 @@ def test_main_json_output_uses_default_top_busy_repos_when_busy_repo_not_given(m
     ]
     assert payload["busy_jobs"]["runner-1"]["workflow_name"] == "CI"
     assert "Scanning 5 repo(s)" in stderr.getvalue()
+
+
+def test_main_json_output_queries_chequer_io_org(monkeypatch: pytest.MonkeyPatch) -> None:
+    gh_runners = load_module("gh_runners_main_chequer_json_test")
+
+    class FakeClient:
+        def __init__(self, token: str, org_name: str, base_url: str = gh_runners.GITHUB_API_BASE):
+            self.token = token
+            self.org_name = org_name
+            self.base_url = base_url
+
+        def list_runners(self):
+            assert self.org_name == "chequer-io"
+            return [
+                {"id": 7, "name": "runner-7", "status": "online", "busy": False, "labels": []}
+            ]
+
+        def list_org_repositories(self, include_archived: bool = False):
+            raise AssertionError("idle runners should not require repository scanning")
+
+        def get_busy_runner_jobs(self, busy_runner_names, repos_to_scan):
+            raise AssertionError("idle runners should not require busy job scanning")
+
+    monkeypatch.setattr(gh_runners, "GitHubRunnersClient", FakeClient)
+    monkeypatch.setattr(gh_runners, "get_token", lambda: "token")
+
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    with redirect_stdout(stdout), redirect_stderr(stderr):
+        exit_code = gh_runners.main(["chequer-io", "--json"])
+
+    payload = json.loads(stdout.getvalue())
+    assert exit_code == 0
+    assert payload["organization"] == "chequer-io"
+    assert payload["busy_job_scan_repos"] == []
+    assert stderr.getvalue() == ""

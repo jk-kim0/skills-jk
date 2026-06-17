@@ -7,8 +7,8 @@ shows online/busy/offline state, and optionally resolves which workflow job is
 currently occupying busy runners.
 
 Usage:
-    gh-runners [--summarized|--extended] [--show-labels] [--json]
-    gh-runners --org querypie
+    gh-runners [querypie|chequer-io] [--summarized|--extended] [--show-labels] [--json]
+    gh-runners chequer-io --summarized
     gh-runners --busy-repo querypie/querypie-mono --busy-repo querypie/querypie-docs
     gh-runners --scan-all-repos
     gh-runners --no-busy-jobs
@@ -34,17 +34,20 @@ from typing import Any
 
 GITHUB_API_BASE = "https://api.github.com"
 DEFAULT_ORG = "querypie"
+SUPPORTED_ORGS = ("querypie", "chequer-io")
 PER_PAGE = 100
 USER_AGENT = "gh-runners/1.0"
 MAX_DISPLAY_TEXT = 120
-DEFAULT_BUSY_REPOS = [
-    # 2026-06-10 sample: top 5 repos by recent self-hosted runner job volume.
-    "querypie/corp-web-app",
-    "querypie/corp-web-japan",
-    "querypie/outbound-agent",
-    "querypie/corp-web-contents",
-    "querypie/payroll",
-]
+DEFAULT_BUSY_REPOS_BY_ORG = {
+    "querypie": [
+        # 2026-06-10 sample: top 5 repos by recent self-hosted runner job volume.
+        "querypie/corp-web-app",
+        "querypie/corp-web-japan",
+        "querypie/outbound-agent",
+        "querypie/corp-web-contents",
+        "querypie/payroll",
+    ],
+}
 
 
 class GitHubRunnersClient:
@@ -524,6 +527,13 @@ def get_token() -> str | None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="GitHub organization runners status checker")
+    parser.add_argument(
+        "org",
+        nargs="?",
+        default=DEFAULT_ORG,
+        metavar="ORG",
+        help=f"GitHub organization name: {', '.join(SUPPORTED_ORGS)} (default: {DEFAULT_ORG})",
+    )
     mode_group = parser.add_mutually_exclusive_group()
     mode_group.add_argument(
         "--summarized",
@@ -535,7 +545,6 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="show extended table format (default)",
     )
-    parser.add_argument("--org", default=DEFAULT_ORG, help=f"GitHub organization name (default: {DEFAULT_ORG})")
     parser.add_argument(
         "--busy-repo",
         action="append",
@@ -577,15 +586,24 @@ def _normalize_busy_repos(org_name: str, repos: list[str]) -> list[str]:
 
 
 def _default_busy_repos(org_name: str) -> list[str]:
-    return [
-        repo if repo.startswith(f"{org_name}/") else f"{org_name}/{repo.split('/', 1)[-1]}"
-        for repo in DEFAULT_BUSY_REPOS
-    ]
+    return list(DEFAULT_BUSY_REPOS_BY_ORG.get(org_name, []))
+
+
+def _is_supported_org(org_name: str) -> bool:
+    return org_name in SUPPORTED_ORGS
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+
+    if not _is_supported_org(args.org):
+        print(
+            "Error: Unsupported GitHub organization: "
+            f"{args.org}. Supported organizations: {', '.join(SUPPORTED_ORGS)}.",
+            file=sys.stderr,
+        )
+        return 2
 
     token = get_token()
     if not token:
@@ -616,20 +634,27 @@ def main(argv: list[str] | None = None) -> int:
                     repos_to_scan = client.list_org_repositories(include_archived=False)
                 else:
                     repos_to_scan = _default_busy_repos(args.org)
-                print(
-                    f"Scanning {len(repos_to_scan)} repo(s) for {len(busy_runner_names)} busy runner job(s)...",
-                    file=sys.stderr,
-                )
-                busy_jobs = client.get_busy_runner_jobs(busy_runner_names, repos_to_scan)
-                found = len(busy_jobs)
-                not_found = len(busy_runner_names) - found
-                if not_found > 0:
+                if repos_to_scan:
                     print(
-                        f"  Found {found} job(s), {not_found} runner(s) not matched (may be in workflows not covered by the repo scan)",
+                        f"Scanning {len(repos_to_scan)} repo(s) for {len(busy_runner_names)} busy runner job(s)...",
                         file=sys.stderr,
                     )
+                    busy_jobs = client.get_busy_runner_jobs(busy_runner_names, repos_to_scan)
+                    found = len(busy_jobs)
+                    not_found = len(busy_runner_names) - found
+                    if not_found > 0:
+                        print(
+                            f"  Found {found} job(s), {not_found} runner(s) not matched (may be in workflows not covered by the repo scan)",
+                            file=sys.stderr,
+                        )
+                    else:
+                        print(f"  Found all {found} job(s)", file=sys.stderr)
                 else:
-                    print(f"  Found all {found} job(s)", file=sys.stderr)
+                    print(
+                        "Skipping busy runner job lookup: no default busy repositories "
+                        f"configured for {args.org}; use --busy-repo or --scan-all-repos.",
+                        file=sys.stderr,
+                    )
 
         if args.json:
             print(
