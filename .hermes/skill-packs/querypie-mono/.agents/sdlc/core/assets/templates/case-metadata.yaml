@@ -1,0 +1,42 @@
+case_id: "{{CASE_ID}}"
+title: "{{TITLE}}"
+related_tickets:
+  - "{{TICKET}}"
+created_at: "{{CREATED_AT}}"
+current_stage: "plan"
+current_status: "draft"
+next_stage: "design"
+approved_by: ""
+stage_statuses:
+  plan: "draft"
+  design: "not-started"
+  build: "not-started"
+  test: "not-started"
+  review: "not-started"
+  documentation: "not-started"
+  release: "not-started"
+source_summary: []
+open_decisions: []
+stage_outputs:
+  plan:
+    result: "plan/result.md"
+    handoff: "plan/handoff.md"
+  design:
+    result: "design/result.md"
+    handoff: "design/handoff.md"
+  build:
+    tasks: "build/tasks.md"
+    result: "build/result.md"
+    handoff: "build/handoff.md"
+  test:
+    result: "test/result.md"
+    handoff: "test/handoff.md"
+  review:
+    result: "review/result.md"
+    handoff: "review/handoff.md"
+  documentation:
+    result: "documentation/result.md"
+    handoff: "documentation/handoff.md"
+  release:
+    result: "release/result.md"
+    handoff: "release/handoff.md"

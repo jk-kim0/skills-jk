@@ -1,0 +1,4 @@
+interface:
+  display_name: "SDLC Build"
+  short_description: "승인된 SDLC 설계를 구현하고 test 단계 인수인계를 작성합니다."
+  default_prompt: "Use $sdlc-build to implement this approved SDLC design and prepare the test handoff."

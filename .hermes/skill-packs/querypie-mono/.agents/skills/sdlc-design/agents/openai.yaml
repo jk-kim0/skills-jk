@@ -1,0 +1,6 @@
+# OpenAI/Codex UI adapter metadata.
+# Stage workflow scripts do not read this file; keep it aligned with SKILL.md.
+interface:
+  display_name: "SDLC Design"
+  short_description: "AI Native SDLC design workflow"
+  default_prompt: "Use $sdlc-design to turn this approved SDLC plan into a build-ready technical design."

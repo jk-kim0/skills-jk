@@ -1,0 +1,4 @@
+interface:
+  display_name: "SDLC Backtrack"
+  short_description: "SDLC 뒤 단계에서 발견한 근거를 검토해 앞 단계 feedback loop를 조율합니다."
+  default_prompt: "Use $sdlc-backtrack to evaluate whether this SDLC case should return to an earlier stage."
