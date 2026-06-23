@@ -1,0 +1,193 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SDLC Case Metadata",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "case_id",
+    "title",
+    "related_tickets",
+    "created_at",
+    "current_stage",
+    "current_status",
+    "next_stage",
+    "approved_by",
+    "stage_statuses",
+    "source_summary",
+    "open_decisions",
+    "stage_outputs"
+  ],
+  "properties": {
+    "case_id": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9][a-z0-9-]*$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "related_tickets": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "created_at": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "current_stage": {
+      "type": "string",
+      "enum": ["plan", "design", "build", "test", "review", "documentation", "release"]
+    },
+    "current_status": {
+      "type": "string",
+      "enum": ["draft", "in-progress", "ready", "completed", "blocked"]
+    },
+    "next_stage": {
+      "type": "string",
+      "enum": ["design", "build", "test", "review", "documentation", "release", "done"]
+    },
+    "approved_by": {
+      "type": "string"
+    },
+    "approval_summary": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "stage_statuses": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["plan", "design", "build", "test", "review", "documentation", "release"],
+      "properties": {
+        "plan": {
+          "$ref": "#/$defs/stageStatus"
+        },
+        "design": {
+          "$ref": "#/$defs/stageStatus"
+        },
+        "build": {
+          "$ref": "#/$defs/stageStatus"
+        },
+        "test": {
+          "$ref": "#/$defs/stageStatus"
+        },
+        "review": {
+          "$ref": "#/$defs/stageStatus"
+        },
+        "documentation": {
+          "$ref": "#/$defs/stageStatus"
+        },
+        "release": {
+          "$ref": "#/$defs/stageStatus"
+        }
+      }
+    },
+    "source_summary": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "id", "note"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "minLength": 1
+          },
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "minLength": 1
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "open_decisions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "stage_outputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["plan", "design", "build", "test", "review", "documentation", "release"],
+      "properties": {
+        "plan": {
+          "$ref": "#/$defs/stageOutput"
+        },
+        "design": {
+          "$ref": "#/$defs/stageOutput"
+        },
+        "build": {
+          "$ref": "#/$defs/buildStageOutput"
+        },
+        "test": {
+          "$ref": "#/$defs/stageOutput"
+        },
+        "review": {
+          "$ref": "#/$defs/stageOutput"
+        },
+        "documentation": {
+          "$ref": "#/$defs/stageOutput"
+        },
+        "release": {
+          "$ref": "#/$defs/stageOutput"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "stageStatus": {
+      "type": "string",
+      "enum": ["not-started", "draft", "in-progress", "ready", "completed", "blocked"]
+    },
+    "stageOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["result", "handoff"],
+      "properties": {
+        "result": {
+          "type": "string",
+          "pattern": "^[a-z]+/result[.]md$"
+        },
+        "handoff": {
+          "type": "string",
+          "pattern": "^[a-z]+/handoff[.]md$"
+        }
+      }
+    },
+    "buildStageOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tasks", "result", "handoff"],
+      "properties": {
+        "tasks": {
+          "type": "string",
+          "pattern": "^build/tasks[.]md$"
+        },
+        "result": {
+          "type": "string",
+          "pattern": "^build/result[.]md$"
+        },
+        "handoff": {
+          "type": "string",
+          "pattern": "^build/handoff[.]md$"
+        }
+      }
+    }
+  }
+}
