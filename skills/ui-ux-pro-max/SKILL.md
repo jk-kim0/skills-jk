@@ -19,7 +19,15 @@ Do not use this skill for pure backend, database, infrastructure, or non-visual 
 
 1. Read the upstream skill first:
 
-   `../../external-skills/ui-ux-pro-max-skill/.claude/skills/ui-ux-pro-max/SKILL.md`
+   `/Users/jk/workspace/skills-jk/external-skills/ui-ux-pro-max-skill/.claude/skills/ui-ux-pro-max/SKILL.md`
+
+   Human-readable equivalent:
+
+   `~/workspace/skills-jk/external-skills/ui-ux-pro-max-skill/.claude/skills/ui-ux-pro-max/SKILL.md`
+
+   Repo-relative maintenance path, only when the current working directory is the `skills-jk` repository root:
+
+   `external-skills/ui-ux-pro-max-skill/.claude/skills/ui-ux-pro-max/SKILL.md`
 
 2. Then read the repo-local overrides:
 
@@ -28,15 +36,19 @@ Do not use this skill for pure backend, database, infrastructure, or non-visual 
 3. Apply repo-local overrides after upstream guidance.
    When upstream and local guidance conflict, local guidance wins.
 
+Do not rely on the current working directory or wrapper-relative traversal for upstream paths.
+Codex may load this wrapper from the `~/.codex/skills` symlink while working in another repository.
+
 ## Upstream Search Tool
 
 Use the upstream search and design-system helper from the submodule when a UI task needs product-specific recommendations, style matching, color palettes, typography, chart guidance, or UX rule lookup.
-From the repository root:
+Use the canonical absolute path below so the commands work from any current working directory.
+For readability, the same location is `~/workspace/skills-jk/external-skills/ui-ux-pro-max-skill`.
 
 ```bash
-python3 external-skills/ui-ux-pro-max-skill/src/ui-ux-pro-max/scripts/search.py "<query>" --design-system -f markdown
-python3 external-skills/ui-ux-pro-max-skill/src/ui-ux-pro-max/scripts/search.py "<query>" --domain ux -n 3
-python3 external-skills/ui-ux-pro-max-skill/src/ui-ux-pro-max/scripts/search.py "<query>" --stack nextjs
+python3 /Users/jk/workspace/skills-jk/external-skills/ui-ux-pro-max-skill/src/ui-ux-pro-max/scripts/search.py "<query>" --design-system -f markdown
+python3 /Users/jk/workspace/skills-jk/external-skills/ui-ux-pro-max-skill/src/ui-ux-pro-max/scripts/search.py "<query>" --domain ux -n 3
+python3 /Users/jk/workspace/skills-jk/external-skills/ui-ux-pro-max-skill/src/ui-ux-pro-max/scripts/search.py "<query>" --stack nextjs
 ```
 
 ## Maintenance Boundary
