@@ -141,6 +141,7 @@ function supportAnchorToReason(anchor) {
     google_chose_different_canonical_than_user: 'Duplicate, Google chose different canonical than user',
     blocked_by_robotstxt: 'Blocked by robots.txt',
     not_found_404: 'Not found (404)',
+    server_issues: 'Server error (5xx)',
   };
   if (known[normalized]) return known[normalized];
   return normalized.replace(/_+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -588,14 +589,16 @@ function extractValidationRpcTemplate(html, site, itemKey) {
   // controller that constructs RYZlBc at click time, so reconstruct the same
   // payload from the validation page bootstrap data.
   const candidates = [];
-  const aroundButton = html.match(/start new validation[\s\S]{0,3000}/i) || html.match(/[\s\S]{0,3000}start new validation/i);
+  const actionPattern = /(?:start new validation|validate fix)/i;
+  const aroundButton = html.match(/(?:start new validation|validate fix)[\s\S]{0,3000}/i)
+    || html.match(/[\s\S]{0,3000}(?:start new validation|validate fix)/i);
   const text = aroundButton ? aroundButton[0] : html;
   for (const match of text.matchAll(/\[\s*"([A-Za-z0-9_-]{4,})"\s*,\s*"(\[[\s\S]{0,1000}?\])"/g)) {
     candidates.push({ rpcid: match[1], argsJson: match[2] });
   }
   if (candidates[0]) return candidates[0];
 
-  if (!itemKey || !/start new validation/i.test(html)) return null;
+  if (!itemKey || !actionPattern.test(html)) return null;
   const failedAt = extractValidationFailedAt(html, itemKey);
   if (!failedAt) return null;
   const issueType = extractValidationIssueType(html, itemKey);
@@ -645,7 +648,7 @@ async function runIndexIssuesForSitemap(args, session, sitemap = null) {
       refreshTokensFromHtml(session, validationHtml);
       const template = extractValidationRpcTemplate(validationHtml, args.site, itemKey);
       if (!template) {
-        throw new Error('direct START NEW VALIDATION RPC template was not found in frontend markup; refusing to drive Chrome fallback in direct mode.');
+        throw new Error('direct validation RPC template was not found in frontend markup; refusing to drive Chrome fallback in direct mode.');
       }
       const rpcResult = await rpc(session, template.rpcid, JSON.parse(template.argsJson));
       const result = { ...issue, sitemap: sitemapUrl, itemKey, submitted: true, rpcid: template.rpcid, result: rpcResult };
