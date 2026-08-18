@@ -403,6 +403,111 @@ console.log(JSON.stringify(rows, null, 2));
     assert '"itemKeySource": "af-init-data"' in completed.stdout
 
 
+def test_frontend_helper_maps_server_error_item_key_from_af_init_data(tmp_path) -> None:
+    driver = tmp_path / "frontend-server-error-itemkey-test.mjs"
+    driver.write_text(
+        f"""
+import fs from 'node:fs';
+import vm from 'node:vm';
+import {{ createRequire }} from 'node:module';
+
+const require = createRequire(import.meta.url);
+const helperPath = {str(SCRIPT_PATH.parent / "gsc-frontend-indexing")!r};
+let source = fs.readFileSync(helperPath, 'utf8')
+  .replace(/^#!.*\\n/, '')
+  .replace(/main\\(\\)\\.catch\\([\\s\\S]*$/, 'globalThis.__exports = {{ parseIssueRows }};');
+const context = {{ require, URL, URLSearchParams, console, process: {{ argv: [], exitCode: 0 }}, setTimeout, clearTimeout, globalThis: {{}} }};
+context.global = context;
+vm.createContext(context);
+vm.runInContext(source, context, {{ filename: helperPath }});
+const html = `
+  <table>
+    <tr data-rowid="0">
+      <td>Server error (5xx)</td>
+      <td>Website</td>
+      <td>Not Started</td>
+      <td>trend</td>
+      <td>2</td>
+    </tr>
+  </table>
+  <script>
+    AF_initDataCallback({{
+      key: 'ds:1',
+      data: [[[
+        "https://support.google.com/webmasters/answer/7440203#server_issues",
+        "SERVER_ISSUES",
+        "CAMYEyAC"
+      ]]]
+    }});
+  </script>
+`;
+const rows = context.globalThis.__exports.parseIssueRows(html);
+console.log(JSON.stringify(rows, null, 2));
+""",
+    )
+
+    completed = subprocess.run(
+        ["node", str(driver)],
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    assert '"reason": "Server error (5xx)"' in completed.stdout
+    assert '"itemKey": "CAMYEyAC"' in completed.stdout
+    assert '"itemKeySource": "af-init-data"' in completed.stdout
+
+
+def test_frontend_helper_builds_validate_fix_rpc_from_drilldown_bootstrap(tmp_path) -> None:
+    driver = tmp_path / "frontend-validate-fix-rpc-test.mjs"
+    driver.write_text(
+        f"""
+import fs from 'node:fs';
+import vm from 'node:vm';
+import {{ createRequire }} from 'node:module';
+
+const require = createRequire(import.meta.url);
+const helperPath = {str(SCRIPT_PATH.parent / "gsc-frontend-indexing")!r};
+let source = fs.readFileSync(helperPath, 'utf8')
+  .replace(/^#!.*\\n/, '')
+  .replace(/main\\(\\)\\.catch\\([\\s\\S]*$/, 'globalThis.__exports = {{ extractValidationRpcTemplate }};');
+const context = {{ require, URL, URLSearchParams, console, process: {{ argv: [], exitCode: 0 }}, setTimeout, clearTimeout, globalThis: {{}} }};
+context.global = context;
+vm.createContext(context);
+vm.runInContext(source, context, {{ filename: helperPath }});
+const html = `
+  <c-wiz data-p="%.@.&quot;https://www.querypie.com/&quot;,null,null,&quot;&quot;,[null,null,[13,&quot;CAMYCCAC&quot;]],null,true]">
+    <div role="button"><span>validate fix</span></div>
+  </c-wiz>
+  <script>
+    AF_initDataCallback({{
+      key: 'ds:11',
+      data: [null, null, "2026-07-25T04-55-06Z", [13, "CAMYCCAC"]]
+    }});
+  </script>
+`;
+const template = context.globalThis.__exports.extractValidationRpcTemplate(
+  html,
+  'https://www.querypie.com/',
+  'CAMYCCAC',
+);
+console.log(JSON.stringify(template, null, 2));
+""",
+    )
+
+    completed = subprocess.run(
+        ["node", str(driver)],
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    assert '"rpcid": "RYZlBc"' in completed.stdout
+    assert '[\\"https://www.querypie.com/\\",13,\\"CAMYCCAC\\",3,null,\\"2026-07-25T04-55-06Z\\"]' in completed.stdout
+
+
 def test_validate_all_frontend_submit_keeps_direct_helper_for_duplicate_canonical(monkeypatch, capsys) -> None:
     gsc = load_gsc_module("gsc_validate_all_direct_duplicate_canonical_test")
     args = SimpleNamespace(
