@@ -15,12 +15,26 @@ Atlassian 서비스에 접근하기 위한 CLI 도구입니다.
 | Jira | `jira` | `/usr/local/bin/jira` |
 | Confluence | `confluence` | `/usr/local/bin/confluence` |
 
+## 실행 경로 계약
+
+- Codex/Hermes의 비대화형 shell은 사용자 로그인 shell과 다른 `PATH`를 사용할 수 있다.
+- 따라서 이 skill의 명령은 `/usr/local/bin/jira`와 `/usr/local/bin/confluence` 절대 경로로 실행한다.
+- bare command의 `command not found`만으로 CLI가 설치되지 않았다고 판단하지 않는다.
+- 실패 시 먼저 `test -x /usr/local/bin/<command>`와 절대 경로 실행을 확인한 뒤 설치 문제와 `PATH` 문제를 구분한다.
+
+```bash
+test -x /usr/local/bin/jira
+test -x /usr/local/bin/confluence
+/usr/local/bin/jira projects
+/usr/local/bin/confluence spaces
+```
+
 ## Jira CLI
 
 ### 명령어
 
 ```bash
-jira <command> [args]
+/usr/local/bin/jira <command> [args]
 ```
 
 | 명령어 | 설명 |
@@ -35,19 +49,19 @@ jira <command> [args]
 
 ```bash
 # 프로젝트 목록
-jira projects
+/usr/local/bin/jira projects
 
 # 이슈 검색
-jira search "project = QPD AND status = 'In Progress'"
+/usr/local/bin/jira search "project = QPD AND status = 'In Progress'"
 
 # 이슈 상세
-jira issue QPD-4385
+/usr/local/bin/jira issue QPD-4385
 
 # 보드 목록
-jira boards
+/usr/local/bin/jira boards
 
 # 스프린트 목록
-jira sprints 42
+/usr/local/bin/jira sprints 42
 ```
 
 ## Confluence CLI
@@ -55,7 +69,7 @@ jira sprints 42
 ### 명령어
 
 ```bash
-confluence <command> [args]
+/usr/local/bin/confluence <command> [args]
 ```
 
 | 명령어 | 설명 |
@@ -70,19 +84,19 @@ confluence <command> [args]
 
 ```bash
 # 스페이스 목록
-confluence spaces
+/usr/local/bin/confluence spaces
 
 # 페이지 검색
-confluence search "API 가이드"
+/usr/local/bin/confluence search "API 가이드"
 
 # 페이지 조회 (부모 페이지 ID도 표시)
-confluence page 12345678
+/usr/local/bin/confluence page 12345678
 
 # 하위 페이지 생성 (마크다운 → Confluence 변환)
-confluence create "~712020xxx" 506822712 "보고서 제목" ./report.md
+/usr/local/bin/confluence create "~712020xxx" 506822712 "보고서 제목" ./report.md
 
 # 페이지 업데이트
-confluence update 12345678 ./updated-report.md
+/usr/local/bin/confluence update 12345678 ./updated-report.md
 ```
 
 ### 마크다운 변환 지원
