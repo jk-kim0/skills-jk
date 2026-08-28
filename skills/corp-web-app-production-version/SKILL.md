@@ -1,9 +1,9 @@
 ---
-name: check-deployment
-description: www.querypie.com (corp-web-app) 배포 버전 확인 방법
+name: corp-web-app-production-version
+description: corp-web-app의 운영 사이트 www.querypie.com에 현재 배포된 커밋 SHA와 빌드 정보를 /build-info.json에서 확인할 때 사용합니다. 다른 저장소나 서비스의 배포 확인에는 사용하지 않습니다.
 ---
 
-# 배포 버전 확인
+# corp-web-app 운영 배포 버전 확인
 
 ## 엔드포인트
 
