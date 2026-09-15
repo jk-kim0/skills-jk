@@ -1,7 +1,8 @@
 ---
 name: create-pr
-description: PR 생성 전 반드시 확인 - Bot 작성자 및 Co-Author 규칙, PR 승인/병합 금지
-tags: [pr, git, github, workflow, bot]
+description: 저장소별 작성자 방식과 Co-Author 규칙, scope gate, 승인·병합 금지를 확인하고 Pull Request를 생성한다.
+metadata:
+  tags: [pr, git, github, workflow, bot]
 ---
 
 # PR 생성 규칙
@@ -10,10 +11,24 @@ tags: [pr, git, github, workflow, bot]
 
 | 항목 | 적용 범위 | O | X |
 |------|-----------|---|---|
-| PR 작성자 | 모든 저장소 | `github-actions[bot]` | 개인 계정 |
+| PR 작성자 | `skills-jk` | `github-actions[bot]` | 로컬 개인 계정으로 직접 생성 |
+| PR 작성자 | `skills-jk` 외 저장소 | 해당 저장소 지침과 현재 인증된 계정 | 근거 없이 `skills-jk`의 bot 규칙 적용 |
 | Co-Author | 모든 저장소 | `Atlas <atlas@jk.agent>` | `Claude ...` |
 | PR 생성 | `skills-jk` 저장소 | `gh workflow run create-pr.yml` | `gh pr create` |
 | PR 생성 | `skills-jk` 외 저장소 | 저장소 지침이 허용하는 `gh pr create` | `skills-jk` 전용 금지 규칙의 전파 적용 |
+
+## PR 작성자 결정
+
+`github-actions[bot]` 작성자는 `skills-jk`가 저장소의 `create-pr.yml` workflow로 구현한 저장소별 규칙이다. 모든 저장소에 적용되는 보안 요구사항이 아니다. PR 작성자는 Git commit의 author 설정이 아니라 PR 생성에 사용한 GitHub credential로 결정된다.
+
+다음 순서로 생성 방식을 결정한다.
+
+1. 대상 저장소의 `AGENTS.md`, PR Skill과 기여 문서에 작성자 또는 생성 방식이 명시되어 있으면 이를 따른다.
+2. 대상 저장소가 bot 작성자 workflow를 표준 경로로 제공하고 사용을 요구하면 그 workflow를 사용한다.
+3. 별도 요구가 없으면 `env -u GITHUB_TOKEN gh api user --jq .login`으로 현재 계정을 확인하고, 그 계정으로 `gh pr create`를 실행한다. 개인 계정이라는 이유만으로 PR 생성을 중단하지 않는다.
+4. 현재 계정이 대상 저장소의 명시적 권한·작성자 규칙과 충돌하고 허용된 생성 경로도 없을 때만 중단하고 사용자에게 필요한 결정을 요청한다.
+
+bot 작성자를 만들기 위한 workflow가 없다는 이유로 대상 저장소에 임시 workflow를 추가하거나 PR 범위를 확장하지 않는다. 사용자가 별도 작업으로 요청한 경우에만 bot PR workflow 도입을 검토한다.
 
 ## ⛔ 절대 금지 사항
 
@@ -48,10 +63,11 @@ env -u GITHUB_TOKEN gh workflow run create-pr.yml -f branch="<branch>" -f title=
 
 ### `skills-jk` 외 저장소
 
-`skills-jk` 밖에서는 `gh pr create` 직접 실행 금지 규칙을 적용하지 않습니다.
-해당 저장소의 `AGENTS.md` 또는 Skill 지침이 허용하면 아래 형태의 PR 생성 명령을 사용할 수 있습니다.
+`skills-jk` 밖에서는 bot 작성자와 `gh pr create` 직접 실행 금지 규칙을 적용하지 않습니다.
+해당 저장소에 별도 작성자 규칙이 없다면 현재 GitHub CLI 계정을 확인한 후 아래 형태로 PR을 생성합니다.
 
 ```bash
+env -u GITHUB_TOKEN gh api user --jq .login
 env -u GITHUB_TOKEN gh pr create <repo-approved flags>
 ```
 
