@@ -195,7 +195,7 @@ Responses의 `output` 배열과 Chat Completions의 `choices` 배열을 혼용�
 ## 공식 참고 문서
 
 - [Responses API create](https://developers.openai.com/api/reference/resources/responses/methods/create)
-- [Chat Completions API create](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create)
+- [Chat Completions API create](https://platform.openai.com/docs/api-reference/chat)
 - [Responses와 Chat Completions 비교](https://developers.openai.com/api/docs/guides/migrate-to-responses)
 - [GPT-5.6 Terra](https://developers.openai.com/api/docs/models/gpt-5.6-terra)
 - [공통 프로토콜 문서](openai-llm-api-protocol.md)

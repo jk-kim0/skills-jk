@@ -166,6 +166,8 @@ curl --fail-with-body --silent --show-error \
 
 Explicit 경계는 일곱 번째 고정 content block의 끝이다.
 이 경계까지의 공통 참고자료는 다른 질문에서도 재사용 대상으로 남는다.
+일곱 content block의 `text`를 줄바꿈으로 연결해 `o200k_base`로 로컬 계산한 참고값은 1,277토큰이다.
+이 값은 메시지 framing을 포함하지 않는 텍스트 계산값이며, 해당 모델의 실제 tokenizer나 API의 `usage` 값과 다를 수 있다.
 `implicit` mode는 첫 user 메시지 끝에도 자동 경계를 선택할 수 있다.
 그 경계는 다음 요청이 첫 질문까지 보존할 때 재사용 후보가 된다.
 

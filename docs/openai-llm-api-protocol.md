@@ -300,7 +300,7 @@ WebRTC, WebSocket, SIP 전송을 지원하며 Responses와 세션·event 스키�
 
 - [API overview: 인증, 헤더, request ID, 호환성](https://developers.openai.com/api/reference/overview)
 - [Responses API create](https://developers.openai.com/api/reference/resources/responses/methods/create)
-- [Chat Completions API create](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create)
+- [Chat Completions API create](https://platform.openai.com/docs/api-reference/chat)
 - [Responses로의 전환과 API 비교](https://developers.openai.com/api/docs/guides/migrate-to-responses)
 - [Conversation state](https://developers.openai.com/api/docs/guides/conversation-state)
 - [Streaming API responses](https://developers.openai.com/api/docs/guides/streaming-responses)

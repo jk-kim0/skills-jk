@@ -44,7 +44,7 @@ Accept: application/json
 
 ## 1회차: 첫 질문
 
-### API Call과 요청 Payload
+### 1회차 API Call과 요청 Payload
 
 ```bash
 curl --fail-with-body --silent --show-error \
@@ -70,7 +70,7 @@ curl --fail-with-body --silent --show-error \
 }
 ```
 
-### 응답 Payload
+### 1회차 응답 Payload
 
 ```json
 {
@@ -112,7 +112,7 @@ curl --fail-with-body --silent --show-error \
 
 ## 2회차: 이전 결과에 4 곱하기
 
-### API Call과 요청 Payload
+### 2회차 API Call과 요청 Payload
 
 ```bash
 curl --fail-with-body --silent --show-error \
@@ -153,7 +153,7 @@ curl --fail-with-body --silent --show-error \
 }
 ```
 
-### 응답 Payload
+### 2회차 응답 Payload
 
 ```json
 {
@@ -195,7 +195,7 @@ curl --fail-with-body --silent --show-error \
 
 ## 3회차: 이전 결과에서 6 빼기
 
-### API Call과 요청 Payload
+### 3회차 API Call과 요청 Payload
 
 ```bash
 curl --fail-with-body --silent --show-error \
@@ -251,7 +251,7 @@ curl --fail-with-body --silent --show-error \
 }
 ```
 
-### 응답 Payload
+### 3회차 응답 Payload
 
 ```json
 {
@@ -290,7 +290,7 @@ curl --fail-with-body --silent --show-error \
 
 ## 4회차: 이전 결과를 2로 나누기
 
-### API Call과 요청 Payload
+### 4회차 API Call과 요청 Payload
 
 ```bash
 curl --fail-with-body --silent --show-error \
@@ -361,7 +361,7 @@ curl --fail-with-body --silent --show-error \
 }
 ```
 
-### 응답 Payload
+### 4회차 응답 Payload
 
 ```json
 {
@@ -400,7 +400,7 @@ curl --fail-with-body --silent --show-error \
 
 ## 5회차: 전체 계산 과정 요약
 
-### API Call과 요청 Payload
+### 5회차 API Call과 요청 Payload
 
 ```bash
 curl --fail-with-body --silent --show-error \
@@ -486,7 +486,7 @@ curl --fail-with-body --silent --show-error \
 }
 ```
 
-### 응답 Payload
+### 5회차 응답 Payload
 
 ```json
 {

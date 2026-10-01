@@ -32,7 +32,7 @@ OpenAI는 모델이 선택한 함수 이름과 인자를 반환한다.
 
 ## 호출 1: 질문과 함수 정의 전달
 
-### API Call
+### 호출 1의 API Call
 
 다음 요청 JSON을 `tool-request-01.json`으로 저장한다.
 유효한 서버 환경변수 `OPENAI_API_KEY`를 설정한 환경에서 호출한다.
@@ -45,7 +45,7 @@ curl --fail-with-body --silent --show-error \
   --data-binary @tool-request-01.json
 ```
 
-### 요청 Payload
+### 호출 1의 요청 Payload
 
 ```json
 {
@@ -172,7 +172,7 @@ Nullable 선택 필드가 필요하면 지원되는 schema에서 `null` 타입�
 
 ## 호출 2: 함수 실행 결과 전달
 
-### API Call
+### 호출 2의 API Call
 
 다음 요청 JSON을 `tool-request-02.json`으로 저장한다.
 
@@ -184,7 +184,7 @@ curl --fail-with-body --silent --show-error \
   --data-binary @tool-request-02.json
 ```
 
-### 요청 Payload
+### 호출 2의 요청 Payload
 
 첫 질문, 첫 응답의 function_call, 함수 실행 결과를 순서대로 전송한다.
 `store: false`이므로 이전 Response ID에 의존하지 않는다.
