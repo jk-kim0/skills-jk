@@ -8,10 +8,10 @@ OpenAI는 새 프로젝트에 Responses API를 권장하며, Chat Completions AP
 
 | 문서 | 내용 |
 | --- | --- |
-| [간단한 질의와 응답](openai-llm-api-simple-qa.md) | 한 번의 HTTP 요청, 요청 본문, 응답 본문과 필드 해석 |
-| [5회 질의와 응답](openai-llm-api-five-turn-qa.md) | 다섯 번의 호출에 전달되는 전체 대화 이력과 응답 |
-| [Tool call을 포함하는 응답](openai-llm-api-tool-call.md) | 함수 정의, 호출 요청, 애플리케이션 실행, 결과 전달, 최종 응답 |
-| [여러 차례 대화와 프롬프트 캐시](openai-llm-api-prompt-caching.md) | Prefix 유지 규칙, 캐시 경계, 요청 예제와 사용량 해석 |
+| [간단한 질의와 응답](simple-qa.md) | 한 번의 HTTP 요청, 요청 본문, 응답 본문과 필드 해석 |
+| [5회 질의와 응답](five-turn-qa.md) | 다섯 번의 호출에 전달되는 전체 대화 이력과 응답 |
+| [Tool call을 포함하는 응답](tool-call.md) | 함수 정의, 호출 요청, 애플리케이션 실행, 결과 전달, 최종 응답 |
+| [여러 차례 대화와 프롬프트 캐시](prompt-caching.md) | Prefix 유지 규칙, 캐시 경계, 요청 예제와 사용량 해석 |
 
 상세 예제는 `POST /v1/responses`와 `gpt-5.6-terra`를 사용한다.
 이 모델은 Responses, Chat Completions, function calling, prompt caching을 지원한다.

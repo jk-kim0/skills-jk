@@ -323,4 +323,4 @@ Chat Completions에서는 tool 결과만 보내지 않고 해당 tool_calls를 �
 - [Function calling strict mode](https://developers.openai.com/api/docs/guides/function-calling#strict-mode)
 - [Responses API create](https://developers.openai.com/api/reference/resources/responses/methods/create)
 - [Prompt caching: tool 정의 유지](https://developers.openai.com/api/docs/guides/prompt-caching#manage-tools-with-append-only-updates)
-- [공통 프로토콜 문서](openai-llm-api-protocol.md)
+- [공통 프로토콜 문서](README.md)

@@ -553,7 +553,7 @@ Assistant `phase`가 반환되는 모델에서는 그 값도 유지한다.
 이처럼 기존 이력을 바꾸지 않고 뒤에 새 item을 추가하면 공통 prefix를 유지하기 쉽다.
 실제 캐시 읽기는 모델의 최소 길이, 유효한 캐시 경계, TTL, 라우팅 등의 조건을 만족해야 한다.
 긴 대화에서는 context window와 전체 비용도 확인하고, 필요할 때 요약·compaction을 적용한다.
-캐시 최적화의 구체적인 규칙은 [프롬프트 캐시 예제](openai-llm-api-prompt-caching.md)를 참조한다.
+캐시 최적화의 구체적인 규칙은 [프롬프트 캐시 예제](prompt-caching.md)를 참조한다.
 
 ## 다른 대화 연결 방식
 
@@ -568,4 +568,4 @@ HTTP의 `store: false` 예제에 가상 Response ID만 붙여 서버 대화 연�
 - [Conversation state: 수동 이력과 서버 대화 연결](https://developers.openai.com/api/docs/guides/conversation-state)
 - [Responses 전환: instructions와 output item 재사용](https://developers.openai.com/api/docs/guides/migrate-to-responses)
 - [Prompt caching](https://developers.openai.com/api/docs/guides/prompt-caching)
-- [공통 프로토콜 문서](openai-llm-api-protocol.md)
+- [공통 프로토콜 문서](README.md)

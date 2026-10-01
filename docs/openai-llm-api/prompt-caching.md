@@ -341,7 +341,7 @@ curl --fail-with-body --silent --show-error \
 `cached_tokens`를 입력 토큰에 다시 더하지 않는다.
 이 가상 응답의 일반 입력은 `1824 - 1600 - 160 = 64`토큰이다.
 세 번째 질문도 같은 설정과 prefix를 유지하고 두 번째 output 뒤에 새 user item을 추가한다.
-5회 전체 이력 관리 방식은 [5회 대화 문서](openai-llm-api-five-turn-qa.md)에 나와 있다.
+5회 전체 이력 관리 방식은 [5회 대화 문서](five-turn-qa.md)에 나와 있다.
 
 ## 같은 Payload를 Explicit-only로 바꾸는 예
 
@@ -461,4 +461,4 @@ Cache-write 비용은 일반 입력 요금에 덧붙이는 추가 fee가 아니�
 - [사용량과 비용 측정](https://developers.openai.com/api/docs/guides/prompt-caching#monitor-cache-performance)
 - [Conversation state](https://developers.openai.com/api/docs/guides/conversation-state)
 - [GPT-5.6 Terra의 지원 기능과 요금](https://developers.openai.com/api/docs/models/gpt-5.6-terra)
-- [공통 프로토콜 문서](openai-llm-api-protocol.md)
+- [공통 프로토콜 문서](README.md)
