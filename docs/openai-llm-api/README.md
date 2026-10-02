@@ -12,9 +12,11 @@ OpenAI는 새 프로젝트에 Responses API를 권장하며, Chat Completions AP
 | [5회 질의와 응답](five-turn-qa.md) | 다섯 번의 호출에 전달되는 전체 대화 이력과 응답 |
 | [Tool call을 포함하는 응답](tool-call.md) | 함수 정의, 호출 요청, 애플리케이션 실행, 결과 전달, 최종 응답 |
 | [여러 차례 대화와 프롬프트 캐시](prompt-caching.md) | Prefix 유지 규칙, 캐시 경계, 요청 예제와 사용량 해석 |
+| [Codex·Claude의 Context compaction](context-compaction-codex-claude.md) | CLI와 공개 API의 동작, 비용·캐시 효과, 정보 보존과 운영 주의사항 |
 
-상세 예제는 `POST /v1/responses`와 `gpt-5.6-terra`를 사용한다.
+질의·tool call·프롬프트 캐시 예제는 `POST /v1/responses`와 `gpt-5.6-terra`를 사용한다.
 이 모델은 Responses, Chat Completions, function calling, prompt caching을 지원한다.
+Compaction 문서는 Codex·Claude Code와 양사의 공개 API를 비교하며 별도로 명시한 모델·endpoint·beta 헤더를 사용한다.
 필드 지원 여부와 허용값은 사용하는 모델과 API에 따라 확인해야 한다.
 예제 응답은 구조를 설명하기 위한 가상 데이터이며 실제 API 실행 결과가 아니다.
 응답의 일부 선택 필드는 생략했고, ID·토큰 수·생성 문구는 실제 호출마다 달라진다.
