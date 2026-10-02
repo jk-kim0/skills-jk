@@ -325,7 +325,8 @@ Block에는 읽을 수 있는 요약 `content`와 `signature`가 있다.
 5. 요약 요청에는 기존 대화와 동일한 `system`, `tools`를 전달한다.
 
 이력을 맨 앞의 block으로 교체한 후의 구조 예제는 다음과 같다.
-Signature placeholder는 실제 반환값으로 바꾸어야 한다.
+아래의 compaction block 전체를 실제 API 반환값으로 교체한다.
+예시 요약문과 실제 signature를 조합하면 서명 검증에 실패할 수 있다.
 
 ```json
 {
@@ -351,6 +352,10 @@ Signature placeholder는 실제 반환값으로 바꾸어야 한다.
 요약 대상 메시지가 block 앞에 남으면 400 오류이며, 뒤에 남으면 오류 없이 중복 전달될 수 있다.
 다음 요청에서 block을 빼면 요약 정보도 전달되지 않는다.
 Signed block이 있는 요청에서 threshold compaction을 함께 사용하지 않는다.
+요약 요청의 `compaction`과 `context_management`도 한 요청에 함께 보낼 수 없다.
+
+`compaction.instructions`를 지정하면 기본 요약 지시를 완전히 대체한다.
+보존할 목표·결정·제약·미완료 작업을 명시하고 도구를 실행하지 말고 요약만 반환하도록 지시한다.
 
 HTTP 200만으로 요약 성공을 판정하지 않는다.
 `max_tokens`, 거절 등으로 요약에 실패하면 `content`가 빈 배열일 수 있으므로 `stop_reason`과 block을 확인한 뒤에만 기존 이력을 교체한다.
