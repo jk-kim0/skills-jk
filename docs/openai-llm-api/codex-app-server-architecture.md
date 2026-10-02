@@ -20,15 +20,15 @@ flowchart TB
     User["이용자"]
 
     subgraph PC["이용자 PC · Local / Worktree 실행"]
-        UI["UI client<br/>Desktop 앱 / IDE 확장 / 사용자 정의 client"]
+        UI["UI client<br/>Desktop 앱 · IDE 확장<br/>사용자 정의 client"]
         subgraph Server["Codex app-server와 연결된 runtime · 논리 구성"]
-            RPC["App-server API<br/>JSON-RPC · 인증 · 대화 · 승인 · 이벤트"]
-            Agent["Codex runtime / agent loop<br/>Context 구성 · 모델 호출 · tool 실행 조율"]
+            RPC["App-server API<br/>JSON-RPC · 인증 · 대화<br/>승인 · 이벤트"]
+            Agent["Codex runtime / agent loop<br/>Context 구성 · 모델 호출<br/>Tool 실행 조율"]
             RPC <--> Agent
         end
         Tools["로컬 실행 도구<br/>Shell · 파일 읽기/수정 · Git"]
         Workspace["작업 공간<br/>프로젝트 파일 · 저장소 · worktree · AGENTS.md"]
-        State["대화 상태 저장<br/>Thread 이력 · JSONL log · SQLite metadata"]
+        State["대화 상태 저장<br/>Thread 이력 · JSONL log<br/>SQLite metadata"]
         MCP["선택적 로컬 MCP server<br/>별도 도구 / context 제공"]
 
         UI <-->|"요청 · 이벤트 · 승인 결정"| RPC
@@ -38,7 +38,7 @@ flowchart TB
         Agent <-->|"MCP 호출 · 결과"| MCP
     end
 
-    Model["원격 모델 서비스<br/>추론 · 텍스트 생성 · tool call 생성"]
+    Model["원격 모델 서비스<br/>추론 · 텍스트 생성<br/>Tool call 생성"]
     User <-->|"질의 · 결과 확인 · 승인"| UI
     Agent <-->|"모델 입력 · 생성 결과 stream"| Model
 ```
@@ -148,7 +148,7 @@ Thread ID, Turn ID, Item ID와 모델 API의 Response ID도 서로 바꿔 사용
 sequenceDiagram
     actor U as 이용자
     participant C as UI client
-    participant A as App-server / runtime
+    participant A as App-server<br/>runtime
     participant M as 원격 모델 서비스
     participant T as 로컬 tool runner
     participant W as 작업 공간
@@ -171,15 +171,19 @@ sequenceDiagram
             opt 정책상 이용자 승인이 필요한 경우
                 A->>C: 승인 request · id 포함
                 C->>U: 작업 내용과 승인 UI 표시
-                U->>C: 승인 결정
+                U->>C: 승인 또는 거절·취소 결정
                 C-->>A: 같은 id의 decision response
             end
-            A->>T: 허용된 작업 실행
-            T->>W: 파일 읽기/수정 또는 shell 작업
-            W-->>T: 파일 내용 · 실행 결과
-            T-->>A: tool 결과
-            A-->>C: item/completed · 도구 최종 상태
-            Note over A,M: 도구 결과를 다음 모델 호출의 context에 반영
+            alt 정책과 승인 결과에 따라 실행이 허용된 경우
+                A->>T: 허용된 작업 실행
+                T->>W: 파일 읽기/수정 또는 shell 작업
+                W-->>T: 파일 내용 · 실행 결과
+                T-->>A: tool 결과
+                A-->>C: item/completed · 도구 최종 상태
+            else 거절 또는 취소된 경우
+                A-->>C: item/completed · 요청한 도구를 실행하지 않음
+            end
+            Note over A,M: 실행 결과 또는 거절 상태를 이후 작업에 반영
         else 최종 답변인 경우
             A-->>C: item/agentMessage/delta
             A-->>C: item/completed · agentMessage
