@@ -13,6 +13,7 @@ OpenAI는 새 프로젝트에 Responses API를 권장하며, Chat Completions AP
 | [Tool call을 포함하는 응답](tool-call.md) | 함수 정의, 호출 요청, 애플리케이션 실행, 결과 전달, 최종 응답 |
 | [여러 차례 대화와 프롬프트 캐시](prompt-caching.md) | Prefix 유지 규칙, 캐시 경계, 요청 예제와 사용량 해석 |
 | [Codex·Claude의 Context compaction](context-compaction-codex-claude.md) | CLI와 공개 API의 동작, 비용·캐시 효과, 정보 보존과 운영 주의사항 |
+| [Codex app-server 아키텍처](codex-app-server-architecture.md) | 이용자·UI·runtime·작업 공간·원격 모델의 관계, 도식과 JSON-RPC 경계 |
 
 질의·tool call·프롬프트 캐시 예제는 `POST /v1/responses`와 `gpt-5.6-terra`를 사용한다.
 이 모델은 Responses, Chat Completions, function calling, prompt caching을 지원한다.
@@ -20,6 +21,9 @@ Compaction 문서는 Codex·Claude Code와 양사의 공개 API를 비교하며 
 필드 지원 여부와 허용값은 사용하는 모델과 API에 따라 확인해야 한다.
 예제 응답은 구조를 설명하기 위한 가상 데이터이며 실제 API 실행 결과가 아니다.
 응답의 일부 선택 필드는 생략했고, ID·토큰 수·생성 문구는 실제 호출마다 달라진다.
+
+Codex 아키텍처 문서는 모델 API 앞단의 client·agent runtime·실행 환경을 설명한다.
+해당 문서의 app-server JSON-RPC 예제와 위 HTTP 모델 API 예제는 서로 다른 interface이며, 공식 문서 확인일은 각 문서에 표기한다.
 
 이 문서에서 protocol은 HTTPS, 인증, HTTP 메서드, 응답 형식과 스트리밍 규약을 뜻한다.
 Payload는 그 위에 전달되는 요청·응답 본문을 뜻한다.
