@@ -102,3 +102,28 @@ pastes/
 platforms/
 # SQLite kanban database - runtime transient state
 kanban.db
+
+# Runtime locks and installation markers created by Hermes startup/update.
+.install_id.lock
+.mcp-discovery.lock
+.npm_lock_hash_*
+kanban.db.*.lock
+install_id
+
+# Gateway and model-discovery runtime output.
+gateway-starts.log
+models_dev_cache.etag
+spawn-ledger.json
+web-ui-build-stamp.json
+kanban/
+state/
+
+# Migration snapshots contain local state databases, auth material, and .env files.
+state-snapshots/
+
+# Curator archives/backups and skill hub metadata are local maintenance state.
+.curator_backups/
+skills/.archive/
+skills/.curator_backups/
+skills/.curator_ledger.jsonl
+skills/.hub/
