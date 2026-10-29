@@ -212,7 +212,7 @@ auxiliary:
     extra_body: {}
 display:
   compact: true
-  personality: kawaii
+  personality: ''
   resume_display: full
   busy_input_mode: interrupt
   tui_auto_resume_recent: false
@@ -311,10 +311,10 @@ delegation:
   api_key: ''
   api_mode: ''
   inherit_mcp_toolsets: true
-  max_iterations: 50
+  max_iterations: 250
   child_timeout_seconds: 600
   reasoning_effort: ''
-  max_concurrent_children: 3
+  max_concurrent_children: 10
   max_spawn_depth: 1
   orchestrator_enabled: true
   subagent_auto_approve: false
@@ -422,7 +422,7 @@ logging:
 model_catalog:
   enabled: true
   url: https://hermes-agent.nousresearch.com/docs/api/model-catalog.json
-  ttl_hours: 24
+  ttl_hours: 1
   providers: {}
 network:
   force_ipv4: false
@@ -448,7 +448,7 @@ x_search:
   model: grok-4.20-reasoning
   timeout_seconds: 180
   retries: 2
-_config_version: 22
+_config_version: 39
 mcp_servers:
   chrome-devtools:
     command: npx
