@@ -1,8 +1,9 @@
 name: Scheduled Tasks
 
 on:
-  schedule:
-    - cron: '0 9 * * 1-5'  # 평일 매일 9시
+  # 자동 실행 중지: schedule trigger 비활성화 (수동 실행만 허용)
+  # schedule:
+  #   - cron: '0 9 * * 1-5'  # 평일 매일 9시
   workflow_dispatch:
     inputs:
       runner:
